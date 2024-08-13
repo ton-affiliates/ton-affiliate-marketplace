@@ -53,7 +53,7 @@ describe('AffiliateMarketplace Integration Test', () => {
         });
     });
 
-    it('should create campaign, sign by both parties, add funds, and handle user click', async () => {
+    it('should create affiliate, sign by both parties, add funds, and handle user click', async () => {
         
         const cpc = toNano('0.1');
 
@@ -165,7 +165,7 @@ describe('AffiliateMarketplace Integration Test', () => {
             }
         }
 
-        // Advertiser adds funds to the campaign
+        // Advertiser adds funds to the affiliate
         const addFundsResult = await affiliateContract.send(
             advertiser.getSender(),
             {
@@ -185,9 +185,9 @@ describe('AffiliateMarketplace Integration Test', () => {
         for (const external of addFundsResult.externals) {
             if (external.body) {
                 const decodedEvent = loadFundsAddedEvent(external.body);
-                logs.push({ type: 'FundsAddedToCampaignEvent', data: decodedEvent });
+                logs.push({ type: 'FundsAddedToAffiliateEvent', data: decodedEvent });
                 expect(decodedEvent).toMatchObject({
-                    $$type: 'FundsAddedToCampaignEvent',
+                    $$type: 'FundsAddedToAffiliateEvent',
                     affiliateId: 0,
                     amountAdded: toNano('2'),
                 });
@@ -264,6 +264,18 @@ describe('AffiliateMarketplace Integration Test', () => {
             }
         }
 
+        const affiliateMarketplaceContractBalance = await affiliateMarketplaceContract.getBalance();
+        const affiliateBalance = await affiliateContract.getBalance();
+        const advertiserBalance = await advertiser.getBalance();
+        const publisherBalance = await publisher.getBalance();
+
+        logs.push({ type: 'AffiliateMarketplaceContractBalance', data: fromNano(affiliateMarketplaceContractBalance) + " TON"  });
+        logs.push({ type: 'AffiliateContractBalance', data: fromNano(affiliateBalance) + " TON" });
+        logs.push({ type: 'AdvertiserBalance', data: await fromNano(advertiserBalance) + " TON"  });
+        logs.push({ type: 'PublisherBalance', data: await fromNano(publisherBalance) + " TON"  });
+
+
+
         // Custom replacer function to handle BigInt serialization
         function replacer(key, value) {
             return typeof value === 'bigint' ? fromNano(value).toString() + " TON" : value;
@@ -271,19 +283,6 @@ describe('AffiliateMarketplace Integration Test', () => {
 
         // Output the final logs
         console.log("Final logs:", JSON.stringify(logs, replacer, 2));
-
-        const parentBalance = await affiliateMarketplaceContract.getBalance();
-        console.log("Parent contract balance: " + fromNano(parentBalance) + " TON");
-
-        const affiliateBalance = await affiliateContract.getBalance();
-        console.log("Affiliate contract balance: " + fromNano(affiliateBalance) + " TON");
-
-        const advertiserBalance = await advertiser.getBalance();
-        console.log("Advertiser balance: " + fromNano(advertiserBalance) + " TON");
-
-        const publisherBalance = await publisher.getBalance();
-        console.log("Publisher balance: " + fromNano(publisherBalance) + " TON");
-
     });
 
 
