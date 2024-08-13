@@ -53,8 +53,8 @@ export function loadFundsAddedEvent(cell: Cell) {
     const slice = loadEvent(cell, EVENT_TYPE_FUNDS_ADDED);
     const affiliateId = slice.loadUint(32);
     const amountAdded = slice.loadCoins();
-    const balance = slice.loadCoins();
-    return { $$type: 'FundsAddedToAffiliateEvent', affiliateId, amountAdded, balance };
+    const campaignBalance = slice.loadCoins();
+    return { $$type: 'FundsAddedToCampaignEvent', affiliateId, amountAdded, campaignBalance };
 }
 
 export function loadPublisherPaidEvent(cell: Cell) {
