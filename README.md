@@ -92,8 +92,7 @@ npm run test -- ./test/IntegrationTest.spec.ts
 ```
 .
 ├── contracts
-│   ├── Affiliate.tact                # Affiliate child contract implementation
-│   ├── AffiliateMarketplace.tact     # Main marketplace contract implementation
+│   ├── AffiliateMarketplace.tact     # Main marketplace contract implementation + Affiliate child contract implementation
 │
 ├── test
 │   ├── IntegrationTest.spec.ts       # Integration tests for the contracts
@@ -101,10 +100,10 @@ npm run test -- ./test/IntegrationTest.spec.ts
 │   ├── events.ts                     # Event loaders for test verification
 │
 ├── dist                              # Compiled contracts
-│   ├── tact_Affiliate.js
-│   ├── tact_AffiliateMarketplace.js
+│   ├── tact_Affiliate
+│   ├── tact_AffiliateMarketplace
 │
 ├── README.md                         # This README file
 ├── package.json                      # Project dependencies and scripts
-└── tsconfig.json                     # TypeScript configuration
+└── tact.config.json                  # Tact compiler configuration
 ```
