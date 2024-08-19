@@ -145,7 +145,6 @@
             emit(FundsAddedToAffiliateEvent{affiliateId: self.affiliateId, amountAdded: context().value, contractBalance: myBalance()}.toCell());
         }
 
-        // 0.5 % from cpc and 0.5% from contract (e.g. half from publisher and half from advertiser)
         receive(msg: InternalUserClick) {
             
             self.requireParent();
