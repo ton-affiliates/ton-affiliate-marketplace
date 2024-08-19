@@ -1,6 +1,6 @@
 import "@stdlib/deploy";
 import "@stdlib/ownable";
-import "./jetton";  // Import Jetton interfaces
+import "./Jetton";  // Import Jetton interfaces
 
 // Constants
 const STATE_AFFILIATE_CREATED: Int = 0;
@@ -68,12 +68,13 @@ contract Affiliate {
     cpc: Int as coins;
     state: Int as uint32;
     numUserClicks: Int as uint32;
-    internalJettonBalance: Int as coins;
-    walletCreated: Bool;
-    jettonMasterAddress: Address;  // Jetton Master address
+    internalJettonBalance: Int as coins;  // must maintain this here because of async nature of blockchain
+    jettonWalletAddress: Address;
 
     init(parent: Address, affiliateId: Int, advertiser: Address, publisher: Address, cpc: Int, jettonMasterAddress: Address) {   
+        
         require(sender() == parent, "parent must be deployer");
+        require(context().value >= storageFee, "Insufficient funds");
 
         self.parent = parent;
         self.affiliateId = affiliateId;
@@ -84,39 +85,35 @@ contract Affiliate {
         self.state = STATE_AFFILIATE_CREATED;
         self.numUserClicks = 0;
         self.internalJettonBalance = 0;
-        self.walletCreated = false;
-        self.jettonMasterAddress = jettonMasterAddress;  // Initialize Jetton Master address
-    }
 
-    // Deploy the Jetton Wallet if needed
-    fun deployJettonWalletIfNeeded(): Address {
-        if (!self.walletCreated) {
-            let init: StateInit = JettonMaster(self.jettonMasterAddress).get_wallet_address(myAddress());
-            let walletAddress: Address = contractAddress(init);
+        // create wallet for this contract
+        let init: StateInit = initOf JettonDefaultWallet(myAddress(), jettonMasterAddress);
+        let walletAddress: Address = contractAddress(init);
+        self.jettonWalletAddress = walletAddress;  
 
-            send(SendParameters{
-                to: walletAddress,
-                value: storageFee,
-                bounce: true,
-                code: init.code,
-                data: init.data
-            });
-
-            self.walletCreated = true;
-            return walletAddress;
-        }
-        return JettonMaster(self.jettonMasterAddress).get_wallet_address(myAddress());
+        send(SendParameters{
+            to: walletAddress,
+            value: storageFee,
+            bounce: true,
+            code: init.code,
+            data: init.data
+        });
     }
 
     // Handling incoming Jetton transfers to update the internal balance
     receive(msg: TokenNotification) {
-        self.internalJettonBalance += msg.amount;
+        
+        self.internalJettonBalance = self.internalJettonBalance + msg.amount;
 
-        emit FundsAddedToAffiliateEvent{
+        emit (FundsAddedToAffiliateEvent {
             affiliateId: self.affiliateId,
             amountAdded: msg.amount,
             jettonBalance: self.internalJettonBalance
-        }.toCell();
+        }.toCell());
+    }
+
+    fun requireParent() {
+        require(sender() == self.parent, "Only the parent contract can invoke this function");
     }
 
     receive(msg: AdvertiserSigned) {
@@ -158,10 +155,11 @@ contract Affiliate {
     }
 
     receive(msg: InternalUserClick) {
+        
         self.requireParent();
         require(self.state == STATE_SIGNED_BY_BOTH, "Must be in state: STATE_SIGNED_BY_BOTH");
 
-        self.numUserClicks += 1;
+        self.numUserClicks = self.numUserClicks + 1;
 
         // Calculate fees
         let percentage: Int = 50;  // Represents 0.5%
@@ -175,7 +173,7 @@ contract Affiliate {
         require(self.internalJettonBalance >= self.cpc + feeFromContract, "Insufficient Jetton balance to pay publisher and cover fees");
 
         // Update internal balance before sending
-        self.internalJettonBalance -= self.cpc;
+        self.internalJettonBalance = self.internalJettonBalance - self.cpc;
 
         // Transfer the remaining CPC to the publisher
         send(SendParameters{
@@ -201,7 +199,7 @@ contract Affiliate {
             mode: SendRemainingValue
         });
 
-        emit PublisherPaidEvent{affiliateId: self.affiliateId, advertiser: self.advertiser, publisher: self.publisher, cpc: self.cpc, txFee: totalFee, jettonBalance: self.internalJettonBalance}.toCell();
+        emit (PublisherPaidEvent{affiliateId: self.affiliateId, advertiser: self.advertiser, publisher: self.publisher, cpc: self.cpc, txFee: totalFee, jettonBalance: self.internalJettonBalance}.toCell());
     }
 
     receive(msg: RemoveAffiliateAndWithdrawFunds) {
@@ -226,7 +224,7 @@ contract Affiliate {
             mode: SendRemainingBalance
         });
 
-        emit AffiliateRemovedEvent{affiliateId: self.affiliateId, advertiser: self.advertiser, publisher: self.publisher, cpc: self.cpc, jettonBalance: balance}.toCell();
+        emit (AffiliateRemovedEvent{affiliateId: self.affiliateId, advertiser: self.advertiser, publisher: self.publisher, cpc: self.cpc, jettonBalance: balance}.toCell());
     }
 
     get fun balance(): Int {
@@ -238,6 +236,40 @@ contract Affiliate {
     }
 }
 
+// messages
+    message InternalChildToParentTxFee {
+        affiliateId: Int as uint32;
+        advertiser: Address;
+        publisher: Address;
+        cpc: Int as coins;
+    }
+
+    message AdminWithdraw {
+        amount: Int as coins;
+    }
+
+    message CreateAffiliate {
+        advertiser: Address;
+        publisher: Address;
+        cpc: Int as coins;
+    }
+
+    message UserClick {
+        affiliateId: Int as uint32;
+        advertiser: Address;
+        publisher: Address;
+        cpc: Int as coins;
+    }
+
+    // events   
+    message AffiliateCreatedEvent {
+        affiliateId: Int as uint32;
+        advertiser: Address;
+        publisher: Address;
+        cpc: Int as coins;
+        affiliateContractAddress: Address;
+    }
+
 
 // Parent Contract 
 contract AffiliateMarketplace with Deployable, Ownable {
@@ -279,7 +311,9 @@ contract AffiliateMarketplace with Deployable, Ownable {
     }
 
     receive(msg: AdminWithdraw) {
+        
         self.requireOwner();
+        
         require(self.balance() >= msg.amount, "Insufficient funds");
         send(SendParameters{
             to: self.owner,
@@ -291,8 +325,9 @@ contract AffiliateMarketplace with Deployable, Ownable {
 
     // Function to create a new affiliate
     receive(msg: CreateAffiliate) {
+        
         self.requireBot();
-        require(context().value >= storageFee, "Insufficient funds to perform this operation");
+        require(context().value >= storageFee * 2, "Insufficient funds to perform this operation");
 
         let affiliateId = self.currAffiliateId;
         self.currAffiliateId = affiliateId + 1;
@@ -303,23 +338,24 @@ contract AffiliateMarketplace with Deployable, Ownable {
         send(SendParameters{
             to: affiliateContractAddress,
             value: storageFee,
-            mode: SendIgnoreErrors,
+            mode: SendIgnoreErrors + SendRemainingBalance,
             code: init.code,
             data: init.data,
             body: InternalCreateAffiliate{affiliateId: affiliateId}.toCell()
         });
 
-        emit AffiliateCreatedEvent{
+        emit (AffiliateCreatedEvent{
             affiliateId: affiliateId,
             advertiser: msg.advertiser,
             publisher: msg.publisher,
             cpc: msg.cpc,
             affiliateContractAddress: affiliateContractAddress
-        }.toCell();
+        }.toCell());
     }
 
     // Function to handle user click
     receive(msg: UserClick) {
+        
         self.requireBot();
 
         let init: StateInit = self.affiliateContractStateInit(msg.affiliateId, msg.advertiser, msg.publisher, msg.cpc);
@@ -334,103 +370,3 @@ contract AffiliateMarketplace with Deployable, Ownable {
         });
     }
 }
-
-import "@stdlib/deploy";
-import "@stdlib/ownable";
-
-// Parent Contract 
-contract AffiliateMarketplace with Deployable, Ownable {
-
-    // State variables
-    owner: Address;
-    bot: Address;
-    currAffiliateId: Int as uint32;
-    jettonMasterAddress: Address;  // Jetton Master address
-
-    // Constructor
-    init(bot: Address, jettonMasterAddress: Address) {
-        self.owner = sender();
-        self.bot = bot;
-        self.currAffiliateId = 0;
-        self.jettonMasterAddress = jettonMasterAddress;  // Initialize Jetton Master address
-    }
-
-    fun requireBot() {
-        require(sender() == self.bot, "Only the bot is permitted here");
-    }
-
-    get fun balance(): Int {
-        return myBalance();
-    }
-
-    fun affiliateContractStateInit(affiliateId: Int, advertiser: Address, publisher: Address, cpc: Int): StateInit {
-        let initCode: StateInit = initOf Affiliate(myAddress(), affiliateId, advertiser, publisher, cpc, self.jettonMasterAddress);
-        return initCode;
-    }
-
-    get fun affiliateContractAddress(affiliateId: Int, advertiser: Address, publisher: Address, cpc: Int): Address {
-        return contractAddress(self.affiliateContractStateInit(affiliateId, advertiser, publisher, cpc));
-    }
-
-    receive(msg: InternalChildToParentTxFee) {
-        let expectedAddress: Address = self.affiliateContractAddress(msg.affiliateId, msg.advertiser, msg.publisher, msg.cpc);
-        require(sender() == expectedAddress, "Access denied");
-    }
-
-    receive(msg: AdminWithdraw) {
-        self.requireOwner();
-        require(self.balance() >= msg.amount, "Insufficient funds");
-        send(SendParameters{
-            to: self.owner,
-            bounce: true,
-            value: msg.amount,
-            mode: SendRemainingValue
-        });
-    }
-
-    // Function to create a new affiliate
-    receive(msg: CreateAffiliate) {
-        self.requireBot();
-        require(context().value >= storageFee, "Insufficient funds to perform this operation");
-
-        let affiliateId = self.currAffiliateId;
-        self.currAffiliateId = affiliateId + 1;
-
-        let init: StateInit = self.affiliateContractStateInit(affiliateId, msg.advertiser, msg.publisher, msg.cpc);
-        let affiliateContractAddress: Address = contractAddress(init);
-
-        send(SendParameters{
-            to: affiliateContractAddress,
-            value: storageFee,
-            mode: SendIgnoreErrors,
-            code: init.code,
-            data: init.data,
-            body: InternalCreateAffiliate{affiliateId: affiliateId}.toCell()
-        });
-
-        emit AffiliateCreatedEvent{
-            affiliateId: affiliateId,
-            advertiser: msg.advertiser,
-            publisher: msg.publisher,
-            cpc: msg.cpc,
-            affiliateContractAddress: affiliateContractAddress
-        }.toCell();
-    }
-
-    // Function to handle user click
-    receive(msg: UserClick) {
-        self.requireBot();
-
-        let init: StateInit = self.affiliateContractStateInit(msg.affiliateId, msg.advertiser, msg.publisher, msg.cpc);
-        let affiliateContractAddress: Address = contractAddress(init);
-
-        send(SendParameters{
-            to: affiliateContractAddress,
-            body: InternalUserClick{}.toCell(),
-            value: 0, 
-            mode: SendRemainingValue + SendIgnoreErrors,
-            bounce: false
-        });
-    }
-}
-
