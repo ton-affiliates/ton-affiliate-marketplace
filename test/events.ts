@@ -3,12 +3,12 @@
 import { Cell } from '@ton/core';
 
 // Event types from the ABI
-const EVENT_TYPE_AFFILIATE_CREATED = 413735385;
-const EVENT_TYPE_ADVERTISER_SIGNED = 1916433693;
-const EVENT_TYPE_PUBLISHER_SIGNED = 1445469268;
-const EVENT_TYPE_FUNDS_ADDED = 1667578048;
-const EVENT_TYPE_PUBLISHER_PAID = 333578746;
-const EVENT_TYPE_AFFILIATE_REMOVED = 2349079316;
+const EVENT_TYPE_AFFILIATE_CREATED = 413735385; // AffiliateCreatedEvent
+const EVENT_TYPE_ADVERTISER_SIGNED = 654368531; // AdvertiserSignedEvent
+const EVENT_TYPE_PUBLISHER_SIGNED = 2106992790; // PublisherSignedEvent
+const EVENT_TYPE_FUNDS_ADDED = 2709992718; // FundsAddedToAffiliateEvent
+const EVENT_TYPE_PUBLISHER_PAID = 3655800344; // PublisherPaidEvent
+const EVENT_TYPE_AFFILIATE_REMOVED = 2602958696; // AffiliateRemovedEvent
 
 function loadEvent(cell: Cell, expectedEventType: number) {
     const slice = cell.beginParse();
@@ -53,8 +53,8 @@ export function loadFundsAddedEvent(cell: Cell) {
     const slice = loadEvent(cell, EVENT_TYPE_FUNDS_ADDED);
     const affiliateId = slice.loadUint(32);
     const amountAdded = slice.loadCoins();
-    const campaignBalance = slice.loadCoins();
-    return { $$type: 'FundsAddedToCampaignEvent', affiliateId, amountAdded, campaignBalance };
+    const balance = slice.loadCoins();
+    return { $$type: 'FundsAddedToAffiliateEvent', affiliateId, amountAdded, balance };
 }
 
 export function loadPublisherPaidEvent(cell: Cell) {
