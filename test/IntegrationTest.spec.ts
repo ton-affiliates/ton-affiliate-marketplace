@@ -7,11 +7,8 @@ import '@ton/test-utils';
 // Import events and event loaders
 import {
     loadAffiliateCreatedEvent,
-    loadAdvertiserSignedEvent,
     loadPublisherSignedEvent,
-    loadFundsAddedEvent,
     loadPublisherPaidEvent,
-    loadAffiliateRemovedEvent
 } from './events';
 
 type EmitLogEvent = {
@@ -53,26 +50,32 @@ describe('AffiliateMarketplace Integration Test', () => {
         });
     });
 
-    it('should create affiliate, sign by both parties, add funds, and handle user click', async () => {
+    it('should create affiliate,sign by publisher, and handle user click', async () => {
         
         const cpc = toNano('0.1');
+        const amount = toNano('10');
+
+        logs.push({ type: 'AffiliateMarketplaceContractBalance', data: fromNano(await affiliateMarketplaceContract.getBalance()) + " TON"  });
+        logs.push({ type: 'AdvertiserBalance', data: fromNano(await advertiser.getBalance()) + " TON"  });
+        logs.push({ type: 'PublisherBalance', data: fromNano(await publisher.getBalance()) + " TON"  });
 
         // Create Affiliate
         const createAffiliateResult = await affiliateMarketplaceContract.send(
-            bot.getSender(),
+            advertiser.getSender(),
             {
-                value: toNano('0.15'), 
+                value: amount, // load contract with 10 TON
             },
             {
                 $$type: 'CreateAffiliate',
                 advertiser: advertiser.address,
                 publisher: publisher.address,
                 cpc: cpc,
+                amount: amount
             }
         );
 
         expect(createAffiliateResult.transactions).toHaveTransaction({
-            from: bot.address,
+            from: advertiser.address,
             to: affiliateMarketplaceContract.address,
             success: true,
         });
@@ -87,7 +90,7 @@ describe('AffiliateMarketplace Integration Test', () => {
                     affiliateId: 0,
                     advertiser: advertiser.address.toString(),
                     publisher: publisher.address.toString(),
-                    cpc: cpc,
+                    cpc: cpc
                 });
                 affiliateContractAddress = decodedAffiliate.affiliateContractAddress;
             }
@@ -96,44 +99,20 @@ describe('AffiliateMarketplace Integration Test', () => {
         expect(affiliateContractAddress).not.toBeNull();
         expect(createAffiliateResult.transactions).toHaveTransaction({
             from: affiliateMarketplaceContract.address,
-            to: Address.parse(affiliateContractAddress),
+            to: affiliateContractAddress,
             success: true,
             deploy: true,
         });
 
-        const affiliateContract = blockchain.openContract(await Affiliate.fromInit(affiliateMarketplaceContract.address, 0, advertiser.address, publisher.address, cpc));
+        const affiliateContract = blockchain.openContract(await Affiliate.fromInit(affiliateMarketplaceContract.address, 0, publisher.address, cpc));
 
-        // Advertiser signs the contract
-        const advertiserSignedResult = await affiliateContract.send(
-            advertiser.getSender(),
-            {
-                value: toNano('0.01'),
-            },
-            {
-                $$type: 'AdvertiserSigned',
-            }
-        );
 
-        expect(advertiserSignedResult.transactions).toHaveTransaction({
-            from: advertiser.address,
-            to: affiliateContract.address,
-            success: true,
-        });
+        logs.push({ type: 'AffiliateMarketplaceContractBalance', data: fromNano(await affiliateMarketplaceContract.getBalance()) + " TON"  });
+        logs.push({ type: 'AffiliateContractBalance', data: fromNano(await affiliateContract.getBalance()) + " TON" });
+        logs.push({ type: 'AdvertiserBalance', data: fromNano(await advertiser.getBalance()) + " TON"  });
+        logs.push({ type: 'PublisherBalance', data: fromNano(await publisher.getBalance()) + " TON"  });
 
-        for (const external of advertiserSignedResult.externals) {
-            if (external.body) {
-                const decodedEvent = loadAdvertiserSignedEvent(external.body);
-                logs.push({ type: 'AdvertiserSignedEvent', data: decodedEvent });
-                expect(decodedEvent).toMatchObject({
-                    $$type: 'AdvertiserSignedEvent',
-                    affiliateId: 0,
-                    advertiser: advertiser.address.toString(),
-                    publisher: publisher.address.toString(),
-                    cpc: cpc,
-                });
-            }
-        }
-
+        
         // Publisher signs the contract
         const publisherSignedResult = await affiliateContract.send(
             publisher.getSender(),
@@ -158,38 +137,8 @@ describe('AffiliateMarketplace Integration Test', () => {
                 expect(decodedEvent).toMatchObject({
                     $$type: 'PublisherSignedEvent',
                     affiliateId: 0,
-                    advertiser: advertiser.address.toString(),
                     publisher: publisher.address.toString(),
                     cpc: cpc,
-                });
-            }
-        }
-
-        // Advertiser adds funds to the affiliate
-        const addFundsResult = await affiliateContract.send(
-            advertiser.getSender(),
-            {
-                value: toNano('2'), // Amount to add
-            },
-            {
-                $$type: 'AddFunds',
-            }
-        );
-
-        expect(addFundsResult.transactions).toHaveTransaction({
-            from: advertiser.address,
-            to: affiliateContract.address,
-            success: true,
-        });
-
-        for (const external of addFundsResult.externals) {
-            if (external.body) {
-                const decodedEvent = loadFundsAddedEvent(external.body);
-                logs.push({ type: 'FundsAddedToAffiliateEvent', data: decodedEvent });
-                expect(decodedEvent).toMatchObject({
-                    $$type: 'FundsAddedToAffiliateEvent',
-                    affiliateId: 0,
-                    amountAdded: toNano('2'),
                 });
             }
         }
@@ -222,7 +171,6 @@ describe('AffiliateMarketplace Integration Test', () => {
                 expect(decodedEvent).toMatchObject({
                     $$type: 'PublisherPaidEvent',
                     affiliateId: 0,
-                    advertiser: advertiser.address.toString(),
                     publisher: publisher.address.toString(),
                     cpc: cpc,
                 });
@@ -233,46 +181,10 @@ describe('AffiliateMarketplace Integration Test', () => {
         const numUserClicks = await affiliateContract.getNumUserClicks();
         expect(numUserClicks).toBe(1n);
 
-        // Remove the affiliate
-        const removeAffiliateResult = await affiliateContract.send(
-            advertiser.getSender(),
-            {
-                value: toNano('0.02'),
-            },
-            {
-                $$type: 'RemoveAffiliateAndWithdrawFunds',
-            }
-        );
-
-        expect(removeAffiliateResult.transactions).toHaveTransaction({
-            from: advertiser.address,
-            to: affiliateContract.address,
-            success: true,
-        });
-
-        for (const external of removeAffiliateResult.externals) {
-            if (external.body) {
-                const decodedEvent = loadAffiliateRemovedEvent(external.body);
-                logs.push({ type: 'AffiliateRemovedEvent', data: decodedEvent });
-                expect(decodedEvent).toMatchObject({
-                    $$type: 'AffiliateRemovedEvent',
-                    affiliateId: 0,
-                    advertiser: advertiser.address.toString(),
-                    publisher: publisher.address.toString(),
-                    cpc: cpc,
-                });
-            }
-        }
-
-        const affiliateMarketplaceContractBalance = await affiliateMarketplaceContract.getBalance();
-        const affiliateBalance = await affiliateContract.getBalance();
-        const advertiserBalance = await advertiser.getBalance();
-        const publisherBalance = await publisher.getBalance();
-
-        logs.push({ type: 'AffiliateMarketplaceContractBalance', data: fromNano(affiliateMarketplaceContractBalance) + " TON"  });
-        logs.push({ type: 'AffiliateContractBalance', data: fromNano(affiliateBalance) + " TON" });
-        logs.push({ type: 'AdvertiserBalance', data: await fromNano(advertiserBalance) + " TON"  });
-        logs.push({ type: 'PublisherBalance', data: await fromNano(publisherBalance) + " TON"  });
+        logs.push({ type: 'AffiliateMarketplaceContractBalance', data: fromNano(await affiliateMarketplaceContract.getBalance()) + " TON"  });
+        logs.push({ type: 'AffiliateContractBalance', data: fromNano(await affiliateContract.getBalance()) + " TON" });
+        logs.push({ type: 'AdvertiserBalance', data: fromNano(await advertiser.getBalance()) + " TON"  });
+        logs.push({ type: 'PublisherBalance', data: fromNano(await publisher.getBalance()) + " TON"  });
 
 
 
