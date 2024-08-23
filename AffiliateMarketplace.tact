@@ -1,261 +1,247 @@
-    import "@stdlib/deploy";
-    import "@stdlib/ownable";
+import { Blockchain } from '@ton/sandbox';
+import { toNano, Address } from '@ton/core';
+import { AffiliateMarketplace } from '../dist/tact_AffiliateMarketplace';
+import { Affiliate } from '../dist/tact_Affiliate';
+import '@ton/test-utils';
 
-    // constants
-    const STATE_AFFILIATE_CREATED_BY_ADVERTISER: Int = 0;
-    const STATE_SIGNED_BY_PUBLISHER: Int = 1;
-    
-    const txFee: Int = ton("0.1");
+// Import events and event loaders
+import { loadAffiliateCreatedEvent } from './events';
 
-    // messages
-    message InternalCreateAffiliate {
-        affiliateId: Int as uint32;
-    }
-    message PublisherSigned{}
-    message InternalUserClick{}
+describe('AffiliateMarketplace Negative Tests', () => {
+    let blockchain;
+    let affiliateMarketplaceContract;
+    let affiliateContract;
+    let deployer;
+    let bot;
+    let advertiser;
+    let publisher;
+    let affiliateContractAddress: string | null = null;
 
-    // events
-    message PublisherSignedEvent{
-        affiliateId: Int as uint32;
-        publisher: Address;
-        cpc: Int as coins;
-    }
+    beforeEach(async () => {
+        blockchain = await Blockchain.create();
 
-    message PublisherPaidEvent {
-        affiliateId: Int as uint32;
-        publisher: Address;
-        cpc: Int as coins;
-        txFee: Int as coins;
-    }
+        deployer = await blockchain.treasury('deployer');
+        bot = await blockchain.treasury('bot');
+        advertiser = await blockchain.treasury('advertiser');
+        publisher = await blockchain.treasury('publisher');
+        affiliateMarketplaceContract = blockchain.openContract(await AffiliateMarketplace.fromInit(bot.address));
 
-    // Child contract for each affiliate
-    contract Affiliate {
+        // Deploy the AffiliateMarketplace contract
+        const deployResult = await affiliateMarketplaceContract.send(
+            deployer.getSender(),
+            { value: toNano('0.05') },
+            { $$type: 'Deploy', queryId: 0n }
+        );
 
-        parent: Address;
-        affiliateId: Int as uint32;
-        publisher: Address;  
-        cpc: Int as coins;
-        state: Int as uint32;
-        numUserClicks: Int as uint32;
+        expect(deployResult.transactions).toHaveTransaction({
+            from: deployer.address,
+            to: affiliateMarketplaceContract.address,
+            deploy: true,
+            success: true,
+        });
 
-        init(parent: Address, affiliateId: Int, publisher: Address, cpc: Int) {   
-            
-            require(sender() == parent, "parent must be deployer");
+        // Create an Affiliate contract
+        const cpc = toNano('0.1');
+        const createAffiliateResult = await affiliateMarketplaceContract.send(
+            bot.getSender(),
+            {
+                value: toNano('0.15'),
+            },
+            {
+                $$type: 'CreateAffiliate',
+                advertiser: advertiser.address,
+                publisher: publisher.address,
+                cpc: cpc,
+            }
+        );
 
-            self.parent = parent;
-            self.affiliateId = affiliateId;
-            self.publisher = publisher;
-            self.cpc = cpc; 
-
-            self.state = STATE_AFFILIATE_CREATED_BY_ADVERTISER;
-            self.numUserClicks = 0;
+        for (const external of createAffiliateResult.externals) {
+            if (external.body) {
+                const decodedAffiliate = loadAffiliateCreatedEvent(external.body);
+                affiliateContractAddress = decodedAffiliate.affiliateContractAddress;
+            }
         }
 
-        // piggyback deployment of contract on this message
-        receive(msg: InternalCreateAffiliate) {
-            // dump(msg.affiliateId);  // for debugging
-        }
+        affiliateContract = blockchain.openContract(await Affiliate.fromAddress(Address.parse(affiliateContractAddress)));
+    });
 
-        fun requireParent() {
-            require(sender() == self.parent, "Only the parent contract can invoke this function");
-        }
+    it('should fail if an unauthorized party tries to sign the contract as an advertiser', async () => {
+        const unauthorizedParty = await blockchain.treasury('unauthorizedParty');
+        const unauthorizedPartyResult = await affiliateContract.send(
+            unauthorizedParty.getSender(),
+            {
+                value: toNano('0.01'),
+            },
+            {
+                $$type: 'AdvertiserSigned',
+            }
+        );
 
-        receive(msg: PublisherSigned) {
-            
-            require(self.state == STATE_AFFILIATE_CREATED_BY_ADVERTISER, "Must be in state: STATE_AFFILIATE_CREATED_BY_ADVERTISER");
-            require(self.publisher == sender(), "Only the publisher can sign");
+        expect(unauthorizedPartyResult.transactions).toHaveTransaction({
+            from: unauthorizedParty.address,
+            to: affiliateContract.address,
+            success: false
+        });
+    });
 
-            self.state = STATE_SIGNED_BY_PUBLISHER;
+    it('should fail if advertiser tries to sign the contract twice', async () => {
+        // Advertiser signs the contract
+        await affiliateContract.send(
+            advertiser.getSender(),
+            {
+                value: toNano('0.01'),
+            },
+            {
+                $$type: 'AdvertiserSigned',
+            }
+        );
 
-            emit(PublisherSignedEvent{
-                affiliateId: self.affiliateId,
-                publisher: self.publisher,
-                cpc: self.cpc
-            }.toCell());
-        }
+        // Attempt to sign the contract again as the advertiser
+        const advertiserSignedAgainResult = await affiliateContract.send(
+            advertiser.getSender(),
+            {
+                value: toNano('0.01'),
+            },
+            {
+                $$type: 'AdvertiserSigned',
+            }
+        );
 
-        receive(msg: InternalUserClick) {
-            
-            self.requireParent();
-            
-            require(self.state == STATE_SIGNED_BY_PUBLISHER, "Must be in state: STATE_SIGNED_BY_PUBLISHER");
+        expect(advertiserSignedAgainResult.transactions).toHaveTransaction({
+            from: advertiser.address,
+            to: affiliateContract.address,
+            success: false
+        });
+    });
 
-            self.numUserClicks = self.numUserClicks + 1;
+    it('should fail if publisher tries to sign the contract twice', async () => {
+        // Publisher signs the contract
+        await affiliateContract.send(
+            publisher.getSender(),
+            {
+                value: toNano('0.01'),
+            },
+            {
+                $$type: 'PublisherSigned',
+            }
+        );
 
-            // Calculate fees
-            let percentage: Int = 50;  // Represents 0.5%
-            let feeFromPublisher: Int = (self.cpc * percentage + 9999) / 10000;  // 0.5% of CPC to be deducted from payment to publisher
-            let feeFromContract: Int = feeFromPublisher;  // 0.5% additional fee taken from the contract balance
+        // Attempt to sign the contract again as the publisher
+        const publisherSignedAgainResult = await affiliateContract.send(
+            publisher.getSender(),
+            {
+                value: toNano('0.01'),
+            },
+            {
+                $$type: 'PublisherSigned',
+            }
+        );
 
-            // Total fee
-            let totalFee: Int = feeFromPublisher + feeFromContract;
+        expect(publisherSignedAgainResult.transactions).toHaveTransaction({
+            from: publisher.address,
+            to: affiliateContract.address,
+            success: false
+        });
+    });
 
-            // Ensure sufficient balance after both fees
-            require(myBalance() >= self.cpc + feeFromContract, "Insufficient contract balance to pay publisher and cover fees");
-  
-            // Transfer the remaining CPC to the publisher
-            send(SendParameters{
-                to: self.publisher,
-                bounce: true,
-                value: self.cpc - feeFromPublisher,
-                mode: SendIgnoreErrors
-            });
+    it('should fail if advertiser tries to sign before affiliate creation', async () => {
+        const unauthorizedAdvertiser = await blockchain.treasury('unauthorizedAdvertiser');
+        const newAffiliateContract = blockchain.openContract(await Affiliate.fromInit(affiliateMarketplaceContract.address, 999, unauthorizedAdvertiser.address, publisher.address, toNano('0.1')));
 
-            // tx fee to parent
-            send(SendParameters{
-                to: self.parent,
-                bounce: false,
-                body: InternalChildToParentTxFee{publisher: self.publisher, affiliateId: self.affiliateId, cpc: self.cpc}.toCell(),
-                value: totalFee,
-                mode: SendIgnoreErrors + SendRemainingValue
-            });
+        const advertiserSignedWithoutCreationResult = await newAffiliateContract.send(
+            unauthorizedAdvertiser.getSender(),
+            {
+                value: toNano('0.01'),
+            },
+            {
+                $$type: 'AdvertiserSigned',
+            }
+        );
 
-            emit(PublisherPaidEvent{affiliateId: self.affiliateId, publisher: self.publisher, cpc: self.cpc, txFee: totalFee}.toCell());
-        }
+        expect(advertiserSignedWithoutCreationResult.transactions).toHaveTransaction({
+            from: unauthorizedAdvertiser.address,
+            to: newAffiliateContract.address,
+            success: false
+        });
+    });
 
-        get fun balance(): Int {
-            return myBalance(); // in nano-tons (like cents, just with 9 decimals)
-        }
+    it('should fail if funds are added by an unauthorized party', async () => {
+        const unauthorizedParty = await blockchain.treasury('unauthorizedParty');
+        const unauthorizedAddFundsResult = await affiliateContract.send(
+            unauthorizedParty.getSender(),
+            {
+                value: toNano('2'),
+            },
+            {
+                $$type: 'AddFunds',
+            }
+        );
 
-        get fun numUserClicks(): Int {
-            return self.numUserClicks; 
-        }
-        
-        get fun state(): Int {
-            return self.state;
-        }
-    }
+        expect(unauthorizedAddFundsResult.transactions).toHaveTransaction({
+            from: unauthorizedParty.address,
+            to: affiliateContract.address,
+            success: false
+        });
+    });
 
-    // messages
-    message InternalChildToParentTxFee {
-        affiliateId: Int as uint32;
-        publisher: Address;
-        cpc: Int as coins;
-    }
+    it('should fail if an unauthorized party tries to remove the affiliate', async () => {
+        const unauthorizedParty = await blockchain.treasury('unauthorizedParty');
+        const unauthorizedRemoveAffiliateResult = await affiliateContract.send(
+            unauthorizedParty.getSender(),
+            {
+                value: toNano('0.02'),
+            },
+            {
+                $$type: 'RemoveAffiliateAndWithdrawFunds',
+            }
+        );
 
-    message AdminWithdraw {
-        amount: Int as coins;
-    }
+        expect(unauthorizedRemoveAffiliateResult.transactions).toHaveTransaction({
+            from: unauthorizedParty.address,
+            to: affiliateContract.address,
+            success: false
+        });
+    });
 
-    message CreateAffiliate {
-        advertiser: Address;
-        publisher: Address;
-        cpc: Int as coins;
-        amount: Int as coins;
-    }
+    it('should fail if someone other than the bot tries to create an affiliate', async () => {
+        const unauthorizedParty = await blockchain.treasury('unauthorizedParty');
+        const createAffiliateResult = await affiliateMarketplaceContract.send(
+            unauthorizedParty.getSender(),
+            {
+                value: toNano('0.15'),
+            },
+            {
+                $$type: 'CreateAffiliate',
+                advertiser: advertiser.address,
+                publisher: publisher.address,
+                cpc: toNano('0.1'),
+            }
+        );
 
-    message UserClick {
-        affiliateId: Int as uint32;
-        publisher: Address;
-        cpc: Int as coins;
-    }
+        expect(createAffiliateResult.transactions).toHaveTransaction({
+            from: unauthorizedParty.address,
+            to: affiliateMarketplaceContract.address,
+            success: false
+        });
+    });
 
-    // events   
-    message AffiliateCreatedEvent {
-        affiliateId: Int as uint32;
-        advertiser: Address;
-        publisher: Address;
-        cpc: Int as coins;
-        affiliateContractAddress: Address;
-    }
+    it('should fail if someone other than the owner tries to withdraw funds from the marketplace', async () => {
+        const unauthorizedParty = await blockchain.treasury('unauthorizedParty');
+        const withdrawResult = await affiliateMarketplaceContract.send(
+            unauthorizedParty.getSender(),
+            {
+                value: toNano('0.01'),
+            },
+            {
+                $$type: 'AdminWithdraw',
+                amount: toNano('1'),
+            }
+        );
 
-
-    // Parent Contract 
-    contract AffiliateMarketplace with Deployable, Ownable {
-
-        // state
-        owner: Address;
-        bot: Address;
-
-        currAffiliateId: Int as uint32;  // running id
-
-        // Constructor
-        init(bot: Address) {
-            self.owner = sender();
-            self.bot = bot;
-            self.currAffiliateId = 0;
-        }
-
-        get fun balance(): Int {
-            return myBalance(); // in nano-tons (like cents, just with 9 decimals)
-        }
-
-        fun affiliateContractStateInit(affiliateId: Int, publisher: Address, cpc: Int): StateInit {
-            let initCode: StateInit = initOf Affiliate(myAddress(), affiliateId, publisher, cpc);
-            return initCode;
-        }
-
-        get fun affiliateContractAddress(affiliateId: Int, publisher: Address, cpc: Int): Address {
-            return contractAddress(self.affiliateContractStateInit(affiliateId, publisher, cpc));
-        }
-
-        receive(msg: InternalChildToParentTxFee) {
-            let expectedAddress: Address = contractAddress(self.affiliateContractStateInit(msg.affiliateId, msg.publisher, msg.cpc));
-            require(sender() == expectedAddress, "Access denied");
-        }
-
-        receive(msg: AdminWithdraw) {
-            
-            self.requireOwner();
-            
-            require(myBalance() >= msg.amount, "Insufficient funds");
-            
-            send(SendParameters{
-                to: self.owner,
-                bounce: true,
-                value: msg.amount,
-                mode: SendRemainingValue 
-            });
-        }
-
-        // Function to create a new affiliate
-        receive(msg: CreateAffiliate) {
-                        
-            require(sender() == msg.advertiser, "Only advertiser can deploy new Affiliate");  
-            require(msg.publisher != msg.advertiser, "Publisher must be != advertiser");
-            require(msg.publisher != newAddress(0, 0), "Publisher cannot be the zero address");          
-            require(context().value >= msg.amount, "Insufficient funds!");
-            require(msg.amount > txFee, "Insufficient funds for txFee");
-            
-            let affiliateId = self.currAffiliateId;
-            self.currAffiliateId = affiliateId + 1;
-
-            let init: StateInit = self.affiliateContractStateInit(affiliateId, msg.publisher, msg.cpc);
-            let affiliateContractAddress: Address = contractAddress(init);
-
-            send(SendParameters{
-                to: affiliateContractAddress,
-                value: msg.amount - txFee, 
-                mode: SendIgnoreErrors,
-                code: init.code, // deploy the child if needed
-                data: init.data,
-                body: InternalCreateAffiliate{affiliateId: affiliateId}.toCell()
-            });
-
-            emit(AffiliateCreatedEvent{
-                affiliateId: affiliateId, 
-                advertiser: msg.advertiser, 
-                publisher: msg.publisher, 
-                cpc: msg.cpc, 
-                affiliateContractAddress: affiliateContractAddress
-            }.toCell());
-        }
-
-        // Function to handle user click
-        receive(msg: UserClick) {
-            
-            require(sender() == self.bot, "Only bot can invoke UserClicks");
-            
-            let init: StateInit = self.affiliateContractStateInit(msg.affiliateId, msg.publisher, msg.cpc);
-            let affiliateContractAddress: Address = contractAddress(init);
-
-            send(SendParameters{
-                to: affiliateContractAddress,
-                body: InternalUserClick{}.toCell(),
-                value: 0, 
-                mode: SendRemainingValue + SendIgnoreErrors,
-                bounce: false
-            });
-
-        }
-    }
+        expect(withdrawResult.transactions).toHaveTransaction({
+            from: unauthorizedParty.address,
+            to: affiliateMarketplaceContract.address,
+            success: false
+        });
+    });
+});
