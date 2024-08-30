@@ -1,5 +1,6 @@
-    import "@stdlib/deploy";
-    import "@stdlib/ownable";
+import "@stdlib/stoppable";
+import "@stdlib/ownable";
+import "@stdlib/deploy";
 
     // constants
 
@@ -17,26 +18,40 @@
 
     // fees
     const AFFILIATE_CONTRACT_FEE: Int = ton("0.1");  
-    const STORAGE_FEE: Int = ton("0.01");
-    const MIN_COST_PER_USER_ACTION: Int = ton("0.008"); // so gas costs will not drain the contract
+    const STORAGE_FEE: Int = ton("0.1");
+    const MIN_COST_PER_USER_ACTION: Int = ton("0.01"); // so gas costs will not drain the contract
     
 
     // structs
     struct UserActions {
         
         // groups/channels/bots
-        userClick: Int;
-        userStayedEnoughTime: Int;
+        userClick: Int = 0;
+        userStayedEnoughTime: Int = 0;
 
         // groups
-        groupLike: Int;
-        groupShare: Int;
-        groupPost: Int;
+        groupLike: Int = 0;
+        groupShare: Int = 0;
+        groupPost: Int = 0;
     }
 
     struct AffiliatePricing {
         regularUsers: UserActions;
         premiumUsers: UserActions;
+    }
+
+    struct AffiliateDetails {
+        affiliateId: Int as uint32;
+        advertiser: Address;
+        publisher: Address;  
+        state: Int as uint32;
+        numUserActions: Int as uint32;
+        lastUserAction: Int as uint32;
+        affiliatePricing: AffiliatePricing;
+        daysWithoutUserActionForWithdrawFunds: Int as uint32;
+        affiliateAmount: Int as coins;
+        contractBalance: Int as coins;
+        contractAddress: Address;
     }
 
     message InternalCreateAffiliate{affiliateId: Int as uint32}
@@ -45,7 +60,7 @@
     message AdvertiserSigned {
         affiliatePricing: AffiliatePricing;
         daysWithoutUserActionForWithdrawFunds: Int as uint32; 
-        affiliateAmount: Int as coins;  // amount of the affiliate
+        affiliateAmount: Int as coins;  // amount of the affiliate (e.g. 10 TON)
     }
 
     message PublisherSigned{}
@@ -66,22 +81,23 @@
         state: Int as uint32;
         numUserActions: Int as uint32;
         lastUserAction: Int as uint32;
-        regularUsers: map<Int, Int>;  // user action -> cost
-        premiumUsers: map<Int, Int>; // user action -> cost 
+        affiliatePricing: AffiliatePricing;
         daysWithoutUserActionForWithdrawFunds: Int as uint32;
-        affiliateAmount: Int as uint32;
+        affiliateAmount: Int as coins;
 
-        init(parent: Address, affiliateId: Int, advertiser: Address, publisher: Address) { 
-            dump("Constructor!");
+        init(parent: Address, affiliateId: Int) { 
+            
             require(sender() == parent, "parent must be deployer");
 
             self.parent = parent;
             self.affiliateId = affiliateId;
-            self.advertiser = advertiser;  
-            self.publisher = publisher;  
-            self.regularUsers = emptyMap();  
-            self.premiumUsers = emptyMap(); 
-            self.daysWithoutUserActionForWithdrawFunds = 365; 
+            self.advertiser = parent;  
+            self.publisher = parent;  
+            self.affiliatePricing = AffiliatePricing{
+                regularUsers: UserActions{}, 
+                premiumUsers: UserActions{}
+            };
+            self.daysWithoutUserActionForWithdrawFunds = 0; 
             self.state = STATE_AFFILIATE_CREATED;
             self.numUserActions = 0;
             self.lastUserAction = 0;
@@ -101,7 +117,6 @@
 
         receive (msg: AdvertiserSigned) {
             
-            require(sender() == self.advertiser, "Only advertiser can sign");
             require(self.state == STATE_AFFILIATE_CREATED, "Must be in state: STATE_AFFILIATE_CREATED");
             require(context().value >= AFFILIATE_CONTRACT_FEE + msg.affiliateAmount, "Insufficient funds");
 
@@ -118,32 +133,18 @@
             self.requireValGTMinCPA(msg.affiliatePricing.premiumUsers.groupShare);
             self.requireValGTMinCPA(msg.affiliatePricing.premiumUsers.groupPost);
 
+            self.advertiser = sender();
             self.state = STATE_AFFILIATE_DETAILS_SET_BY_ADVERTISER;
             self.lastUserAction = now();
-
-            self.regularUsers.set(USER_CLICK, msg.affiliatePricing.regularUsers.userClick);  
-            self.regularUsers.set(USER_STAYD_ENOUGH_TIME, msg.affiliatePricing.regularUsers.userStayedEnoughTime);
-            self.regularUsers.set(GROUP_LIKE, msg.affiliatePricing.regularUsers.groupLike);
-            self.regularUsers.set(GROUP_SHARE, msg.affiliatePricing.regularUsers.groupShare);
-            self.regularUsers.set(GROUP_POST, msg.affiliatePricing.regularUsers.groupPost);
-
-            self.premiumUsers.set(USER_CLICK, msg.affiliatePricing.regularUsers.userClick);  
-            self.premiumUsers.set(USER_STAYD_ENOUGH_TIME, msg.affiliatePricing.regularUsers.userStayedEnoughTime);
-            self.premiumUsers.set(GROUP_LIKE, msg.affiliatePricing.regularUsers.groupLike);
-            self.premiumUsers.set(GROUP_SHARE, msg.affiliatePricing.regularUsers.groupShare);
-            self.premiumUsers.set(GROUP_POST, msg.affiliatePricing.regularUsers.groupPost);
-
-            self.daysWithoutUserActionForWithdrawFunds = msg.daysWithoutUserActionForWithdrawFunds;
+            self.affiliatePricing = msg.affiliatePricing;
             self.affiliateAmount = msg.affiliateAmount;
+            self.daysWithoutUserActionForWithdrawFunds = msg.daysWithoutUserActionForWithdrawFunds;
 
             // tx fee to parent
             send(SendParameters{
                 to: self.parent,
-                bounce: true,
                 body: InternalChildToParentTxFee{
-                    affiliateId: self.affiliateId,
-                    advertiser: self.advertiser, 
-                    publisher: self.publisher
+                    affiliateId: self.affiliateId
                 }.toCell(),
                 value: AFFILIATE_CONTRACT_FEE,
                 mode: SendIgnoreErrors 
@@ -152,7 +153,6 @@
 
         receive(msg: PublisherSigned) {
             
-            require(sender() == self.publisher, "Only publisher can sign");
             require(self.state == STATE_AFFILIATE_DETAILS_SET_BY_ADVERTISER, "Must be in state: STATE_AFFILIATE_DETAILS_SET_BY_ADVERTISER");
             require(context().value >= AFFILIATE_CONTRACT_FEE, "Insufficient funds to pay contract fee");
 
@@ -165,9 +165,7 @@
                 to: self.parent,
                 bounce: true,
                 body: InternalChildToParentTxFee{
-                    affiliateId: self.affiliateId,
-                    advertiser: self.advertiser, 
-                    publisher: self.publisher
+                    affiliateId: self.affiliateId
                 }.toCell(),                
                 value: 0,
                 mode: SendIgnoreErrors | SendRemainingValue
@@ -192,27 +190,54 @@
             
             require(sender() == self.parent, "Only the parent contract can invoke this function");
             require(self.state == STATE_AFFILIATE_DETAILS_SIGNED_BY_PUBLISHER, "Must be in state: STATE_AFFILIATE_DETAILS_SIGNED_BY_PUBLISHER");
+            require((msg.userAction == USER_CLICK) || 
+                    (msg.userAction == USER_STAYD_ENOUGH_TIME) ||
+                    (msg.userAction == GROUP_LIKE) ||
+                    (msg.userAction == GROUP_SHARE) ||
+                    (msg.userAction == GROUP_POST), "Invalid user action");
 
-            let costPerAction: Int? = null;
+            let costPerAction: Int = 0;
             if (msg.isPremiumUser) {
-                costPerAction = self.premiumUsers.get(msg.userAction);
+                if (msg.userAction == USER_CLICK) {
+                    costPerAction = self.affiliatePricing.premiumUsers.userClick;
+                } else if (msg.userAction == USER_STAYD_ENOUGH_TIME) {
+                    costPerAction = self.affiliatePricing.premiumUsers.userStayedEnoughTime;
+                } else if (msg.userAction == GROUP_LIKE) {
+                    costPerAction = self.affiliatePricing.premiumUsers.groupLike;
+                } else if (msg.userAction == GROUP_POST) {
+                    costPerAction = self.affiliatePricing.premiumUsers.groupPost;
+                } else if (msg.userAction == GROUP_SHARE) {
+                    costPerAction = self.affiliatePricing.premiumUsers.groupShare;
+                } 
+                 
             } else {
-                costPerAction = self.regularUsers.get(msg.userAction);
+
+                // regular user
+                if (msg.userAction == USER_CLICK) {
+                    costPerAction = self.affiliatePricing.regularUsers.userClick;
+                } else if (msg.userAction == USER_STAYD_ENOUGH_TIME) {
+                    costPerAction = self.affiliatePricing.regularUsers.userStayedEnoughTime;
+                } else if (msg.userAction == GROUP_LIKE) {
+                    costPerAction = self.affiliatePricing.regularUsers.groupLike;
+                } else if (msg.userAction == GROUP_POST) {
+                    costPerAction = self.affiliatePricing.regularUsers.groupPost;
+                } else if (msg.userAction == GROUP_SHARE) {
+                    costPerAction = self.affiliatePricing.regularUsers.groupShare;
+                } 
             }
 
-            require(costPerAction != null, "Action does not exist at all");
-            require(costPerAction!! > 0, "Action does not exist for affiliate");
+            require(costPerAction != 0, "Action does not exist at all");
 
             // Calculate fees
             let percentage: Int = 50;  // Represents 0.5%
-            let feeFromPublisher: Int = (costPerAction!! * percentage + 9999) / 10000;  // 0.5% of CPC to be deducted from payment to publisher
+            let feeFromPublisher: Int = (costPerAction * percentage + 9999) / 10000;  // 0.5% of CPC to be deducted from payment to publisher
             let feeFromContract: Int = feeFromPublisher;  // 0.5% additional fee taken from the contract balance
 
             // Total fee
             let totalFee: Int = feeFromPublisher + feeFromContract;
 
             // Ensure sufficient balance after both fees
-            require(myBalance() >= costPerAction!! + feeFromContract, "Insufficient contract balance to pay publisher and cover fees");
+            require(myBalance() >= costPerAction + feeFromContract, "Insufficient contract balance to pay publisher and cover fees");
 
             self.numUserActions = self.numUserActions + 1;
             self.lastUserAction = now();
@@ -221,7 +246,7 @@
             send(SendParameters{
                 to: self.publisher,
                 bounce: true,
-                value: costPerAction!! - feeFromPublisher,
+                value: costPerAction - feeFromPublisher,
                 mode: SendIgnoreErrors
             });
 
@@ -230,66 +255,59 @@
                 to: self.parent,
                 bounce: true,
                 body: InternalChildToParentTxFee{
-                    affiliateId: self.affiliateId,
-                    advertiser: self.advertiser,
-                    publisher: self.publisher
+                    affiliateId: self.affiliateId
                 }.toCell(),
                 value: totalFee,
                 mode: SendIgnoreErrors + SendRemainingValue
             });
         }
 
-        get fun balance(): Int {
-            return myBalance(); // in nano-tons (like cents, just with 9 decimals)
-        }
+        get fun affiliateDetails(): AffiliateDetails {
 
-        get fun numUserActions(): Int {
-            return self.numUserActions; 
-        }
-        
-        get fun state(): Int {
-            return self.state;
+            return AffiliateDetails {
+                affiliateId: self.affiliateId,
+                advertiser: self.advertiser,
+                publisher: self.publisher, 
+                state: self.state,
+                numUserActions: self.numUserActions,
+                lastUserAction: self.lastUserAction,
+                affiliatePricing: self.affiliatePricing,
+                daysWithoutUserActionForWithdrawFunds: self.daysWithoutUserActionForWithdrawFunds,
+                affiliateAmount: self.affiliateAmount,
+                contractBalance: myBalance(),
+                contractAddress: myAddress()
+            }
         }
     }
 
     // messages
     message InternalChildToParentTxFee {
         affiliateId: Int as uint32;
-        advertiser: Address;
-        publisher: Address;
     }
 
     message AdminWithdraw {
         amount: Int as coins;
     }
 
-    message CreateAffiliate {
-        advertiser: Address;
-        publisher: Address;
-    }
+    message CreateAffiliate {}
 
     message UserAction {
         affiliateId: Int as uint32;
-        advertiser: Address;
-        publisher: Address;
         userAction: Int as uint32;
         isPremiumUser: Bool;
     }
 
-    // events   
-    message AffiliateCreatedEvent {
+    message AffiliateCreatedReply {
         affiliateId: Int as uint32;
-        advertiser: Address;
-        publisher: Address;
-        affiliateContractAddress: Address;
     }
 
 
     // Parent Contract 
-    contract AffiliateMarketplace with Deployable, Ownable {
+    contract AffiliateMarketplace with Deployable, Resumable  {
 
         // state
         owner: Address;
+        stopped: Bool; 
         bot: Address;
 
         currAffiliateId: Int as uint32;  // running id
@@ -297,6 +315,7 @@
         // Constructor
         init(bot: Address) {
             self.owner = sender();
+            self.stopped = false;
             self.bot = bot;
             self.currAffiliateId = 0;
         }
@@ -305,17 +324,17 @@
             return myBalance(); // in nano-tons (like cents, just with 9 decimals)
         }
 
-        fun affiliateContractStateInit(affiliateId: Int, advertiser: Address, publisher: Address): StateInit {
-            let initCode: StateInit = initOf Affiliate(myAddress(), affiliateId, advertiser, publisher);
+        fun affiliateContractStateInit(affiliateId: Int): StateInit {
+            let initCode: StateInit = initOf Affiliate(myAddress(), affiliateId);
             return initCode;
         }
 
-        get fun affiliateContractAddress(affiliateId: Int, advertiser: Address, publisher: Address): Address {
-            return contractAddress(self.affiliateContractStateInit(affiliateId, advertiser, publisher));
+        get fun affiliateContractAddress(affiliateId: Int): Address {
+            return contractAddress(self.affiliateContractStateInit(affiliateId));
         }
 
         receive(msg: InternalChildToParentTxFee) {
-            let expectedAddress: Address = contractAddress(self.affiliateContractStateInit(msg.affiliateId, msg.advertiser, msg.publisher));
+            let expectedAddress: Address = contractAddress(self.affiliateContractStateInit(msg.affiliateId));
             require(sender() == expectedAddress, "Access denied");
         }
 
@@ -336,39 +355,26 @@
         // Function to create a new affiliate
         receive(msg: CreateAffiliate) {
 
-            dump("1");
-
             require(sender() == self.bot, "Only bot can create new Affiliates");
-            dump("2");
             require(context().value >= STORAGE_FEE, "Insufficient funds");
                         
             let affiliateId = self.currAffiliateId;
             self.currAffiliateId = affiliateId + 1;
 
-            dump(affiliateId);
-
-            let init: StateInit = self.affiliateContractStateInit(affiliateId, msg.advertiser, msg.publisher);
-            dump("init");
+            let init: StateInit = self.affiliateContractStateInit(affiliateId);
             let affiliateContractAddress: Address = contractAddress(init);
-
-            dump(affiliateContractAddress);
 
             // 1. deploy contract
             send(SendParameters{
                 to: affiliateContractAddress,
                 value: STORAGE_FEE, 
+                mode: SendIgnoreErrors,
                 code: init.code, 
                 data: init.data,
-                body: InternalCreateAffiliate{affiliateId: affiliateId}.toCell(),
-                mode: SendIgnoreErrors | SendRemainingValue
+                body: InternalCreateAffiliate{affiliateId: affiliateId}.toCell()
             });
 
-            emit(AffiliateCreatedEvent{
-                affiliateId: affiliateId, 
-                advertiser: msg.advertiser,
-                publisher: msg.publisher,
-                affiliateContractAddress: affiliateContractAddress
-            }.toCell());
+            self.reply(AffiliateCreatedReply{affiliateId: affiliateId}.toCell());
         }
 
         // Function to handle user click
@@ -376,14 +382,19 @@
             
             require(sender() == self.bot, "Only bot can invoke UserClicks");
             
-            let init: StateInit = self.affiliateContractStateInit(msg.affiliateId, msg.advertiser, msg.publisher);
+            let init: StateInit = self.affiliateContractStateInit(msg.affiliateId);
             let affiliateContractAddress: Address = contractAddress(init);
 
             send(SendParameters{
                 to: affiliateContractAddress,
                 body: InternalUserAction{userAction: msg.userAction, isPremiumUser: msg.isPremiumUser}.toCell(),
                 value: 0, 
-                mode: SendRemainingValue | SendIgnoreErrors
+                mode: SendRemainingValue
             });
         }
+
+        // receive("Resume") is added automatically to allow owner to resume the contract
+        // receive("Stop") is added automatically to allow owner to stop the contract
+        // get fun stopped(): Bool is added automatically to query if contract is stopped
+        // get fun owner(): Address is added automatically to query who the owner is
     }
