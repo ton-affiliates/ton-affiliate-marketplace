@@ -56,6 +56,7 @@ import "@stdlib/deploy";
         campaignId: Int as uint32;
         advertiser: Address;
         campaignDetails: CampaignDetails;
+        affiliates: map<Int, AffiliateData>;
         state: Int as uint32;
         lastUserAction: Int as uint32;
         contractBalance: Int as coins;
@@ -304,6 +305,7 @@ import "@stdlib/deploy";
                 campaignId: self.campaignId,
                 advertiser: self.advertiser,
                 campaignDetails: self.campaignDetails, 
+                affiliates: self.affiliates,
                 lastUserAction: self.lastUserAction,
                 state: self.state,
                 contractBalance: myBalance(),
