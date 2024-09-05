@@ -9,38 +9,16 @@ import "@stdlib/deploy";
     const STATE_CAMPAIGN_CREATED: Int = 0;
     const STATE_CAMPAIGN_DETAILS_SET_BY_ADVERTISER: Int = 1;
 
-    // user action types 
-    const USER_CLICK: Int = 0; // user click
-    const USER_STAYD_ENOUGH_TIME: Int = 1;  // user stayed in group/channel/bot enough time 
-    const GROUP_LIKE: Int = 2;  // user like a post in a group
-    const GROUP_SHARE: Int = 3;  // user made a comment in a group
-    const GROUP_POST: Int = 4;  // user posted something in a group
-
     // fees
     const SIGN_UP_FEE: Int = ton("0.1");  
     const MIN_COST_PER_USER_ACTION: Int = ton("0.05"); 
-    
-    
     const MIN_TON_FOR_STORAGE: Int = ton("0.019");
     const GAS_CONSUMPTION_FEE: Int = ton("0.013");
     const FORWARD_MSG_FEE: Int = ton("0.015");
 
-    // structs
-    struct AffiliatePricing {
-        
-        // groups/channels/bots
-        userClick: Int = ton("0");
-        userStayedEnoughTime: Int = ton("0");
-
-        // groups
-        groupLike: Int = ton("0");
-        groupShare: Int = ton("0");
-        groupPost: Int = ton("0");
-    }
-
     struct CampaignDetails {
-        regularUsers: AffiliatePricing;
-        premiumUsers: AffiliatePricing;
+        regularUsers: map<Int, Int>; // userAction => price
+        premiumUsers: map<Int, Int>; // userAction => price
         allowedAffiliates: map<Address, Bool>;  // address -> dummy (closed campaign)
         isOpenCampaign: Bool; // anyone can be an affiliate
         campaignInitialAmount: Int as coins;  // e.g. 100 TON
@@ -107,8 +85,8 @@ import "@stdlib/deploy";
             self.affiliates = emptyMap();
 
             self.campaignDetails = CampaignDetails{
-                regularUsers: AffiliatePricing{}, 
-                premiumUsers: AffiliatePricing{},
+                regularUsers: emptyMap(), 
+                premiumUsers: emptyMap(),
                 allowedAffiliates: emptyMap(),
                 isOpenCampaign: false,
                 campaignInitialAmount: ton("0"),
@@ -126,12 +104,6 @@ import "@stdlib/deploy";
             return storageFee + ((numForwards+1)*(GAS_CONSUMPTION_FEE + FORWARD_MSG_FEE));
         }
 
-        fun requireValGTMinCPA(val: Int) {
-            if (val > 0) {
-                require(val >= MIN_COST_PER_USER_ACTION, "cpa must be greater than min cost for user action");
-            }
-        }
-
         // piggyback deployment of contract on this message
         receive(msg: InternalCreatecampaign) {
             dump(msg.campaignId);  // for debugging
@@ -142,17 +114,13 @@ import "@stdlib/deploy";
             require(self.state == STATE_CAMPAIGN_CREATED, "Must be in state: STATE_CAMPAIGN_CREATED");
 
             // verify values
-            self.requireValGTMinCPA(msg.campaignDetails.regularUsers.userClick);
-            self.requireValGTMinCPA(msg.campaignDetails.regularUsers.userStayedEnoughTime);
-            self.requireValGTMinCPA(msg.campaignDetails.regularUsers.groupLike);
-            self.requireValGTMinCPA(msg.campaignDetails.regularUsers.groupShare);
-            self.requireValGTMinCPA(msg.campaignDetails.regularUsers.groupPost);
+            foreach (key, val in msg.campaignDetails.regularUsers) {
+                require(val >= MIN_COST_PER_USER_ACTION, "cpa must be greater than min cost for user action");
+            }
 
-            self.requireValGTMinCPA(msg.campaignDetails.premiumUsers.userClick);
-            self.requireValGTMinCPA(msg.campaignDetails.premiumUsers.userStayedEnoughTime);
-            self.requireValGTMinCPA(msg.campaignDetails.premiumUsers.groupLike);
-            self.requireValGTMinCPA(msg.campaignDetails.premiumUsers.groupShare);
-            self.requireValGTMinCPA(msg.campaignDetails.premiumUsers.groupPost);
+            foreach (key, val in msg.campaignDetails.premiumUsers) {
+                require(val >= MIN_COST_PER_USER_ACTION, "cpa must be greater than min cost for premium user action");
+            }
 
             let msgValue = context().value;
             require(msgValue >= self.minMsgValue(1, msgValue) + SIGN_UP_FEE + msg.campaignDetails.campaignInitialAmount, "Insufficient funds");
@@ -211,54 +179,27 @@ import "@stdlib/deploy";
                 to: self.advertiser,
                 bounce: true,
                 value: 0,
-                mode: SendRemainingBalance  // send all TON in contract to advertiser
+                mode: SendRemainingBalance | SendDestroyIfZero  // send all TON in contract to advertiser and destroy contract
             });
         }
 
         receive(msg: InternalUserAction) {
             
             require(sender() == self.parent, "Only the parent contract can invoke this function");
-            require((msg.userAction == USER_CLICK) || 
-                    (msg.userAction == USER_STAYD_ENOUGH_TIME) ||
-                    (msg.userAction == GROUP_LIKE) ||
-                    (msg.userAction == GROUP_SHARE) ||
-                    (msg.userAction == GROUP_POST), "Invalid user action");
 
             let affiliateDataOptional = self.affiliates.get(msg.affiliateId);
             require(affiliateDataOptional != null, "Affiliate does not exist");
             let affiliateData: AffiliateData = affiliateDataOptional!!;
 
-            let costPerAction: Int = 0;
+            let costPerActionOptional: Int? = null;
             if (msg.isPremiumUser) {
-                if (msg.userAction == USER_CLICK) {
-                    costPerAction = self.campaignDetails.premiumUsers.userClick;
-                } else if (msg.userAction == USER_STAYD_ENOUGH_TIME) {
-                    costPerAction = self.campaignDetails.premiumUsers.userStayedEnoughTime;
-                } else if (msg.userAction == GROUP_LIKE) {
-                    costPerAction = self.campaignDetails.premiumUsers.groupLike;
-                } else if (msg.userAction == GROUP_POST) {
-                    costPerAction = self.campaignDetails.premiumUsers.groupPost;
-                } else if (msg.userAction == GROUP_SHARE) {
-                    costPerAction = self.campaignDetails.premiumUsers.groupShare;
-                } 
-                 
+                costPerActionOptional = self.campaignDetails.regularUsers.get(msg.userAction);
             } else {
-
-                // regular user
-                if (msg.userAction == USER_CLICK) {
-                    costPerAction = self.campaignDetails.regularUsers.userClick;
-                } else if (msg.userAction == USER_STAYD_ENOUGH_TIME) {
-                    costPerAction = self.campaignDetails.regularUsers.userStayedEnoughTime;
-                } else if (msg.userAction == GROUP_LIKE) {
-                    costPerAction = self.campaignDetails.regularUsers.groupLike;
-                } else if (msg.userAction == GROUP_POST) {
-                    costPerAction = self.campaignDetails.regularUsers.groupPost;
-                } else if (msg.userAction == GROUP_SHARE) {
-                    costPerAction = self.campaignDetails.regularUsers.groupShare;
-                } 
+                costPerActionOptional = self.campaignDetails.premiumUsers.get(msg.userAction);
             }
-
-            require(costPerAction != 0, "Action does not exist for this campaign");
+                
+            require(costPerActionOptional != null, "Invalid user action");
+            let costPerAction: Int = costPerActionOptional!!;
 
             let numActions: Int? = affiliateData.userActionsStats.get(msg.userAction);
             if (numActions == null) {
@@ -268,7 +209,7 @@ import "@stdlib/deploy";
             }
 
             // Calculate fees
-            let percentage: Int = 50;  // Represents 0.5%
+            let percentage: Int = 50;  // Represents 0.5% to take from each party
             let feeFromPublisher: Int = (costPerAction * percentage + 9999) / 10000;  // 0.5% of CPC to be deducted from payment to publisher
             let feeFromContract: Int = feeFromPublisher;  // 0.5% additional fee taken from the contract balance
 
