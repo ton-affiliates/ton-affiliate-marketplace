@@ -1,7 +1,7 @@
-import { Blockchain } from '@ton/sandbox';
-import { toNano, fromNano, Address } from '@ton/core';
-import { AffiliateMarketplace } from '../dist/tact_AffiliateMarketplace';
-import { Affiliate } from '../dist/tact_Affiliate';
+import { Blockchain, printTransactionFees, prettyLogTransactions } from '@ton/sandbox';
+import { toNano, fromNano, Address, Dictionary  } from '@ton/core';
+import { AffiliateMarketplace, loadCampaignCreatedReply } from '../dist/tact_AffiliateMarketplace';
+import { Campaign } from '../dist/tact_Campaign';
 import '@ton/test-utils';
 
 
@@ -11,28 +11,6 @@ type EmitLogEvent = {
 };
 
 const logs: EmitLogEvent[] = [];
-
-const EVENT_TYPE_AFFILIATE_CREATED = 3933896749; // AffiliateCreatedEvent
-
-
-function loadEvent(cell: Cell, expectedEventType: number) {
-    const slice = cell.beginParse();
-    const eventType = slice.loadUint(32);
-    if (eventType !== expectedEventType) {
-        console.log("EventType: " + eventType);
-        throw new Error("Unexpected event type");
-    }
-    return slice;
-}
-
-function loadAffiliateCreatedEvent(cell: Cell) {
-    const slice = loadEvent(cell, EVENT_TYPE_AFFILIATE_CREATED);
-    const affiliateId = slice.loadUint(32);
-    const advertiser = slice.loadAddress().toString();
-    const publisher = slice.loadAddress().toString();
-    const affiliateContractAddress = slice.loadAddress();
-    return { $$type: 'AffiliateCreatedEvent', affiliateId, advertiser, publisher, affiliateContractAddress };
-}
 
 describe('AffiliateMarketplace Integration Test', () => {
     let blockchain;
@@ -66,59 +44,67 @@ describe('AffiliateMarketplace Integration Test', () => {
         });
     });
 
-    it('should create affiliate,sign by publisher, and handle user click', async () => {
+    it('should create campaign, create affiliate, set details by advertiser, sign by publisher, and handle user click', async () => {
         
-        const cpc = toNano('0.1');
-
         logs.push({ type: 'AffiliateMarketplaceContractBalance', data: fromNano(await affiliateMarketplaceContract.getBalance()) + " TON"  });
         logs.push({ type: 'AdvertiserBalance', data: fromNano(await advertiser.getBalance()) + " TON"  });
         logs.push({ type: 'PublisherBalance', data: fromNano(await publisher.getBalance()) + " TON"  });
 
         // Create Affiliate
-        const createAffiliateResult = await affiliateMarketplaceContract.send(
+        const createCampaignResult = await affiliateMarketplaceContract.send(
             bot.getSender(),
             {
-                value: toNano('10'), // load contract with 10 TON + fees
+                value: toNano('0.75'), 
             },
             {
-                $$type: 'CreateAffiliate',
-                advertiser: advertiser.address,
-                publisher: publisher.address
+                $$type: 'CreateCampaign'
             }
         );
 
-        expect(createAffiliateResult.transactions).toHaveTransaction({
+        // prettyLogTransactions(createCampaignResult.transactions);
+        // printTransactionFees(createCampaignResult.transactions); 
+
+        expect(createCampaignResult.transactions).toHaveTransaction({
             from: bot.address,
             to: affiliateMarketplaceContract.address,
             success: true,
         });
 
-        let affiliateContractAddress: string | null = null;
-        for (const external of createAffiliateResult.externals) {
-            if (external.body) {
-                const decodedAffiliate = loadAffiliateCreatedEvent(external.body);
-                logs.push({ type: 'AffiliateCreatedEvent', data: decodedAffiliate });
-                expect(decodedAffiliate).toMatchObject({
-                    $$type: 'AffiliateCreatedEvent',
-                    affiliateId: 0,
-                    advertiser: advertiser.address.toString(),
-                    publisher: publisher.address.toString()
-                });
-                affiliateContractAddress = decodedAffiliate.affiliateContractAddress;
-            }
+        // reply
+        expect(createCampaignResult.transactions).toHaveTransaction({
+            from: affiliateMarketplaceContract.address,
+            to: bot.address,
+            success: true,
+        });
+
+        let campaignCreatedReply = null;
+        for (var tx of createCampaignResult.transactions) {
+            for (var event of tx.events) {
+                if ((typeof(event.from) !== 'undefined' && event.from.toString() == affiliateMarketplaceContract.address.toString()) &&
+                    (typeof(event.to) !== 'undefined' && event.to.toString() == bot.address.toString())) {
+                    campaignCreatedReply = loadCampaignCreatedReply(event.body.beginParse());
+                }
+            } 
         }
 
-        expect(affiliateContractAddress).not.toBeNull();
-        expect(createAffiliateResult.transactions).toHaveTransaction({
+        expect(campaignCreatedReply).not.toBeNull();
+
+        let campaignContractAddress = campaignCreatedReply.campaignContractAddress;
+        let campaignContractAddressFromMarketplace = await affiliateMarketplaceContract.getCampaignContractAddress(campaignCreatedReply.campaignId);
+        
+        expect(campaignContractAddress.toString()).toEqual(campaignContractAddressFromMarketplace.toString());
+        
+        expect(createCampaignResult.transactions).toHaveTransaction({
             from: affiliateMarketplaceContract.address,
-            to: affiliateContractAddress,
+            to: campaignContractAddress,
             success: true,
             deploy: true,
         });
-
      
         // const affiliateContract = blockchain.openContract(await Affiliate.fromAddress(affiliateContractAddress));
-
+        // let affiliateDetails = await affiliateContract.getAffiliateDetails();
+        // console.log(affiliateDetails);
+      
         // logs.push({ type: 'AffiliateMarketplaceContractBalance', data: fromNano(await affiliateMarketplaceContract.getBalance()) + " TON"  });
         // logs.push({ type: 'AffiliateContractBalance', data: fromNano(await affiliateContract.getBalance()) + " TON" });
         // logs.push({ type: 'AdvertiserBalance', data: fromNano(await advertiser.getBalance()) + " TON"  });
