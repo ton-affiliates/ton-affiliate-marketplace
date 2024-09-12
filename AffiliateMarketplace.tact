@@ -73,15 +73,15 @@ import "@stdlib/deploy";
         state: Int as uint32;
         lastUserAction: Int as uint32;
         
-        init(parent: Address, campaignId: Int) { 
+        init(parent: Address, campaignId: Int, advertiser: Address) { 
             
             require(sender() == parent, "parent must be deployer");
 
             self.parent = parent;
             self.campaignId = campaignId;
-            self.advertiser = parent;
+            self.advertiser = advertiser;
 
-            self.currAffiliateId = 0;
+            self.currAffiliateId = 0;  // running id
             self.affiliates = emptyMap();
 
             self.campaignDetails = CampaignDetails{
@@ -98,12 +98,6 @@ import "@stdlib/deploy";
             self.lastUserAction = 0;
         }
 
-        fun minMsgValue(numForwards: Int, msgValue: Int) : Int {
-            let tonBalanceBeforeMsg: Int = myBalance() - msgValue;
-            let storageFee: Int = MIN_TON_FOR_STORAGE - min(tonBalanceBeforeMsg, MIN_TON_FOR_STORAGE);
-            return storageFee + ((numForwards+1)*(GAS_CONSUMPTION_FEE + FORWARD_MSG_FEE));
-        }
-
         // piggyback deployment of contract on this message
         receive(msg: InternalCreatecampaign) {
             dump(msg.campaignId);  // for debugging
@@ -111,6 +105,7 @@ import "@stdlib/deploy";
 
         receive (msg: AdvertiserSigned) {
             
+            require(sender() == self.advertiser, "Only advertiser can invoke this function");
             require(self.state == STATE_CAMPAIGN_CREATED, "Must be in state: STATE_CAMPAIGN_CREATED");
 
             // verify values
@@ -122,10 +117,6 @@ import "@stdlib/deploy";
                 require(val >= MIN_COST_PER_USER_ACTION, "cpa must be greater than min cost for premium user action");
             }
 
-            let msgValue = context().value;
-            require(msgValue >= self.minMsgValue(1, msgValue) + SIGN_UP_FEE + msg.campaignDetails.campaignInitialAmount, "Insufficient funds");
-
-            self.advertiser = sender();
             self.campaignDetails = msg.campaignDetails;
             self.state = STATE_CAMPAIGN_DETAILS_SET_BY_ADVERTISER;
 
@@ -133,7 +124,8 @@ import "@stdlib/deploy";
             send(SendParameters{
                 to: self.parent,
                 body: InternalChildToParentTxFee{
-                    campaignId: self.campaignId
+                    campaignId: self.campaignId,
+                    advertiser: self.advertiser
                 }.toCell(),
                 value: 0,
                 mode: SendRemainingValue
@@ -143,9 +135,9 @@ import "@stdlib/deploy";
         receive(msg: PublisherSigned) {
             
             require(self.state == STATE_CAMPAIGN_DETAILS_SET_BY_ADVERTISER, "Must be in state: STATE_CAMPAIGN_DETAILS_SET_BY_ADVERTISER");
-            require(context().value >= self.minMsgValue(1, context().value) + SIGN_UP_FEE, "Insufficient funds");
             require(self.numAffiliates <= MAX_NUM_AFFILIATES, "Reached max number of affiliates for this campagn");
-            
+            require(context().value > SIGN_UP_FEE, "Insufficient funds");
+
             if (!self.campaignDetails.isOpenCampaign) {
                 require(self.campaignDetails.allowedAffiliates.get(sender()) != null, "Publisher not on allowed list");
             }
@@ -156,13 +148,15 @@ import "@stdlib/deploy";
             self.affiliates.set(affilateId, AffiliateData{publisher: sender(), userActionsStats: emptyMap()});
             self.numAffiliates = self.numAffiliates + 1;
 
+            self.lastUserAction = now(); // grace for publisher
+
             // tx fee to parent
             send(SendParameters{
                 to: self.parent,
-                bounce: true,
                 body: InternalAffiliateCreated{
                     campaignId: self.campaignId,
-                    affiliateId: affilateId
+                    affiliateId: affilateId,
+                    advertiser: self.advertiser
                 }.toCell(),                
                 value: 0,
                 mode: SendRemainingValue
@@ -172,8 +166,7 @@ import "@stdlib/deploy";
         receive(msg: RemoveAffiliateAndWithdrawFunds) {
 
             require(sender() == self.advertiser, "Only the advertiser can remove the affiliate");            
-            require((self.lastUserAction > 0) && (now() - self.lastUserAction > self.campaignDetails.daysWithoutUserActionForWithdrawFunds*24*60*60), "Advertiser can withdraw funds only after agreed upon time period with no user action");
-            require(context().value >= self.minMsgValue(1, context().value), "Insufficient funds");
+            require(now() - self.lastUserAction > self.campaignDetails.daysWithoutUserActionForWithdrawFunds*24*60*60, "Advertiser can withdraw funds only after agreed upon time period with no user action");
 
             send(SendParameters{
                 to: self.advertiser,
@@ -214,7 +207,7 @@ import "@stdlib/deploy";
             let feeFromContract: Int = feeFromPublisher;  // 0.5% additional fee taken from the contract balance
 
             // Ensure sufficient balance after both fees
-            require(myBalance() >= costPerAction + feeFromContract + self.minMsgValue(2, context().value), "Insufficient contract balance to pay publisher and cover fees");
+            // require(myBalance() >= costPerAction + feeFromContract + self.minMsgValue(2, context().value), "Insufficient contract balance to pay publisher and cover fees");
 
             // Total fee
             let totalFee: Int = feeFromPublisher + feeFromContract;
@@ -234,7 +227,8 @@ import "@stdlib/deploy";
                 to: self.parent,
                 bounce: true,
                 body: InternalChildToParentTxFee{
-                    campaignId: self.campaignId
+                    campaignId: self.campaignId,
+                    advertiser: self.advertiser
                 }.toCell(),
                 value: totalFee,
                 mode: SendRemainingValue
@@ -258,19 +252,17 @@ import "@stdlib/deploy";
     // messages
     message InternalChildToParentTxFee {
         campaignId: Int as uint32;
+        advertiser: Address;
     }
 
     message InternalAffiliateCreated {
         campaignId: Int as uint32;
         affiliateId: Int as uint32;
+        advertiser: Address;
     }
 
     message AdminWithdraw {
         amount: Int as coins;
-    }
-
-    message AdminRemoveCampaign {
-        campaignId: Int as uint32;
     }
 
     message CreateCampaign {}
@@ -278,6 +270,7 @@ import "@stdlib/deploy";
     message UserAction {
         campaignId: Int as uint32;
         affiliateId: Int as uint32;
+        advertiser: Address;
         userAction: Int as uint32;
         isPremiumUser: Bool;
     }
@@ -285,10 +278,13 @@ import "@stdlib/deploy";
     message AffiliateCreatedReply {
         campaignId: Int as uint32;
         affiliateId: Int as uint32;
+        advertiser: Address;
     }
 
     message CampaignCreatedReply {
         campaignId: Int as uint32;
+        advertiser: Address;
+        campaignContractAddress: Address;
     }
 
 
@@ -314,51 +310,24 @@ import "@stdlib/deploy";
             return myBalance(); // in nano-tons (like cents, just with 9 decimals)
         }
 
-        fun campaignContractStateInit(campaignId: Int): StateInit {
-            let initCode: StateInit = initOf Campaign(myAddress(), campaignId);
+        fun campaignContractStateInit(campaignId: Int, advertiser: Address): StateInit {
+            let initCode: StateInit = initOf Campaign(myAddress(), campaignId, advertiser);
             return initCode;
         }
 
-        get fun campaignContractAddress(campaignId: Int): Address {
-            return contractAddress(self.campaignContractStateInit(campaignId));
-        }
-
-        fun minMsgValue(numForwards: Int, msgValue: Int) : Int {
-            let tonBalanceBeforeMsg: Int = myBalance() - msgValue;
-            let storageFee: Int = MIN_TON_FOR_STORAGE - min(tonBalanceBeforeMsg, MIN_TON_FOR_STORAGE);
-            return storageFee + ((numForwards+1)*(GAS_CONSUMPTION_FEE + FORWARD_MSG_FEE));
+        get fun campaignContractAddress(campaignId: Int, advertiser: Address): Address {
+            return contractAddress(self.campaignContractStateInit(campaignId, advertiser));
         }
 
         receive(msg: InternalChildToParentTxFee) {
-            let expectedAddress: Address = contractAddress(self.campaignContractStateInit(msg.campaignId));
+            let expectedAddress: Address = contractAddress(self.campaignContractStateInit(msg.campaignId, msg.advertiser));
             require(sender() == expectedAddress, "Access denied");
-        }
-
-        // in case where advertiser does not sign
-        receive(msg: AdminRemoveCampaign) {
-
-            self.requireOwner();
-            require(context().value >= self.minMsgValue(1, context().value), "Insufficient funds");
-
-
-            let init: StateInit = self.campaignContractStateInit(msg.campaignId);
-            let campaignContractAddress: Address = contractAddress(init);
-
-            send(SendParameters{
-                to: campaignContractAddress,
-                value: 0, 
-                mode: SendRemainingValue,
-                body: RemoveAffiliateAndWithdrawFunds{}.toCell()
-            });
-
         }
 
         receive(msg: AdminWithdraw) {
             
             self.requireOwner();
-            
-            require(myBalance() > msg.amount + MIN_TON_FOR_STORAGE, "Insufficient funds");
-            
+                        
             send(SendParameters{
                 to: self.owner,
                 bounce: true,
@@ -369,14 +338,11 @@ import "@stdlib/deploy";
 
         // Function to create a new campaign
         receive(msg: CreateCampaign) {
-
-            require(sender() == self.bot, "Only bot can create new Affiliates");
-            require(context().value >= self.minMsgValue(2, context().value) + 2*SIGN_UP_FEE, "Insufficient funds");
                         
             let campaignId = self.currCampaignId;
             self.currCampaignId = campaignId + 1;
 
-            let init: StateInit = self.campaignContractStateInit(campaignId);
+            let init: StateInit = self.campaignContractStateInit(campaignId, sender());
             let campaignContractAddress: Address = contractAddress(init);
 
             // 1. deploy contract
@@ -388,25 +354,25 @@ import "@stdlib/deploy";
                 body: InternalCreatecampaign{campaignId: campaignId}.toCell()
             });
 
+            // event - TODO
             send(SendParameters{
                 to: self.bot,
                 bounce: true,
                 value: SIGN_UP_FEE,
-                body: CampaignCreatedReply{campaignId: campaignId}.toCell()
+                body: CampaignCreatedReply{campaignId: campaignId, advertiser: sender(), campaignContractAddress: campaignContractAddress}.toCell()
             });
         }
 
         receive(msg: InternalAffiliateCreated) {
             
-            let expectedAddress: Address = contractAddress(self.campaignContractStateInit(msg.campaignId));
+            let expectedAddress: Address = contractAddress(self.campaignContractStateInit(msg.campaignId, msg.advertiser));
             require(sender() == expectedAddress, "Access denied");
 
             send(SendParameters{
                 to: self.bot,
-                bounce: true,
                 value: 0, 
                 mode: SendRemainingValue,
-                body: AffiliateCreatedReply{campaignId: msg.campaignId, affiliateId: msg.affiliateId}.toCell()
+                body: AffiliateCreatedReply{campaignId: msg.campaignId, advertiser: msg.advertiser, affiliateId: msg.affiliateId}.toCell()
             });
         }
 
@@ -414,12 +380,9 @@ import "@stdlib/deploy";
         receive(msg: UserAction) {
             
             require(sender() == self.bot, "Only bot can invoke UserClicks");
-            require(context().value >= self.minMsgValue(1, context().value), "Insufficient funds");
             
-            let init: StateInit = self.campaignContractStateInit(msg.campaignId);
+            let init: StateInit = self.campaignContractStateInit(msg.campaignId, msg.advertiser);
             let campaignContractAddress: Address = contractAddress(init);
-
-            
 
             send(SendParameters{
                 to: campaignContractAddress,
