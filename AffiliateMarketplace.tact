@@ -12,8 +12,9 @@ import "@stdlib/deploy";
 
     const SIGN_UP_FEE: Int = ton("1");  
     const DEPLOY_NEW_CAMPAIGN_COST: Int = ton("0.1");
+    const AVG_GAS_CONSUMPTION: Int = ton("0.005");
 
-    const MIN_COST_PER_USER_ACTION: Int = ton("0.008");  // ~ 4 cents 
+    const MIN_COST_PER_USER_ACTION: Int = ton("0.008");   
     
 
     struct CampaignDetails {
@@ -134,6 +135,13 @@ import "@stdlib/deploy";
             self.state = STATE_CAMPAIGN_DETAILS_SET_BY_ADVERTISER;
         }
 
+        // Reserve funds for publisher withdrawals
+        fun getCurrentCampaignBalance(): Int {
+            let buffer: Int = ton("1");  // Additional buffer to avoid minor fluctuations
+            let campaginBalance: Int = myBalance() - (self.totalAccruedEarnings + buffer);  // can be negative
+            return campaginBalance;  
+        }
+
         // Function to handle advertiser replenishment
         receive(msg: AdvertiserReplenish) {
             // Ensure that the sender is the advertiser
@@ -184,7 +192,6 @@ import "@stdlib/deploy";
 
         }
 
-
         receive(msg: RemoveCampaignAndWithdrawFunds) {
 
             require(sender() == self.advertiser, "Only the advertiser can remove the affiliate");            
@@ -215,7 +222,7 @@ import "@stdlib/deploy";
             require(costPerActionOptional != null, "Invalid user action");
             let costPerAction: Int = costPerActionOptional!!;
 
-            require(myBalance() > self.totalAccruedEarnings + costPerAction, "Insufficient funds in contract");
+            require(self.getCurrentCampaignBalance() > costPerAction, "Insufficient funds in contract");
 
             let numActions: Int? = affiliateData.userActionsStats.get(msg.userAction);
             if (numActions == null) {
@@ -242,7 +249,8 @@ import "@stdlib/deploy";
                         campaignId: self.campaignId,
                         advertiser: self.advertiser
                     }.toCell(),                
-                    value: ton("0.05") // 10 * 0.005
+                    value: 10 * AVG_GAS_CONSUMPTION,
+                    mode: SendIgnoreErrors | SendPayGasSeparately
                 });
             }            
         }
@@ -272,19 +280,19 @@ import "@stdlib/deploy";
             // Adjust the total accrued earnings to reflect the withdrawal
             self.totalAccruedEarnings = self.totalAccruedEarnings - paymentAmount;
 
+            send(SendParameters{
+                to: self.parent,  
+                value: fee,
+                mode: SendIgnoreErrors
+            });
+
             // Transfer the remaining earnings (after deducting the fee) to the publisher
             send(SendParameters{
                 to: affiliateData.publisher,
                 value: finalPayment,
                 mode: SendIgnoreErrors
             });
-
-            // Optionally, the deducted fee can be sent to the parent or retained by the contract
-            send(SendParameters{
-                to: self.parent,  // Or another address to receive the fee
-                value: fee,
-                mode: SendIgnoreErrors
-            });
+           
         }
 
 
@@ -297,7 +305,7 @@ import "@stdlib/deploy";
                 numUserActions: self.numUserActions,
                 lastUserAction: self.lastUserAction,
                 state: self.state,
-                contractBalance: myBalance(),
+                contractBalance: self.getCurrentCampaignBalance(),
                 contractAddress: myAddress()
             }
         }
