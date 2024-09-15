@@ -153,7 +153,7 @@ import "@stdlib/deploy";
 
         // Reserve funds for affiliate withdrawals
         fun getCurrentCampaignBalance(): Int {
-            let buffer: Int = ton("1");  // Additional buffer to pay for gas fees
+            let buffer: Int = ton("2");  // Additional buffer to pay for gas fees
             let campaginBalance: Int = myBalance() - (self.totalAccruedEarnings + buffer);  // can be negative
             return campaginBalance;  
         }
@@ -300,6 +300,7 @@ import "@stdlib/deploy";
            
         }
 
+        // is payment bounces - adjust the affiliate's accruedEarnings and totalAccruedEarnings accordingly
         bounced(msg: PayAffiliate) {
 
             let affiliateDataOptional = self.affiliates.get(msg.affiliateId);
@@ -420,7 +421,7 @@ import "@stdlib/deploy";
         // Function to create a new campaign
         receive(msg: CreateCampaign) {
 
-            require(context().value >= DEPLOY_NEW_CAMPAIGN_COST + SIGN_UP_FEE, "Insufficient funds");
+            require(context().value >= DEPLOY_NEW_CAMPAIGN_COST, "Insufficient funds");
                         
             let campaignId = self.currCampaignId;
             self.currCampaignId = campaignId + 1;
@@ -431,7 +432,8 @@ import "@stdlib/deploy";
             // 1. deploy contract
             send(SendParameters{
                 to: campaignContractAddress,
-                value: DEPLOY_NEW_CAMPAIGN_COST, 
+                value: 0,
+                mode: SendRemainingValue, 
                 code: init.code, 
                 data: init.data,
                 body: InternalCreatecampaign{campaignId: campaignId}.toCell()
