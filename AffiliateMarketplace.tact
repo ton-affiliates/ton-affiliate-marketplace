@@ -300,7 +300,7 @@ import "@stdlib/deploy";
            
         }
 
-        // is payment bounces - adjust the affiliate's accruedEarnings and totalAccruedEarnings accordingly
+        // if payment bounces - adjust the affiliate's accruedEarnings and totalAccruedEarnings accordingly
         bounced(msg: PayAffiliate) {
 
             let affiliateDataOptional = self.affiliates.get(msg.affiliateId);
@@ -429,11 +429,12 @@ import "@stdlib/deploy";
             let init: StateInit = self.campaignContractStateInit(campaignId, sender());
             let campaignContractAddress: Address = contractAddress(init);
 
+            dump(campaignContractAddress);
+
             // 1. deploy contract
             send(SendParameters{
                 to: campaignContractAddress,
-                value: 0,
-                mode: SendRemainingValue, 
+                value: DEPLOY_NEW_CAMPAIGN_COST,
                 code: init.code, 
                 data: init.data,
                 body: InternalCreatecampaign{campaignId: campaignId}.toCell()
