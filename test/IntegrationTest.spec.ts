@@ -4,6 +4,11 @@ import { AffiliateMarketplace, loadCampaignCreatedReply } from '../dist/tact_Aff
 import { Campaign } from '../dist/tact_Campaign';
 import '@ton/test-utils';
 
+import {
+    loadAffiliateCreatedEvent,
+    loadCampaignCreatedEvent
+} from './events';
+
 
 type EmitLogEvent = {
     type: string;
@@ -18,7 +23,8 @@ describe('AffiliateMarketplace Integration Test', () => {
     let deployer;
     let bot;
     let advertiser;
-    let publisher;
+    let affiliate1;
+    let affiliate2;
 
     beforeEach(async () => {
         
@@ -48,13 +54,12 @@ describe('AffiliateMarketplace Integration Test', () => {
         
         logs.push({ type: 'AffiliateMarketplaceContractBalance', data: fromNano(await affiliateMarketplaceContract.getBalance()) + " TON"  });
         logs.push({ type: 'AdvertiserBalance', data: fromNano(await advertiser.getBalance()) + " TON"  });
-        logs.push({ type: 'PublisherBalance', data: fromNano(await publisher.getBalance()) + " TON"  });
 
         // Create Affiliate
         const createCampaignResult = await affiliateMarketplaceContract.send(
-            bot.getSender(),
+            advertiser.getSender(),
             {
-                value: toNano('0.75'), 
+                value: toNano('0.5'), 
             },
             {
                 $$type: 'CreateCampaign'
@@ -65,42 +70,52 @@ describe('AffiliateMarketplace Integration Test', () => {
         // printTransactionFees(createCampaignResult.transactions); 
 
         expect(createCampaignResult.transactions).toHaveTransaction({
-            from: bot.address,
+            from: advertiser.address,
             to: affiliateMarketplaceContract.address,
             success: true,
         });
 
-        // reply
-        expect(createCampaignResult.transactions).toHaveTransaction({
-            from: affiliateMarketplaceContract.address,
-            to: bot.address,
-            success: true,
-        });
+        let campaignContractAddress: string | null = null;
 
-        let campaignCreatedReply = null;
-        for (var tx of createCampaignResult.transactions) {
-            for (var event of tx.events) {
-                if ((typeof(event.from) !== 'undefined' && event.from.toString() == affiliateMarketplaceContract.address.toString()) &&
-                    (typeof(event.to) !== 'undefined' && event.to.toString() == bot.address.toString())) {
-                    campaignCreatedReply = loadCampaignCreatedReply(event.body.beginParse());
-                }
-            } 
+        for (const external of createCampaignResult.externals) {
+            if (external.body) {
+                const decodedCampaign = loadCampaignCreatedEvent(external.body);
+                logs.push({ type: 'CampaignCreatedEvent', data: decodedCampaign });
+                expect(decodedCampaign).toMatchObject({
+                    $$type: 'CampaignCreatedEvent',
+                    campaignId: 0,
+                    advertiser: advertiser.address.toString()
+                });
+                campaignContractAddress = decodedCampaign.campaignContractAddress;
+            }
         }
 
-        expect(campaignCreatedReply).not.toBeNull();
-
-        let campaignContractAddress = campaignCreatedReply.campaignContractAddress;
-        let campaignContractAddressFromMarketplace = await affiliateMarketplaceContract.getCampaignContractAddress(campaignCreatedReply.campaignId);
-        
-        expect(campaignContractAddress.toString()).toEqual(campaignContractAddressFromMarketplace.toString());
-        
+        expect(campaignContractAddress).not.toBeNull();
         expect(createCampaignResult.transactions).toHaveTransaction({
             from: affiliateMarketplaceContract.address,
             to: campaignContractAddress,
             success: true,
             deploy: true,
         });
-     
+
+        // let campaignCreatedReply = null;
+        // for (var tx of createCampaignResult.transactions) {
+        //     for (var event of tx.events) {
+        //         if ((typeof(event.from) !== 'undefined' && event.from.toString() == affiliateMarketplaceContract.address.toString()) &&
+        //             (typeof(event.to) !== 'undefined' && event.to.toString() == bot.address.toString())) {
+        //             campaignCreatedReply = loadCampaignCreatedReply(event.body.beginParse());
+        //         }
+        //     } 
+        // }
+
+        // expect(campaignCreatedReply).not.toBeNull();
+        // let campaignContractAddress = campaignCreatedReply.campaignContractAddress;
+        
+        let campaignId = 0;
+        let campaignContractAddressFromMarketplace = await affiliateMarketplaceContract.getCampaignContractAddress(campaignId, advertiser.address);
+        
+        expect(campaignContractAddress.toString()).toEqual(campaignContractAddressFromMarketplace.toString());
+        
         // const affiliateContract = blockchain.openContract(await Affiliate.fromAddress(affiliateContractAddress));
         // let affiliateDetails = await affiliateContract.getAffiliateDetails();
         // console.log(affiliateDetails);
