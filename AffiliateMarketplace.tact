@@ -12,8 +12,9 @@ import "@stdlib/deploy";
 
     const SIGN_UP_FEE: Int = ton("1");  
     const DEPLOY_NEW_CAMPAIGN_COST: Int = ton("0.1");
+    const MIN_AMOUNT_REPLENISH_CAMPAIGN: Int = ton("20");
+    
     const AVG_GAS_CONSUMPTION: Int = ton("0.005");
-
     const MIN_COST_PER_USER_ACTION: Int = ton("0.008");   
     
 
@@ -26,10 +27,9 @@ import "@stdlib/deploy";
     }
 
     struct AffiliateData {
-        publisher: Address;
+        affiliate: Address;
         userActionsStats: map<Int, Int>;  // stats - user action -> num user actions
         accruedEarnings: Int as coins;  // accumulated earnings since the last payment
-        lastPaymentTime: Int as uint32;  // timestamp of the last payment
     }
 
     struct CampaignData {
@@ -51,17 +51,21 @@ import "@stdlib/deploy";
         campaignDetails: CampaignDetails;
     }
 
-    message AddNewAffiliateToAllowedList{publisher: Address}
+    message AddNewAffiliateToAllowedList{affiliate: Address}
     message AdvertiserReplenish {}
 
-    message PublisherSigned{}
+    message CreateNewAffiliate{}
+    message PayAffiliate{
+        affiliateId: Int as uint32;
+        amount: Int as uint32;
+    }
     message InternalUserAction{
         affiliateId: Int as uint32;
         userAction: Int as uint32;
         isPremiumUser: Bool;
     }
 
-    message PublisherWithdrawEarnings {
+    message AffiliateWithdrawEarnings {
         affiliateId: Int as uint32;
     }
     message RemoveCampaignAndWithdrawFunds{}
@@ -78,7 +82,6 @@ import "@stdlib/deploy";
 
         currAffiliateId: Int as uint32; // runningId
         affiliates: map<Int, AffiliateData>;
-        numAffiliates: Int as uint32;
         
         state: Int as uint32;
         lastUserAction: Int as uint32;
@@ -104,7 +107,6 @@ import "@stdlib/deploy";
                 daysWithoutUserActionForWithdrawFunds: MIN_NUM_DAYS_NO_USER_ACTION_WITHDRAW_FUNDS
             }; 
 
-            self.numAffiliates = 0;
             self.state = STATE_CAMPAIGN_CREATED;
             self.lastUserAction = 0;
             self.numUserActions = 0;
@@ -121,7 +123,8 @@ import "@stdlib/deploy";
             require(sender() == self.advertiser, "Only advertiser can invoke this function");
             require(self.state == STATE_CAMPAIGN_CREATED, "Must be in state: STATE_CAMPAIGN_CREATED");
             require(msg.campaignDetails.daysWithoutUserActionForWithdrawFunds >= MIN_NUM_DAYS_NO_USER_ACTION_WITHDRAW_FUNDS, "daysWithoutUserActionForWithdrawFunds must be greater than MIN_NUM_DAYS_NO_USER_ACTION_WITHDRAW_FUNDS");
-            
+            require(context().value >= MIN_AMOUNT_REPLENISH_CAMPAIGN, "Insufficient funds.  Need at least MIN_AMOUNT_REPLENISH_CAMPAIGN Ton.");
+
             // verify values
             foreach (key, val in msg.campaignDetails.regularUsers) {
                 require(val >= MIN_COST_PER_USER_ACTION, "cpa must be greater than min cost for user action");
@@ -133,11 +136,24 @@ import "@stdlib/deploy";
 
             self.campaignDetails = msg.campaignDetails;
             self.state = STATE_CAMPAIGN_DETAILS_SET_BY_ADVERTISER;
+
+            // send 2% fee to parent
+            let fee: Int = (context().value * 200 + 9999) / 10000;  // 2% fee calculation
+
+            // advertiser to cover gas costs
+            send(SendParameters{
+                to: self.parent,
+                body: InternalChildToParentTxFee{
+                    campaignId: self.campaignId,
+                    advertiser: self.advertiser
+                }.toCell(),                
+                value: fee
+            });
         }
 
-        // Reserve funds for publisher withdrawals
+        // Reserve funds for affiliate withdrawals
         fun getCurrentCampaignBalance(): Int {
-            let buffer: Int = ton("1");  // Additional buffer to avoid minor fluctuations
+            let buffer: Int = ton("1");  // Additional buffer to pay for gas fees
             let campaginBalance: Int = myBalance() - (self.totalAccruedEarnings + buffer);  // can be negative
             return campaginBalance;  
         }
@@ -146,24 +162,38 @@ import "@stdlib/deploy";
         receive(msg: AdvertiserReplenish) {
             // Ensure that the sender is the advertiser
             require(sender() == self.advertiser, "Only the advertiser can replenish the contract");
+            require(context().value >= MIN_AMOUNT_REPLENISH_CAMPAIGN, "Insufficient funds.  Need at least MIN_AMOUNT_REPLENISH_CAMPAIGN Ton.");
+
+            // send 2% fee to parent
+            let fee: Int = (context().value * 200 + 9999) / 10000;  // 2% fee calculation
+
+            // advertiser to cover gas costs
+            send(SendParameters{
+                to: self.parent,
+                body: InternalChildToParentTxFee{
+                    campaignId: self.campaignId,
+                    advertiser: self.advertiser
+                }.toCell(),                
+                value: fee
+            });
         }
 
 
-        receive(msg: PublisherSigned) {
+        receive(msg: CreateNewAffiliate) {
             
             require(self.state == STATE_CAMPAIGN_DETAILS_SET_BY_ADVERTISER, "Must be in state: STATE_CAMPAIGN_DETAILS_SET_BY_ADVERTISER");
-            require(self.numAffiliates <= MAX_NUM_AFFILIATES, "Reached max number of affiliates for this campagn");
-            require(context().value >= SIGN_UP_FEE, "Insufficient funds");
+            let numAffiliates = self.currAffiliateId + 1;
+            require(numAffiliates <= MAX_NUM_AFFILIATES, "Reached max number of affiliates for this campagn");
+            require(context().value >= SIGN_UP_FEE, "Insufficient funds.  Need at least SIGN_UP_FEE Ton to register");
 
             if (!self.campaignDetails.isOpenCampaign) {
-                require(self.campaignDetails.allowedAffiliates.get(sender()) != null, "Publisher not on allowed list");
+                require(self.campaignDetails.allowedAffiliates.get(sender()) != null, "affiliate not on allowed list");
             }
 
             let affilateId = self.currAffiliateId;
             self.currAffiliateId = self.currAffiliateId + 1; 
 
-            self.affiliates.set(affilateId, AffiliateData{publisher: sender(), userActionsStats: emptyMap(), accruedEarnings: 0, lastPaymentTime: 0});
-            self.numAffiliates = self.numAffiliates + 1;
+            self.affiliates.set(affilateId, AffiliateData{affiliate: sender(), userActionsStats: emptyMap(), accruedEarnings: 0});
 
             send(SendParameters{
                 to: self.parent,
@@ -185,10 +215,10 @@ import "@stdlib/deploy";
             // Check if the campaign is not open (closed campaign)
             require(!self.campaignDetails.isOpenCampaign, "Cannot manually add affiliates to an open campaign");
 
-            require(self.campaignDetails.allowedAffiliates.get(msg.publisher) == null, "Publisher is on allowed list already");
+            require(self.campaignDetails.allowedAffiliates.get(msg.affiliate) == null, "affiliate is on allowed list already");
 
             // Add the new affiliate to the allowed affiliates list
-            self.campaignDetails.allowedAffiliates.set(msg.publisher, true);
+            self.campaignDetails.allowedAffiliates.set(msg.affiliate, true);
 
         }
 
@@ -237,62 +267,50 @@ import "@stdlib/deploy";
 
             self.lastUserAction = now();
             self.numUserActions = self.numUserActions + 1;
-            self.totalAccruedEarnings = self.totalAccruedEarnings + costPerAction;
-
-             // Make gas and transaction fee payments every 10 actions
-            if (self.numUserActions > 0 && self.numUserActions % 10 == 0) {
-                
-                // advertiser to cover gas costs
-                 send(SendParameters{
-                    to: self.parent,
-                    body: InternalChildToParentTxFee{
-                        campaignId: self.campaignId,
-                        advertiser: self.advertiser
-                    }.toCell(),                
-                    value: 10 * AVG_GAS_CONSUMPTION,
-                    mode: SendIgnoreErrors | SendPayGasSeparately
-                });
-            }            
+            self.totalAccruedEarnings = self.totalAccruedEarnings + costPerAction;           
         }
 
-        receive(msg: PublisherWithdrawEarnings) {
+        receive(msg: AffiliateWithdrawEarnings) {
     
             let affiliateDataOptional = self.affiliates.get(msg.affiliateId);
             require(affiliateDataOptional != null, "Affiliate does not exist");
             let affiliateData: AffiliateData = affiliateDataOptional!!;
 
-            require(sender() == affiliateData.publisher, "Only publisher can withdraw earnings");
+            require(sender() == affiliateData.affiliate, "Only affiliate can withdraw earnings");
 
             let paymentAmount: Int = affiliateData.accruedEarnings;
             require(paymentAmount > 0, "No earnings to withdraw");
             
             require(myBalance() >= paymentAmount, "Insufficient contract funds to make payment");
 
-            // Calculate the 2% fee to be deducted from the payment amount
-            let fee: Int = (paymentAmount * 200 + 9999) / 10000;  // 2% fee
-            let finalPayment: Int = paymentAmount - fee;
-
             // Reset accrued earnings and update last payment time
-            affiliateData.accruedEarnings = 0;
-            affiliateData.lastPaymentTime = now();
+            affiliateData.accruedEarnings = 0;            
             self.affiliates.set(msg.affiliateId, affiliateData);
 
             // Adjust the total accrued earnings to reflect the withdrawal
             self.totalAccruedEarnings = self.totalAccruedEarnings - paymentAmount;
 
+            // Transfer the remaining earnings (after deducting the fee) to the affiliate
             send(SendParameters{
-                to: self.parent,  
-                value: fee,
-                mode: SendIgnoreErrors
-            });
-
-            // Transfer the remaining earnings (after deducting the fee) to the publisher
-            send(SendParameters{
-                to: affiliateData.publisher,
-                value: finalPayment,
-                mode: SendIgnoreErrors
+                to: affiliateData.affiliate,
+                value: paymentAmount,
+                bounce: true,
+                body: PayAffiliate{affiliateId: msg.affiliateId, amount: paymentAmount}.toCell()
             });
            
+        }
+
+        bounced(msg: PayAffiliate) {
+
+            let affiliateDataOptional = self.affiliates.get(msg.affiliateId);
+            require(affiliateDataOptional != null, "Affiliate does not exist");
+            let affiliateData: AffiliateData = affiliateDataOptional!!;
+
+            affiliateData.accruedEarnings = affiliateData.accruedEarnings + msg.amount; 
+
+            self.affiliates.set(msg.affiliateId, affiliateData);
+
+            self.totalAccruedEarnings = self.totalAccruedEarnings + msg.amount;
         }
 
 
