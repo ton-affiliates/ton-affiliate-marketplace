@@ -9,6 +9,7 @@ import {
     loadCampaignCreatedEvent
 } from './events';
 
+import { formatCampaignData } from './helpers';
 
 type EmitLogEvent = {
     type: string;
@@ -16,6 +17,7 @@ type EmitLogEvent = {
 };
 
 const logs: EmitLogEvent[] = [];
+
 
 describe('AffiliateMarketplace Integration Test', () => {
     let blockchain;
@@ -76,6 +78,7 @@ describe('AffiliateMarketplace Integration Test', () => {
         });
 
         let campaignContractAddress: string | null = null;
+        let campaignId: number | null = null;
 
         for (const external of createCampaignResult.externals) {
             if (external.body) {
@@ -86,10 +89,12 @@ describe('AffiliateMarketplace Integration Test', () => {
                     campaignId: 0,
                     advertiser: advertiser.address.toString()
                 });
-                campaignContractAddress = decodedCampaign.campaignContractAddress;
+                campaignContractAddress = Address.parse(decodedCampaign.campaignContractAddress);
+                campaignId = 0;
             }
         }
 
+        expect(campaignId).not.toBeNull();        
         expect(campaignContractAddress).not.toBeNull();
         expect(createCampaignResult.transactions).toHaveTransaction({
             from: affiliateMarketplaceContract.address,
@@ -97,28 +102,52 @@ describe('AffiliateMarketplace Integration Test', () => {
             success: true,
             deploy: true,
         });
-
-        // let campaignCreatedReply = null;
-        // for (var tx of createCampaignResult.transactions) {
-        //     for (var event of tx.events) {
-        //         if ((typeof(event.from) !== 'undefined' && event.from.toString() == affiliateMarketplaceContract.address.toString()) &&
-        //             (typeof(event.to) !== 'undefined' && event.to.toString() == bot.address.toString())) {
-        //             campaignCreatedReply = loadCampaignCreatedReply(event.body.beginParse());
-        //         }
-        //     } 
-        // }
-
-        // expect(campaignCreatedReply).not.toBeNull();
-        // let campaignContractAddress = campaignCreatedReply.campaignContractAddress;
         
-        let campaignId = 0;
         let campaignContractAddressFromMarketplace = await affiliateMarketplaceContract.getCampaignContractAddress(campaignId, advertiser.address);
         
         expect(campaignContractAddress.toString()).toEqual(campaignContractAddressFromMarketplace.toString());
         
-        // const affiliateContract = blockchain.openContract(await Affiliate.fromAddress(affiliateContractAddress));
-        // let affiliateDetails = await affiliateContract.getAffiliateDetails();
-        // console.log(affiliateDetails);
+        const campaignContract = blockchain.openContract(await Campaign.fromAddress(campaignContractAddress));
+        
+        // Advertiser Signed
+        let USER_CLICK = 0;
+        
+        const regularUsersMap = Dictionary.empty<bigint, bigint>();
+        const premiumUsersMap = Dictionary.empty<bigint, bigint>();
+        const allowedAffiliatesMap = Dictionary.empty<Address, bool>();
+
+        regularUsersMap.set(BigInt(USER_CLICK), toNano("0.1"));
+        premiumUsersMap.set(BigInt(USER_CLICK), toNano("0.2"));
+        
+        const advertiserSignedResult = await campaignContract.send(
+            advertiser.getSender(),
+            {
+                value: toNano('250'),
+            },
+            {
+                $$type: 'AdvertiserSigned',
+                campaignDetails: {
+                    $$type: 'CampaignDetails',
+                    regularUsers: regularUsersMap,// userAction => price
+                    premiumUsers: premiumUsersMap, // userAction => price
+                    allowedAffiliates: allowedAffiliatesMap,  // address -> dummy (closed campaign)
+                    isOpenCampaign: true, // anyone can be an affiliate
+                    daysWithoutUserActionForWithdrawFunds: 30
+                }
+            }
+        );
+
+        expect(advertiserSignedResult.transactions).toHaveTransaction({
+            from: advertiser.address,
+            to: campaignContractAddress,
+            success: true
+        });
+
+        logs.push({ type: 'AffiliateMarketplaceContractBalance', data: fromNano(await affiliateMarketplaceContract.getBalance()) + " TON"  });
+        logs.push({ type: 'AdvertiserBalance', data: fromNano(await advertiser.getBalance()) + " TON"  });
+
+        campaignData = await campaignContract.getCampaignDetails();
+        logs.push('CampaignData', await formatCampaignData(campaignData));
       
         // logs.push({ type: 'AffiliateMarketplaceContractBalance', data: fromNano(await affiliateMarketplaceContract.getBalance()) + " TON"  });
         // logs.push({ type: 'AffiliateContractBalance', data: fromNano(await affiliateContract.getBalance()) + " TON" });
@@ -201,13 +230,16 @@ describe('AffiliateMarketplace Integration Test', () => {
 
 
 
-        // Custom replacer function to handle BigInt serialization
+        // Then when you log it at the end of your test:
         function replacer(key, value) {
             return typeof value === 'bigint' ? fromNano(value).toString() + " TON" : value;
         }
 
-        // Output the final logs
-        console.log("Final logs:", JSON.stringify(logs, replacer, 2));
+        // Using JSON.stringify with proper indentation
+        console.log("Final logs:", JSON.stringify(logs, replacer, 2)); // The '2' provides pretty-printed JSON output with two spaces of indentation.
+
+
+        
     });
 
 
