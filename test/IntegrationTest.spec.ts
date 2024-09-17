@@ -1,14 +1,12 @@
 import { Blockchain, printTransactionFees, prettyLogTransactions } from '@ton/sandbox';
-import { toNano, fromNano, Address, Dictionary  } from '@ton/core';
+import { toNano, fromNano, Address, Dictionary } from '@ton/core';
 import { AffiliateMarketplace, loadCampaignCreatedReply } from '../dist/tact_AffiliateMarketplace';
 import { Campaign } from '../dist/tact_Campaign';
 import '@ton/test-utils';
-
 import {
     loadAffiliateCreatedEvent,
     loadCampaignCreatedEvent
 } from './events';
-
 import { formatCampaignData } from './helpers';
 
 type EmitLogEvent = {
@@ -18,26 +16,26 @@ type EmitLogEvent = {
 
 const logs: EmitLogEvent[] = [];
 
-
 describe('AffiliateMarketplace Integration Test', () => {
     let blockchain;
     let affiliateMarketplaceContract;
     let deployer;
     let bot;
     let advertiser;
-    let affiliate1;
-    let affiliate2;
+    let affiliate;
+
+    let USER_CLICK = 0;
 
     beforeEach(async () => {
-        
         blockchain = await Blockchain.create();
-
         deployer = await blockchain.treasury('deployer');
         bot = await blockchain.treasury('bot');
         advertiser = await blockchain.treasury('advertiser');
-        publisher = await blockchain.treasury('publisher');
+        affiliate = await blockchain.treasury('affiliate');
+
         affiliateMarketplaceContract = blockchain.openContract(await AffiliateMarketplace.fromInit(bot.address));
 
+        // Deploy the contract
         const deployResult = await affiliateMarketplaceContract.send(
             deployer.getSender(),
             { value: toNano('0.05') },
@@ -50,26 +48,20 @@ describe('AffiliateMarketplace Integration Test', () => {
             deploy: true,
             success: true,
         });
+
+        logs.push({
+            type: 'AffiliateMarketplaceDeployed',
+            data: { deployerBalance: fromNano(await deployer.getBalance()) + " TON" }
+        });
     });
 
-    it('should create campaign, create affiliate, set details by advertiser, sign by publisher, and handle user click', async () => {
-        
-        logs.push({ type: 'AffiliateMarketplaceContractBalance', data: fromNano(await affiliateMarketplaceContract.getBalance()) + " TON"  });
-        logs.push({ type: 'AdvertiserBalance', data: fromNano(await advertiser.getBalance()) + " TON"  });
-
-        // Create Affiliate
+    it('should create campaign, add affiliate, and handle user actions with balance logging', async () => {
+        // Create campaign
         const createCampaignResult = await affiliateMarketplaceContract.send(
             advertiser.getSender(),
-            {
-                value: toNano('0.5'), 
-            },
-            {
-                $$type: 'CreateCampaign'
-            }
+            { value: toNano('250') },
+            { $$type: 'CreateCampaign' }
         );
-
-        // prettyLogTransactions(createCampaignResult.transactions);
-        // printTransactionFees(createCampaignResult.transactions); 
 
         expect(createCampaignResult.transactions).toHaveTransaction({
             from: advertiser.address,
@@ -77,174 +69,155 @@ describe('AffiliateMarketplace Integration Test', () => {
             success: true,
         });
 
-        let campaignContractAddress: string | null = null;
-        let campaignId: number | null = null;
-
+        let decodedCampaign: any | null = null;
         for (const external of createCampaignResult.externals) {
             if (external.body) {
-                const decodedCampaign = loadCampaignCreatedEvent(external.body);
-                logs.push({ type: 'CampaignCreatedEvent', data: decodedCampaign });
-                expect(decodedCampaign).toMatchObject({
-                    $$type: 'CampaignCreatedEvent',
-                    campaignId: 0,
-                    advertiser: advertiser.address.toString()
-                });
-                campaignContractAddress = Address.parse(decodedCampaign.campaignContractAddress);
-                campaignId = 0;
+                decodedCampaign = loadCampaignCreatedEvent(external.body);
+                logs.push({ type: 'CampaignCreated', data: decodedCampaign });
             }
         }
 
-        expect(campaignId).not.toBeNull();        
-        expect(campaignContractAddress).not.toBeNull();
-        expect(createCampaignResult.transactions).toHaveTransaction({
-            from: affiliateMarketplaceContract.address,
-            to: campaignContractAddress,
-            success: true,
-            deploy: true,
-        });
-        
-        let campaignContractAddressFromMarketplace = await affiliateMarketplaceContract.getCampaignContractAddress(campaignId, advertiser.address);
-        
-        expect(campaignContractAddress.toString()).toEqual(campaignContractAddressFromMarketplace.toString());
-        
-        const campaignContract = blockchain.openContract(await Campaign.fromAddress(campaignContractAddress));
-        
-        // Advertiser Signed
-        let USER_CLICK = 0;
-        
+        expect(decodedCampaign).not.toBeNull();
+        let campaignContractAddressStr: string = decodedCampaign!.campaignContractAddressStr;
+        const campaignContract = blockchain.openContract(await Campaign.fromAddress(Address.parse(campaignContractAddressStr)));
+
+        // Sign campaign by advertiser
         const regularUsersMap = Dictionary.empty<bigint, bigint>();
         const premiumUsersMap = Dictionary.empty<bigint, bigint>();
-        const allowedAffiliatesMap = Dictionary.empty<Address, bool>();
+        regularUsersMap.set(BigInt(USER_CLICK), toNano('0.1'));
+        premiumUsersMap.set(BigInt(USER_CLICK), toNano('0.2'));
 
-        regularUsersMap.set(BigInt(USER_CLICK), toNano("0.1"));
-        premiumUsersMap.set(BigInt(USER_CLICK), toNano("0.2"));
-        
         const advertiserSignedResult = await campaignContract.send(
             advertiser.getSender(),
             {
-                value: toNano('250'),
+                value: toNano('50'),
             },
             {
                 $$type: 'AdvertiserSigned',
                 campaignDetails: {
                     $$type: 'CampaignDetails',
-                    regularUsers: regularUsersMap,// userAction => price
-                    premiumUsers: premiumUsersMap, // userAction => price
-                    allowedAffiliates: allowedAffiliatesMap,  // address -> dummy (closed campaign)
-                    isOpenCampaign: true, // anyone can be an affiliate
-                    daysWithoutUserActionForWithdrawFunds: 30
+                    regularUsers: regularUsersMap,
+                    premiumUsers: premiumUsersMap,
+                    allowedAffiliates: Dictionary.empty<Address, boolean>(),
+                    isOpenCampaign: true,
+                    daysWithoutUserActionForWithdrawFunds: 30n,
                 }
             }
         );
 
         expect(advertiserSignedResult.transactions).toHaveTransaction({
             from: advertiser.address,
-            to: campaignContractAddress,
-            success: true
+            to: campaignContract.address,
+            success: true,
         });
 
-        campaignData = await campaignContract.getCampaignData();
+        const campaignData = await campaignContract.getCampaignData();
 
-        logs.push({ type: 'AffiliateMarketplaceContractBalance', data: fromNano(await affiliateMarketplaceContract.getBalance()) + " TON"  });
-        logs.push({ type: 'AdvertiserBalance', data: fromNano(await advertiser.getBalance()) + " TON"  });
-        logs.push({ type: 'CampaignBalance', data: fromNano(campaignData.campaignBalance) + " TON"  });
-        logs.push({ type: 'CampaignContractBalance', data: fromNano(campaignData.contractBalance) + " TON"  });
+        // Log campaign and contract balances
+        const initialCampaignBalance = campaignData.campaignBalance;
+        const initialContractBalance = campaignData.contractBalance;
 
-        logs.push('CampaignData', await formatCampaignData(campaignData));
-      
-        // logs.push({ type: 'AffiliateMarketplaceContractBalance', data: fromNano(await affiliateMarketplaceContract.getBalance()) + " TON"  });
-        // logs.push({ type: 'AffiliateContractBalance', data: fromNano(await affiliateContract.getBalance()) + " TON" });
-        // logs.push({ type: 'AdvertiserBalance', data: fromNano(await advertiser.getBalance()) + " TON"  });
-        // logs.push({ type: 'PublisherBalance', data: fromNano(await publisher.getBalance()) + " TON"  });
+        console.log(`Initial Campaign Balance: ${fromNano(initialCampaignBalance)} TON`);
+        console.log(`Initial Contract Balance: ${fromNano(initialContractBalance)} TON`);
 
-        
-        // // Publisher signs the contract
-        // const publisherSignedResult = await affiliateContract.send(
-        //     publisher.getSender(),
-        //     {
-        //         value: toNano('0.01'),
-        //     },
-        //     {
-        //         $$type: 'PublisherSigned',
-        //     }
-        // );
+        logs.push({
+            type: 'InitialCampaignBalanceLog',
+            data: `Initial Campaign Balance: ${fromNano(initialCampaignBalance)}, Contract Balance: ${fromNano(initialContractBalance)}`
+        });
 
-        // expect(publisherSignedResult.transactions).toHaveTransaction({
-        //     from: publisher.address,
-        //     to: affiliateContract.address,
-        //     success: true,
-        // });
+        // Add affiliate
+        const createAffiliateResult = await campaignContract.send(
+            affiliate.getSender(),
+            { value: toNano('1') },
+            { $$type: 'CreateNewAffiliate' }
+        );
 
-        // for (const external of publisherSignedResult.externals) {
-        //     if (external.body) {
-        //         const decodedEvent = loadPublisherSignedEvent(external.body);
-        //         logs.push({ type: 'PublisherSignedEvent', data: decodedEvent });
-        //         expect(decodedEvent).toMatchObject({
-        //             $$type: 'PublisherSignedEvent',
-        //             affiliateId: 0,
-        //             publisher: publisher.address.toString(),
-        //             cpc: cpc,
-        //         });
-        //     }
-        // }
+        expect(createAffiliateResult.transactions).toHaveTransaction({
+            from: affiliate.address,
+            to: campaignContract.address,
+            success: true,
+        });
 
-        // // Handle User Click
-        // const userClickResult = await affiliateMarketplaceContract.send(
-        //     bot.getSender(),
-        //     {
-        //         value: toNano('0.05'),
-        //     },
-        //     {
-        //         $$type: 'UserClick',
-        //         affiliateId: 0,
-        //         advertiser: advertiser.address,
-        //         publisher: publisher.address,
-        //         cpc: cpc,
-        //     }
-        // );
-
-        // expect(userClickResult.transactions).toHaveTransaction({
-        //     from: affiliateMarketplaceContract.address,
-        //     to: affiliateContract.address,
-        //     success: true,
-        // });
-
-        // for (const external of userClickResult.externals) {
-        //     if (external.body) {
-        //         const decodedEvent = loadPublisherPaidEvent(external.body);
-        //         logs.push({ type: 'PublisherPaidEvent', data: decodedEvent });
-        //         expect(decodedEvent).toMatchObject({
-        //             $$type: 'PublisherPaidEvent',
-        //             affiliateId: 0,
-        //             publisher: publisher.address.toString(),
-        //             cpc: cpc,
-        //         });
-        //     }
-        // }
-
-        // // Check that the click was registered and CPC was paid
-        // const numUserClicks = await affiliateContract.getNumUserClicks();
-        // expect(numUserClicks).toBe(1n);
-
-        // logs.push({ type: 'AffiliateMarketplaceContractBalance', data: fromNano(await affiliateMarketplaceContract.getBalance()) + " TON"  });
-        // logs.push({ type: 'AffiliateContractBalance', data: fromNano(await affiliateContract.getBalance()) + " TON" });
-        // logs.push({ type: 'AdvertiserBalance', data: fromNano(await advertiser.getBalance()) + " TON"  });
-        // logs.push({ type: 'PublisherBalance', data: fromNano(await publisher.getBalance()) + " TON"  });
-
-
-
-        // Then when you log it at the end of your test:
-        function replacer(key, value) {
-            return typeof value === 'bigint' ? fromNano(value).toString() + " TON" : value;
+        let decodedAffiliate: any | null = null
+        for (const external of createAffiliateResult.externals) {
+            if (external.body) {
+                decodedAffiliate = loadAffiliateCreatedEvent(external.body);
+                logs.push({ type: 'AffiliateCreated', data: decodedAffiliate });
+            }
         }
 
-        // Using JSON.stringify with proper indentation
-        console.log("Final logs:", JSON.stringify(logs, replacer, 2)); // The '2' provides pretty-printed JSON output with two spaces of indentation.
+        expect(decodedAffiliate).not.toBeNull();
 
+        // Simulate user action
+        const userActionResult = await affiliateMarketplaceContract.send(
+            bot.getSender(),
+            { value: toNano('0.05') },
+            {
+                $$type: 'UserAction',
+                campaignId: decodedCampaign!.campaignId,
+                affiliateId: decodedAffiliate!.affiliateId,
+                advertiser: advertiser.address,
+                userAction: USER_CLICK,
+                isPremiumUser: false,
+            }
+        );
 
-        
+        expect(userActionResult.transactions).toHaveTransaction({
+            from: affiliateMarketplaceContract.address,
+            to: campaignContract.address,
+            success: true,
+        });
+
+        const postUserActionCampaignData = await campaignContract.getCampaignData();
+
+        // Log balances after user action
+        console.log(`Campaign Balance After User Click: ${fromNano(postUserActionCampaignData.campaignBalance)} TON`);
+        console.log(`Contract Balance After User Click: ${fromNano(postUserActionCampaignData.contractBalance)} TON`);
+
+        logs.push({
+            type: 'PostUserActionCampaignBalanceLog',
+            data: `Campaign Balance After User Click: ${fromNano(postUserActionCampaignData.campaignBalance)}, Contract Balance After User Click: ${fromNano(postUserActionCampaignData.contractBalance)}`
+        });
+
+        // Affiliate withdraws earnings
+        const affiliateWithdrawResult = await campaignContract.send(
+            affiliate.getSender(),
+            { value: toNano('0.1') },
+            { $$type: 'AffiliateWithdrawEarnings', affiliateId: 0 }
+        );
+
+        expect(affiliateWithdrawResult.transactions).toHaveTransaction({
+            from: campaignContract.address,
+            to: affiliate.address,
+            success: true,
+        });
+
+        const postWithdrawCampaignData = await campaignContract.getCampaignData();
+
+        // Log balances after affiliate withdraw
+        console.log(`Campaign Balance After Withdraw: ${fromNano(postWithdrawCampaignData.campaignBalance)} TON`);
+        console.log(`Contract Balance After Withdraw: ${fromNano(postWithdrawCampaignData.contractBalance)} TON`);
+
+        logs.push({
+            type: 'PostWithdrawCampaignBalanceLog',
+            data: `Campaign Balance After Withdraw: ${fromNano(postWithdrawCampaignData.campaignBalance)}, Contract Balance After Withdraw: ${fromNano(postWithdrawCampaignData.contractBalance)}`
+        });
+
+        // Log final results
+        logs.push({
+            type: 'FinalCampaignData',
+            data: await formatCampaignData(await campaignContract.getCampaignData())
+        });
+
+        logs.push({
+            type: 'FinalAffiliateBalance',
+            data: fromNano(await affiliate.getBalance()) + " TON"
+        });
+
+        function replacer(key: string, value: any) {
+            return typeof value === 'bigint' ? fromNano(value) + ' TON' : value;
+        }
+
+        console.log('Final logs:', JSON.stringify(logs, replacer, 2));
     });
-
-
-
 });
