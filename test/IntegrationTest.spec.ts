@@ -143,10 +143,13 @@ describe('AffiliateMarketplace Integration Test', () => {
             success: true
         });
 
+        campaignData = await campaignContract.getCampaignData();
+
         logs.push({ type: 'AffiliateMarketplaceContractBalance', data: fromNano(await affiliateMarketplaceContract.getBalance()) + " TON"  });
         logs.push({ type: 'AdvertiserBalance', data: fromNano(await advertiser.getBalance()) + " TON"  });
+        logs.push({ type: 'CampaignBalance', data: fromNano(campaignData.campaignBalance) + " TON"  });
+        logs.push({ type: 'CampaignContractBalance', data: fromNano(campaignData.contractBalance) + " TON"  });
 
-        campaignData = await campaignContract.getCampaignDetails();
         logs.push('CampaignData', await formatCampaignData(campaignData));
       
         // logs.push({ type: 'AffiliateMarketplaceContractBalance', data: fromNano(await affiliateMarketplaceContract.getBalance()) + " TON"  });
