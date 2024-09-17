@@ -34,6 +34,7 @@ export async function formatCampaignData(data: any): Promise<string> {
     state: ${data.state}n,
     numUserActions: ${data.numUserActions}n,
     lastUserAction: ${data.lastUserAction}n,
+    campaignBalance: ${data.campaignBalance}n,
     contractBalance: ${data.contractBalance}n,
     contractAddress: ${data.contractAddress}
   }`;
