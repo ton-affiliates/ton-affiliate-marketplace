@@ -4,18 +4,18 @@ import "@stdlib/deploy";
 
     // constants
     const MAX_NUM_AFFILIATES: Int = 10000;  // ten thousand
-    const MIN_NUM_DAYS_NO_USER_ACTION_WITHDRAW_FUNDS: Int = 10;
+    const MIN_NUM_DAYS_NO_USER_ACTION_WITHDRAW_FUNDS: Int = 21;
 
     // affiliate contract state
     const STATE_CAMPAIGN_CREATED: Int = 0;
     const STATE_CAMPAIGN_DETAILS_SET_BY_ADVERTISER: Int = 1;
 
-    const SIGN_UP_FEE: Int = ton("1");  
+    // const SIGN_UP_FEE: Int = ton("1");  
     const DEPLOY_NEW_CAMPAIGN_COST: Int = ton("0.1");
     const MIN_AMOUNT_REPLENISH_CAMPAIGN: Int = ton("20");
     
     const AVG_GAS_CONSUMPTION: Int = ton("0.005");
-    const MIN_COST_PER_USER_ACTION: Int = ton("0.008");   
+    const MIN_COST_PER_USER_ACTION: Int = ton("0.01");   
     
 
     struct CampaignDetails {
@@ -185,7 +185,7 @@ import "@stdlib/deploy";
             require(self.state == STATE_CAMPAIGN_DETAILS_SET_BY_ADVERTISER, "Must be in state: STATE_CAMPAIGN_DETAILS_SET_BY_ADVERTISER");
             let numAffiliates = self.currAffiliateId + 1;
             require(numAffiliates <= MAX_NUM_AFFILIATES, "Reached max number of affiliates for this campagn");
-            require(context().value >= SIGN_UP_FEE, "Insufficient funds.  Need at least SIGN_UP_FEE Ton to register");
+            // require(context().value >= SIGN_UP_FEE, "Insufficient funds.  Need at least SIGN_UP_FEE Ton to register");
 
             if (!self.campaignDetails.isOpenCampaign) {
                 require(self.campaignDetails.allowedAffiliates.get(sender()) != null, "affiliate not on allowed list");
@@ -291,9 +291,23 @@ import "@stdlib/deploy";
             // Adjust the total accrued earnings to reflect the withdrawal
             self.totalAccruedEarnings = self.totalAccruedEarnings - paymentAmount;
 
+            // send 2% fee to parent
+            let fee: Int = (paymentAmount * 200 + 9999) / 10000;  // 2% fee calculation
+
+            // advertiser to cover gas costs
+            send(SendParameters{
+                to: self.parent,
+                body: InternalChildToParentTxFee{
+                    campaignId: self.campaignId,
+                    advertiser: self.advertiser
+                }.toCell(),                
+                value: fee,
+                mode: SendIgnoreErrors
+            });
+
             send(SendParameters{
                 to: affiliateData.affiliate,
-                value: paymentAmount,
+                value: paymentAmount - fee,
                 bounce: true,
                 body: PayAffiliate{affiliateId: msg.affiliateId, amount: paymentAmount}.toCell()
             });
