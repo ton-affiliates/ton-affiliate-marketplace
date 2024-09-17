@@ -40,6 +40,7 @@ import "@stdlib/deploy";
         state: Int as uint32;
         numUserActions: Int as uint32;
         lastUserAction: Int as uint32;
+        campaignBalance: Int as coins;
         contractBalance: Int as coins;
         contractAddress: Address;
     }
@@ -152,7 +153,7 @@ import "@stdlib/deploy";
         }
 
         // Reserve funds for affiliate withdrawals
-        fun getCurrentCampaignBalance(): Int {
+        fun currentCampaignBalance(): Int {
             let buffer: Int = ton("2");  // Additional buffer to pay for gas fees
             let campaginBalance: Int = myBalance() - (self.totalAccruedEarnings + buffer);  // can be negative
             return campaginBalance;  
@@ -252,7 +253,7 @@ import "@stdlib/deploy";
             require(costPerActionOptional != null, "Invalid user action");
             let costPerAction: Int = costPerActionOptional!!;
 
-            require(self.getCurrentCampaignBalance() > costPerAction, "Insufficient funds in contract");
+            require(self.currentCampaignBalance() > costPerAction, "Insufficient funds in contract");
 
             let numActions: Int? = affiliateData.userActionsStats.get(msg.userAction);
             if (numActions == null) {
@@ -290,7 +291,6 @@ import "@stdlib/deploy";
             // Adjust the total accrued earnings to reflect the withdrawal
             self.totalAccruedEarnings = self.totalAccruedEarnings - paymentAmount;
 
-            // Transfer the remaining earnings (after deducting the fee) to the affiliate
             send(SendParameters{
                 to: affiliateData.affiliate,
                 value: paymentAmount,
@@ -315,7 +315,7 @@ import "@stdlib/deploy";
         }
 
 
-        get fun campaignDetails(): CampaignData {
+        get fun campaignData(): CampaignData {
             return CampaignData {
                 campaignId: self.campaignId,
                 advertiser: self.advertiser,
@@ -324,7 +324,8 @@ import "@stdlib/deploy";
                 numUserActions: self.numUserActions,
                 lastUserAction: self.lastUserAction,
                 state: self.state,
-                contractBalance: self.getCurrentCampaignBalance(),
+                campaignBalance: self.currentCampaignBalance(),
+                contractBalance: myBalance(),
                 contractAddress: myAddress()
             }
         }
@@ -429,9 +430,7 @@ import "@stdlib/deploy";
             let init: StateInit = self.campaignContractStateInit(campaignId, sender());
             let campaignContractAddress: Address = contractAddress(init);
 
-            dump(campaignContractAddress);
-
-            // 1. deploy contract
+            // deploy contract
             send(SendParameters{
                 to: campaignContractAddress,
                 value: DEPLOY_NEW_CAMPAIGN_COST,
