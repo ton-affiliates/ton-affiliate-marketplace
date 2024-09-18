@@ -3,8 +3,10 @@
 import { Cell } from '@ton/core';
 
 // Event types from the ABI
-const EVENT_TYPE_CAMPAIGN_CREATED = 2452245169; // CampaignCreatedEvent
-const EVENT_TYPE_AFFILIATE_CREATED = 413735385; // AffiliateCreatedEvent
+const EVENT_TYPE_CAMPAIGN_CREATED = 2452245169; 
+const EVENT_TYPE_AFFILIATE_CREATED = 627662741; 
+const EVENT_TYPE_AFFILIATE_WITHDRAW_EARNINGS = 1950324544; 
+const EVENT_TYPE_ADVERTISER_REPLENISH = 3518853408;
 
 function loadEvent(cell: Cell, expectedEventType: number) {
     const slice = cell.beginParse();
@@ -19,14 +21,31 @@ export function loadCampaignCreatedEvent(cell: Cell) {
     const slice = loadEvent(cell, EVENT_TYPE_CAMPAIGN_CREATED);
     const campaignId = slice.loadUint(32);
     const advertiser = slice.loadAddress().toString();
-    const campaignContractAddress = slice.loadAddress();
-    return { $$type: 'CampaignCreatedEvent', campaignId, advertiser, campaignContractAddress };
+    const campaignContractAddressStr = slice.loadAddress().toString();
+    return { $$type: 'CampaignCreatedEvent', campaignId, advertiser, campaignContractAddressStr };
 }
 
 export function loadAffiliateCreatedEvent(cell: Cell) {
     const slice = loadEvent(cell, EVENT_TYPE_AFFILIATE_CREATED);
     const campaignId = slice.loadUint(32);
     const affiliateId = slice.loadUint(32);
-    const advertiser = slice.loadAddress().toString();
-    return { $$type: 'AffiliateCreatedEvent', campaignId, affiliateId, advertiser };
+    const advertiserAddressStr = slice.loadAddress().toString();
+    return { $$type: 'AffiliateCreatedEvent', campaignId, affiliateId, advertiserAddressStr };
+}
+
+export function  loadAffiliateWithdrawEarningsEvent(cell: Cell) {
+    const slice = loadEvent(cell, EVENT_TYPE_AFFILIATE_WITHDRAW_EARNINGS);
+    const campaignId = slice.loadUint(32);
+    const advertiserAddressStr = slice.loadAddress().toString();
+    const affiliateId = slice.loadUint(32);
+    const earnings = slice.loadCoins();
+    return { $$type: 'AffiliateWithdrawEarningsEvent', campaignId, affiliateId, advertiserAddressStr, earnings };
+}
+
+export function  loadAdvertiserReplenisEvent(cell: Cell) {
+    const slice = loadEvent(cell, EVENT_TYPE_ADVERTISER_REPLENISH);
+    const campaignId = slice.loadUint(32);
+    const advertiserAddressStr = slice.loadAddress().toString();
+    const replenishAmount = slice.loadCoins();
+    return { $$type: 'AdvertiserReplenisEvent', campaignId, advertiserAddressStr, replenishAmount };
 }
