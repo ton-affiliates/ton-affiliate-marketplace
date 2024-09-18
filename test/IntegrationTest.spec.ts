@@ -5,7 +5,9 @@ import { Campaign } from '../dist/tact_Campaign';
 import '@ton/test-utils';
 import {
     loadAffiliateCreatedEvent,
-    loadCampaignCreatedEvent
+    loadCampaignCreatedEvent,
+    loadAffiliateWithdrawEarningsEvent,
+    loadAdvertiserReplenisEvent
 } from './events';
 import { formatCampaignData } from './helpers';
 
@@ -68,7 +70,7 @@ describe('AffiliateMarketplace Integration Test', () => {
         for (const external of createCampaignResult.externals) {
             if (external.body) {
                 decodedCampaign = loadCampaignCreatedEvent(external.body);
-                logs.push({ type: 'CampaignCreated', data: decodedCampaign });
+                logs.push({ type: 'CampaignCreatedEvent', data: decodedCampaign });
             }
         }
 
@@ -138,6 +140,16 @@ describe('AffiliateMarketplace Integration Test', () => {
             success: true,
         });
 
+        let decodedAdvertiserReplenish: any | null = null;
+        for (const external of advertiserReplenishResult.externals) {
+            if (external.body) {
+                decodedAdvertiserReplenish = loadAdvertiserReplenisEvent(external.body);
+                logs.push({ type: 'AdvertiserReplenishEvent', data: decodedAdvertiserReplenish });
+            }
+        }
+
+        expect(decodedAdvertiserReplenish).not.toBeNull();
+
         campaignData = await campaignContract.getCampaignData();
 
         logs.push({
@@ -163,7 +175,7 @@ describe('AffiliateMarketplace Integration Test', () => {
         for (const external of createAffiliateResult.externals) {
             if (external.body) {
                 decodedAffiliate = loadAffiliateCreatedEvent(external.body);
-                logs.push({ type: 'AffiliateCreated', data: decodedAffiliate });
+                logs.push({ type: 'AffiliateCreatedEvent', data: decodedAffiliate });
             }
         }
 
@@ -219,6 +231,16 @@ describe('AffiliateMarketplace Integration Test', () => {
             success: true,
         });
 
+        let decodedAffiliateWithdraw: any | null = null
+        for (const external of affiliateWithdrawResult.externals) {
+            if (external.body) {
+                decodedAffiliateWithdraw = loadAffiliateWithdrawEarningsEvent(external.body);
+                logs.push({ type: 'AffiliateWithdrawEvent', data: decodedAffiliateWithdraw });
+            }
+        }
+
+        expect(decodedAffiliateWithdraw).not.toBeNull();
+
         campaignData = await campaignContract.getCampaignData();
         affiliateData = await campaignContract.getAffiliateData(decodedAffiliate!.affiliateId);
 
@@ -228,15 +250,10 @@ describe('AffiliateMarketplace Integration Test', () => {
         });
 
         // Log final results
-        logs.push({
-            type: 'FinalCampaignData',
-            data: await formatCampaignData(await campaignContract.getCampaignData())
-        });
-
-        logs.push({
-            type: 'FinalAffiliateBalance',
-            data: fromNano(await affiliate.getBalance()) + " TON"
-        });
+        // logs.push({
+        //     type: 'FinalCampaignData',
+        //     data: await formatCampaignData(await campaignContract.getCampaignData())
+        // });
 
         function replacer(key: string, value: any) {
             return typeof value === 'bigint' ? fromNano(value) + ' TON' : value;
