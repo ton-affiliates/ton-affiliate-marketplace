@@ -12,6 +12,7 @@ import "@stdlib/deploy";
 
     const SIGN_UP_FEE: Int = ton("0.1");  
     const DEPLOY_NEW_CAMPAIGN_COST: Int = ton("0.1");
+    const MAX_MESSAGE_VAL_NO_REPLENISH: Int = ton("1");
     const MIN_AMOUNT_REPLENISH_CAMPAIGN: Int = ton("20");
     
     const AVG_GAS_CONSUMPTION: Int = ton("0.005");
@@ -123,6 +124,7 @@ import "@stdlib/deploy";
             require(sender() == self.advertiser, "Only advertiser can invoke this function");
             require(self.state == STATE_CAMPAIGN_CREATED, "Must be in state: STATE_CAMPAIGN_CREATED");
             require(msg.campaignDetails.daysWithoutUserActionForWithdrawFunds >= MIN_NUM_DAYS_NO_USER_ACTION_WITHDRAW_FUNDS, "daysWithoutUserActionForWithdrawFunds must be greater than MIN_NUM_DAYS_NO_USER_ACTION_WITHDRAW_FUNDS");
+            require(context().value <= MAX_MESSAGE_VAL_NO_REPLENISH, "Can only replenish via 'AdvertiserReplenish' function");
 
             // verify values
             foreach (key, val in msg.campaignDetails.regularUsers) {
@@ -149,16 +151,18 @@ import "@stdlib/deploy";
             
             require(sender() == self.advertiser, "Only the advertiser can replenish the contract");
             require(context().value >= MIN_AMOUNT_REPLENISH_CAMPAIGN, "Insufficient funds.  Need at least 20 Ton.");
-
+            require(self.state == STATE_CAMPAIGN_DETAILS_SET_BY_ADVERTISER, "Must be in state: STATE_CAMPAIGN_DETAILS_SET_BY_ADVERTISER");
+            
             // send 2% fee to parent
             let fee: Int = (context().value * 200 + 9999) / 10000;  // 2% fee calculation
 
             // advertiser to cover gas costs
             send(SendParameters{
                 to: self.parent,
-                body: InternalChildToParentTxFee{
+                body: InternalAdvertiserReplenishFee{
                     campaignId: self.campaignId,
-                    advertiser: self.advertiser
+                    advertiser: self.advertiser,
+                    amount: context().value
                 }.toCell(),                
                 value: fee
             });
@@ -169,7 +173,7 @@ import "@stdlib/deploy";
             
             require(self.state == STATE_CAMPAIGN_DETAILS_SET_BY_ADVERTISER, "Must be in state: STATE_CAMPAIGN_DETAILS_SET_BY_ADVERTISER");
             require(context().value >= SIGN_UP_FEE, "Insufficient funds.  Need at least 0.1 Ton to register");
-
+            
             let numAffiliates = self.currAffiliateId + 1;
             require(numAffiliates <= MAX_NUM_AFFILIATES, "Reached max number of affiliates for this campagn");
             
@@ -198,7 +202,9 @@ import "@stdlib/deploy";
             
             // Ensure only the advertiser can invoke this function
             require(sender() == self.advertiser, "Only the advertiser can add a new affiliate");
-
+            require(context().value <= MAX_MESSAGE_VAL_NO_REPLENISH, "Can only replenish via 'AdvertiserReplenish' function");
+            require(self.state == STATE_CAMPAIGN_DETAILS_SET_BY_ADVERTISER, "Must be in state: STATE_CAMPAIGN_DETAILS_SET_BY_ADVERTISER");
+            
             // Check if the campaign is not open (closed campaign)
             require(!self.campaignDetails.isOpenCampaign, "Cannot manually add affiliates to an open campaign");
 
@@ -215,7 +221,7 @@ import "@stdlib/deploy";
             
             if (self.currAffiliateId > 0) {
                 require(now() - self.lastUserAction > self.campaignDetails.daysWithoutUserActionForWithdrawFunds*24*60*60, "Advertiser can withdraw funds only after agreed upon time period with no user action");
-            }
+            }  // else no affiliates 
 
             send(SendParameters{
                 to: self.advertiser,
@@ -265,8 +271,9 @@ import "@stdlib/deploy";
             let affiliateDataOptional = self.affiliates.get(msg.affiliateId);
             require(affiliateDataOptional != null, "Affiliate does not exist");
             let affiliateData: AffiliateData = affiliateDataOptional!!;
-
+            
             require(sender() == affiliateData.affiliate, "Only affiliate can withdraw earnings");
+            require(context().value <= MAX_MESSAGE_VAL_NO_REPLENISH, "Can only replenish via 'AdvertiserReplenish' function");
 
             let paymentAmount: Int = affiliateData.accruedEarnings;
             require(paymentAmount > 0, "No earnings to withdraw");
@@ -286,9 +293,11 @@ import "@stdlib/deploy";
             // advertiser to cover gas costs
             send(SendParameters{
                 to: self.parent,
-                body: InternalChildToParentTxFee{
+                body: InternalAffiliateWithdrawEarningsFee{
                     campaignId: self.campaignId,
-                    advertiser: self.advertiser
+                    advertiser: self.advertiser,
+                    affiliateId: msg.affiliateId,
+                    earnings: paymentAmount
                 }.toCell(),                
                 value: fee,
                 mode: SendIgnoreErrors
@@ -342,9 +351,30 @@ import "@stdlib/deploy";
     }
 
     // messages
-    message InternalChildToParentTxFee {
+    message InternalAffiliateWithdrawEarningsFee {
         campaignId: Int as uint32;
         advertiser: Address;
+        affiliateId: Int as uint32;
+        earnings: Int as coins;
+    }
+
+    message AffiliateWithdrawEarningsEvent {
+        campaignId: Int as uint32;
+        advertiser: Address;
+        affiliateId: Int as uint32;
+        earnings: Int as coins;
+    }
+
+    message InternalAdvertiserReplenishFee {
+        campaignId: Int as uint32;
+        advertiser: Address;
+        amount: Int as coins;
+    }
+
+    message AdvertiserReplenisEvent {
+        campaignId: Int as uint32;
+        advertiser: Address;
+        amount: Int as coins;
     }
 
     message InternalAffiliateCreated {
@@ -412,9 +442,27 @@ import "@stdlib/deploy";
             return contractAddress(self.campaignContractStateInit(campaignId, advertiser));
         }
 
-        receive(msg: InternalChildToParentTxFee) {
+        receive(msg: InternalAffiliateWithdrawEarningsFee) {
             let expectedAddress: Address = contractAddress(self.campaignContractStateInit(msg.campaignId, msg.advertiser));
             require(sender() == expectedAddress, "Access denied");
+
+            emit(AffiliateWithdrawEarningsEvent{
+                campaignId: msg.campaignId, 
+                advertiser: msg.advertiser, 
+                affiliateId: msg.affiliateId,
+                earnings: msg.earnings
+            }.toCell());
+        }
+
+        receive(msg: InternalAdvertiserReplenishFee) {
+            let expectedAddress: Address = contractAddress(self.campaignContractStateInit(msg.campaignId, msg.advertiser));
+            require(sender() == expectedAddress, "Access denied");
+
+            emit(AdvertiserReplenisEvent{
+                campaignId: msg.campaignId, 
+                advertiser: msg.advertiser, 
+                amount: msg.amount
+            }.toCell());
         }
 
         receive(msg: AdminWithdraw) {
