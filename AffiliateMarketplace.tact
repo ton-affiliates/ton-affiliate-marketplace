@@ -36,7 +36,6 @@ import "@stdlib/deploy";
         campaignId: Int as uint32;
         advertiser: Address;
         campaignDetails: CampaignDetails;
-        affiliates: map<Int, AffiliateData>;
         state: Int as uint32;
         numUserActions: Int as uint32;
         lastUserAction: Int as uint32;
@@ -334,7 +333,6 @@ import "@stdlib/deploy";
                 campaignId: self.campaignId,
                 advertiser: self.advertiser,
                 campaignDetails: self.campaignDetails, 
-                affiliates: self.affiliates,
                 numUserActions: self.numUserActions,
                 lastUserAction: self.lastUserAction,
                 state: self.state,
@@ -342,6 +340,14 @@ import "@stdlib/deploy";
                 contractBalance: myBalance(),
                 contractAddress: myAddress()
             }
+        }
+
+        get fun affiliateData(affiliateId: Int): AffiliateData? {
+            return self.affiliates.get(affiliateId);
+        }
+
+        get fun affiliatesData(affiliateId: Int): map<Int, AffiliateData> {
+            return self.affiliates;
         }
     }
 
