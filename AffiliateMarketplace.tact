@@ -12,7 +12,7 @@ import "@stdlib/deploy";
 
     const SIGN_UP_FEE: Int = ton("0.1");  
     const DEPLOY_NEW_CAMPAIGN_COST: Int = ton("0.1");
-    const MAX_MESSAGE_VAL_NO_REPLENISH: Int = ton("1");
+    const MAX_MESSAGE_VAL_NO_REPLENISH: Int = ton("0.15");
     const MIN_AMOUNT_REPLENISH_CAMPAIGN: Int = ton("20");
     
     const AVG_GAS_CONSUMPTION: Int = ton("0.005");
@@ -119,6 +119,13 @@ import "@stdlib/deploy";
             // dump(msg.campaignId);  // for debugging
         }
 
+        // Reserve funds for affiliate withdrawals
+        fun currentCampaignBalance(): Int {
+            let buffer: Int = ton("2");  // Additional buffer to pay for gas fees
+            let campaginBalance: Int = myBalance() - (self.totalAccruedEarnings + buffer);  // can be negative
+            return max(campaginBalance, 0);  // if negative return simply 0
+        }
+
         receive (msg: AdvertiserSigned) {
             
             require(sender() == self.advertiser, "Only advertiser can invoke this function");
@@ -139,13 +146,6 @@ import "@stdlib/deploy";
             self.state = STATE_CAMPAIGN_DETAILS_SET_BY_ADVERTISER;
         }
 
-        // Reserve funds for affiliate withdrawals
-        fun currentCampaignBalance(): Int {
-            let buffer: Int = ton("2");  // Additional buffer to pay for gas fees
-            let campaginBalance: Int = myBalance() - (self.totalAccruedEarnings + buffer);  // can be negative
-            return max(campaginBalance, 0);  // if negative return simply 0
-        }
-
         // Function to handle advertiser replenishment
         receive(msg: AdvertiserReplenish) {
             
@@ -162,7 +162,7 @@ import "@stdlib/deploy";
                 body: InternalAdvertiserReplenishFee{
                     campaignId: self.campaignId,
                     advertiser: self.advertiser,
-                    amount: context().value
+                    replenishAmount: context().value
                 }.toCell(),                
                 value: fee
             });
@@ -368,13 +368,13 @@ import "@stdlib/deploy";
     message InternalAdvertiserReplenishFee {
         campaignId: Int as uint32;
         advertiser: Address;
-        amount: Int as coins;
+        replenishAmount: Int as coins;
     }
 
     message AdvertiserReplenisEvent {
         campaignId: Int as uint32;
         advertiser: Address;
-        amount: Int as coins;
+        replenishAmount: Int as coins;
     }
 
     message InternalAffiliateCreated {
@@ -461,7 +461,7 @@ import "@stdlib/deploy";
             emit(AdvertiserReplenisEvent{
                 campaignId: msg.campaignId, 
                 advertiser: msg.advertiser, 
-                amount: msg.amount
+                replenishAmount: msg.replenishAmount
             }.toCell());
         }
 
