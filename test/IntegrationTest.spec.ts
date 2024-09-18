@@ -30,6 +30,7 @@ describe('AffiliateMarketplace Integration Test', () => {
 
     beforeEach(async () => {
         blockchain = await Blockchain.create();
+
         deployer = await blockchain.treasury('deployer');
         bot = await blockchain.treasury('bot');
         advertiser = await blockchain.treasury('advertiser');
@@ -50,6 +51,8 @@ describe('AffiliateMarketplace Integration Test', () => {
             deploy: true,
             success: true,
         });
+
+        blockchain.now = deployResult.transactions[1].now;
     });
 
     it('should create campaign, add affiliate, and handle user actions with balance logging', async () => {
@@ -116,6 +119,11 @@ describe('AffiliateMarketplace Integration Test', () => {
                 }
             }
         );
+
+        logs.push({
+            type: 'advertiserSigned',
+            data: `Advertser Signed: Regular User Click ${fromNano(regularUsersMap.get(BigInt(USER_CLICK)))}, Premium User Click: ${fromNano(premiumUsersMap.get(BigInt(USER_CLICK)))}`
+        });
 
         expect(advertiserSignedResult.transactions).toHaveTransaction({
             from: advertiser.address,
@@ -215,7 +223,7 @@ describe('AffiliateMarketplace Integration Test', () => {
 
         logs.push({
             type: 'afterUserActionBalanceLog',
-            data: `After User Action Campaign Balance: ${fromNano(campaignData.campaignBalance)}, Contract Balance: ${fromNano(campaignData.contractBalance)}, Affiliate Accrued Earnings: ${fromNano(affiliateData!.accruedEarnings)}, Affiliate Balance: ${await affiliate.getBalance()}`
+            data: `After User Action Campaign Balance: ${fromNano(campaignData.campaignBalance)}, Contract Balance: ${fromNano(campaignData.contractBalance)}, Affiliate Accrued Earnings: ${fromNano(affiliateData!.accruedEarnings)}, Affiliate Balance: ${fromNano(await affiliate.getBalance())}`
         });
 
         // Affiliate withdraws earnings
@@ -224,6 +232,18 @@ describe('AffiliateMarketplace Integration Test', () => {
             { value: toNano('0.05') },
             { $$type: 'AffiliateWithdrawEarnings', affiliateId: decodedAffiliate!.affiliateId }
         );
+
+        expect(affiliateWithdrawResult.transactions).toHaveTransaction({
+            from: affiliate.address,
+            to: campaignContract.address,
+            success: true,
+        });
+
+        expect(affiliateWithdrawResult.transactions).toHaveTransaction({
+            from: campaignContract.address,
+            to: affiliateMarketplaceContract.address,
+            success: true,
+        });
 
         expect(affiliateWithdrawResult.transactions).toHaveTransaction({
             from: campaignContract.address,
@@ -246,14 +266,41 @@ describe('AffiliateMarketplace Integration Test', () => {
 
         logs.push({
             type: 'afterAffiliateWithdrawLog',
-            data: `After Affiliate Withdraw Balance: ${fromNano(campaignData.campaignBalance)}, Contract Balance: ${fromNano(campaignData.contractBalance)}, Affiliate Accrued Earnings: ${fromNano(affiliateData!.accruedEarnings)}, Affiliate Balance: ${await affiliate.getBalance()}`
+            data: `After Affiliate Withdraw Balance: ${fromNano(campaignData.campaignBalance)}, Contract Balance: ${fromNano(campaignData.contractBalance)}, Affiliate Accrued Earnings: ${fromNano(affiliateData!.accruedEarnings)}, Affiliate Balance: ${fromNano(await affiliate.getBalance())}`
         });
 
-        // Log final results
-        // logs.push({
-        //     type: 'FinalCampaignData',
-        //     data: await formatCampaignData(await campaignContract.getCampaignData())
-        // });
+        //RemoveCampaignAndWithdrawFunds
+
+        campaignData = await campaignContract.getCampaignData();
+
+        logs.push({
+            type: 'beforeRemoveCampaignAndWithdrawFundsResult',
+            data: `Before Remove Campaign and Withdraw Funds Balance: ${fromNano(campaignData.campaignBalance)}, Contract Balance: ${fromNano(campaignData.contractBalance)}, Advertiser Balance: ${fromNano(await advertiser.getBalance())}`
+        });
+
+        blockchain.now += 81 * (60*60*24); // 81 days
+        const removeCampaignAndWithdrawFundsResult = await campaignContract.send(
+            advertiser.getSender(),
+            { value: toNano('0.05') },
+            { $$type: 'RemoveCampaignAndWithdrawFunds' }
+        );
+
+        expect(removeCampaignAndWithdrawFundsResult.transactions).toHaveTransaction({
+            from: advertiser.address,
+            to: campaignContract.address,
+            success: true,
+        });
+
+        expect(removeCampaignAndWithdrawFundsResult.transactions).toHaveTransaction({
+            from: campaignContract.address,
+            to: advertiser.address,
+            success: true,
+        });
+
+        logs.push({
+            type: 'afterRemoveCampaignAndWithdrawFundsResult',
+            data: `After Remove Campaign and Withdraw Funds Advertiser Balance: ${fromNano(await advertiser.getBalance())}`
+        });
 
         function replacer(key: string, value: any) {
             return typeof value === 'bigint' ? fromNano(value) + ' TON' : value;
