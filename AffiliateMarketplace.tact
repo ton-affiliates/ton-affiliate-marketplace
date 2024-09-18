@@ -4,13 +4,13 @@ import "@stdlib/deploy";
 
     // constants
     const MAX_NUM_AFFILIATES: Int = 10000;  // ten thousand
-    const MIN_NUM_DAYS_NO_USER_ACTION_WITHDRAW_FUNDS: Int = 21;
+    const MIN_NUM_DAYS_NO_USER_ACTION_WITHDRAW_FUNDS: Int = 60;
 
     // affiliate contract state
     const STATE_CAMPAIGN_CREATED: Int = 0;
     const STATE_CAMPAIGN_DETAILS_SET_BY_ADVERTISER: Int = 1;
 
-    // const SIGN_UP_FEE: Int = ton("1");  
+    const SIGN_UP_FEE: Int = ton("0.1");  
     const DEPLOY_NEW_CAMPAIGN_COST: Int = ton("0.1");
     const MIN_AMOUNT_REPLENISH_CAMPAIGN: Int = ton("20");
     
@@ -115,7 +115,7 @@ import "@stdlib/deploy";
 
         // piggyback deployment of contract on this message
         receive(msg: InternalCreatecampaign) {
-            dump(msg.campaignId);  // for debugging
+            // dump(msg.campaignId);  // for debugging
         }
 
         receive (msg: AdvertiserSigned) {
@@ -123,7 +123,6 @@ import "@stdlib/deploy";
             require(sender() == self.advertiser, "Only advertiser can invoke this function");
             require(self.state == STATE_CAMPAIGN_CREATED, "Must be in state: STATE_CAMPAIGN_CREATED");
             require(msg.campaignDetails.daysWithoutUserActionForWithdrawFunds >= MIN_NUM_DAYS_NO_USER_ACTION_WITHDRAW_FUNDS, "daysWithoutUserActionForWithdrawFunds must be greater than MIN_NUM_DAYS_NO_USER_ACTION_WITHDRAW_FUNDS");
-            require(context().value >= MIN_AMOUNT_REPLENISH_CAMPAIGN, "Insufficient funds.  Need at least MIN_AMOUNT_REPLENISH_CAMPAIGN Ton.");
 
             // verify values
             foreach (key, val in msg.campaignDetails.regularUsers) {
@@ -136,33 +135,20 @@ import "@stdlib/deploy";
 
             self.campaignDetails = msg.campaignDetails;
             self.state = STATE_CAMPAIGN_DETAILS_SET_BY_ADVERTISER;
-
-            // send 2% fee to parent
-            let fee: Int = (context().value * 200 + 9999) / 10000;  // 2% fee calculation
-
-            // advertiser to cover gas costs
-            send(SendParameters{
-                to: self.parent,
-                body: InternalChildToParentTxFee{
-                    campaignId: self.campaignId,
-                    advertiser: self.advertiser
-                }.toCell(),                
-                value: fee
-            });
         }
 
         // Reserve funds for affiliate withdrawals
         fun currentCampaignBalance(): Int {
             let buffer: Int = ton("2");  // Additional buffer to pay for gas fees
             let campaginBalance: Int = myBalance() - (self.totalAccruedEarnings + buffer);  // can be negative
-            return campaginBalance;  
+            return max(campaginBalance, 0);  // if negative return simply 0
         }
 
         // Function to handle advertiser replenishment
         receive(msg: AdvertiserReplenish) {
-            // Ensure that the sender is the advertiser
+            
             require(sender() == self.advertiser, "Only the advertiser can replenish the contract");
-            require(context().value >= MIN_AMOUNT_REPLENISH_CAMPAIGN, "Insufficient funds.  Need at least MIN_AMOUNT_REPLENISH_CAMPAIGN Ton.");
+            require(context().value >= MIN_AMOUNT_REPLENISH_CAMPAIGN, "Insufficient funds.  Need at least 20 Ton.");
 
             // send 2% fee to parent
             let fee: Int = (context().value * 200 + 9999) / 10000;  // 2% fee calculation
@@ -182,10 +168,11 @@ import "@stdlib/deploy";
         receive(msg: CreateNewAffiliate) {
             
             require(self.state == STATE_CAMPAIGN_DETAILS_SET_BY_ADVERTISER, "Must be in state: STATE_CAMPAIGN_DETAILS_SET_BY_ADVERTISER");
+            require(context().value >= SIGN_UP_FEE, "Insufficient funds.  Need at least 0.1 Ton to register");
+
             let numAffiliates = self.currAffiliateId + 1;
             require(numAffiliates <= MAX_NUM_AFFILIATES, "Reached max number of affiliates for this campagn");
-            // require(context().value >= SIGN_UP_FEE, "Insufficient funds.  Need at least SIGN_UP_FEE Ton to register");
-
+            
             if (!self.campaignDetails.isOpenCampaign) {
                 require(self.campaignDetails.allowedAffiliates.get(sender()) != null, "affiliate not on allowed list");
             }
@@ -224,8 +211,11 @@ import "@stdlib/deploy";
 
         receive(msg: RemoveCampaignAndWithdrawFunds) {
 
-            require(sender() == self.advertiser, "Only the advertiser can remove the affiliate");            
-            require(now() - self.lastUserAction > self.campaignDetails.daysWithoutUserActionForWithdrawFunds*24*60*60, "Advertiser can withdraw funds only after agreed upon time period with no user action");
+            require(sender() == self.advertiser, "Only the advertiser can remove the campaign and withdraw all funds");            
+            
+            if (self.currAffiliateId > 0) {
+                require(now() - self.lastUserAction > self.campaignDetails.daysWithoutUserActionForWithdrawFunds*24*60*60, "Advertiser can withdraw funds only after agreed upon time period with no user action");
+            }
 
             send(SendParameters{
                 to: self.advertiser,
@@ -430,6 +420,8 @@ import "@stdlib/deploy";
         receive(msg: AdminWithdraw) {
             
             self.requireOwner();
+
+            require(myBalance() >= msg.amount + 1, "Insufficient contract funds to make payment");
                         
             send(SendParameters{
                 to: self.owner,
@@ -495,7 +487,7 @@ import "@stdlib/deploy";
                     isPremiumUser: msg.isPremiumUser
                 }.toCell(),
                 value: 0, 
-                mode: SendRemainingValue
+                mode: SendRemainingValue 
             });
         }
 
