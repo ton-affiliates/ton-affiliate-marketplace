@@ -56,7 +56,8 @@ describe('AffiliateMarketplace Integration Test', () => {
     });
 
     it('should create campaign, add affiliate, and handle user actions with balance logging', async () => {
-        // Create campaign
+        
+        // 1. Create campaign
         const createCampaignResult = await affiliateMarketplaceContract.send(
             advertiser.getSender(),
             { value: toNano('0.15') },
@@ -80,7 +81,6 @@ describe('AffiliateMarketplace Integration Test', () => {
         expect(decodedCampaign).not.toBeNull();
         let campaignContractAddress: Address = Address.parse(decodedCampaign!.campaignContractAddressStr);
         
-        // assert deploy tx
         expect(createCampaignResult.transactions).toHaveTransaction({
             from: affiliateMarketplaceContract.address,
             to: campaignContractAddress,
@@ -90,17 +90,19 @@ describe('AffiliateMarketplace Integration Test', () => {
         
         const campaignContract = blockchain.openContract(await Campaign.fromAddress(campaignContractAddress));
         let campaignData = await campaignContract.getCampaignData();
-
+        
+        // assert: campaignBalance = 0
+        // assert: contractBalance = 0
         logs.push({
             type: 'InitialCampaignBalanceLog',
             data: `Initial Campaign Balance: ${fromNano(campaignData.campaignBalance)}, Contract Balance: ${fromNano(campaignData.contractBalance)}`
         });
 
-        // Sign campaign by advertiser
+        // Advertiser Sign
         const regularUsersMap = Dictionary.empty<bigint, bigint>();
         const premiumUsersMap = Dictionary.empty<bigint, bigint>();
         regularUsersMap.set(BigInt(USER_CLICK), toNano('1'));  
-        premiumUsersMap.set(BigInt(USER_CLICK), toNano('2'));
+        premiumUsersMap.set(BigInt(USER_CLICK), toNano('15'));
 
         const advertiserSignedResult = await campaignContract.send(
             advertiser.getSender(),
@@ -120,22 +122,26 @@ describe('AffiliateMarketplace Integration Test', () => {
             }
         );
 
-        logs.push({
-            type: 'advertiserSigned',
-            data: `Advertser Signed: Regular User Click ${fromNano(regularUsersMap.get(BigInt(USER_CLICK)))}, Premium User Click: ${fromNano(premiumUsersMap.get(BigInt(USER_CLICK)))}`
-        });
-
         expect(advertiserSignedResult.transactions).toHaveTransaction({
             from: advertiser.address,
             to: campaignContract.address,
             success: true,
         });
 
-        // replenish
+        campaignData = await campaignContract.getCampaignData();
+
+        // test: campaignData.campaignDetails have same values as set in request
+        logs.push({
+            type: 'advertiserSigned',
+            data: `Advertser Signed: Regular User Click ${fromNano(regularUsersMap.get(BigInt(USER_CLICK)))}, Premium User Click: ${fromNano(premiumUsersMap.get(BigInt(USER_CLICK)))}`
+        });
+
+
+        // AdvertiserReplenish
         const advertiserReplenishResult = await campaignContract.send(
             advertiser.getSender(),
             {
-                value: toNano('50'),
+                value: toNano('20'),
             },
             {
                 $$type: 'AdvertiserReplenish'
@@ -145,6 +151,12 @@ describe('AffiliateMarketplace Integration Test', () => {
         expect(advertiserReplenishResult.transactions).toHaveTransaction({
             from: advertiser.address,
             to: campaignContract.address,
+            success: true,
+        });
+
+        expect(advertiserReplenishResult.transactions).toHaveTransaction({
+            from: campaignContract.address,
+            to: affiliateMarketplaceContract.address,
             success: true,
         });
 
@@ -159,16 +171,21 @@ describe('AffiliateMarketplace Integration Test', () => {
         expect(decodedAdvertiserReplenish).not.toBeNull();
 
         campaignData = await campaignContract.getCampaignData();
-
+        
+        // 20 TON were sent to the campaign contract
+        // 2% fee go to parent - 0.4 TON
+        // test: contractBalance = 20 - 0.4 TON
+        // test: campaignBalance = 20 - 2.4 TON (2 TON used as buffer and 0.4 were sent to parent)
+        // test: AffiliateMarketplace balance is now 0.4 larger than it was before this replnishment
         logs.push({
             type: 'advertiserReplenishBalanceLog',
             data: `Advertser Replenish Balance: ${fromNano(campaignData.campaignBalance)}, Contract Balance: ${fromNano(campaignData.contractBalance)}`
         });
 
-        // Add affiliate
+        // CreateNewAffiliate
         const createAffiliateResult = await campaignContract.send(
             affiliate.getSender(),
-            { value: toNano('0.1') },
+            { value: toNano('0.05') },
             { $$type: 'CreateNewAffiliate' }
         );
 
@@ -178,7 +195,6 @@ describe('AffiliateMarketplace Integration Test', () => {
             success: true,
         });
 
-        // bot listens to event on affiliate marketplace contract
         let decodedAffiliate: any | null = null
         for (const external of createAffiliateResult.externals) {
             if (external.body) {
@@ -193,12 +209,13 @@ describe('AffiliateMarketplace Integration Test', () => {
         let affiliateData : any | null = await campaignContract.getAffiliateData(decodedAffiliate!.affiliateId);
         affiliateAccruedBalance = affiliateData!.accruedEarnings;
 
+        // test: affiliate's accrued balance is 0 (no user actions yet)
         logs.push({
             type: 'beforeUserActionBalanceLog',
             data: `Before User Action Balance: ${fromNano(campaignData.campaignBalance)}, Contract Balance: ${fromNano(campaignData.contractBalance)}, Affiliate Accrued Earnings: ${fromNano(affiliateData!.accruedEarnings)}`
         });
 
-        // Simulate user action
+        // Simulate user action 1
         const userActionResult = await affiliateMarketplaceContract.send(
             bot.getSender(),
             { value: toNano('0.05') },
@@ -218,9 +235,21 @@ describe('AffiliateMarketplace Integration Test', () => {
             success: true,
         });
 
+        expect(userActionResult.transactions).toHaveTransaction({
+            from: campaignContract.address,
+            to: affiliateMarketplaceContract.address,
+            success: true,
+        });
+
         campaignData = await campaignContract.getCampaignData();
         affiliateData = await campaignContract.getAffiliateData(decodedAffiliate!.affiliateId);
 
+        // Campaign Balance holds 17.6 TON (20 - 2.4 TON) before user action.
+        // 1 TON goes to affiliate's accrued balance 
+        // 2*AVG_GAS_PARICE = 0.005*2 = 0.01 TON goes to Parent 
+        // test: campaignBalance = 1.01 less than it was before this user action
+        // test: contractBalance = 0.01 TON less than it was (only fee goes to parent - all other TON were kept within the contract)
+        // test: AffiliateMarketplace balance is now 0.01 TON larger than it was before this user action
         logs.push({
             type: 'afterUserActionBalanceLog',
             data: `After User Action Campaign Balance: ${fromNano(campaignData.campaignBalance)}, Contract Balance: ${fromNano(campaignData.contractBalance)}, Affiliate Accrued Earnings: ${fromNano(affiliateData!.accruedEarnings)}, Affiliate Balance: ${fromNano(await affiliate.getBalance())}`
