@@ -10,12 +10,12 @@ import "@stdlib/deploy";
     const STATE_CAMPAIGN_CREATED: Int = 0;
     const STATE_CAMPAIGN_DETAILS_SET_BY_ADVERTISER: Int = 1;
 
-    const SIGN_UP_FEE: Int = ton("0.1");  
     const DEPLOY_NEW_CAMPAIGN_COST: Int = ton("0.1");
     const MAX_MESSAGE_VAL_NO_REPLENISH: Int = ton("0.15");
     const MIN_AMOUNT_REPLENISH_CAMPAIGN: Int = ton("20");
     
     const AVG_GAS_CONSUMPTION: Int = ton("0.005");
+    const MIN_CAMPAIGN_BALANCE_THRESHOLD: Int = ton("5");
     const MIN_COST_PER_USER_ACTION: Int = ton("0.01");   
     
 
@@ -172,7 +172,6 @@ import "@stdlib/deploy";
         receive(msg: CreateNewAffiliate) {
             
             require(self.state == STATE_CAMPAIGN_DETAILS_SET_BY_ADVERTISER, "Must be in state: STATE_CAMPAIGN_DETAILS_SET_BY_ADVERTISER");
-            require(context().value >= SIGN_UP_FEE, "Insufficient funds.  Need at least 0.1 Ton to register");
             
             let numAffiliates = self.currAffiliateId + 1;
             require(numAffiliates <= MAX_NUM_AFFILIATES, "Reached max number of affiliates for this campagn");
@@ -248,7 +247,8 @@ import "@stdlib/deploy";
             require(costPerActionOptional != null, "Invalid user action");
             let costPerAction: Int = costPerActionOptional!!;
 
-            require(self.currentCampaignBalance() > costPerAction, "Insufficient funds in contract");
+            let campaginBalance = self.currentCampaignBalance();
+            require(campaginBalance > costPerAction, "Insufficient funds in contract");
 
             let numActions: Int? = affiliateData.userActionsStats.get(msg.userAction);
             if (numActions == null) {
@@ -263,7 +263,18 @@ import "@stdlib/deploy";
 
             self.lastUserAction = now();
             self.numUserActions = self.numUserActions + 1;
-            self.totalAccruedEarnings = self.totalAccruedEarnings + costPerAction;           
+            self.totalAccruedEarnings = self.totalAccruedEarnings + costPerAction;      
+
+            send(SendParameters{
+                to: self.parent,
+                body: InternalUserActionGasFee{
+                    campaignId: self.campaignId,
+                    advertiser: self.advertiser,
+                    campaginBalance: campaginBalance
+                }.toCell(),                
+                value: AVG_GAS_CONSUMPTION * 2, 
+                mode: SendPayGasSeparately // pay from contract's balance
+            });     
         }
 
         receive(msg: AffiliateWithdrawEarnings) {
@@ -290,7 +301,7 @@ import "@stdlib/deploy";
             // send 2% fee to parent
             let fee: Int = (paymentAmount * 200 + 9999) / 10000;  // 2% fee calculation
 
-            // advertiser to cover gas costs
+            // advertiser fee
             send(SendParameters{
                 to: self.parent,
                 body: InternalAffiliateWithdrawEarningsFee{
@@ -377,6 +388,18 @@ import "@stdlib/deploy";
         replenishAmount: Int as coins;
     }
 
+     message InternalUserActionGasFee {
+        campaignId: Int as uint32;
+        advertiser: Address;
+        campaginBalance: Int as coins;
+    }
+
+    message CampaignBalnceUnderThresholdEvent {
+        campaignId: Int as uint32;
+        advertiser: Address;
+        campaginBalance: Int as coins;
+    }
+
     message InternalAffiliateCreated {
         campaignId: Int as uint32;
         affiliateId: Int as uint32;
@@ -442,7 +465,22 @@ import "@stdlib/deploy";
             return contractAddress(self.campaignContractStateInit(campaignId, advertiser));
         }
 
+        receive(msg: InternalUserActionGasFee) {
+            
+            let expectedAddress: Address = contractAddress(self.campaignContractStateInit(msg.campaignId, msg.advertiser));
+            require(sender() == expectedAddress, "Access denied");
+
+            if (msg.campaginBalance < MIN_CAMPAIGN_BALANCE_THRESHOLD) {
+                emit(CampaignBalnceUnderThresholdEvent{
+                    campaignId: msg.campaignId, 
+                    advertiser: msg.advertiser, 
+                    campaginBalance: msg.campaginBalance 
+            }.toCell());
+            }
+        }
+
         receive(msg: InternalAffiliateWithdrawEarningsFee) {
+            
             let expectedAddress: Address = contractAddress(self.campaignContractStateInit(msg.campaignId, msg.advertiser));
             require(sender() == expectedAddress, "Access denied");
 
@@ -455,6 +493,7 @@ import "@stdlib/deploy";
         }
 
         receive(msg: InternalAdvertiserReplenishFee) {
+            
             let expectedAddress: Address = contractAddress(self.campaignContractStateInit(msg.campaignId, msg.advertiser));
             require(sender() == expectedAddress, "Access denied");
 
@@ -469,7 +508,8 @@ import "@stdlib/deploy";
             
             self.requireOwner();
 
-            require(myBalance() >= msg.amount + 1, "Insufficient contract funds to make payment");
+            let buffer: Int = ton("2");
+            require(myBalance() >= msg.amount + buffer, "Insufficient contract funds to make payment");
                         
             send(SendParameters{
                 to: self.owner,
