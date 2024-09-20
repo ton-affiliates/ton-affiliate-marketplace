@@ -14,7 +14,7 @@ import "@stdlib/deploy";
     const MAX_MESSAGE_VAL_NO_REPLENISH: Int = ton("0.15");
     const MIN_AMOUNT_REPLENISH_CAMPAIGN: Int = ton("20");
     
-    const AVG_GAS_CONSUMPTION: Int = ton("0.005");
+    const GAS_FEE: Int = ton("0.05");
     const MIN_CAMPAIGN_BALANCE_THRESHOLD: Int = ton("5");
     const MIN_COST_PER_USER_ACTION: Int = ton("0.01");   
     
@@ -87,7 +87,7 @@ import "@stdlib/deploy";
         state: Int as uint32;
         lastUserAction: Int as uint32;
         numUserActions: Int as uint32;  // Track number of user actions
-        totalAccruedEarnings: Int as uint32;
+        totalAccruedEarnings: Int as coins;
         
         init(parent: Address, campaignId: Int, advertiser: Address) { 
             
@@ -123,7 +123,7 @@ import "@stdlib/deploy";
         fun currentCampaignBalance(): Int {
             let buffer: Int = ton("2");  // Additional buffer to pay for gas fees
             let campaginBalance: Int = myBalance() - (self.totalAccruedEarnings + buffer);  // can be negative
-            return max(campaginBalance, 0);  // if negative return simply 0
+            return max(campaginBalance, ton("2"));  // if negative return simply 0
         }
 
         receive (msg: AdvertiserSigned) {
@@ -164,7 +164,8 @@ import "@stdlib/deploy";
                     advertiser: self.advertiser,
                     replenishAmount: context().value
                 }.toCell(),                
-                value: fee
+                value: fee,
+                mode: SendPayGasSeparately
             });
         }
 
@@ -222,11 +223,15 @@ import "@stdlib/deploy";
                 require(now() - self.lastUserAction > self.campaignDetails.daysWithoutUserActionForWithdrawFunds*24*60*60, "Advertiser can withdraw funds only after agreed upon time period with no user action");
             }  // else no affiliates 
 
-            send(SendParameters{
-                to: self.advertiser,
-                value: 0,
-                mode: SendRemainingBalance | SendDestroyIfZero  // send all TON in contract to advertiser and destroy contract
-            });
+            let campaignBalance: Int = self.currentCampaignBalance();
+            if (campaignBalance > 0) {
+                send(SendParameters{
+                    to: self.advertiser,
+                    value: campaignBalance,
+                    mode: SendRemainingValue
+                    // mode: SendRemainingBalance | SendDestroyIfZero  // send all TON in contract to advertiser and destroy contract
+                });
+            }
         }
 
         receive(msg: InternalUserAction) {
@@ -247,9 +252,8 @@ import "@stdlib/deploy";
             require(costPerActionOptional != null, "Invalid user action");
             let costPerAction: Int = costPerActionOptional!!;
 
-            let campaginBalance = self.currentCampaignBalance();
+            let campaginBalance: Int = self.currentCampaignBalance();
             require(campaginBalance > costPerAction, "Insufficient funds in contract");
-
             let numActions: Int? = affiliateData.userActionsStats.get(msg.userAction);
             if (numActions == null) {
                 affiliateData.userActionsStats.set(msg.userAction, 1);    
@@ -263,17 +267,17 @@ import "@stdlib/deploy";
 
             self.lastUserAction = now();
             self.numUserActions = self.numUserActions + 1;
-            self.totalAccruedEarnings = self.totalAccruedEarnings + costPerAction;      
+            self.totalAccruedEarnings = self.totalAccruedEarnings + costPerAction;  
 
             send(SendParameters{
                 to: self.parent,
                 body: InternalUserActionGasFee{
                     campaignId: self.campaignId,
                     advertiser: self.advertiser,
-                    campaginBalance: campaginBalance
+                    campaginBalance: campaginBalance - costPerAction
                 }.toCell(),                
-                value: AVG_GAS_CONSUMPTION * 2, 
-                mode: SendPayGasSeparately // pay from contract's balance
+                value: GAS_FEE,
+                mode: SendPayGasSeparately 
             });     
         }
 
@@ -287,7 +291,7 @@ import "@stdlib/deploy";
             require(context().value <= MAX_MESSAGE_VAL_NO_REPLENISH, "Can only replenish via 'AdvertiserReplenish' function");
 
             let paymentAmount: Int = affiliateData.accruedEarnings;
-            require(paymentAmount > 0, "No earnings to withdraw");
+            require(paymentAmount > ton("0"), "No earnings to withdraw");
             
             require(myBalance() >= paymentAmount, "Insufficient contract funds to make payment");
 
@@ -311,14 +315,15 @@ import "@stdlib/deploy";
                     earnings: paymentAmount
                 }.toCell(),                
                 value: fee,
-                mode: SendIgnoreErrors
+                mode: SendPayGasSeparately
             });
 
             send(SendParameters{
                 to: affiliateData.affiliate,
                 value: paymentAmount - fee,
                 bounce: true,
-                body: PayAffiliate{affiliateId: msg.affiliateId, amount: paymentAmount}.toCell()
+                body: PayAffiliate{affiliateId: msg.affiliateId, amount: paymentAmount}.toCell(),
+                mode: SendPayGasSeparately
             });
            
         }
@@ -469,13 +474,12 @@ import "@stdlib/deploy";
             
             let expectedAddress: Address = contractAddress(self.campaignContractStateInit(msg.campaignId, msg.advertiser));
             require(sender() == expectedAddress, "Access denied");
-
             if (msg.campaginBalance < MIN_CAMPAIGN_BALANCE_THRESHOLD) {
                 emit(CampaignBalnceUnderThresholdEvent{
                     campaignId: msg.campaignId, 
                     advertiser: msg.advertiser, 
                     campaginBalance: msg.campaginBalance 
-            }.toCell());
+                }.toCell());
             }
         }
 
@@ -504,18 +508,31 @@ import "@stdlib/deploy";
             }.toCell());
         }
 
+        receive(msg: InternalAffiliateCreated) {
+            
+            let expectedAddress: Address = contractAddress(self.campaignContractStateInit(msg.campaignId, msg.advertiser));
+            require(sender() == expectedAddress, "Access denied");
+
+            emit(AffiliateCreatedEvent{
+                campaignId: msg.campaignId, 
+                affiliateId: msg.affiliateId, 
+                advertiser: msg.advertiser
+            }.toCell());
+            
+        }
+
         receive(msg: AdminWithdraw) {
             
             self.requireOwner();
 
-            let buffer: Int = ton("2");
+            let buffer: Int = ton("1");
             require(myBalance() >= msg.amount + buffer, "Insufficient contract funds to make payment");
                         
             send(SendParameters{
                 to: self.owner,
                 bounce: true,
                 value: msg.amount,
-                mode: SendRemainingValue 
+                mode: SendPayGasSeparately 
             });
         }
 
@@ -523,7 +540,7 @@ import "@stdlib/deploy";
         receive(msg: CreateCampaign) {
 
             require(context().value >= DEPLOY_NEW_CAMPAIGN_COST, "Insufficient funds");
-                        
+            
             let campaignId = self.currCampaignId;
             self.currCampaignId = campaignId + 1;
 
@@ -546,19 +563,6 @@ import "@stdlib/deploy";
             }.toCell());
         }
 
-        receive(msg: InternalAffiliateCreated) {
-            
-            let expectedAddress: Address = contractAddress(self.campaignContractStateInit(msg.campaignId, msg.advertiser));
-            require(sender() == expectedAddress, "Access denied");
-
-            emit(AffiliateCreatedEvent{
-                campaignId: msg.campaignId, 
-                affiliateId: msg.affiliateId, 
-                advertiser: msg.advertiser
-            }.toCell());
-            
-        }
-
         // Function to handle user click
         receive(msg: UserAction) {
             
@@ -574,8 +578,8 @@ import "@stdlib/deploy";
                     userAction: msg.userAction,
                     isPremiumUser: msg.isPremiumUser
                 }.toCell(),
-                value: 0, 
-                mode: SendRemainingValue 
+                value: GAS_FEE, 
+                mode: SendPayGasSeparately 
             });
         }
 
