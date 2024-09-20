@@ -58,7 +58,7 @@ import "@stdlib/deploy";
     message CreateNewAffiliate{}
     message PayAffiliate{
         affiliateId: Int as uint32;
-        amount: Int as uint32;
+        amount: Int as coins;
     }
     message InternalUserAction{
         affiliateId: Int as uint32;
@@ -292,11 +292,10 @@ import "@stdlib/deploy";
 
             let paymentAmount: Int = affiliateData.accruedEarnings;
             require(paymentAmount > ton("0"), "No earnings to withdraw");
-            
             require(myBalance() >= paymentAmount, "Insufficient contract funds to make payment");
 
             // Reset accrued earnings and update last payment time
-            affiliateData.accruedEarnings = 0;            
+            affiliateData.accruedEarnings = ton("0");            
             self.affiliates.set(msg.affiliateId, affiliateData);
 
             // Adjust the total accrued earnings to reflect the withdrawal
