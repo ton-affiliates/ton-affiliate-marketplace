@@ -15,6 +15,7 @@ import "@stdlib/deploy";
     const MIN_AMOUNT_REPLENISH_CAMPAIGN: Int = ton("20");
     
     const GAS_FEE: Int = ton("0.05");
+    const CAMPAIGN_BUFFER: Int = ton("2");
     const MIN_CAMPAIGN_BALANCE_THRESHOLD: Int = ton("5");
     const MIN_COST_PER_USER_ACTION: Int = ton("0.01");   
     
@@ -121,9 +122,8 @@ import "@stdlib/deploy";
 
         // Reserve funds for affiliate withdrawals
         fun currentCampaignBalance(): Int {
-            let buffer: Int = ton("2");  // Additional buffer to pay for gas fees
-            let campaginBalance: Int = myBalance() - (self.totalAccruedEarnings + buffer);  // can be negative
-            return max(campaginBalance, ton("2"));  // if negative return simply 0
+            let campaginBalance: Int = myBalance() - (self.totalAccruedEarnings + CAMPAIGN_BUFFER);  // can be negative
+            return max(campaginBalance, CAMPAIGN_BUFFER);  // if negative return simply 0
         }
 
         receive (msg: AdvertiserSigned) {
@@ -229,7 +229,6 @@ import "@stdlib/deploy";
                     to: self.advertiser,
                     value: campaignBalance,
                     mode: SendRemainingValue
-                    // mode: SendRemainingBalance | SendDestroyIfZero  // send all TON in contract to advertiser and destroy contract
                 });
             }
         }
@@ -253,7 +252,22 @@ import "@stdlib/deploy";
             let costPerAction: Int = costPerActionOptional!!;
 
             let campaginBalance: Int = self.currentCampaignBalance();
-            require(campaginBalance > costPerAction, "Insufficient funds in contract");
+
+            // if insufficient funds - remove this campaign to deny gas exhaustion to the bot
+            if (campaginBalance < costPerAction) {  
+                send(SendParameters{
+                    to: self.parent,
+                    body: InternalInsufficientCampaignFunds {
+                        campaignId: self.campaignId,
+                        advertiser: self.advertiser,
+                        campaginBalance: campaginBalance,
+                        contractBalance: myBalance()
+                    }.toCell(),                
+                    value: 0,
+                    mode: SendRemainingBalance | SendDestroyIfZero  // send all TON in contract to parent and destroy contract 
+                });     
+            }
+
             let numActions: Int? = affiliateData.userActionsStats.get(msg.userAction);
             if (numActions == null) {
                 affiliateData.userActionsStats.set(msg.userAction, 1);    
@@ -292,7 +306,7 @@ import "@stdlib/deploy";
 
             let paymentAmount: Int = affiliateData.accruedEarnings;
             require(paymentAmount > ton("0"), "No earnings to withdraw");
-            require(myBalance() >= paymentAmount, "Insufficient contract funds to make payment");
+            require(myBalance() >= paymentAmount, "Insufficient contract funds to make payment");  // should never reach this
 
             // Reset accrued earnings and update last payment time
             affiliateData.accruedEarnings = ton("0");            
@@ -392,7 +406,7 @@ import "@stdlib/deploy";
         replenishAmount: Int as coins;
     }
 
-     message InternalUserActionGasFee {
+    message InternalUserActionGasFee {
         campaignId: Int as uint32;
         advertiser: Address;
         campaginBalance: Int as coins;
@@ -402,6 +416,20 @@ import "@stdlib/deploy";
         campaignId: Int as uint32;
         advertiser: Address;
         campaginBalance: Int as coins;
+    }
+
+    message InternalInsufficientCampaignFunds {
+        campaignId: Int as uint32;
+        advertiser: Address;
+        campaginBalance: Int as coins;
+        contractBalance: Int as coins;
+    }
+
+    message CampaignRemovedEvent {
+        campaignId: Int as uint32;
+        advertiser: Address;
+        campaginBalance: Int as coins;
+        contractBalance: Int as coins;
     }
 
     message InternalAffiliateCreated {
@@ -480,6 +508,19 @@ import "@stdlib/deploy";
                     campaginBalance: msg.campaginBalance 
                 }.toCell());
             }
+        }
+
+        receive(msg: InternalInsufficientCampaignFunds) {
+            
+            let expectedAddress: Address = contractAddress(self.campaignContractStateInit(msg.campaignId, msg.advertiser));
+            require(sender() == expectedAddress, "Access denied");
+
+            emit(CampaignRemovedEvent{
+                campaignId: msg.campaignId, 
+                advertiser: msg.advertiser, 
+                campaginBalance: msg.campaginBalance,
+                contractBalance: msg.contractBalance
+            }.toCell());
         }
 
         receive(msg: InternalAffiliateWithdrawEarningsFee) {
@@ -578,7 +619,8 @@ import "@stdlib/deploy";
                     isPremiumUser: msg.isPremiumUser
                 }.toCell(),
                 value: GAS_FEE, 
-                mode: SendPayGasSeparately 
+                mode: SendPayGasSeparately,
+                bounce: true
             });
         }
 
