@@ -7,9 +7,10 @@ import {
     loadAffiliateCreatedEvent,
     loadCampaignCreatedEvent,
     loadAffiliateWithdrawEarningsEvent,
-    loadAdvertiserReplenisEvent
+    loadAdvertiserReplenisEvent,
+    loadCampaignUnderThresholdEvent,
+    loadCampaignRemovedEvent
 } from './events';
-import { formatCampaignData } from './helpers';
 
 type EmitLogEvent = {
     type: string;
@@ -208,14 +209,18 @@ describe('AffiliateMarketplace Integration Test', () => {
         campaignData = await campaignContract.getCampaignData();
         let affiliateData : any | null = await campaignContract.getAffiliateData(decodedAffiliate!.affiliateId);
         affiliateAccruedBalance = affiliateData!.accruedEarnings;
+        
+         // test: affiliate's accrued balance is 0 (no user actions yet)
 
-        // test: affiliate's accrued balance is 0 (no user actions yet)
+        // ------------------------------------------------------------------------------------------
+
+        // User Action - Regular user
         logs.push({
             type: 'beforeUserActionBalanceLog',
             data: `Before User Action Balance: ${fromNano(campaignData.campaignBalance)}, Contract Balance: ${fromNano(campaignData.contractBalance)}, Affiliate Accrued Earnings: ${fromNano(affiliateData!.accruedEarnings)}`
         });
 
-        // Simulate user action 1
+        // Simulate user action -  regular user
         const userActionResult = await affiliateMarketplaceContract.send(
             bot.getSender(),
             { value: toNano('0.05') },
@@ -228,6 +233,12 @@ describe('AffiliateMarketplace Integration Test', () => {
                 isPremiumUser: false,
             }
         );
+
+        expect(userActionResult.transactions).toHaveTransaction({
+            from: bot.address,
+            to: affiliateMarketplaceContract.address,
+            success: true,
+        });
 
         expect(userActionResult.transactions).toHaveTransaction({
             from: affiliateMarketplaceContract.address,
@@ -250,12 +261,71 @@ describe('AffiliateMarketplace Integration Test', () => {
         // test: campaignBalance = 1.01 less than it was before this user action
         // test: contractBalance = 0.01 TON less than it was (only fee goes to parent - all other TON were kept within the contract)
         // test: AffiliateMarketplace balance is now 0.01 TON larger than it was before this user action
+        // test Affiliate's accruedBalance = 1 
         logs.push({
             type: 'afterUserActionBalanceLog',
             data: `After User Action Campaign Balance: ${fromNano(campaignData.campaignBalance)}, Contract Balance: ${fromNano(campaignData.contractBalance)}, Affiliate Accrued Earnings: ${fromNano(affiliateData!.accruedEarnings)}, Affiliate Balance: ${fromNano(await affiliate.getBalance())}`
         });
 
-        // Affiliate withdraws earnings
+        // ------------------------------------------------------------------------------------------
+
+         // Simulate user action -  premium user
+        const premiumUserActionResult = await affiliateMarketplaceContract.send(
+            bot.getSender(),
+            { value: toNano('0.05') },
+            {
+                $$type: 'UserAction',
+                campaignId: decodedCampaign!.campaignId,
+                affiliateId: decodedAffiliate!.affiliateId,
+                advertiser: advertiser.address,
+                userAction: USER_CLICK,
+                isPremiumUser: true,
+            }
+        );
+
+        expect(premiumUserActionResult.transactions).toHaveTransaction({
+            from: affiliateMarketplaceContract.address,
+            to: campaignContract.address,
+            success: true,
+        });
+
+        expect(premiumUserActionResult.transactions).toHaveTransaction({
+            from: campaignContract.address,
+            to: affiliateMarketplaceContract.address,
+            success: true,
+        });
+
+        // event is triggered due to balance being under threshold
+        let decodedCampaignUnderThreshold: any | null = null
+        for (const external of premiumUserActionResult.externals) {
+            if (external.body) {
+                decodedCampaignUnderThreshold = loadCampaignUnderThresholdEvent(external.body);
+                logs.push({ type: 'DecodedCampaignUnderThresholdEvent', data: decodedCampaignUnderThreshold });
+            }
+        }
+
+        expect(decodedCampaignUnderThreshold).not.toBeNull();
+
+        campaignData = await campaignContract.getCampaignData();
+        affiliateData = await campaignContract.getAffiliateData(decodedAffiliate!.affiliateId);
+
+        // Campaign Balance holds 16.59 TON (20 - 2.4 - 1.01 TON) before user action.
+        // 15 TON goes to affiliate's accrued balance 
+        // 2*AVG_GAS_PARICE = 0.005*2 = 0.01 TON goes to Parent
+        // after action: 
+        // test: campaignBalance = 15.01 less than it was before this user action
+        // test: contractBalance = 0.01 TON less than it was (only fee goes to parent - all other TON were kept within the contract)
+        // test: AffiliateMarketplace balance is now 0.01 TON larger than it was before this user action
+        // test: Affiliate's accrued earnings is now 16 (was before 1)
+        logs.push({
+            type: 'afterUserActionBalanceLog',
+            data: `After User Action Campaign Balance: ${fromNano(campaignData.campaignBalance)}, Contract Balance: ${fromNano(campaignData.contractBalance)}, Affiliate Accrued Earnings: ${fromNano(affiliateData!.accruedEarnings)}, Affiliate Balance: ${fromNano(await affiliate.getBalance())}`
+        });
+
+
+        //-------------------------------------------------------------------------------------------
+
+        // AffiliateWithdrawResult
         const affiliateWithdrawResult = await campaignContract.send(
             affiliate.getSender(),
             { value: toNano('0.05') },
@@ -293,13 +363,23 @@ describe('AffiliateMarketplace Integration Test', () => {
         campaignData = await campaignContract.getCampaignData();
         affiliateData = await campaignContract.getAffiliateData(decodedAffiliate!.affiliateId);
 
+        // Campaign Balance holds 1.58 TON (16.59 - 15.01 TON) before affiliate withdraw.
+        // Affiliate's accrued earnings are 16 TON
+        // 2% fee from 16 TON will go to parent (0.32 TON) 
+        // after action: 
+        // test: campaignBalance = dos not change
+        // test: contractBalance = 16 TON less than it was before
+        // test: AffiliateMarketplace balance is now 0.32 TON larger than it was before this affiliate withdraw
+        // test: Affiliate's accrued earnings is now 0
+        // test: Affiliate's balance is 15.68 (16 - 0.32)
         logs.push({
             type: 'afterAffiliateWithdrawLog',
             data: `After Affiliate Withdraw Balance: ${fromNano(campaignData.campaignBalance)}, Contract Balance: ${fromNano(campaignData.contractBalance)}, Affiliate Accrued Earnings: ${fromNano(affiliateData!.accruedEarnings)}, Affiliate Balance: ${fromNano(await affiliate.getBalance())}`
         });
 
-        //RemoveCampaignAndWithdrawFunds
+        //-------------------------------------------------------------------------------------------
 
+        //RemoveCampaignAndWithdrawFunds
         campaignData = await campaignContract.getCampaignData();
 
         logs.push({
@@ -326,10 +406,57 @@ describe('AffiliateMarketplace Integration Test', () => {
             success: true,
         });
 
+        // contractBalance before operation
+        // test: Advertiser's balance is larger by 'contractBalance before operation' 
         logs.push({
             type: 'afterRemoveCampaignAndWithdrawFundsResult',
             data: `After Remove Campaign and Withdraw Funds Advertiser Balance: ${fromNano(await advertiser.getBalance())}`
         });
+
+        //------------------------------------------------------------------------------------
+
+        // to avoid further gas fees, let's see if the campaign contract is destroyed successfully if insufficient funds occur
+        // user action which leads to campaign being destroyied
+        // Simulate user action -  premium user
+        const premiumUserActionResult2 = await affiliateMarketplaceContract.send(
+            bot.getSender(),
+            { value: toNano('0.05') },
+            {
+                $$type: 'UserAction',
+                campaignId: decodedCampaign!.campaignId,
+                affiliateId: decodedAffiliate!.affiliateId,
+                advertiser: advertiser.address,
+                userAction: USER_CLICK,
+                isPremiumUser: true,
+            }
+        );
+
+        expect(premiumUserActionResult2.transactions).toHaveTransaction({
+            from: affiliateMarketplaceContract.address,
+            to: campaignContract.address,
+            success: true,
+        });
+
+        expect(premiumUserActionResult2.transactions).toHaveTransaction({
+            from: campaignContract.address,
+            to: affiliateMarketplaceContract.address,
+            success: true,
+        });
+
+        // event is triggered due to balance being under threshold
+        let decodedInsufficientBalanceInCampaign: any | null = null
+        for (const external of premiumUserActionResult2.externals) {
+            if (external.body) {
+                decodedInsufficientBalanceInCampaign = loadCampaignRemovedEvent(external.body);
+                logs.push({ type: 'DecodedInsufficientBalanceInCampaign', data: decodedInsufficientBalanceInCampaign });
+            }
+        }
+
+        expect(decodedInsufficientBalanceInCampaign).not.toBeNull();
+
+
+        // -------------------------------------------------------------------------------------------------------
+        
 
         function replacer(key: string, value: any) {
             return typeof value === 'bigint' ? fromNano(value) + ' TON' : value;
