@@ -134,9 +134,10 @@ describe('AffiliateMarketplace Integration Test', () => {
         // test: campaignData.campaignDetails have same values as set in request
         logs.push({
             type: 'advertiserSigned',
-            data: `Advertser Signed: Regular User Click ${fromNano(regularUsersMap.get(BigInt(USER_CLICK)))}, Premium User Click: ${fromNano(premiumUsersMap.get(BigInt(USER_CLICK)))}`
+            data: `Advertser Signed: Regular User Click ${fromNano(regularUsersMap.get(BigInt(USER_CLICK)))} TON, Premium User Click: ${fromNano(premiumUsersMap.get(BigInt(USER_CLICK)))} TON`
         });
 
+        // --------------------------------------------------------------------------------------------------------
 
         // AdvertiserReplenish
         const advertiserReplenishResult = await campaignContract.send(
@@ -180,7 +181,7 @@ describe('AffiliateMarketplace Integration Test', () => {
         // test: AffiliateMarketplace balance is now 0.4 larger than it was before this replnishment
         logs.push({
             type: 'advertiserReplenishBalanceLog',
-            data: `Advertser Replenish Balance: ${fromNano(campaignData.campaignBalance)}, Contract Balance: ${fromNano(campaignData.contractBalance)}`
+            data: `Campaign Balance: ${fromNano(campaignData.campaignBalance)}, Contract Balance: ${fromNano(campaignData.contractBalance)}`
         });
 
         // CreateNewAffiliate
@@ -217,7 +218,7 @@ describe('AffiliateMarketplace Integration Test', () => {
         // User Action - Regular user
         logs.push({
             type: 'beforeUserActionBalanceLog',
-            data: `Before User Action Balance: ${fromNano(campaignData.campaignBalance)}, Contract Balance: ${fromNano(campaignData.contractBalance)}, Affiliate Accrued Earnings: ${fromNano(affiliateData!.accruedEarnings)}`
+            data: `Campaign Balance: ${fromNano(campaignData.campaignBalance)}, Contract Balance: ${fromNano(campaignData.contractBalance)}, Affiliate Accrued Earnings: ${fromNano(affiliateData!.accruedEarnings)}`
         });
 
         // Simulate user action -  regular user
@@ -263,8 +264,8 @@ describe('AffiliateMarketplace Integration Test', () => {
         // test: AffiliateMarketplace balance is now 0.01 TON larger than it was before this user action
         // test Affiliate's accruedBalance = 1 
         logs.push({
-            type: 'afterUserActionBalanceLog',
-            data: `After User Action Campaign Balance: ${fromNano(campaignData.campaignBalance)}, Contract Balance: ${fromNano(campaignData.contractBalance)}, Affiliate Accrued Earnings: ${fromNano(affiliateData!.accruedEarnings)}, Affiliate Balance: ${fromNano(await affiliate.getBalance())}`
+            type: 'afterUserActionBalanceAndBeforePremiumUserActionLog',
+            data: `Campaign Balance: ${fromNano(campaignData.campaignBalance)}, Contract Balance: ${fromNano(campaignData.contractBalance)}}`
         });
 
         // ------------------------------------------------------------------------------------------
@@ -300,7 +301,6 @@ describe('AffiliateMarketplace Integration Test', () => {
         for (const external of premiumUserActionResult.externals) {
             if (external.body) {
                 decodedCampaignUnderThreshold = loadCampaignUnderThresholdEvent(external.body);
-                logs.push({ type: 'DecodedCampaignUnderThresholdEvent', data: decodedCampaignUnderThreshold });
             }
         }
 
@@ -318,12 +318,16 @@ describe('AffiliateMarketplace Integration Test', () => {
         // test: AffiliateMarketplace balance is now 0.01 TON larger than it was before this user action
         // test: Affiliate's accrued earnings is now 16 (was before 1)
         logs.push({
-            type: 'afterUserActionBalanceLog',
-            data: `After User Action Campaign Balance: ${fromNano(campaignData.campaignBalance)}, Contract Balance: ${fromNano(campaignData.contractBalance)}, Affiliate Accrued Earnings: ${fromNano(affiliateData!.accruedEarnings)}, Affiliate Balance: ${fromNano(await affiliate.getBalance())}`
+            type: 'afterPremiumUserActionBalanceLog',
+            data: `After User Action Campaign Balance: ${fromNano(campaignData.campaignBalance)}, Contract Balance: ${fromNano(campaignData.contractBalance)}, Affiliate Accrued Earnings: ${fromNano(affiliateData!.accruedEarnings)}}`
         });
+
+        logs.push({ type: 'DecodedCampaignUnderThresholdEvent', data: decodedCampaignUnderThreshold });
 
 
         //-------------------------------------------------------------------------------------------
+
+        let beforeWithdrawAffiliateBalance = fromNano(await affiliate.getBalance());
 
         // AffiliateWithdrawResult
         const affiliateWithdrawResult = await campaignContract.send(
@@ -354,7 +358,7 @@ describe('AffiliateMarketplace Integration Test', () => {
         for (const external of affiliateWithdrawResult.externals) {
             if (external.body) {
                 decodedAffiliateWithdraw = loadAffiliateWithdrawEarningsEvent(external.body);
-                logs.push({ type: 'AffiliateWithdrawEvent', data: decodedAffiliateWithdraw });
+                logs.push({ type: 'AffiliateWithdrawEarningsEvent', data: decodedAffiliateWithdraw });
             }
         }
 
@@ -374,20 +378,39 @@ describe('AffiliateMarketplace Integration Test', () => {
         // test: Affiliate's balance is 15.68 (16 - 0.32)
         logs.push({
             type: 'afterAffiliateWithdrawLog',
-            data: `After Affiliate Withdraw Balance: ${fromNano(campaignData.campaignBalance)}, Contract Balance: ${fromNano(campaignData.contractBalance)}, Affiliate Accrued Earnings: ${fromNano(affiliateData!.accruedEarnings)}, Affiliate Balance: ${fromNano(await affiliate.getBalance())}`
+            data: `Campaign Balance: ${fromNano(campaignData.campaignBalance)}, Contract Balance: ${fromNano(campaignData.contractBalance)}, Affiliate Accrued Earnings: ${fromNano(affiliateData!.accruedEarnings)}, Before: Affiliate Balance: ${beforeWithdrawAffiliateBalance}, After: Affiliate Balance: ${fromNano(await affiliate.getBalance())}`
         });
 
         //-------------------------------------------------------------------------------------------
 
         //RemoveCampaignAndWithdrawFunds
-        campaignData = await campaignContract.getCampaignData();
 
-        logs.push({
-            type: 'beforeRemoveCampaignAndWithdrawFundsResult',
-            data: `Before Remove Campaign and Withdraw Funds Balance: ${fromNano(campaignData.campaignBalance)}, Contract Balance: ${fromNano(campaignData.contractBalance)}, Advertiser Balance: ${fromNano(await advertiser.getBalance())}`
+        // first let's replenish again so we have funds to withdraw
+        const advertiserReplenishResult2 = await campaignContract.send(
+            advertiser.getSender(),
+            {
+                value: toNano('20'),
+            },
+            {
+                $$type: 'AdvertiserReplenish'
+            }
+        );
+
+        expect(advertiserReplenishResult2.transactions).toHaveTransaction({
+            from: advertiser.address,
+            to: campaignContract.address,
+            success: true,
         });
 
-        blockchain.now += 81 * (60*60*24); // 81 days
+        expect(advertiserReplenishResult2.transactions).toHaveTransaction({
+            from: campaignContract.address,
+            to: affiliateMarketplaceContract.address,
+            success: true,
+        });
+
+        let advertiserBalanceBeforeRemoveCampaign = fromNano(await advertiser.getBalance());
+
+        blockchain.now += 81 * (60*60*24); // move 81 days forward in time
         const removeCampaignAndWithdrawFundsResult = await campaignContract.send(
             advertiser.getSender(),
             { value: toNano('0.05') },
@@ -406,11 +429,13 @@ describe('AffiliateMarketplace Integration Test', () => {
             success: true,
         });
 
+        let advertiserBalanceAfterRemoveCampaign = fromNano(await advertiser.getBalance());
+
         // contractBalance before operation
         // test: Advertiser's balance is larger by 'contractBalance before operation' 
         logs.push({
             type: 'afterRemoveCampaignAndWithdrawFundsResult',
-            data: `After Remove Campaign and Withdraw Funds Advertiser Balance: ${fromNano(await advertiser.getBalance())}`
+            data: `Diff: ${advertiserBalanceAfterRemoveCampaign - advertiserBalanceBeforeRemoveCampaign } Advertiser balance before: ${advertiserBalanceBeforeRemoveCampaign}, Advertiser Balance After: ${advertiserBalanceAfterRemoveCampaign}`
         });
 
         //------------------------------------------------------------------------------------
@@ -462,6 +487,9 @@ describe('AffiliateMarketplace Integration Test', () => {
         }
         // -------------------------------------------------------------------------------------------------------
         
+
+        // TODO - ADMIN withdraw
+        // TODO - advvertiser verifies tx (not parent)
 
         function replacer(key: string, value: any) {
             return typeof value === 'bigint' ? fromNano(value) + ' TON' : value;
