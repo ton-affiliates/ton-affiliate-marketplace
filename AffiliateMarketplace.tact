@@ -162,7 +162,8 @@ import "@stdlib/deploy";
                 body: InternalAdvertiserReplenishFee{
                     campaignId: self.campaignId,
                     advertiser: self.advertiser,
-                    replenishAmount: context().value
+                    replenishAmount: context().value,
+                    fee: fee
                 }.toCell(),                
                 value: fee,
                 mode: SendPayGasSeparately
@@ -191,7 +192,8 @@ import "@stdlib/deploy";
                 body: InternalAffiliateCreated{
                     campaignId: self.campaignId,
                     affiliateId: affilateId,
-                    advertiser: self.advertiser
+                    advertiser: self.advertiser,
+                    affiliate: sender()
                 }.toCell(),                
                 value: 0,
                 mode: SendRemainingValue
@@ -400,12 +402,14 @@ import "@stdlib/deploy";
         campaignId: Int as uint32;
         advertiser: Address;
         replenishAmount: Int as coins;
+        fee: Int as coins;
     }
 
     message AdvertiserReplenisEvent {
         campaignId: Int as uint32;
         advertiser: Address;
         replenishAmount: Int as coins;
+        fee: Int as coins;
     }
 
     message InternalUserActionGasFee {
@@ -438,6 +442,7 @@ import "@stdlib/deploy";
         campaignId: Int as uint32;
         affiliateId: Int as uint32;
         advertiser: Address;
+        affiliate: Address;
     }
 
     message AdminWithdraw {
@@ -465,6 +470,7 @@ import "@stdlib/deploy";
         campaignId: Int as uint32;
         affiliateId: Int as uint32;
         advertiser: Address;
+        affiliate: Address;
     }
 
 
@@ -546,7 +552,8 @@ import "@stdlib/deploy";
             emit(AdvertiserReplenisEvent{
                 campaignId: msg.campaignId, 
                 advertiser: msg.advertiser, 
-                replenishAmount: msg.replenishAmount
+                replenishAmount: msg.replenishAmount,
+                fee: msg.fee
             }.toCell());
         }
 
@@ -558,7 +565,8 @@ import "@stdlib/deploy";
             emit(AffiliateCreatedEvent{
                 campaignId: msg.campaignId, 
                 affiliateId: msg.affiliateId, 
-                advertiser: msg.advertiser
+                advertiser: msg.advertiser,
+                affiliate: msg.affiliate
             }.toCell());
             
         }
