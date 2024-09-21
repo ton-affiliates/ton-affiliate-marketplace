@@ -454,7 +454,12 @@ describe('AffiliateMarketplace Integration Test', () => {
 
         expect(decodedInsufficientBalanceInCampaign).not.toBeNull();
 
-
+        try {
+            // contract should have been removed, hence any get request now should fail
+            campaignData = await campaignContract.getCampaignData();
+        } catch (e:Exception) {
+            expect(e.toString()).toContain("Error: Trying to run get method on non-active contract");
+        }
         // -------------------------------------------------------------------------------------------------------
         
 
