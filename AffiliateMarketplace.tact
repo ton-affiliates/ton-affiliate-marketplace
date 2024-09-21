@@ -123,7 +123,7 @@ import "@stdlib/deploy";
         // Reserve funds for affiliate withdrawals
         fun currentCampaignBalance(): Int {
             let campaginBalance: Int = myBalance() - (self.totalAccruedEarnings + CAMPAIGN_BUFFER);  // can be negative
-            return max(campaginBalance, CAMPAIGN_BUFFER);  // if negative return simply 0
+            return max(campaginBalance, ton("0"));  // if negative return simply 0
         }
 
         receive (msg: AdvertiserSigned) {
@@ -266,33 +266,35 @@ import "@stdlib/deploy";
                     value: 0,
                     mode: SendRemainingBalance | SendDestroyIfZero  // send all TON in contract to parent and destroy contract 
                 });     
-            }
-
-            let numActions: Int? = affiliateData.userActionsStats.get(msg.userAction);
-            if (numActions == null) {
-                affiliateData.userActionsStats.set(msg.userAction, 1);    
             } else {
-                affiliateData.userActionsStats.set(msg.userAction, numActions!! + 1);
-            }
+                
+                // process user action
+                let numActions: Int? = affiliateData.userActionsStats.get(msg.userAction);
+                if (numActions == null) {
+                    affiliateData.userActionsStats.set(msg.userAction, 1);    
+                } else {
+                    affiliateData.userActionsStats.set(msg.userAction, numActions!! + 1);
+                }
 
-            // Accumulate the earnings for the affiliate
-            affiliateData.accruedEarnings = affiliateData.accruedEarnings + costPerAction;
-            self.affiliates.set(msg.affiliateId, affiliateData);  // update affiliate data
+                // Accumulate the earnings for the affiliate
+                affiliateData.accruedEarnings = affiliateData.accruedEarnings + costPerAction;
+                self.affiliates.set(msg.affiliateId, affiliateData);  // update affiliate data
 
-            self.lastUserAction = now();
-            self.numUserActions = self.numUserActions + 1;
-            self.totalAccruedEarnings = self.totalAccruedEarnings + costPerAction;  
+                self.lastUserAction = now();
+                self.numUserActions = self.numUserActions + 1;
+                self.totalAccruedEarnings = self.totalAccruedEarnings + costPerAction;  
 
-            send(SendParameters{
-                to: self.parent,
-                body: InternalUserActionGasFee{
-                    campaignId: self.campaignId,
-                    advertiser: self.advertiser,
-                    campaginBalance: campaginBalance - costPerAction
-                }.toCell(),                
-                value: GAS_FEE,
-                mode: SendPayGasSeparately 
-            });     
+                send(SendParameters{
+                    to: self.parent,
+                    body: InternalUserActionGasFee{
+                        campaignId: self.campaignId,
+                        advertiser: self.advertiser,
+                        campaginBalance: campaginBalance - costPerAction
+                    }.toCell(),                
+                    value: GAS_FEE,
+                    mode: SendPayGasSeparately 
+                });     
+            } 
         }
 
         receive(msg: AffiliateWithdrawEarnings) {
