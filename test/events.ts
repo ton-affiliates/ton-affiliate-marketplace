@@ -69,4 +69,3 @@ export function  loadAdvertiserReplenisEvent(cell: Cell) {
     const replenishAmount = slice.loadCoins();
     return { $$type: 'AdvertiserReplenisEvent', campaignId, advertiserAddressStr, replenishAmount };
 }
-
