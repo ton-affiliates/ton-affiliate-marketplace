@@ -15,7 +15,7 @@ import "@stdlib/deploy";
     const MIN_AMOUNT_REPLENISH_CAMPAIGN: Int = ton("20");
     
     const GAS_FEE: Int = ton("0.05");
-    const CAMPAIGN_BUFFER: Int = ton("2");
+    const CAMPAIGN_BUFFER: Int = ton("1");
     const MIN_CAMPAIGN_BALANCE_THRESHOLD: Int = ton("5");
     const MIN_COST_PER_USER_ACTION: Int = ton("0.01");   
 
@@ -32,6 +32,7 @@ import "@stdlib/deploy";
     struct AffiliateData {
         affiliate: Address;
         userActionsStats: map<Int, Int>;  // stats - user action -> num user actions
+        premiumUserActionsStats: map<Int, Int>;  // stats - user action -> num user actions
         accruedEarnings: Int as coins;  // accumulated earnings since the last payment
     }
 
@@ -190,11 +191,12 @@ import "@stdlib/deploy";
                 userActionsStats.set(key, 0);
             }
 
+            let premiumUserActionsStats: map<Int, Int> = emptyMap();
             foreach (key, val in self.campaignDetails.premiumUsersCostPerAction) {
-                userActionsStats.set(key, 0);
+                premiumUserActionsStats.set(key, 0);
             }
 
-            self.affiliates.set(affilateId, AffiliateData{affiliate: sender(), userActionsStats: userActionsStats, accruedEarnings: 0});
+            self.affiliates.set(affilateId, AffiliateData{affiliate: sender(), userActionsStats: userActionsStats, premiumUserActionsStats: premiumUserActionsStats, accruedEarnings: 0});
 
             send(SendParameters{
                 to: self.parent,
@@ -283,8 +285,13 @@ import "@stdlib/deploy";
             } else {
                 
                 // process user action
-                let numActions: Int? = affiliateData.userActionsStats.get(msg.userAction);
-                affiliateData.userActionsStats.set(msg.userAction, numActions!! + 1);
+                if (msg.isPremiumUser) {
+                    let numActions: Int? = affiliateData.premiumUserActionsStats.get(msg.userAction);
+                    affiliateData.premiumUserActionsStats.set(msg.userAction, numActions!! + 1);
+                } else {
+                    let numActions: Int? = affiliateData.userActionsStats.get(msg.userAction);
+                    affiliateData.userActionsStats.set(msg.userAction, numActions!! + 1);
+                }
 
                 // Accumulate the earnings for the affiliate
                 affiliateData.accruedEarnings = affiliateData.accruedEarnings + costPerAction;
