@@ -1,6 +1,6 @@
 import { Blockchain, printTransactionFees, prettyLogTransactions } from '@ton/sandbox';
 import { toNano, fromNano, Address, Dictionary } from '@ton/core';
-import { AffiliateMarketplace, loadCampaignCreatedReply } from '../dist/tact_AffiliateMarketplace';
+import { AffiliateMarketplace } from '../dist/tact_AffiliateMarketplace';
 import { Campaign } from '../dist/tact_Campaign';
 import '@ton/test-utils';
 import {
@@ -100,10 +100,18 @@ describe('AffiliateMarketplace Integration Test', () => {
         });
 
         // Advertiser Sign
-        const regularUsersMap = Dictionary.empty<bigint, bigint>();
-        const premiumUsersMap = Dictionary.empty<bigint, bigint>();
-        regularUsersMap.set(BigInt(USER_CLICK), toNano('1'));  
-        premiumUsersMap.set(BigInt(USER_CLICK), toNano('15'));
+        const regularUsersMapCostPerActionMap = Dictionary.empty<bigint, bigint>();
+        const premiumUsersMapCostPerActionMap = Dictionary.empty<bigint, bigint>();
+
+        regularUsersMapCostPerActionMap.set(BigInt(USER_CLICK), toNano('1'));
+        premiumUsersMapCostPerActionMap.set(BigInt(USER_CLICK), toNano('15'));
+
+        const regularUsersMapVerifiersMap = Dictionary.empty<bigint, Address>();
+        const premiumUsersMapVerifiersMap = Dictionary.empty<bigint, Address>();
+        
+        regularUsersMapVerifiersMap.set(BigInt(USER_CLICK), affiliateMarketplaceContract.address);
+        premiumUsersMapVerifiersMap.set(BigInt(USER_CLICK), affiliateMarketplaceContract.address);
+        
 
         const advertiserSignedResult = await campaignContract.send(
             advertiser.getSender(),
@@ -114,8 +122,10 @@ describe('AffiliateMarketplace Integration Test', () => {
                 $$type: 'AdvertiserSigned',
                 campaignDetails: {
                     $$type: 'CampaignDetails',
-                    regularUsers: regularUsersMap,
-                    premiumUsers: premiumUsersMap,
+                    regularUsersVerifiers: regularUsersMapVerifiersMap,
+                    premiumUsersVerifiers: premiumUsersMapVerifiersMap,
+                    regularUsersCostPerAction: regularUsersMapCostPerActionMap,
+                    premiumUsersCostPerAction: premiumUsersMapCostPerActionMap,
                     allowedAffiliates: Dictionary.empty<Address, boolean>(),
                     isOpenCampaign: true,
                     daysWithoutUserActionForWithdrawFunds: 80n,
@@ -134,7 +144,7 @@ describe('AffiliateMarketplace Integration Test', () => {
         // test: campaignData.campaignDetails have same values as set in request
         logs.push({
             type: 'advertiserSigned',
-            data: `Advertser Signed: Regular User Click ${fromNano(regularUsersMap.get(BigInt(USER_CLICK)))} TON, Premium User Click: ${fromNano(premiumUsersMap.get(BigInt(USER_CLICK)))} TON`
+            data: `Advertser Signed: Regular User Click ${fromNano(regularUsersMapCostPerActionMap.get(BigInt(USER_CLICK)))} TON, Premium User Click: ${fromNano(premiumUsersMapCostPerActionMap.get(BigInt(USER_CLICK)))} TON`
         });
 
         // --------------------------------------------------------------------------------------------------------
@@ -218,7 +228,8 @@ describe('AffiliateMarketplace Integration Test', () => {
         // User Action - Regular user
         logs.push({
             type: 'beforeUserActionBalanceLog',
-            data: `Campaign Balance: ${fromNano(campaignData.campaignBalance)}, Contract Balance: ${fromNano(campaignData.contractBalance)}, Affiliate Accrued Earnings: ${fromNano(affiliateData!.accruedEarnings)}`
+            data: `Campaign Balance: ${fromNano(campaignData.campaignBalance)}, Contract Balance: ${fromNano(campaignData.contractBalance)},
+             Affiliate Accrued Earnings: ${fromNano(affiliateData!.accruedEarnings)}, Affiliate Stats: ${affiliateData!.userActionsStats.get(BigInt(USER_CLICK)!)}}`
         });
 
         // Simulate user action -  regular user
@@ -265,7 +276,8 @@ describe('AffiliateMarketplace Integration Test', () => {
         // test Affiliate's accruedBalance = 1 
         logs.push({
             type: 'afterUserActionBalanceAndBeforePremiumUserActionLog',
-            data: `Campaign Balance: ${fromNano(campaignData.campaignBalance)}, Contract Balance: ${fromNano(campaignData.contractBalance)}}`
+            data: `Campaign Balance: ${fromNano(campaignData.campaignBalance)}, Contract Balance: ${fromNano(campaignData.contractBalance)},
+             Affiliate Accrued Earnings: ${fromNano(affiliateData!.accruedEarnings)}, Affiliate Stats: ${affiliateData!.userActionsStats.get(BigInt(USER_CLICK)!)}}`
         });
 
         // ------------------------------------------------------------------------------------------
@@ -319,7 +331,8 @@ describe('AffiliateMarketplace Integration Test', () => {
         // test: Affiliate's accrued earnings is now 16 (was before 1)
         logs.push({
             type: 'afterPremiumUserActionBalanceLog',
-            data: `After User Action Campaign Balance: ${fromNano(campaignData.campaignBalance)}, Contract Balance: ${fromNano(campaignData.contractBalance)}, Affiliate Accrued Earnings: ${fromNano(affiliateData!.accruedEarnings)}}`
+            data: `After User Action Campaign Balance: ${fromNano(campaignData.campaignBalance)}, Contract Balance: ${fromNano(campaignData.contractBalance)}, 
+            Affiliate Accrued Earnings: ${fromNano(affiliateData!.accruedEarnings)}, Affiliate Stats: ${affiliateData!.userActionsStats.get(BigInt(USER_CLICK)!)}}`
         });
 
         logs.push({ type: 'DecodedCampaignUnderThresholdEvent', data: decodedCampaignUnderThreshold });
