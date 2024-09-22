@@ -18,10 +18,10 @@ import "@stdlib/deploy";
     const CAMPAIGN_BUFFER: Int = ton("2");
     const MIN_CAMPAIGN_BALANCE_THRESHOLD: Int = ton("5");
     const MIN_COST_PER_USER_ACTION: Int = ton("0.01");   
+
+    const USER_ACTION_BOT_THRESHOLD: Int = 20;  // 20 first user actions are saved for bot's acrions.  Anything above that is the advertiser's
     
     struct CampaignDetails {
-        regularUsersVerifiers: map<Int, Address>;
-        premiumUsersVerifiers: map<Int, Address>;
         regularUsersCostPerAction: map<Int, Int>; 
         premiumUsersCostPerAction: map<Int, Int>; 
         allowedAffiliates: map<Address, Bool>;  // address -> dummy (closed campaign)
@@ -102,8 +102,6 @@ import "@stdlib/deploy";
             self.affiliates = emptyMap();
 
             self.campaignDetails = CampaignDetails{
-                regularUsersVerifiers: emptyMap(), 
-                premiumUsersVerifiers: emptyMap(),
                 regularUsersCostPerAction: emptyMap(),
                 premiumUsersCostPerAction: emptyMap(),
                 allowedAffiliates: emptyMap(),
@@ -119,7 +117,7 @@ import "@stdlib/deploy";
 
         // piggyback deployment of contract on this message
         receive(msg: InternalCreatecampaign) {
-            dump(msg.campaignId);  // for debugging
+            // dump(msg.campaignId);  // for debugging
         }
 
         // Reserve funds for affiliate withdrawals
@@ -138,12 +136,10 @@ import "@stdlib/deploy";
             // verify values
             foreach (key, val in msg.campaignDetails.regularUsersCostPerAction) {
                 require(val >= MIN_COST_PER_USER_ACTION, "cpa must be greater than min cost for user action");
-                require(msg.campaignDetails.regularUsersVerifiers.get(key) != null, "Must have verifier for all keys");
             }
 
             foreach (key, val in msg.campaignDetails.premiumUsersCostPerAction) {
                 require(val >= MIN_COST_PER_USER_ACTION, "cpa must be greater than min cost for premium user action");
-                require(msg.campaignDetails.premiumUsersVerifiers.get(key) != null, "Must have verifier for all keys");
             }
 
             self.campaignDetails = msg.campaignDetails;
@@ -254,15 +250,11 @@ import "@stdlib/deploy";
             require(affiliateDataOptional != null, "Affiliate does not exist");
             let affiliateData: AffiliateData = affiliateDataOptional!!;
 
-            let verfierOptional: Address? = null;
-            if (msg.isPremiumUser) {
-                verfierOptional = self.campaignDetails.premiumUsersVerifiers.get(msg.userAction);
-            } else {
-                verfierOptional = self.campaignDetails.regularUsersVerifiers.get(msg.userAction);
+            let verifier = self.parent;
+            if (msg.userAction >= USER_ACTION_BOT_THRESHOLD) {
+                verifier = self.advertiser;
             }
 
-            require(verfierOptional != null, "Invalid user action - no verifier");
-            let verifier: Address = verfierOptional!!;
             require(sender() == verifier, "Only the verifier contract can invoke this function");
 
             let cpaOptional: Int? = null;
