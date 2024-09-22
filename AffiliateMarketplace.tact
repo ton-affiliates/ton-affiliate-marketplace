@@ -19,10 +19,11 @@ import "@stdlib/deploy";
     const MIN_CAMPAIGN_BALANCE_THRESHOLD: Int = ton("5");
     const MIN_COST_PER_USER_ACTION: Int = ton("0.01");   
     
-
     struct CampaignDetails {
-        regularUsers: map<Int, Int>; // userAction => price
-        premiumUsers: map<Int, Int>; // userAction => price
+        regularUsersVerifiers: map<Int, Address>;
+        premiumUsersVerifiers: map<Int, Address>;
+        regularUsersCostPerAction: map<Int, Int>; 
+        premiumUsersCostPerAction: map<Int, Int>; 
         allowedAffiliates: map<Address, Bool>;  // address -> dummy (closed campaign)
         isOpenCampaign: Bool; // anyone can be an affiliate
         daysWithoutUserActionForWithdrawFunds: Int as uint32;
@@ -48,7 +49,6 @@ import "@stdlib/deploy";
 
     message InternalCreatecampaign{campaignId: Int as uint32}
 
-    // messages
     message AdvertiserSigned {
         campaignDetails: CampaignDetails;
     }
@@ -102,8 +102,10 @@ import "@stdlib/deploy";
             self.affiliates = emptyMap();
 
             self.campaignDetails = CampaignDetails{
-                regularUsers: emptyMap(), 
-                premiumUsers: emptyMap(),
+                regularUsersVerifiers: emptyMap(), 
+                premiumUsersVerifiers: emptyMap(),
+                regularUsersCostPerAction: emptyMap(),
+                premiumUsersCostPerAction: emptyMap(),
                 allowedAffiliates: emptyMap(),
                 isOpenCampaign: false,
                 daysWithoutUserActionForWithdrawFunds: MIN_NUM_DAYS_NO_USER_ACTION_WITHDRAW_FUNDS
@@ -117,29 +119,31 @@ import "@stdlib/deploy";
 
         // piggyback deployment of contract on this message
         receive(msg: InternalCreatecampaign) {
-            // dump(msg.campaignId);  // for debugging
+            dump(msg.campaignId);  // for debugging
         }
 
         // Reserve funds for affiliate withdrawals
         fun currentCampaignBalance(): Int {
             let campaginBalance: Int = myBalance() - (self.totalAccruedEarnings + CAMPAIGN_BUFFER);  // can be negative
-            return max(campaginBalance, ton("0"));  // if negative return simply 0
+            return max(campaginBalance, ton("0"));  // if negative return 0
         }
 
         receive (msg: AdvertiserSigned) {
-            
+         
             require(sender() == self.advertiser, "Only advertiser can invoke this function");
             require(self.state == STATE_CAMPAIGN_CREATED, "Must be in state: STATE_CAMPAIGN_CREATED");
             require(msg.campaignDetails.daysWithoutUserActionForWithdrawFunds >= MIN_NUM_DAYS_NO_USER_ACTION_WITHDRAW_FUNDS, "daysWithoutUserActionForWithdrawFunds must be greater than MIN_NUM_DAYS_NO_USER_ACTION_WITHDRAW_FUNDS");
             require(context().value <= MAX_MESSAGE_VAL_NO_REPLENISH, "Can only replenish via 'AdvertiserReplenish' function");
 
             // verify values
-            foreach (key, val in msg.campaignDetails.regularUsers) {
+            foreach (key, val in msg.campaignDetails.regularUsersCostPerAction) {
                 require(val >= MIN_COST_PER_USER_ACTION, "cpa must be greater than min cost for user action");
+                require(msg.campaignDetails.regularUsersVerifiers.get(key) != null, "Must have verifier for all keys");
             }
 
-            foreach (key, val in msg.campaignDetails.premiumUsers) {
+            foreach (key, val in msg.campaignDetails.premiumUsersCostPerAction) {
                 require(val >= MIN_COST_PER_USER_ACTION, "cpa must be greater than min cost for premium user action");
+                require(msg.campaignDetails.premiumUsersVerifiers.get(key) != null, "Must have verifier for all keys");
             }
 
             self.campaignDetails = msg.campaignDetails;
@@ -185,7 +189,16 @@ import "@stdlib/deploy";
             let affilateId = self.currAffiliateId;
             self.currAffiliateId = self.currAffiliateId + 1; 
 
-            self.affiliates.set(affilateId, AffiliateData{affiliate: sender(), userActionsStats: emptyMap(), accruedEarnings: 0});
+            let userActionsStats: map<Int, Int> = emptyMap();
+            foreach (key, val in self.campaignDetails.regularUsersCostPerAction) {
+                userActionsStats.set(key, 0);
+            }
+
+            foreach (key, val in self.campaignDetails.premiumUsersCostPerAction) {
+                userActionsStats.set(key, 0);
+            }
+
+            self.affiliates.set(affilateId, AffiliateData{affiliate: sender(), userActionsStats: userActionsStats, accruedEarnings: 0});
 
             send(SendParameters{
                 to: self.parent,
@@ -237,22 +250,29 @@ import "@stdlib/deploy";
 
         receive(msg: InternalUserAction) {
             
-            require(sender() == self.parent, "Only the parent contract can invoke this function");
-
             let affiliateDataOptional = self.affiliates.get(msg.affiliateId);
             require(affiliateDataOptional != null, "Affiliate does not exist");
             let affiliateData: AffiliateData = affiliateDataOptional!!;
 
-            let costPerActionOptional: Int? = null;
+            let verfierOptional: Address? = null;
             if (msg.isPremiumUser) {
-                costPerActionOptional = self.campaignDetails.premiumUsers.get(msg.userAction);
+                verfierOptional = self.campaignDetails.premiumUsersVerifiers.get(msg.userAction);
             } else {
-                costPerActionOptional = self.campaignDetails.regularUsers.get(msg.userAction);
+                verfierOptional = self.campaignDetails.regularUsersVerifiers.get(msg.userAction);
             }
 
-            require(costPerActionOptional != null, "Invalid user action");
-            let costPerAction: Int = costPerActionOptional!!;
+            require(verfierOptional != null, "Invalid user action - no verifier");
+            let verifier: Address = verfierOptional!!;
+            require(sender() == verifier, "Only the verifier contract can invoke this function");
 
+            let cpaOptional: Int? = null;
+            if (msg.isPremiumUser) {
+                cpaOptional = self.campaignDetails.premiumUsersCostPerAction.get(msg.userAction);
+            } else {
+                cpaOptional = self.campaignDetails.regularUsersCostPerAction.get(msg.userAction);
+            }
+
+            let costPerAction: Int = cpaOptional!!;
             let campaginBalance: Int = self.currentCampaignBalance();
 
             // if insufficient funds - remove this campaign to deny gas exhaustion to the bot
@@ -272,11 +292,7 @@ import "@stdlib/deploy";
                 
                 // process user action
                 let numActions: Int? = affiliateData.userActionsStats.get(msg.userAction);
-                if (numActions == null) {
-                    affiliateData.userActionsStats.set(msg.userAction, 1);    
-                } else {
-                    affiliateData.userActionsStats.set(msg.userAction, numActions!! + 1);
-                }
+                affiliateData.userActionsStats.set(msg.userAction, numActions!! + 1);
 
                 // Accumulate the earnings for the affiliate
                 affiliateData.accruedEarnings = affiliateData.accruedEarnings + costPerAction;
@@ -286,6 +302,10 @@ import "@stdlib/deploy";
                 self.numUserActions = self.numUserActions + 1;
                 self.totalAccruedEarnings = self.totalAccruedEarnings + costPerAction;  
 
+                let msgAmount: Int = ton("0");
+                if (verifier == self.parent) {
+                    msgAmount = GAS_FEE;
+                }
                 send(SendParameters{
                     to: self.parent,
                     body: InternalUserActionGasFee{
@@ -293,9 +313,10 @@ import "@stdlib/deploy";
                         advertiser: self.advertiser,
                         campaginBalance: campaginBalance - costPerAction
                     }.toCell(),                
-                    value: GAS_FEE,
+                    value: msgAmount,
                     mode: SendPayGasSeparately 
-                });     
+                });  
+                  
             } 
         }
 
