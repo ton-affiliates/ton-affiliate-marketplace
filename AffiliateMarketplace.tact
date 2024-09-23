@@ -4,7 +4,7 @@ import "@stdlib/deploy";
 
     // constants
     const MAX_NUM_AFFILIATES: Int = 10000;  // ten thousand
-    const MIN_NUM_DAYS_NO_USER_ACTION_WITHDRAW_FUNDS: Int = 60;
+    const MIN_NUM_DAYS_NO_USER_ACTION_WITHDRAW_FUNDS: Int = 21;
 
     // affiliate contract state
     const STATE_CAMPAIGN_CREATED: Int = 0;
@@ -19,11 +19,11 @@ import "@stdlib/deploy";
     const MIN_CAMPAIGN_BALANCE_THRESHOLD: Int = ton("5");
     const MIN_COST_PER_USER_ACTION: Int = ton("0.01");   
 
-    const USER_ACTION_BOT_THRESHOLD: Int = 20;  // 20 first user actions are saved for bot's acrions.  Anything above that is the advertiser's
+    const USER_ACTION_OP_CODES_BOT: Int = 20;  // 20 first user action op codes are saved for bot's acrions.  Anything above that is the advertiser's
     
     struct CampaignDetails {
-        regularUsersCostPerAction: map<Int, Int>; 
-        premiumUsersCostPerAction: map<Int, Int>; 
+        regularUsersCostPerAction: map<Int, Int>; // op code -> cpa
+        premiumUsersCostPerAction: map<Int, Int>; // op code -> cpa
         allowedAffiliates: map<Address, Bool>;  // address -> dummy (closed campaign)
         isOpenCampaign: Bool; // anyone can be an affiliate
         daysWithoutUserActionForWithdrawFunds: Int as uint32;
@@ -62,9 +62,9 @@ import "@stdlib/deploy";
         affiliateId: Int as uint32;
         amount: Int as coins;
     }
-    message InternalUserAction{
+    message AffiliateUserAction{
         affiliateId: Int as uint32;
-        userAction: Int as uint32;
+        userActionOpCode: Int as uint32;
         isPremiumUser: Bool;
     }
 
@@ -187,13 +187,13 @@ import "@stdlib/deploy";
             self.currAffiliateId = self.currAffiliateId + 1; 
 
             let userActionsStats: map<Int, Int> = emptyMap();
-            foreach (key, val in self.campaignDetails.regularUsersCostPerAction) {
-                userActionsStats.set(key, 0);
+            foreach (userActionOpCode, cpa in self.campaignDetails.regularUsersCostPerAction) {
+                userActionsStats.set(userActionOpCode, 0);
             }
 
             let premiumUserActionsStats: map<Int, Int> = emptyMap();
-            foreach (key, val in self.campaignDetails.premiumUsersCostPerAction) {
-                premiumUserActionsStats.set(key, 0);
+            foreach (userActionOpCode, cpa in self.campaignDetails.premiumUsersCostPerAction) {
+                premiumUserActionsStats.set(userActionOpCode, 0);
             }
 
             self.affiliates.set(affilateId, AffiliateData{affiliate: sender(), userActionsStats: userActionsStats, premiumUserActionsStats: premiumUserActionsStats, accruedEarnings: 0});
@@ -246,14 +246,14 @@ import "@stdlib/deploy";
             }
         }
 
-        receive(msg: InternalUserAction) {
+        receive(msg: AffiliateUserAction) {
             
             let affiliateDataOptional = self.affiliates.get(msg.affiliateId);
             require(affiliateDataOptional != null, "Affiliate does not exist");
             let affiliateData: AffiliateData = affiliateDataOptional!!;
 
             let verifier = self.parent;
-            if (msg.userAction >= USER_ACTION_BOT_THRESHOLD) {
+            if (msg.userActionOpCode > USER_ACTION_OP_CODES_BOT) {
                 verifier = self.advertiser;
             }
 
@@ -261,9 +261,9 @@ import "@stdlib/deploy";
 
             let cpaOptional: Int? = null;
             if (msg.isPremiumUser) {
-                cpaOptional = self.campaignDetails.premiumUsersCostPerAction.get(msg.userAction);
+                cpaOptional = self.campaignDetails.premiumUsersCostPerAction.get(msg.userActionOpCode);
             } else {
-                cpaOptional = self.campaignDetails.regularUsersCostPerAction.get(msg.userAction);
+                cpaOptional = self.campaignDetails.regularUsersCostPerAction.get(msg.userActionOpCode);
             }
 
             let costPerAction: Int = cpaOptional!!;
@@ -286,11 +286,11 @@ import "@stdlib/deploy";
                 
                 // process user action
                 if (msg.isPremiumUser) {
-                    let numActions: Int? = affiliateData.premiumUserActionsStats.get(msg.userAction);
-                    affiliateData.premiumUserActionsStats.set(msg.userAction, numActions!! + 1);
+                    let numActions: Int? = affiliateData.premiumUserActionsStats.get(msg.userActionOpCode);
+                    affiliateData.premiumUserActionsStats.set(msg.userActionOpCode, numActions!! + 1);
                 } else {
-                    let numActions: Int? = affiliateData.userActionsStats.get(msg.userAction);
-                    affiliateData.userActionsStats.set(msg.userAction, numActions!! + 1);
+                    let numActions: Int? = affiliateData.userActionsStats.get(msg.userActionOpCode);
+                    affiliateData.userActionsStats.set(msg.userActionOpCode, numActions!! + 1);
                 }
 
                 // Accumulate the earnings for the affiliate
@@ -301,20 +301,30 @@ import "@stdlib/deploy";
                 self.numUserActions = self.numUserActions + 1;
                 self.totalAccruedEarnings = self.totalAccruedEarnings + costPerAction;  
 
-                let msgAmount: Int = ton("0");
+                let msgAmount: Int = GAS_FEE;//ton("0");
                 if (verifier == self.parent) {
-                    msgAmount = GAS_FEE;
+                    send(SendParameters{
+                        to: self.parent,
+                        body: InternalAffiliateUserAction{
+                            campaignId: self.campaignId,
+                            advertiser: self.advertiser,
+                            campaginBalance: campaginBalance - costPerAction
+                        }.toCell(),                
+                        value: GAS_FEE,  // return gas fee paid by the parent contract
+                        mode: SendPayGasSeparately 
+                    });  
+                } else {
+                    send(SendParameters{
+                        to: self.parent,
+                        body: InternalAffiliateUserAction{
+                            campaignId: self.campaignId,
+                            advertiser: self.advertiser,
+                            campaginBalance: campaginBalance - costPerAction
+                        }.toCell(),                
+                        value: 0,  // return gas fee paid by the parent contract
+                        mode: SendRemainingValue 
+                    });
                 }
-                send(SendParameters{
-                    to: self.parent,
-                    body: InternalUserActionGasFee{
-                        campaignId: self.campaignId,
-                        advertiser: self.advertiser,
-                        campaginBalance: campaginBalance - costPerAction
-                    }.toCell(),                
-                    value: msgAmount,
-                    mode: SendPayGasSeparately 
-                });  
                   
             } 
         }
@@ -432,7 +442,7 @@ import "@stdlib/deploy";
         fee: Int as coins;
     }
 
-    message InternalUserActionGasFee {
+    message InternalAffiliateUserAction {
         campaignId: Int as uint32;
         advertiser: Address;
         campaginBalance: Int as coins;
@@ -475,7 +485,7 @@ import "@stdlib/deploy";
         campaignId: Int as uint32;
         affiliateId: Int as uint32;
         advertiser: Address;
-        userAction: Int as uint32;
+        userActionOpCode: Int as uint32;
         isPremiumUser: Bool;
     }
 
@@ -525,7 +535,7 @@ import "@stdlib/deploy";
             return contractAddress(self.campaignContractStateInit(campaignId, advertiser));
         }
 
-        receive(msg: InternalUserActionGasFee) {
+        receive(msg: InternalAffiliateUserAction) {
             
             let expectedAddress: Address = contractAddress(self.campaignContractStateInit(msg.campaignId, msg.advertiser));
             require(sender() == expectedAddress, "Access denied");
@@ -643,9 +653,9 @@ import "@stdlib/deploy";
 
             send(SendParameters{
                 to: campaignContractAddress,
-                body: InternalUserAction{
+                body: AffiliateUserAction{
                     affiliateId: msg.affiliateId,
-                    userAction: msg.userAction,
+                    userActionOpCode: msg.userActionOpCode,
                     isPremiumUser: msg.isPremiumUser
                 }.toCell(),
                 value: GAS_FEE, 
