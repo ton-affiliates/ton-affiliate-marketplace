@@ -596,8 +596,6 @@ describe('AffiliateMarketplace Integration Test', () => {
 
         //------------------------------------------------------------------------------------
 
-        // to avoid further gas fees, let's see if the campaign contract is destroyed successfully if insufficient funds occur
-        // user action which leads to campaign being destroyied
         // Simulate user action -  premium user
         const premiumUserActionResult2 = await affiliateMarketplaceContract.send(
             bot.getSender(),
@@ -643,9 +641,89 @@ describe('AffiliateMarketplace Integration Test', () => {
         }
         // -------------------------------------------------------------------------------------------------------
         
+        const adminReplenishMessageResult = await affiliateMarketplaceContract.send(
+            deployer.getSender(),
+            { value: toNano('50') }
+            {
+               $$type: "AdminReplenish"
+            }
+        );
 
-        // TODO - ADMIN withdraw
-        // TODO - advvertiser verifies tx (not parent)
+        expect(adminReplenishMessageResult.transactions).toHaveTransaction({
+            from: deployer.address,
+            to: affiliateMarketplaceContract.address,
+            success: true,
+        });
+
+        let balance = await affiliateMarketplaceContract.getBalance();
+
+        let admin1 = await blockchain.treasury('Admin1');
+        let admin2 = await blockchain.treasury('Admin2');
+        let admin3 = await blockchain.treasury('Admin3');
+        let admin4 = await blockchain.treasury('Admin4');
+
+        const wallets = Dictionary.empty<Address, bool>();
+        wallets.set(admin1.address, true);
+        wallets.set(admin2.address, true);
+        wallets.set(admin3.address, true);
+        wallets.set(admin4.address, true);
+
+        // ADMIN withdraw
+        const adminWithdrawResult = await affiliateMarketplaceContract.send(
+            deployer.getSender(),
+            { value: toNano('0.05') },
+            {
+                $$type: 'AdminWithdraw',
+                amount: balance - toNano("1"),
+                wallets: wallets
+            }
+        );
+
+        expect(adminWithdrawResult.transactions).toHaveTransaction({
+            from: deployer.address,
+            to: affiliateMarketplaceContract.address,
+            success: true,
+        });
+
+        expect(adminWithdrawResult.transactions).toHaveTransaction({
+            from: affiliateMarketplaceContract.address,
+            to: admin1.address,
+            success: true,
+        });
+
+        expect(adminWithdrawResult.transactions).toHaveTransaction({
+            from: affiliateMarketplaceContract.address,
+            to: admin2.address,
+            success: true,
+        });
+
+        expect(adminWithdrawResult.transactions).toHaveTransaction({
+            from: affiliateMarketplaceContract.address,
+            to: admin3.address,
+            success: true,
+        });
+
+        expect(adminWithdrawResult.transactions).toHaveTransaction({
+            from: affiliateMarketplaceContract.address,
+            to: admin4.address,
+            success: true,
+        });
+
+        
+        logs.push({
+            type: 'afterAdminWithdraw',
+            data: `Balance before: ${fromNano(balance)}
+                   Balance after: ${fromNano(await affiliateMarketplaceContract.getBalance())}, 
+                    admin1: ${fromNano(await admin1.getBalance())},
+                    admin2: ${fromNano(await admin2.getBalance())},
+                    admin3: ${fromNano(await admin3.getBalance())},
+                    admin4: ${fromNano(await admin4.getBalance())}`
+        });
+
+
+
+        // -------------------------------------------------------------------------------------------------------
+
 
         function replacer(key: string, value: any) {
             return typeof value === 'bigint' ? fromNano(value) + ' TON' : value;
