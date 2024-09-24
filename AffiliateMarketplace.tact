@@ -477,7 +477,10 @@ import "@stdlib/deploy";
 
     message AdminWithdraw {
         amount: Int as coins;
+        wallets: map<Address, Bool>;
     }
+
+    message AdminReplenish {}
 
     message CreateCampaign {}
 
@@ -534,6 +537,34 @@ import "@stdlib/deploy";
         get fun campaignContractAddress(campaignId: Int, advertiser: Address): Address {
             return contractAddress(self.campaignContractStateInit(campaignId, advertiser));
         }
+
+        receive(msg: AdminReplenish) {
+            self.requireOwner();
+        } 
+
+        receive(msg: AdminWithdraw) {
+            
+            self.requireOwner();
+
+            let buffer: Int = ton("1");
+            require(myBalance() >= msg.amount + buffer, "Insufficient contract funds to make payment");
+
+            let numWallets: Int = 0;
+            foreach(wallet,v in msg.wallets) {
+                numWallets = numWallets + 1;
+            }
+
+            let fraction: Int = msg.amount / numWallets;
+            foreach(wallet,v in msg.wallets) {          
+                send(SendParameters{
+                    to: wallet,
+                    bounce: true,
+                    value: fraction,
+                    mode: SendPayGasSeparately 
+                });
+            }
+        }
+
 
         receive(msg: InternalAffiliateUserAction) {
             
@@ -599,21 +630,6 @@ import "@stdlib/deploy";
                 affiliate: msg.affiliate
             }.toCell());
             
-        }
-
-        receive(msg: AdminWithdraw) {
-            
-            self.requireOwner();
-
-            let buffer: Int = ton("1");
-            require(myBalance() >= msg.amount + buffer, "Insufficient contract funds to make payment");
-                        
-            send(SendParameters{
-                to: self.owner,
-                bounce: true,
-                value: msg.amount,
-                mode: SendPayGasSeparately 
-            });
         }
 
         // Function to create a new campaign
