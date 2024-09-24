@@ -46,6 +46,7 @@ import "@stdlib/deploy";
         campaignBalance: Int as coins;
         contractBalance: Int as coins;
         contractAddress: Address;
+        feePercentage: Int as uint32;  // 200 for 2 %, 150 for 1.5 % etc...
     }
 
     message InternalCreatecampaign{campaignId: Int as uint32}
@@ -58,6 +59,7 @@ import "@stdlib/deploy";
     message AdvertiserReplenish {}
 
     message CreateNewAffiliate{}
+    message UpdateFeePercentage{feePercentage: Int as uint32}
     message PayAffiliate{
         affiliateId: Int as uint32;
         amount: Int as coins;
@@ -90,6 +92,8 @@ import "@stdlib/deploy";
         lastUserAction: Int as uint32;
         numUserActions: Int as uint32;  // Track number of user actions
         totalAccruedEarnings: Int as coins;
+
+        feePercentage: Int as uint32 = 200;  // 2%
         
         init(parent: Address, campaignId: Int, advertiser: Address) { 
             
@@ -119,6 +123,11 @@ import "@stdlib/deploy";
         // piggyback deployment of contract on this message
         receive(msg: InternalCreatecampaign) {
             // dump(msg.campaignId);  // for debugging
+        }
+
+        receive(msg: UpdateFeePercentage) {
+            require(sender() == self.parent, "Only parent can upate fee percentage");
+            self.feePercentage = msg.feePercentage;
         }
 
         // Reserve funds for affiliate withdrawals
@@ -155,7 +164,7 @@ import "@stdlib/deploy";
             require(self.state == STATE_CAMPAIGN_DETAILS_SET_BY_ADVERTISER, "Must be in state: STATE_CAMPAIGN_DETAILS_SET_BY_ADVERTISER");
             
             // send 2% fee to parent
-            let fee: Int = (context().value * 200 + 9999) / 10000;  // 2% fee calculation
+            let fee: Int = (context().value * self.feePercentage + 9999) / 10000;  // 2% fee calculation
 
             // advertiser to cover gas costs
             send(SendParameters{
@@ -350,7 +359,7 @@ import "@stdlib/deploy";
             self.totalAccruedEarnings = self.totalAccruedEarnings - paymentAmount;
 
             // send 2% fee to parent
-            let fee: Int = (paymentAmount * 200 + 9999) / 10000;  // 2% fee calculation
+            let fee: Int = (paymentAmount * self.feePercentage + 9999) / 10000;  // 2% fee calculation
 
             // advertiser fee
             send(SendParameters{
@@ -400,7 +409,8 @@ import "@stdlib/deploy";
                 state: self.state,
                 campaignBalance: self.currentCampaignBalance(),
                 contractBalance: myBalance(),
-                contractAddress: myAddress()
+                contractAddress: myAddress(),
+                feePercentage: self.feePercentage
             }
         }
 
@@ -499,6 +509,12 @@ import "@stdlib/deploy";
         campaignContractAddress: Address;
     }
 
+    message AdminModifyCampaignFeePercentage {
+        campaignId: Int as uint32;
+        advertiser: Address;
+        feePercentage: Int as uint32;
+    }
+
     message AffiliateCreatedEvent {
         campaignId: Int as uint32;
         affiliateId: Int as uint32;
@@ -554,6 +570,8 @@ import "@stdlib/deploy";
                 numWallets = numWallets + 1;
             }
 
+            require(numWallets > 0, "Must have at least one wallet to withdraw to");
+
             let fraction: Int = msg.amount / numWallets;
             foreach(wallet,v in msg.wallets) {          
                 send(SendParameters{
@@ -563,6 +581,23 @@ import "@stdlib/deploy";
                     mode: SendPayGasSeparately 
                 });
             }
+        }
+
+        receive(msg: AdminModifyCampaignFeePercentage) {
+            
+            self.requireOwner();
+            
+            let init: StateInit = self.campaignContractStateInit(msg.campaignId, msg.advertiser);
+            let campaignContractAddress: Address = contractAddress(init);
+
+            send(SendParameters{
+                to: campaignContractAddress,
+                body: UpdateFeePercentage{
+                    feePercentage: msg.feePercentage
+                }.toCell(),
+                value: 0, 
+                mode: SendRemainingValue
+            });
         }
 
 
