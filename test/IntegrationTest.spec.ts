@@ -479,7 +479,7 @@ describe('AffiliateMarketplace Integration Test', () => {
 
         //-------------------------------------------------------------------------------------------
 
-        let beforeWithdrawAffiliateBalance = fromNano(await affiliate.getBalance());
+        let beforeWithdrawAffiliateBalance = await affiliate.getBalance();
         campaignDataBeforeAffiliateWithdraw = await campaignContract.getCampaignData();
 
         // AffiliateWithdrawResult
@@ -526,14 +526,17 @@ describe('AffiliateMarketplace Integration Test', () => {
         // test: Affiliates earnings 16
         // 2% fee = 0.32
         // affiliate compensation = 16-0.32 = 15.68 TON (minu gas fees that affiliate paid for) 
-        let affiliateBalance = fromNano(await affiliate.getBalance());
+        let affiliateBalance = await affiliate.getBalance();
         
         logs.push({
             type: 'afterAffiliateWithdrawLog',
             data: `Campaign Balance Before Withdraw: ${fromNano(campaignDataBeforeAffiliateWithdraw.campaignBalance)},
                    Campaign Balance After Withdraw: ${fromNano(campaignData.campaignBalance)},
                    Contract Balance Before Withdraw: ${fromNano(campaignDataBeforeAffiliateWithdraw.contractBalance)}
-                   Contract Balance After Withdraw: ${fromNano(campaignData.contractBalance)}}`
+                   Contract Balance After Withdraw: ${fromNano(campaignData.contractBalance)}
+                   Affiliate Balance Before Withdraw: ${fromNano(beforeWithdrawAffiliateBalance)}
+                   Affiliate Balance After Withdraw: ${fromNano(affiliateBalance)}
+                   }`
         });
 
         // ----------------------------------------------------------------------------------------
