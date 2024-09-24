@@ -527,7 +527,6 @@ describe('AffiliateMarketplace Integration Test', () => {
         // 2% fee = 0.32
         // affiliate compensation = 16-0.32 = 15.68 TON (minu gas fees that affiliate paid for) 
         let affiliateBalance = fromNano(await affiliate.getBalance());
-        console.log(affiliateBalance - beforeWithdrawAffiliateBalance);
         
         logs.push({
             type: 'afterAffiliateWithdrawLog',
@@ -536,6 +535,38 @@ describe('AffiliateMarketplace Integration Test', () => {
                    Contract Balance Before Withdraw: ${fromNano(campaignDataBeforeAffiliateWithdraw.contractBalance)}
                    Contract Balance After Withdraw: ${fromNano(campaignData.contractBalance)}}`
         });
+
+        // ----------------------------------------------------------------------------------------
+
+        // test update fee
+        campaignData = await campaignContract.getCampaignData();
+
+        expect(campaignData.feePercentage).toBe(BigInt(200));  // 2% fee by default
+
+        const adminModifyCampaignFeeResults = await affiliateMarketplaceContract.send(
+            deployer.getSender(),
+            {
+                value: toNano('0.05'),
+            },
+            {
+                $$type: 'AdminModifyCampaignFeePercentage',
+                campaignId: decodedCampaign!.campaignId,
+                advertiser: advertiser.address,
+                feePercentage: 150 // 1.5 %
+            }
+        );
+
+        expect(adminModifyCampaignFeeResults.transactions).toHaveTransaction({
+            from: deployer.address,
+            to: affiliateMarketplaceContract.address,
+            success: true,
+        });
+
+        campaignData = await campaignContract.getCampaignData();
+
+        expect(campaignData.feePercentage).toBe(BigInt(150));  // 1.5% fee after update
+
+        
 
         //-------------------------------------------------------------------------------------------
 
@@ -723,7 +754,7 @@ describe('AffiliateMarketplace Integration Test', () => {
 
 
         // -------------------------------------------------------------------------------------------------------
-
+        
 
         function replacer(key: string, value: any) {
             return typeof value === 'bigint' ? fromNano(value) + ' TON' : value;
