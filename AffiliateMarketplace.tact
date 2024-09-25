@@ -280,17 +280,35 @@ import "@stdlib/deploy";
 
             // if insufficient funds - remove this campaign to deny gas exhaustion to the bot
             if (campaginBalance < costPerAction) {  
-                send(SendParameters{
-                    to: self.parent,
-                    body: InternalInsufficientCampaignFunds {
-                        campaignId: self.campaignId,
-                        advertiser: self.advertiser,
-                        campaginBalance: campaginBalance,
-                        contractBalance: myBalance()
-                    }.toCell(),                
-                    value: 0,
-                    mode: SendRemainingBalance | SendDestroyIfZero  // send all TON in contract to parent and destroy contract 
-                });     
+
+                // no more funds in conract - destroy contract altogether
+                if (myBalance() <= CAMPAIGN_BUFFER) {
+                    
+                    send(SendParameters{
+                        to: self.parent,
+                        body: InternalRemoveCampaign {
+                            campaignId: self.campaignId,
+                            advertiser: self.advertiser,
+                            campaginBalance: campaginBalance,
+                            contractBalance: myBalance()
+                        }.toCell(),                
+                        value: 0,
+                        mode: SendRemainingBalance | SendDestroyIfZero  // send all TON in contract to parent and destroy contract 
+                    });    
+                } else {
+                    
+                    send(SendParameters{
+                        to: self.parent,
+                        body: InternalInsufficientCampaignFunds {
+                            campaignId: self.campaignId,
+                            advertiser: self.advertiser,
+                            campaginBalance: campaginBalance,
+                            contractBalance: myBalance()
+                        }.toCell(),                
+                        value: 0,
+                        mode: SendRemainingValue 
+                    });     
+                }
             } else {
                 
                 // process user action
@@ -310,7 +328,6 @@ import "@stdlib/deploy";
                 self.numUserActions = self.numUserActions + 1;
                 self.totalAccruedEarnings = self.totalAccruedEarnings + costPerAction;  
 
-                let msgAmount: Int = GAS_FEE;//ton("0");
                 if (verifier == self.parent) {
                     send(SendParameters{
                         to: self.parent,
@@ -361,7 +378,6 @@ import "@stdlib/deploy";
             // send 2% fee to parent
             let fee: Int = (paymentAmount * self.feePercentage + 9999) / 10000;  // 2% fee calculation
 
-            // advertiser fee
             send(SendParameters{
                 to: self.parent,
                 body: InternalAffiliateWithdrawEarningsFee{
@@ -465,6 +481,20 @@ import "@stdlib/deploy";
     }
 
     message InternalInsufficientCampaignFunds {
+        campaignId: Int as uint32;
+        advertiser: Address;
+        campaginBalance: Int as coins;
+        contractBalance: Int as coins;
+    }
+
+    message InsufficientCampaignFundsEvent {
+        campaignId: Int as uint32;
+        advertiser: Address;
+        campaginBalance: Int as coins;
+        contractBalance: Int as coins;
+    }
+
+    message InternalRemoveCampaign {
         campaignId: Int as uint32;
         advertiser: Address;
         campaginBalance: Int as coins;
@@ -615,6 +645,19 @@ import "@stdlib/deploy";
         }
 
         receive(msg: InternalInsufficientCampaignFunds) {
+            
+            let expectedAddress: Address = contractAddress(self.campaignContractStateInit(msg.campaignId, msg.advertiser));
+            require(sender() == expectedAddress, "Access denied");
+
+            emit(InsufficientCampaignFundsEvent{
+                campaignId: msg.campaignId, 
+                advertiser: msg.advertiser, 
+                campaginBalance: msg.campaginBalance,
+                contractBalance: msg.contractBalance
+            }.toCell());
+        }
+
+        receive(msg: InternalRemoveCampaign) {
             
             let expectedAddress: Address = contractAddress(self.campaignContractStateInit(msg.campaignId, msg.advertiser));
             require(sender() == expectedAddress, "Access denied");
