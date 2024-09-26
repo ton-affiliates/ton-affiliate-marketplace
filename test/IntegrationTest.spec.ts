@@ -18,6 +18,7 @@ const EVENT_TYPE_AFFILIATE_CREATED = 3273123323;
 const EVENT_TYPE_AFFILIATE_WITHDRAW_EARNINGS = 1950324544; 
 const EVENT_TYPE_ADVERTISER_REPLENISH = 738147066;
 const EVENT_TYPE_CAMPAIGN_BALANCE_UNDER_THRESHOLD = 859219313;
+const EVENT_TYPE_INSUFFICIENT_CAMPAIGN_FUNDS = 580162183;
 const EVENT_TYPE_CAMPAIGN_REMOVED = 88274163;
 
 function loadEvent(cell: Cell, expectedEventType: number) {
@@ -35,6 +36,15 @@ function loadCampaignUnderThresholdEvent(cell: Cell) {
     const advertiserAddressStr = slice.loadAddress().toString();
     const campaginBalance = slice.loadCoins();
     return { $$type: 'CampaignBalnceUnderThresholdEvent', campaignId, advertiserAddressStr, campaginBalance };
+}
+
+function loadInsufficientCampaignFundsEvent(cell: Cell) {
+    const slice = loadEvent(cell, EVENT_TYPE_INSUFFICIENT_CAMPAIGN_FUNDS);
+    const campaignId = slice.loadUint(32);
+    const advertiserAddressStr = slice.loadAddress().toString();
+    const campaginBalance = slice.loadCoins();
+    const contractBalance = slice.loadCoins();
+    return { $$type: 'InsufficientCampaignFundsEvent', campaignId, advertiserAddressStr, campaginBalance, contractBalance };
 }
 
 function loadCampaignRemovedEvent(cell: Cell) {
@@ -443,9 +453,11 @@ describe('AffiliateMarketplace Integration Test', () => {
          expect(premiumUserActionsStats.get(BigInt(ADVERTISER_OP_CODE_CUSTOMIZED_EVENT))).toBe(BigInt(0));
                 
         logs.push({
-            type: 'afterUserActionBalanceAndBeforePremiumUserActionLog',
-            data: `Campaign Balance: ${fromNano(campaignData.campaignBalance)}, Contract Balance: ${fromNano(campaignData.contractBalance)},
-             Affiliate Accrued Earnings: ${fromNano(affiliateData1!.accruedEarnings)}, Affiliate Stats: ${affiliateData1!.userActionsStats.get(BigInt(BOT_OP_CODE_USER_CLICK)!)}}`
+            type: 'afterUserActionLog',
+            data: `Campaign Balance: ${fromNano(campaignData.campaignBalance)}, 
+                   Contract Balance: ${fromNano(campaignData.contractBalance)},
+                   Affiliate Accrued Earnings: ${fromNano(affiliateData1!.accruedEarnings)}, 
+                   Affiliate Stats: ${affiliateData1!.userActionsStats.get(BigInt(BOT_OP_CODE_USER_CLICK)!)}}`
         });
 
         // ------------------------------------------------------------------------------------------
@@ -497,8 +509,6 @@ describe('AffiliateMarketplace Integration Test', () => {
         // test: campaignBalance = 15 less than it was before this user action
         // It is exactly 15 because there are no gas fees to pay to the parent contract
         // since the gas fees for this event was paid for by the advertiser
-        console.log(fromNano(campaignDataBeforeCustomizedEvent.campaignBalance));
-        console.log(fromNano(campaignData.campaignBalance));
         expect(campaignDataBeforeCustomizedEvent.campaignBalance - campaignData.campaignBalance)
             .toBe(toNano("15"));
 
@@ -581,7 +591,8 @@ describe('AffiliateMarketplace Integration Test', () => {
                    }`
         });
 
-        // ----------------------------------------------------------------------------------------
+
+        //------------------------------------------------------------------------------------------------------------------------
 
         // test update fee
         campaignData = await campaignContract.getCampaignData();
@@ -611,7 +622,6 @@ describe('AffiliateMarketplace Integration Test', () => {
 
         expect(campaignData.feePercentage).toBe(BigInt(150));  // 1.5% fee after update
 
-        
 
         //-------------------------------------------------------------------------------------------
 
@@ -698,23 +708,116 @@ describe('AffiliateMarketplace Integration Test', () => {
             success: true,
         });
 
-        // event is triggered due to balance being under threshold
+        // event is triggered due to balance in campaign to pay affiliate
         let decodedInsufficientBalanceInCampaign: any | null = null
         for (const external of premiumUserActionResult2.externals) {
             if (external.body) {
-                decodedInsufficientBalanceInCampaign = loadCampaignRemovedEvent(external.body);
+                decodedInsufficientBalanceInCampaign = loadInsufficientCampaignFundsEvent(external.body);
                 logs.push({ type: 'DecodedInsufficientBalanceInCampaign', data: decodedInsufficientBalanceInCampaign });
             }
         }
 
         expect(decodedInsufficientBalanceInCampaign).not.toBeNull();
 
+        //------------------------------------------------------------------------------------------------------------------------
+
+        // Affiliate3 Withdraw
+        const affiliate2WithdrawResult = await campaignContract.send(
+            affiliate2.getSender(),
+            { value: toNano('0.05') },
+            { $$type: 'AffiliateWithdrawEarnings', affiliateId: decodedAffiliate2!.affiliateId }
+        );
+
+        expect(affiliate2WithdrawResult.transactions).toHaveTransaction({
+            from: affiliate2.address,
+            to: campaignContract.address,
+            success: true,
+        });
+
+        expect(affiliate2WithdrawResult.transactions).toHaveTransaction({
+            from: campaignContract.address,
+            to: affiliateMarketplaceContract.address,
+            success: true,
+        });
+
+        expect(affiliate2WithdrawResult.transactions).toHaveTransaction({
+            from: campaignContract.address,
+            to: affiliate2.address,
+            success: true,
+        });
+
+        let decodedAffiliate2Withdraw: any | null = null
+        for (const external of affiliate2WithdrawResult.externals) {
+            if (external.body) {
+                decodedAffiliate2Withdraw = loadAffiliateWithdrawEarningsEvent(external.body);
+                logs.push({ type: 'AffiliateWithdrawEarningsEvent', data: decodedAffiliate2Withdraw });
+            }
+        }
+
+        expect(decodedAffiliate2Withdraw).not.toBeNull();
+
+        affiliateData2 = await campaignContract.getAffiliateData(decodedAffiliate2!.affiliateId);
+
+        // test: Affiliate's accrued earnings is now 0
+        expect(affiliateData2!.accruedEarnings).toBe(toNano("0"));
+
+
+        // ----------------------------------------------------------------------------------------
+
+        // last but not least -contract now has < 1 TON in it and should be destroyed on any user action
+
+        campaignData = await campaignContract.getCampaignData();
+        console.log(campaignData.contractBalance);
+
+        // Simulate user action
+        const userActionResult3 = await affiliateMarketplaceContract.send(
+            bot.getSender(),
+            { value: toNano('0.05') },
+            {
+                $$type: 'UserAction',
+                campaignId: decodedCampaign!.campaignId,
+                affiliateId: decodedAffiliate1!.affiliateId,
+                advertiser: advertiser.address,
+                userActionOpCode: BOT_OP_CODE_USER_CLICK,
+                isPremiumUser: false,
+            }
+        );
+
+        expect(userActionResult3.transactions).toHaveTransaction({
+            from: affiliateMarketplaceContract.address,
+            to: campaignContract.address,
+            success: true,
+        });
+
+        expect(userActionResult3.transactions).toHaveTransaction({
+            from: campaignContract.address,
+            to: affiliateMarketplaceContract.address,
+            success: true,
+        });
+
+        // event is triggered due to balance in campaign to pay affiliate
+        let decodedCampaignRemoved: any | null = null
+        for (const external of userActionResult3.externals) {
+            if (external.body) {
+                decodedCampaignRemoved = loadCampaignRemovedEvent(external.body);
+                logs.push({ type: 'CampaignRemovedEvent', data: decodedCampaignRemoved });
+            }
+        }
+
+        expect(decodedCampaignRemoved).not.toBeNull();
+
+        let campaignRemoved = false;
         try {
             // contract should have been removed, hence any get request now should fail
             campaignData = await campaignContract.getCampaignData();
         } catch (e:Exception) {
             expect(e.toString()).toContain("Error: Trying to run get method on non-active contract");
+            campaignRemoved = true;
         }
+
+        expect(campaignRemoved).toBe(true);
+
+
         // -------------------------------------------------------------------------------------------------------
         
         const adminReplenishMessageResult = await affiliateMarketplaceContract.send(
