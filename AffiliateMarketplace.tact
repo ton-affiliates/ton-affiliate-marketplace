@@ -602,7 +602,11 @@ import "@stdlib/deploy";
 
             require(numWallets > 0, "Must have at least one wallet to withdraw to");
 
-            let fraction: Int = msg.amount / numWallets;
+            let fraction: Int = msg.amount;
+            if (numWallets > 1) {
+                fraction = fraction / numWallets;
+            }   
+            
             foreach(wallet,v in msg.wallets) {          
                 send(SendParameters{
                     to: wallet,
