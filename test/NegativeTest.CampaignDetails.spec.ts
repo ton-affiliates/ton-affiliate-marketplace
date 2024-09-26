@@ -53,8 +53,6 @@ beforeEach(async () => {
         success: true,
     });
 
-    blockchain.now = deployResult.transactions[1].now;
-
     // Deploy a new Campaign contract through the AffiliateMarketplace
     const createCampaignResult = await affiliateMarketplaceContract.send(
         advertiser.getSender(),
