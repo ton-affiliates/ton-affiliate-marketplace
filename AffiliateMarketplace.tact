@@ -281,8 +281,8 @@ import "@stdlib/deploy";
             // if insufficient funds - remove this campaign to deny gas exhaustion to the bot
             if (campaginBalance < costPerAction) {  
 
-                // no more funds in conract - destroy contract altogether
-                if (myBalance() <= CAMPAIGN_BUFFER) {
+                // no more funds in conract before this tx - destroy contract altogether
+                if (myBalance() - context().value <= CAMPAIGN_BUFFER) {
                     
                     send(SendParameters{
                         to: self.parent,
