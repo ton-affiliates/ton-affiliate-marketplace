@@ -141,4 +141,23 @@ describe('Negative Tests for Campaign', () => {
         });
     });
 
+        // Test: Unauthorized Campaign Removal
+    it('should fail when a non-advertiser tries to remove the campaign and withdraw funds', async () => {
+        
+        unauthorizedUser = await blockchain.treasury('unauthorizedUser');
+
+        // Attempt to remove the campaign by a non-advertiser user
+        const removeCampaignResult = await campaignContract.send(
+            unauthorizedUser.getSender(),
+            { value: toNano('0.05') },
+            { $$type: 'RemoveCampaignAndWithdrawFunds' }
+        );
+
+        expect(removeCampaignResult.transactions).toHaveTransaction({
+            from: unauthorizedUser.address,
+            to: campaignContract.address,
+            success: false, // Expected failure because the sender is not the advertiser
+        });
+    });
+
 });
