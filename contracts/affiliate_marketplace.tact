@@ -8,7 +8,8 @@ const MIN_NUM_DAYS_NO_USER_ACTION_WITHDRAW_FUNDS: Int = 21;
 
 // affiliate contract state
 const STATE_CAMPAIGN_CREATED: Int = 0;
-const STATE_CAMPAIGN_DETAILS_SET_BY_ADVERTISER: Int = 1;
+const STATE_CAMPAIGN_INACTIVE: Int = 1;
+const STATE_CAMPAIGN_ACTIVE: Int = 2;
 
 const DEPLOY_NEW_CAMPAIGN_COST: Int = ton("0.1");
 const MAX_MESSAGE_VAL_NO_REPLENISH: Int = ton("0.15");
@@ -93,7 +94,7 @@ contract Campaign {
     numUserActions: Int as uint32;  // Track number of user actions
     totalAccruedEarnings: Int as coins;
 
-    feePercentage: Int as uint32 = 200;  // 2%
+    feePercentage: Int as uint32 = 200;  // default - 2%
 
     init(parent: Address, campaignId: Int, advertiser: Address) {
 
@@ -136,10 +137,11 @@ contract Campaign {
         return max(campaginBalance, ton("0"));  // if negative return 0
     }
 
+    // advetiser can set details for the first time, or update the details if no affilites started orling on the campaign
     receive (msg: AdvertiserSigned) {
 
         require(sender() == self.advertiser, "Only advertiser can invoke this function");
-        require(self.state == STATE_CAMPAIGN_CREATED, "Must be in state: STATE_CAMPAIGN_CREATED");
+        require(self.state == STATE_CAMPAIGN_CREATED || self.currAffiliateId == 0, "Must be in state: STATE_CAMPAIGN_CREATED or have no affiliates at all");
         require(msg.campaignDetails.daysWithoutUserActionForWithdrawFunds >= MIN_NUM_DAYS_NO_USER_ACTION_WITHDRAW_FUNDS, "daysWithoutUserActionForWithdrawFunds must be greater than MIN_NUM_DAYS_NO_USER_ACTION_WITHDRAW_FUNDS");
         require(context().value <= MAX_MESSAGE_VAL_NO_REPLENISH, "Can only replenish via 'AdvertiserReplenish' function");
 
@@ -153,7 +155,7 @@ contract Campaign {
         }
 
         self.campaignDetails = msg.campaignDetails;
-        self.state = STATE_CAMPAIGN_DETAILS_SET_BY_ADVERTISER;
+        self.state = STATE_CAMPAIGN_INACTIVE;
     }
 
     // Function to handle advertiser replenishment
@@ -161,7 +163,9 @@ contract Campaign {
 
         require(sender() == self.advertiser, "Only the advertiser can replenish the contract");
         require(context().value >= MIN_AMOUNT_REPLENISH_CAMPAIGN, "Insufficient funds.  Need at least 20 Ton.");
-        require(self.state == STATE_CAMPAIGN_DETAILS_SET_BY_ADVERTISER, "Must be in state: STATE_CAMPAIGN_DETAILS_SET_BY_ADVERTISER");
+        require(self.state == STATE_CAMPAIGN_INACTIVE || self.state == STATE_CAMPAIGN_ACTIVE, "Must be in states: [STATE_CAMPAIGN_INACTIVE, STATE_CAMPAIGN_ACTIVE] ");
+
+        self.state = STATE_CAMPAIGN_ACTIVE;
 
         // send 2% fee to parent
         let fee: Int = (context().value * self.feePercentage + 9999) / 10000;  // 2% fee calculation
@@ -183,7 +187,7 @@ contract Campaign {
 
     receive(msg: CreateNewAffiliate) {
 
-        require(self.state == STATE_CAMPAIGN_DETAILS_SET_BY_ADVERTISER, "Must be in state: STATE_CAMPAIGN_DETAILS_SET_BY_ADVERTISER");
+        require(self.state == STATE_CAMPAIGN_ACTIVE, "Must be in state: STATE_CAMPAIGN_ACTIVE");
 
         let numAffiliates = self.currAffiliateId + 1;
         require(numAffiliates <= MAX_NUM_AFFILIATES, "Reached max number of affiliates for this campagn");
@@ -225,7 +229,7 @@ contract Campaign {
         // Ensure only the advertiser can invoke this function
         require(sender() == self.advertiser, "Only the advertiser can add a new affiliate");
         require(context().value <= MAX_MESSAGE_VAL_NO_REPLENISH, "Can only replenish via 'AdvertiserReplenish' function");
-        require(self.state == STATE_CAMPAIGN_DETAILS_SET_BY_ADVERTISER, "Must be in state: STATE_CAMPAIGN_DETAILS_SET_BY_ADVERTISER");
+        require(self.state == STATE_CAMPAIGN_INACTIVE || self.state == STATE_CAMPAIGN_ACTIVE, "Must be in states: [STATE_CAMPAIGN_INACTIVE, STATE_CAMPAIGN_ACTIVE]");
 
         // Check if the campaign is not open (closed campaign)
         require(!self.campaignDetails.isOpenCampaign, "Cannot manually add affiliates to an open campaign");
@@ -257,6 +261,8 @@ contract Campaign {
 
     receive(msg: AffiliateUserAction) {
 
+        require(self.state == STATE_CAMPAIGN_ACTIVE, "Must be in state: STATE_CAMPAIGN_ACTIVE");
+
         let affiliateDataOptional = self.affiliates.get(msg.affiliateId);
         require(affiliateDataOptional != null, "Affiliate does not exist");
         let affiliateData: AffiliateData = affiliateDataOptional!!;
@@ -275,43 +281,31 @@ contract Campaign {
             cpaOptional = self.campaignDetails.regularUsersCostPerAction.get(msg.userActionOpCode);
         }
 
+        require(cpaOptional != null, "Cannot find cpa for the given op code");
+
         let costPerAction: Int = cpaOptional!!;
         let campaginBalance: Int = self.currentCampaignBalance();
 
         // if insufficient funds - remove this campaign to deny gas exhaustion to the bot
         if (campaginBalance < costPerAction) {
 
-            // no more funds in conract before this tx - destroy contract altogether
-            if (myBalance() - context().value <= CAMPAIGN_BUFFER) {
+            self.state = STATE_CAMPAIGN_INACTIVE;
 
-                send(SendParameters{
-                to: self.parent,
-                body: InternalRemoveCampaign {
-                campaignId: self.campaignId,
-                advertiser: self.advertiser,
-                campaginBalance: campaginBalance,
-                contractBalance: myBalance()
-                }.toCell(),
-                value: 0,
-                mode: SendRemainingBalance | SendDestroyIfZero  // send all TON in contract to parent and destroy contract
-                });
-            } else {
-
-                send(SendParameters{
-                to: self.parent,
-                body: InternalInsufficientCampaignFunds {
-                campaignId: self.campaignId,
-                advertiser: self.advertiser,
-                campaginBalance: campaginBalance,
-                contractBalance: myBalance()
-                }.toCell(),
-                value: 0,
-                mode: SendRemainingValue
-                });
-            }
+            send(SendParameters{
+            to: self.parent,
+            body: InternalInsufficientCampaignFunds {
+            campaignId: self.campaignId,
+            advertiser: self.advertiser,
+            campaginBalance: campaginBalance,
+            contractBalance: myBalance()
+            }.toCell(),
+            value: 0,
+            mode: SendRemainingValue
+            });
+            
         } else {
 
-            // process user action
+            // process user action - no need to check optional because we set it when advertiser setup the campaign
             if (msg.isPremiumUser) {
                 let numActions: Int? = affiliateData.premiumUserActionsStats.get(msg.userActionOpCode);
                 affiliateData.premiumUserActionsStats.set(msg.userActionOpCode, numActions!! + 1);
@@ -347,7 +341,7 @@ contract Campaign {
                 advertiser: self.advertiser,
                 campaginBalance: campaginBalance - costPerAction
                 }.toCell(),
-                value: 0,  // return gas fee paid by the parent contract
+                value: 0,  
                 mode: SendRemainingValue
                 });
             }

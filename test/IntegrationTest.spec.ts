@@ -709,62 +709,6 @@ describe('AffiliateMarketplace Integration Test', () => {
 
         // ----------------------------------------------------------------------------------------
 
-        // last but not least -contract now has < 1 TON in it and should be destroyed on any user action
-
-        campaignData = await campaignContract.getCampaignData();
-        console.log(campaignData.contractBalance);
-
-        // Simulate user action
-        const userActionResult3 = await affiliateMarketplaceContract.send(
-            bot.getSender(),
-            { value: toNano('0.05') },
-            {
-                $$type: 'UserAction',
-                campaignId: decodedCampaign!.campaignId,
-                affiliateId: decodedAffiliate1!.affiliateId,
-                advertiser: advertiser.address,
-                userActionOpCode: BOT_OP_CODE_USER_CLICK,
-                isPremiumUser: false,
-            }
-        );
-
-        expect(userActionResult3.transactions).toHaveTransaction({
-            from: affiliateMarketplaceContract.address,
-            to: campaignContract.address,
-            success: true,
-        });
-
-        expect(userActionResult3.transactions).toHaveTransaction({
-            from: campaignContract.address,
-            to: affiliateMarketplaceContract.address,
-            success: true,
-        });
-
-        // event is triggered due to balance in campaign to pay affiliate
-        let decodedCampaignRemoved: any | null = null
-        for (const external of userActionResult3.externals) {
-            if (external.body) {
-                decodedCampaignRemoved = loadCampaignRemovedEvent(external.body);
-                logs.push({ type: 'CampaignRemovedEvent', data: decodedCampaignRemoved });
-            }
-        }
-
-        expect(decodedCampaignRemoved).not.toBeNull();
-
-        let campaignRemoved = false;
-        try {
-            // contract should have been removed, hence any get request now should fail
-            campaignData = await campaignContract.getCampaignData();
-        } catch (e:any) {
-            expect(e.toString()).toContain("Error: Trying to run get method on non-active contract");
-            campaignRemoved = true;
-        }
-
-        expect(campaignRemoved).toBe(true);
-
-
-        // -------------------------------------------------------------------------------------------------------
-
         const adminReplenishMessageResult = await affiliateMarketplaceContract.send(
             deployer.getSender(),
             { value: toNano('50') },

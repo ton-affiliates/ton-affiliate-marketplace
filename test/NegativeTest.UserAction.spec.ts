@@ -100,6 +100,31 @@ beforeEach(async () => {
         to: campaignContract.address,
         success: true
     });
+	
+	// replenish campaign
+	const advertiserReplenishResult = await campaignContract.send(
+		advertiser.getSender(),
+		{
+			value: toNano('20'),
+		},
+		{
+			$$type: 'AdvertiserReplenish'
+		}
+	);
+
+	expect(advertiserReplenishResult.transactions).toHaveTransaction({
+		from: advertiser.address,
+		to: campaignContract.address,
+		success: true,
+	});
+
+	expect(advertiserReplenishResult.transactions).toHaveTransaction({
+		from: campaignContract.address,
+		to: affiliateMarketplaceContract.address,
+		success: true,
+	});
+	
+	// create affiliate
 
     const createAffiliateResult = await campaignContract.send(
             affiliate1.getSender(),
