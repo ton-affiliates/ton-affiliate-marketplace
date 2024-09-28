@@ -5,7 +5,7 @@ import { Cell } from '@ton/core';
 // Event types from the ABI
 const EVENT_TYPE_CAMPAIGN_CREATED = 2452245169;
 const EVENT_TYPE_AFFILIATE_CREATED = 3273123323;
-const EVENT_TYPE_AFFILIATE_WITHDRAW_EARNINGS = 1950324544;
+const EVENT_TYPE_AFFILIATE_WITHDRAW_EARNINGS = 3696909830;
 const EVENT_TYPE_ADVERTISER_REPLENISH = 738147066;
 const EVENT_TYPE_CAMPAIGN_BALANCE_UNDER_THRESHOLD = 859219313;
 const EVENT_TYPE_INSUFFICIENT_CAMPAIGN_FUNDS = 580162183;
@@ -38,15 +38,6 @@ export function loadInsufficientCampaignFundsEvent(cell: Cell) {
     return { $$type: 'InsufficientCampaignFundsEvent', campaignId, advertiserAddressStr, campaginBalance, contractBalance };
 }
 
-export function loadCampaignRemovedEvent(cell: Cell) {
-    const slice = loadEvent(cell, EVENT_TYPE_CAMPAIGN_REMOVED);
-    const campaignId = slice.loadUint(32);
-    const advertiserAddressStr = slice.loadAddress().toString();
-    const campaginBalance = slice.loadCoins();
-    const contractBalance = slice.loadCoins();
-    return { $$type: 'CampaignRemovedEvent', campaignId, advertiserAddressStr, campaginBalance, contractBalance };
-}
-
 
 export function loadCampaignCreatedEvent(cell: Cell) {
     const slice = loadEvent(cell, EVENT_TYPE_CAMPAIGN_CREATED);
@@ -71,7 +62,8 @@ export function  loadAffiliateWithdrawEarningsEvent(cell: Cell) {
     const advertiserAddressStr = slice.loadAddress().toString();
     const affiliateId = slice.loadUint(32);
     const earnings = slice.loadCoins();
-    return { $$type: 'AffiliateWithdrawEarningsEvent', campaignId, affiliateId, advertiserAddressStr, earnings };
+	const fee = slice.loadCoins();
+    return { $$type: 'AffiliateWithdrawEarningsEvent', campaignId, affiliateId, advertiserAddressStr, earnings, fee };
 }
 
 export function  loadAdvertiserReplenisEvent(cell: Cell) {

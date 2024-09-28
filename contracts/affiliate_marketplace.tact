@@ -1,6 +1,7 @@
 import "@stdlib/stoppable";
 import "@stdlib/ownable";
 import "@stdlib/deploy";
+import "./messages.tact";
 
 // constants
 const MAX_NUM_AFFILIATES: Int = 10000;  // ten thousand
@@ -15,7 +16,7 @@ const DEPLOY_NEW_CAMPAIGN_COST: Int = ton("0.1");
 const MAX_MESSAGE_VAL_NO_REPLENISH: Int = ton("0.15");
 const MIN_AMOUNT_REPLENISH_CAMPAIGN: Int = ton("20");
 
-const GAS_FEE: Int = ton("0.05");
+const GAS_FEE: Int = ton("0.02");
 const CAMPAIGN_BUFFER: Int = ton("1");
 const MIN_CAMPAIGN_BALANCE_THRESHOLD: Int = ton("5");
 const MIN_COST_PER_USER_ACTION: Int = ton("0.01");
@@ -49,33 +50,6 @@ struct CampaignData {
     contractAddress: Address;
     feePercentage: Int as uint32;  // 200 for 2 %, 150 for 1.5 % etc...
 }
-
-message InternalCreatecampaign{campaignId: Int as uint32}
-
-message AdvertiserSigned {
-    campaignDetails: CampaignDetails;
-}
-
-message AddNewAffiliateToAllowedList{affiliate: Address}
-message AdvertiserReplenish {}
-
-message CreateNewAffiliate{}
-message UpdateFeePercentage{feePercentage: Int as uint32}
-message PayAffiliate{
-    affiliateId: Int as uint32;
-    amount: Int as coins;
-}
-message AffiliateUserAction{
-    affiliateId: Int as uint32;
-    userActionOpCode: Int as uint32;
-    isPremiumUser: Bool;
-}
-
-message AffiliateWithdrawEarnings {
-    affiliateId: Int as uint32;
-}
-message RemoveCampaignAndWithdrawFunds{}
-
 
 // Child contract for each affiliate
 contract Campaign {
@@ -378,7 +352,8 @@ contract Campaign {
         campaignId: self.campaignId,
         advertiser: self.advertiser,
         affiliateId: msg.affiliateId,
-        earnings: paymentAmount
+        earnings: paymentAmount,
+		fee: fee
         }.toCell(),
         value: fee,
         mode: SendPayGasSeparately
@@ -431,119 +406,6 @@ contract Campaign {
     get fun affiliatesData(affiliateId: Int): map<Int, AffiliateData> {
         return self.affiliates;
     }
-}
-
-// messages
-message InternalAffiliateWithdrawEarningsFee {
-    campaignId: Int as uint32;
-    advertiser: Address;
-    affiliateId: Int as uint32;
-    earnings: Int as coins;
-}
-
-message AffiliateWithdrawEarningsEvent {
-    campaignId: Int as uint32;
-    advertiser: Address;
-    affiliateId: Int as uint32;
-    earnings: Int as coins;
-}
-
-message InternalAdvertiserReplenishFee {
-    campaignId: Int as uint32;
-    advertiser: Address;
-    replenishAmount: Int as coins;
-    fee: Int as coins;
-}
-
-message AdvertiserReplenisEvent {
-    campaignId: Int as uint32;
-    advertiser: Address;
-    replenishAmount: Int as coins;
-    fee: Int as coins;
-}
-
-message InternalAffiliateUserAction {
-    campaignId: Int as uint32;
-    advertiser: Address;
-    campaginBalance: Int as coins;
-}
-
-message CampaignBalnceUnderThresholdEvent {
-    campaignId: Int as uint32;
-    advertiser: Address;
-    campaginBalance: Int as coins;
-}
-
-message InternalInsufficientCampaignFunds {
-    campaignId: Int as uint32;
-    advertiser: Address;
-    campaginBalance: Int as coins;
-    contractBalance: Int as coins;
-}
-
-message InsufficientCampaignFundsEvent {
-    campaignId: Int as uint32;
-    advertiser: Address;
-    campaginBalance: Int as coins;
-    contractBalance: Int as coins;
-}
-
-message InternalRemoveCampaign {
-    campaignId: Int as uint32;
-    advertiser: Address;
-    campaginBalance: Int as coins;
-    contractBalance: Int as coins;
-}
-
-message CampaignRemovedEvent {
-    campaignId: Int as uint32;
-    advertiser: Address;
-    campaginBalance: Int as coins;
-    contractBalance: Int as coins;
-}
-
-message InternalAffiliateCreated {
-    campaignId: Int as uint32;
-    affiliateId: Int as uint32;
-    advertiser: Address;
-    affiliate: Address;
-}
-
-message AdminWithdraw {
-    amount: Int as coins;
-    wallets: map<Address, Bool>;
-}
-
-message AdminReplenish {}
-
-message CreateCampaign {}
-
-message UserAction {
-    campaignId: Int as uint32;
-    affiliateId: Int as uint32;
-    advertiser: Address;
-    userActionOpCode: Int as uint32;
-    isPremiumUser: Bool;
-}
-
-// events
-message CampaignCreatedEvent {
-    campaignId: Int as uint32;
-    advertiser: Address;
-    campaignContractAddress: Address;
-}
-
-message AdminModifyCampaignFeePercentage {
-    campaignId: Int as uint32;
-    advertiser: Address;
-    feePercentage: Int as uint32;
-}
-
-message AffiliateCreatedEvent {
-    campaignId: Int as uint32;
-    affiliateId: Int as uint32;
-    advertiser: Address;
-    affiliate: Address;
 }
 
 
@@ -677,7 +539,8 @@ contract AffiliateMarketplace with Deployable, Resumable  {
         campaignId: msg.campaignId,
         advertiser: msg.advertiser,
         affiliateId: msg.affiliateId,
-        earnings: msg.earnings
+        earnings: msg.earnings,
+		fee: msg.fee
         }.toCell());
     }
 

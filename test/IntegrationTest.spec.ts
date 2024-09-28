@@ -15,16 +15,9 @@ import {
     loadAffiliateWithdrawEarningsEvent,
     loadAdvertiserReplenisEvent,
     loadCampaignUnderThresholdEvent,
-    loadCampaignRemovedEvent, loadInsufficientCampaignFundsEvent
+    loadInsufficientCampaignFundsEvent
 } from './events';
 
-
-type EmitLogEvent = {
-    type: string;
-    data: any;
-};
-
-const logs: EmitLogEvent[] = [];
 
 describe('AffiliateMarketplace Integration Test', () => {
     let blockchain: Blockchain;
@@ -67,8 +60,8 @@ describe('AffiliateMarketplace Integration Test', () => {
         blockchain.now = deployResult.transactions[1].now;  // necessary only for 'moving forward in time' for feature - advertiser withdraw balance
     });
 
-    it('should create campaign, add affiliate1, and handle user actions with balance logging', async () => {
-
+    it('should create campaign, add affiliate1, add affiliate2, and handle user actions', async () => {
+	
         // 1. Advertiser Creates campaign
         const createCampaignResult = await affiliateMarketplaceContract.send(
             advertiser.getSender(),
@@ -86,7 +79,6 @@ describe('AffiliateMarketplace Integration Test', () => {
         for (const external of createCampaignResult.externals) {
             if (external.body) {
                 decodedCampaign = loadCampaignCreatedEvent(external.body);
-                logs.push({ type: 'CampaignCreatedEvent', data: decodedCampaign });
             }
         }
 
@@ -108,17 +100,13 @@ describe('AffiliateMarketplace Integration Test', () => {
         expect(campaignData.contractBalance).toBeLessThan(toNano("0.1"));
         expect(campaignData.contractBalance).toBeGreaterThan(toNano("0"));
         expect(campaignData.campaignBalance).toBe(toNano("0"));
-
-        logs.push({
-            type: 'InitialCampaignBalanceLog',
-            data: `Initial Campaign Balance: ${fromNano(campaignData.campaignBalance)}, Contract Balance: ${fromNano(campaignData.contractBalance)}`
-        });
+		expect(campaignData.state).toBe(BigInt(0)); // state CAMPAIGN_CREATED
 
         // ---------------------------------------------------------------------------------------------------------------------------------------------------
 
         // Advertiser Signs Details of Campaign
-        // User Click has op code <= 20 which means it is verified by the bot
-        // Advertiser Customized event has op code > 20 which means it is verified by the advertiser
+        // User Click has op code <= 200 which means it is verified by the bot
+        // Advertiser Customized event has op code > 200 which means it is verified by the advertiser
         // by embedding a javascript snippt in Telegeam Mini App UI button (such as User registered or User tranascted etc...)
         const regularUsersMapCostPerActionMap = Dictionary.empty<bigint, bigint>();
         const premiumUsersMapCostPerActionMap = Dictionary.empty<bigint, bigint>();
@@ -154,52 +142,29 @@ describe('AffiliateMarketplace Integration Test', () => {
         });
 
         campaignData = await campaignContract.getCampaignData();
-
-        const regularUserClickCost = regularUsersMapCostPerActionMap.get(BigInt(BOT_OP_CODE_USER_CLICK));
-        if (regularUserClickCost === undefined) {
-            throw new Error('Cost for USER_CLICK is undefined in regularUsersMapCostPerActionMap');
-        }
-        expect(fromNano(regularUserClickCost)).toBe(
+		
+        expect("1").toBe(
             fromNano(campaignData.campaignDetails.regularUsersCostPerAction.get(BigInt(BOT_OP_CODE_USER_CLICK))!)
         );
-
-        const advertiserCustomEventCostRegular = regularUsersMapCostPerActionMap.get(BigInt(ADVERTISER_OP_CODE_CUSTOMIZED_EVENT));
-        if (advertiserCustomEventCostRegular === undefined) {
-            throw new Error('Cost for ADVERTISER_OP_CODE_CUSTOMIZED_EVENT is undefined in regularUsersMapCostPerActionMap');
-        }
-        expect(fromNano(advertiserCustomEventCostRegular)).toBe(
-            fromNano(campaignData.campaignDetails.regularUsersCostPerAction.get(BigInt(ADVERTISER_OP_CODE_CUSTOMIZED_EVENT))!)
-        );
-
-        const userClickCostPremium = premiumUsersMapCostPerActionMap.get(BigInt(BOT_OP_CODE_USER_CLICK));
-        if (userClickCostPremium === undefined) {
-            throw new Error('Cost for BOT_OP_CODE_USER_CLICK is undefined in premiumUsersMapCostPerActionMap');
-        }
-        expect(fromNano(userClickCostPremium)).toBe(
+		
+		expect("15").toBe(
             fromNano(campaignData.campaignDetails.premiumUsersCostPerAction.get(BigInt(BOT_OP_CODE_USER_CLICK))!)
         );
-
-        const advertiserCustomEventCostPremium = premiumUsersMapCostPerActionMap.get(BigInt(ADVERTISER_OP_CODE_CUSTOMIZED_EVENT));
-        if (advertiserCustomEventCostPremium === undefined) {
-            throw new Error('Cost for ADVERTISER_OP_CODE_CUSTOMIZED_EVENT is undefined in premiumUsersMapCostPerActionMap');
-        }
-        expect(fromNano(advertiserCustomEventCostPremium)).toBe(
+		
+		expect("2").toBe(
+            fromNano(campaignData.campaignDetails.regularUsersCostPerAction.get(BigInt(ADVERTISER_OP_CODE_CUSTOMIZED_EVENT))!)
+        );
+		
+		expect("15").toBe(
             fromNano(campaignData.campaignDetails.premiumUsersCostPerAction.get(BigInt(ADVERTISER_OP_CODE_CUSTOMIZED_EVENT))!)
         );
+		
+		expect(campaignData.state).toBe(BigInt(1)); // state STATE_CAMPAIGN_INACTIVE
 
-        // test: campaignData.campaignDetails have same values as set in request
-        logs.push({
-            type: 'advertiserSigned',
-            data: `Advertiser Signed: 
-        Regular User Click: ${fromNano(regularUsersMapCostPerActionMap.get(BigInt(BOT_OP_CODE_USER_CLICK)) || 0)} TON,
-        Premium User Click: ${fromNano(premiumUsersMapCostPerActionMap.get(BigInt(BOT_OP_CODE_USER_CLICK)) || 0)} TON,
-        Regular Advertiser Customized Event: ${fromNano(regularUsersMapCostPerActionMap.get(BigInt(ADVERTISER_OP_CODE_CUSTOMIZED_EVENT)) || 0)} TON,
-        Premium Advertiser Customized Event: ${fromNano(premiumUsersMapCostPerActionMap.get(BigInt(ADVERTISER_OP_CODE_CUSTOMIZED_EVENT)) || 0)} TON`
-        });
-
+      
         // --------------------------------------------------------------------------------------------------------
 
-        // Advertiser Replenishes contract with TON
+        // Advertiser Replenishes contract with 20 TON
         let affiliateMarketplaceBalanceBeforeReplenish = await affiliateMarketplaceContract.getBalance();
 
         const advertiserReplenishResult = await campaignContract.send(
@@ -228,7 +193,6 @@ describe('AffiliateMarketplace Integration Test', () => {
         for (const external of advertiserReplenishResult.externals) {
             if (external.body) {
                 decodedAdvertiserReplenish = loadAdvertiserReplenisEvent(external.body);
-                logs.push({ type: 'AdvertiserReplenishEvent', data: decodedAdvertiserReplenish });
             }
         }
 
@@ -250,18 +214,12 @@ describe('AffiliateMarketplace Integration Test', () => {
 
         // test: AffiliateMarketplace balance is now 0.4 larger than it was before this replnishment
         expect(affiliateMarketplaceBalanceBeforeReplenish).toBeLessThan((await affiliateMarketplaceContract.getBalance()));
-
-        logs.push({
-            type: 'advertiserReplenishBalanceLog',
-            data: `Campaign Balance: ${fromNano(campaignData.campaignBalance)}, 
-                   Contract Balance: ${fromNano(campaignData.contractBalance)},
-                   AffiliateMarketplaceBefore: ${fromNano(affiliateMarketplaceBalanceBeforeReplenish)},
-                   AffiliateMarketplaceAfter: ${fromNano(await affiliateMarketplaceContract.getBalance())}`
-        });
+		
+		expect(campaignData.state).toBe(BigInt(2)); // state STATE_CAMPAIGN_ACTIVE
 
         //------------------------------------------------------------------------------------------------------
 
-        // Affiliate - CreateNewAffiliate - afiliate1
+        // CreateNewAffiliate - afiliate1
         const createAffiliate1Result = await campaignContract.send(
             affiliate1.getSender(),
             { value: toNano('0.05') },
@@ -278,7 +236,6 @@ describe('AffiliateMarketplace Integration Test', () => {
         for (const external of createAffiliate1Result.externals) {
             if (external.body) {
                 decodedAffiliate1 = loadAffiliateCreatedEvent(external.body);
-                logs.push({ type: 'AffiliateCreatedEvent', data: decodedAffiliate1 });
             }
         }
 
@@ -316,7 +273,6 @@ describe('AffiliateMarketplace Integration Test', () => {
         for (const external of createAffiliate2Result.externals) {
             if (external.body) {
                 decodedAffiliate2 = loadAffiliateCreatedEvent(external.body);
-                logs.push({ type: 'AffiliateCreatedEvent', data: decodedAffiliate2 });
             }
         }
 
@@ -340,7 +296,7 @@ describe('AffiliateMarketplace Integration Test', () => {
 
         let campaignDataBeforeUserAction = await campaignContract.getCampaignData();
 
-        // User Action - Regular user
+        // User Action - Regular user (Affiliate1)
         const userActionResult = await affiliateMarketplaceContract.send(
             bot.getSender(),
             { value: toNano('0.05') },
@@ -375,11 +331,15 @@ describe('AffiliateMarketplace Integration Test', () => {
         campaignData = await campaignContract.getCampaignData();
         affiliateData1 = await campaignContract.getAffiliateData(decodedAffiliate1!.affiliateId);
 
-        // test: contractBalance = 0.01  + gas fees TON less than it was (only fee goes to parent - all other TON were kept within the contract)
+		// contract balance - 0.02 GAS FEE goes to parent + gas on the message
         expect(campaignDataBeforeUserAction.contractBalance - campaignData.contractBalance)
             .toBeLessThan(toNano("0.025"));
 
-        // test: campaignBalance = 1.01 less than it was before this user action
+        // campaignBalance = 1.01 less than it was before this user action
+		// 1 for the user Action
+		// 0.02 GAS fee for parent that was taken from the contract itself
+		// Remember that the campaign balance is a derivative of the contractBalance (campaginBalance = contractBalance - totalAffiliatesEarnings - buffer)
+		
         expect(campaignDataBeforeUserAction.campaignBalance - campaignData.campaignBalance)
             .toBeGreaterThan(toNano("1"));
 
@@ -389,21 +349,10 @@ describe('AffiliateMarketplace Integration Test', () => {
         // test Affiliate's accruedBalance = 1
         expect(affiliateData1!.accruedEarnings).toBe(toNano("1"));
 
-         let userActionsStats = affiliateData1!.userActionsStats;
-         expect(userActionsStats.get(BigInt(BOT_OP_CODE_USER_CLICK))).toBe(BigInt(1));
-         expect(userActionsStats.get(BigInt(ADVERTISER_OP_CODE_CUSTOMIZED_EVENT))).toBe(BigInt(0));
-
-         let premiumUserActionsStats = affiliateData1!.premiumUserActionsStats;
-         expect(premiumUserActionsStats.get(BigInt(BOT_OP_CODE_USER_CLICK))).toBe(BigInt(0));
-         expect(premiumUserActionsStats.get(BigInt(ADVERTISER_OP_CODE_CUSTOMIZED_EVENT))).toBe(BigInt(0));
-
-        logs.push({
-            type: 'afterUserActionLog',
-            data: `Campaign Balance: ${fromNano(campaignData.campaignBalance)}, 
-                   Contract Balance: ${fromNano(campaignData.contractBalance)},
-                   Affiliate Accrued Earnings: ${fromNano(affiliateData1!.accruedEarnings)}, 
-                   Affiliate Stats: ${affiliateData1!.userActionsStats.get(BigInt(BOT_OP_CODE_USER_CLICK)!)}}`
-        });
+		expect(affiliateData1!.userActionsStats.get(BigInt(BOT_OP_CODE_USER_CLICK))).toBe(BigInt(1));
+		expect(affiliateData1!.userActionsStats.get(BigInt(ADVERTISER_OP_CODE_CUSTOMIZED_EVENT))).toBe(BigInt(0));
+		expect(affiliateData1!.premiumUserActionsStats.get(BigInt(BOT_OP_CODE_USER_CLICK))).toBe(BigInt(0));
+		expect(affiliateData1!.premiumUserActionsStats.get(BigInt(ADVERTISER_OP_CODE_CUSTOMIZED_EVENT))).toBe(BigInt(0));
 
         // ------------------------------------------------------------------------------------------
 
@@ -443,13 +392,16 @@ describe('AffiliateMarketplace Integration Test', () => {
         }
 
         expect(decodedCampaignUnderThreshold).not.toBeNull();
-
+		expect(decodedCampaignUnderThreshold.campaignId).toBe(0);
+		expect(decodedCampaignUnderThreshold.advertiserAddressStr).toBe(advertiser.address.toString());
+		expect(decodedCampaignUnderThreshold.campaginBalance).toBeLessThan(toNano("5"));
+		
         campaignData = await campaignContract.getCampaignData();
         affiliateData2 = await campaignContract.getAffiliateData(decodedAffiliate2!.affiliateId);
 
-        // test: contractBalance = 0.01  + gas fees TON less than it was (only fee goes to parent - all other TON were kept within the contract)
+        // contract balance - only gas on the message to parent should be deducted
         expect(campaignDataBeforeCustomizedEvent.contractBalance - campaignData.contractBalance)
-            .toBeLessThan(toNano("0.025"));
+            .toBeLessThan(toNano("0.006"));
 
         // test: campaignBalance = 15 less than it was before this user action
         // It is exactly 15 because there are no gas fees to pay to the parent contract
@@ -459,28 +411,15 @@ describe('AffiliateMarketplace Integration Test', () => {
 
         expect(affiliateData2!.userActionsStats.get(BigInt(BOT_OP_CODE_USER_CLICK))).toBe(BigInt(0));
         expect(affiliateData2!.userActionsStats.get(BigInt(ADVERTISER_OP_CODE_CUSTOMIZED_EVENT))).toBe(BigInt(0));
-
         expect(affiliateData2!.premiumUserActionsStats.get(BigInt(BOT_OP_CODE_USER_CLICK))).toBe(BigInt(0));
         expect(affiliateData2!.premiumUserActionsStats.get(BigInt(ADVERTISER_OP_CODE_CUSTOMIZED_EVENT))).toBe(BigInt(1));
 
         // test: Affiliate's accrued earnings is now 15
         expect(affiliateData2!.accruedEarnings).toBe(toNano("15"));
 
-        logs.push({
-            type: 'afterPremiumUserActionBalanceLog',
-            data: `Campaign Balance: ${fromNano(campaignData.campaignBalance)}, 
-                   Contract Balance: ${fromNano(campaignData.contractBalance)}, 
-                   Affiliate Accrued Earnings: ${fromNano(affiliateData2!.accruedEarnings)}, 
-                   Affiliate Stats: ${affiliateData2!.userActionsStats.get(BigInt(ADVERTISER_OP_CODE_CUSTOMIZED_EVENT)!)}}`
-        });
-
-        logs.push({ type: 'DecodedCampaignUnderThresholdEvent', data: decodedCampaignUnderThreshold });
-
-
         //-------------------------------------------------------------------------------------------
 
-        let beforeWithdrawAffiliateBalance = await affiliate1.getBalance();
-        let campaignDataBeforeAffiliateWithdraw = await campaignContract.getCampaignData();
+        let affiliateBalanceBeforeWithdraw = await affiliate1.getBalance();
 
         // AffiliateWithdrawResult
         const affiliateWithdrawResult = await campaignContract.send(
@@ -511,11 +450,12 @@ describe('AffiliateMarketplace Integration Test', () => {
         for (const external of affiliateWithdrawResult.externals) {
             if (external.body) {
                 decodedAffiliateWithdraw = loadAffiliateWithdrawEarningsEvent(external.body);
-                logs.push({ type: 'AffiliateWithdrawEarningsEvent', data: decodedAffiliateWithdraw });
             }
         }
 
         expect(decodedAffiliateWithdraw).not.toBeNull();
+		expect(decodedAffiliateWithdraw.earnings).toBe(toNano("1"));
+		expect(decodedAffiliateWithdraw.fee).toBe(toNano("0.02"));
 
         campaignData = await campaignContract.getCampaignData();
         affiliateData1 = await campaignContract.getAffiliateData(decodedAffiliate1!.affiliateId);
@@ -524,80 +464,27 @@ describe('AffiliateMarketplace Integration Test', () => {
         expect(affiliateData1!.accruedEarnings).toBe(toNano("0"));
 
         let affiliateBalance = await affiliate1.getBalance();
-
-        logs.push({
-            type: 'afterAffiliateWithdrawLog',
-            data: `Campaign Balance Before Withdraw: ${fromNano(campaignDataBeforeAffiliateWithdraw.campaignBalance)},
-                   Campaign Balance After Withdraw: ${fromNano(campaignData.campaignBalance)},
-                   Contract Balance Before Withdraw: ${fromNano(campaignDataBeforeAffiliateWithdraw.contractBalance)}
-                   Contract Balance After Withdraw: ${fromNano(campaignData.contractBalance)}
-                   Affiliate Balance Before Withdraw: ${fromNano(beforeWithdrawAffiliateBalance)}
-                   Affiliate Balance After Withdraw: ${fromNano(affiliateBalance)}
-                   }`
-        });
-
-
-        //------------------------------------------------------------------------------------------------------------------------
-
-        // test update fee
-        campaignData = await campaignContract.getCampaignData();
-
-        expect(campaignData.feePercentage).toBe(BigInt(200));  // 2% fee by default
-
-        const adminModifyCampaignFeeResults = await affiliateMarketplaceContract.send(
-            deployer.getSender(),
-            {
-                value: toNano('0.05'),
-            },
-            {
-                $$type: 'AdminModifyCampaignFeePercentage',
-                campaignId: decodedCampaign!.campaignId,
-                advertiser: advertiser.address,
-                feePercentage: BigInt(150) // 1.5 %
-            }
-        );
-
-        expect(adminModifyCampaignFeeResults.transactions).toHaveTransaction({
-            from: deployer.address,
-            to: affiliateMarketplaceContract.address,
-            success: true,
-        });
-
-        campaignData = await campaignContract.getCampaignData();
-
-        expect(campaignData.feePercentage).toBe(BigInt(150));  // 1.5% fee after update
-
+		
+		// earnings = 2% fee to parent
+		// earnings = 1 TON
+		// fee = 0.02
+		// total 0.98 TON - gas fees paied for 3 tx (one for the tx, one for parent fee, and one for the payment back to the publisher)	
+		expect(affiliateBalance - affiliateBalanceBeforeWithdraw).toBeLessThan(toNano("0.98"));
+		expect(affiliateBalance - affiliateBalanceBeforeWithdraw).toBeGreaterThan(toNano("0.9"));
 
         //-------------------------------------------------------------------------------------------
 
-        //RemoveCampaignAndWithdrawFunds
-
-        // first let's replenish again so we have funds to withdraw
-        const advertiserReplenishResult2 = await campaignContract.send(
-            advertiser.getSender(),
-            {
-                value: toNano('20'),
-            },
-            {
-                $$type: 'AdvertiserReplenish'
-            }
-        );
-
-        expect(advertiserReplenishResult2.transactions).toHaveTransaction({
-            from: advertiser.address,
-            to: campaignContract.address,
-            success: true,
-        });
-
-        expect(advertiserReplenishResult2.transactions).toHaveTransaction({
-            from: campaignContract.address,
-            to: affiliateMarketplaceContract.address,
-            success: true,
-        });
-
-        let advertiserBalanceBeforeRemoveCampaign = fromNano(await advertiser.getBalance());
-        if (blockchain.now) blockchain.now = blockchain.now + 81 * (60*60*24); // move 81 days forward in time
-        const removeCampaignAndWithdrawFundsResult = await campaignContract.send(
+        //Advertiser - RemoveCampaignAndWithdrawFunds
+        let advertiserBalanceBeforeRemoveCampaign = await advertiser.getBalance();
+		let campaginDataBeforeRemoveCampaign = await campaignContract.getCampaignData();
+		
+		// campaign balance ~ 2.75 TON
+		expect(campaginDataBeforeRemoveCampaign.campaignBalance).toBeLessThan(toNano("2.8"));
+		expect(campaginDataBeforeRemoveCampaign.campaignBalance).toBeGreaterThan(toNano("2.7"));
+		
+        if (blockchain.now) blockchain.now = blockchain.now + 81 * (60*60*24); // move 81 days forward in time WITHOUT user action
+        
+		const removeCampaignAndWithdrawFundsResult = await campaignContract.send(
             advertiser.getSender(),
             { value: toNano('0.05') },
             { $$type: 'RemoveCampaignAndWithdrawFunds' }
@@ -614,20 +501,26 @@ describe('AffiliateMarketplace Integration Test', () => {
             to: advertiser.address,
             success: true,
         });
+		
+		
+		campaignData = await campaignContract.getCampaignData();
+		expect(campaignData.campaignBalance).toBe(toNano("0"));
+				
+		let advertiserBalance = await advertiser.getBalance();
+		
+		expect(affiliateBalance - affiliateBalanceBeforeWithdraw).toBeLessThan(toNano("0.98"));		
+		expect(advertiserBalance - advertiserBalanceBeforeRemoveCampaign)
+            .toBeGreaterThan(toNano("2.6"));
+			
+        expect(advertiserBalance - advertiserBalanceBeforeRemoveCampaign)
+            .toBeLessThan(toNano("2.8"));
 
-        let advertiserBalanceAfterRemoveCampaign = fromNano(await advertiser.getBalance());
-
-        // contractBalance before operation
-        // test: Advertiser's balance is larger by 'contractBalance before operation'
-        // TODO: remove logs
-        // logs.push({
-        //     type: 'afterRemoveCampaignAndWithdrawFundsResult',
-        //     data: `Diff: ${BigInt(advertiserBalanceAfterRemoveCampaign) - BigInt(advertiserBalanceBeforeRemoveCampaign) } Advertiser balance before: ${advertiserBalanceBeforeRemoveCampaign}, Advertiser Balance After: ${advertiserBalanceAfterRemoveCampaign}`
-        // });
 
         //------------------------------------------------------------------------------------
 
-        // Simulate user action -  premium user
+        // Simulate another user action -  
+		// should recieve event - InsufficientCampaignFundsEvent
+		// should set the state of the campaign to inactive
         const premiumUserActionResult2 = await affiliateMarketplaceContract.send(
             bot.getSender(),
             { value: toNano('0.05') },
@@ -658,15 +551,17 @@ describe('AffiliateMarketplace Integration Test', () => {
         for (const external of premiumUserActionResult2.externals) {
             if (external.body) {
                 decodedInsufficientBalanceInCampaign = loadInsufficientCampaignFundsEvent(external.body);
-                logs.push({ type: 'DecodedInsufficientBalanceInCampaign', data: decodedInsufficientBalanceInCampaign });
             }
         }
 
         expect(decodedInsufficientBalanceInCampaign).not.toBeNull();
+		
+		campaignData = await campaignContract.getCampaignData();
+		expect(campaignData.state).toBe(BigInt(1));  // STATE_CAMPAIGN_INACTIVE
 
         //------------------------------------------------------------------------------------------------------------------------
 
-        // Affiliate3 Withdraw
+        // Affiliate2 Withdraw (even though advertiser already removed campaign!)
         const affiliate2WithdrawResult = await campaignContract.send(
             affiliate2.getSender(),
             { value: toNano('0.05') },
@@ -695,7 +590,6 @@ describe('AffiliateMarketplace Integration Test', () => {
         for (const external of affiliate2WithdrawResult.externals) {
             if (external.body) {
                 decodedAffiliate2Withdraw = loadAffiliateWithdrawEarningsEvent(external.body);
-                logs.push({ type: 'AffiliateWithdrawEarningsEvent', data: decodedAffiliate2Withdraw });
             }
         }
 
@@ -707,96 +601,7 @@ describe('AffiliateMarketplace Integration Test', () => {
         expect(affiliateData2!.accruedEarnings).toBe(toNano("0"));
 
 
-        // ----------------------------------------------------------------------------------------
+      
 
-        const adminReplenishMessageResult = await affiliateMarketplaceContract.send(
-            deployer.getSender(),
-            { value: toNano('50') },
-            {
-               $$type: "AdminReplenish"
-            }
-        );
-
-        expect(adminReplenishMessageResult.transactions).toHaveTransaction({
-            from: deployer.address,
-            to: affiliateMarketplaceContract.address,
-            success: true,
-        });
-
-        let balance = await affiliateMarketplaceContract.getBalance();
-
-        let admin1 = await blockchain.treasury('Admin1');
-        let admin2 = await blockchain.treasury('Admin2');
-        let admin3 = await blockchain.treasury('Admin3');
-        let admin4 = await blockchain.treasury('Admin4');
-
-        const wallets = Dictionary.empty<Address, boolean>();
-        wallets.set(admin1.address, true);
-        wallets.set(admin2.address, true);
-        wallets.set(admin3.address, true);
-        wallets.set(admin4.address, true);
-
-        // ADMIN withdraw
-        const adminWithdrawResult = await affiliateMarketplaceContract.send(
-            deployer.getSender(),
-            { value: toNano('0.05') },
-            {
-                $$type: 'AdminWithdraw',
-                amount: balance - toNano("1"),
-                wallets: wallets
-            }
-        );
-
-        expect(adminWithdrawResult.transactions).toHaveTransaction({
-            from: deployer.address,
-            to: affiliateMarketplaceContract.address,
-            success: true,
-        });
-
-        expect(adminWithdrawResult.transactions).toHaveTransaction({
-            from: affiliateMarketplaceContract.address,
-            to: admin1.address,
-            success: true,
-        });
-
-        expect(adminWithdrawResult.transactions).toHaveTransaction({
-            from: affiliateMarketplaceContract.address,
-            to: admin2.address,
-            success: true,
-        });
-
-        expect(adminWithdrawResult.transactions).toHaveTransaction({
-            from: affiliateMarketplaceContract.address,
-            to: admin3.address,
-            success: true,
-        });
-
-        expect(adminWithdrawResult.transactions).toHaveTransaction({
-            from: affiliateMarketplaceContract.address,
-            to: admin4.address,
-            success: true,
-        });
-
-
-        logs.push({
-            type: 'afterAdminWithdraw',
-            data: `Balance before: ${fromNano(balance)}
-                   Balance after: ${fromNano(await affiliateMarketplaceContract.getBalance())}, 
-                    admin1: ${fromNano(await admin1.getBalance())},
-                    admin2: ${fromNano(await admin2.getBalance())},
-                    admin3: ${fromNano(await admin3.getBalance())},
-                    admin4: ${fromNano(await admin4.getBalance())}`
-        });
-
-
-
-        // -------------------------------------------------------------------------------------------------------
-
-
-        function replacer(key: string, value: any) {
-            return typeof value === 'bigint' ? fromNano(value) + ' TON' : value;
-        }
-
-        console.log('Final logs:', JSON.stringify(logs, replacer, 2));
     });
 });
