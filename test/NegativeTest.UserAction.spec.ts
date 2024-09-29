@@ -23,6 +23,39 @@ let campaignContract:  SandboxContract<Campaign>
 const BOT_OP_CODE_USER_CLICK = 0;
 const ADVERTISER_OP_CODE_CUSTOMIZED_EVENT = 201;
 
+//2417: daysWithoutUserActionForWithdrawFunds must be greater than MIN_NUM_DAYS_NO_USER_ACTION_WITHDRAW_FUNDS
+//2509: Must have at least one wallet to withdraw to
+//2839: Only the verifier contract can invoke this function
+//4138: Only the advertiser can add a new affiliate
+//6812: affiliate is on allowed list already
+//7477: Must be in states: [STATE_CAMPAIGN_INACTIVE, STATE_CAMPAIGN_ACTIVE]
+//9282: Only advertiser can invoke this function
+//11398: Advertiser can withdraw funds only after agreed upon time period with no user action
+//12533: Must be in state: STATE_CAMPAIGN_ACTIVE
+//14486: Cannot find cpa for the given op code
+//16628: cpa must be greater than min cost for premium user action
+//31512: Can only replenish via 'AdvertiserReplenish' function
+//32363: No earnings to withdraw
+//33594: Cannot manually add affiliates to an open campaign
+//36363: Only the advertiser can remove the campaign and withdraw all funds
+//40368: Contract stopped
+//41412: Only affiliate can withdraw earnings
+//43100: Reached max number of affiliates for this campagn
+//44322: parent must be deployer
+//48874: Insufficient contract funds to make payment
+//49469: Access denied
+//49782: affiliate not on allowed list
+//51754: Insufficient funds
+//53205: Only the advertiser can replenish the contract
+//53296: Contract not stopped
+//53456: Affiliate does not exist
+//54759: cpa must be greater than min cost for user action
+//55162: Must be in state: STATE_CAMPAIGN_CREATED or have no affiliates at all
+//61787: Only parent can upate fee percentage
+//62634: Only bot can invoke User Actions
+//63505: Must be in states: [STATE_CAMPAIGN_INACTIVE, STATE_CAMPAIGN_ACTIVE]
+//63968: Insufficient funds.  Need at least 20 Ton.
+
 
 beforeEach(async () => {
     // Initialize blockchain and deployer wallets
@@ -161,7 +194,8 @@ describe('Negative Tests for User Actions', () => {
         expect(botUnauthorizedUserAction.transactions).toHaveTransaction({
             from: bot.address,
             to: campaignContract.address,
-            success: false, // Unauthorized bot action
+            success: false, //2839: Only the verifier contract can invoke this function
+			exitCode: 2839
         });
 
         // Attempt by the advertiser to verify an action that should be verified by the bot
@@ -179,14 +213,15 @@ describe('Negative Tests for User Actions', () => {
         expect(advertiserUnauthorizedUserAction.transactions).toHaveTransaction({
             from: advertiser.address,
             to: campaignContract.address,
-            success: false, // Unauthorized advertiser action
+            success: false, //2839: Only the verifier contract can invoke this function
+			exitCode: 2839
         });
     });
 
     it('should fail to send a user action with an invalid op code', async () => {
 
         const invalidOpCodeResult = await campaignContract.send(
-            affiliate1.getSender(),
+            advertiser.getSender(),
             { value: toNano('0.05') },
             {
                 $$type: 'AffiliateUserAction',
@@ -197,9 +232,31 @@ describe('Negative Tests for User Actions', () => {
         );
 
         expect(invalidOpCodeResult.transactions).toHaveTransaction({
-            from: affiliate1.address,
+            from: advertiser.address,
             to: campaignContract.address,
-            success: false, // Invalid op code
+            success: false, //14486: Cannot find cpa for the given op code
+			exitCode: 14486
+        });
+    });
+	
+	it('should fail on unknown affiliate', async () => {
+
+        const unknownAfiliateResult = await campaignContract.send(
+            advertiser.getSender(),
+            { value: toNano('0.05') },
+            {
+                $$type: 'AffiliateUserAction',
+                affiliateId: 1n,
+                userActionOpCode: BigInt(999), // Invalid op code not defined in campaign
+                isPremiumUser: false,
+            }
+        );
+
+        expect(unknownAfiliateResult.transactions).toHaveTransaction({
+            from: advertiser.address,
+            to: campaignContract.address,
+            success: false, //53456: Affiliate does not exist
+			exitCode: 53456
         });
     });
 

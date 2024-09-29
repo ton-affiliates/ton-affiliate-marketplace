@@ -580,6 +580,7 @@ contract AffiliateMarketplace with Deployable, Resumable  {
     receive(msg: CreateCampaign) {
 
         require(context().value >= DEPLOY_NEW_CAMPAIGN_COST, "Insufficient funds");
+		require(context().value <= MAX_MESSAGE_VAL_NO_REPLENISH, "Can only replenish via 'AdvertiserReplenish' function");
 
         let campaignId = self.currCampaignId;
         self.currCampaignId = campaignId + 1;

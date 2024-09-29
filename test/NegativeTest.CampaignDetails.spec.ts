@@ -20,6 +20,39 @@ let bot: SandboxContract<TreasuryContract>;
 let advertiser: SandboxContract<TreasuryContract>;
 let campaignContract:  SandboxContract<Campaign>
 
+//2417: daysWithoutUserActionForWithdrawFunds must be greater than MIN_NUM_DAYS_NO_USER_ACTION_WITHDRAW_FUNDS
+//2509: Must have at least one wallet to withdraw to
+//2839: Only the verifier contract can invoke this function
+//4138: Only the advertiser can add a new affiliate
+//6812: affiliate is on allowed list already
+//7477: Must be in states: [STATE_CAMPAIGN_INACTIVE, STATE_CAMPAIGN_ACTIVE]
+//9282: Only advertiser can invoke this function
+//11398: Advertiser can withdraw funds only after agreed upon time period with no user action
+//12533: Must be in state: STATE_CAMPAIGN_ACTIVE
+//14486: Cannot find cpa for the given op code
+//16628: cpa must be greater than min cost for premium user action
+//31512: Can only replenish via 'AdvertiserReplenish' function
+//32363: No earnings to withdraw
+//33594: Cannot manually add affiliates to an open campaign
+//36363: Only the advertiser can remove the campaign and withdraw all funds
+//40368: Contract stopped
+//41412: Only affiliate can withdraw earnings
+//43100: Reached max number of affiliates for this campagn
+//44322: parent must be deployer
+//48874: Insufficient contract funds to make payment
+//49469: Access denied
+//49782: affiliate not on allowed list
+//51754: Insufficient funds
+//53205: Only the advertiser can replenish the contract
+//53296: Contract not stopped
+//53456: Affiliate does not exist
+//54759: cpa must be greater than min cost for user action
+//55162: Must be in state: STATE_CAMPAIGN_CREATED or have no affiliates at all
+//61787: Only parent can upate fee percentage
+//62634: Only bot can invoke User Actions
+//63505: Must be in states: [STATE_CAMPAIGN_INACTIVE, STATE_CAMPAIGN_ACTIVE]
+//63968: Insufficient funds.  Need at least 20 Ton.
+
 
 
 beforeEach(async () => {
@@ -98,7 +131,8 @@ describe('Negative Tests for Campaign Details of Contract', () => {
         expect(setCampaignDetailsResult.transactions).toHaveTransaction({
             from: advertiser.address,
             to: campaignContract.address,
-            success: false, // Expected failure due to daysWithoutUserActionForWithdrawFunds below minimum
+            success: false, //2417: daysWithoutUserActionForWithdrawFunds must be greater than MIN_NUM_DAYS_NO_USER_ACTION_WITHDRAW_FUNDS
+			exitCode: 2417
         });
     });
 
@@ -127,22 +161,68 @@ describe('Negative Tests for Campaign Details of Contract', () => {
         expect(setCampaignDetailsResult.transactions).toHaveTransaction({
             from: advertiser.address,
             to: campaignContract.address,
-            success: false, // Expected failure due to CPA below minimum
+            success: false, //54759: cpa must be greater than min cost for user action
+			exitCode: 54759
+        });
+    });
+	
+	it('should fail to set premium user actions with CPA below the minimum allowed', async () => {
+
+        const premiumUsersMapCostPerActionMap = Dictionary.empty<bigint, bigint>();
+        premiumUsersMapCostPerActionMap.set(BigInt(0), toNano('0.005')); // Below MIN_COST_PER_USER_ACTION
+
+        const setCampaignDetailsResult = await campaignContract.send(
+            advertiser.getSender(),
+            { value: toNano('0.05') },
+            {
+                $$type: 'AdvertiserSetCampaignDetails',
+                campaignDetails: {
+                    $$type: 'CampaignDetails',
+                    regularUsersCostPerAction: Dictionary.empty<bigint, bigint>(),
+                    premiumUsersCostPerAction: premiumUsersMapCostPerActionMap,
+                    allowedAffiliates: Dictionary.empty<Address, boolean>(),
+                    isOpenCampaign: true,
+                    daysWithoutUserActionForWithdrawFunds: 21n,
+					campaignBalanceNotifyAdvertiserThreshold: toNano("5")
+                }
+            }
+        );
+
+        expect(setCampaignDetailsResult.transactions).toHaveTransaction({
+            from: advertiser.address,
+            to: campaignContract.address,
+            success: false, //16628: cpa must be greater than min cost for premium user action
+			exitCode: 16628
         });
     });
 
      it('should fail to replenish before setting campaign details', async () => {
+	 
+		const regularUsersMapCostPerActionMap = Dictionary.empty<bigint, bigint>();
+        regularUsersMapCostPerActionMap.set(BigInt(0), toNano('0.1'));
 
-        const replenishResult = await campaignContract.send(
+        const setCampaignDetailsResult = await campaignContract.send(
             advertiser.getSender(),
             { value: toNano('30') },
-            { $$type: 'AdvertiserReplenish' }
+            {
+                $$type: 'AdvertiserSetCampaignDetails',
+                campaignDetails: {
+                    $$type: 'CampaignDetails',
+                    regularUsersCostPerAction: regularUsersMapCostPerActionMap,
+                    premiumUsersCostPerAction: Dictionary.empty<bigint, bigint>(),
+                    allowedAffiliates: Dictionary.empty<Address, boolean>(),
+                    isOpenCampaign: true,
+                    daysWithoutUserActionForWithdrawFunds: 21n,  
+					campaignBalanceNotifyAdvertiserThreshold: toNano("5")
+                }
+            }
         );
 
-        expect(replenishResult.transactions).toHaveTransaction({
+        expect(setCampaignDetailsResult.transactions).toHaveTransaction({
             from: advertiser.address,
             to: campaignContract.address,
-            success: false, // failed due to 'state' in contract. Advertiser must set details prior to replenishing
+            success: false, //31512: Can only replenish via 'AdvertiserReplenish' function
+			exitCode: 31512
         });
     });
 });

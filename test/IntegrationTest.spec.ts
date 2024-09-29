@@ -308,7 +308,7 @@ describe('AffiliateMarketplace Integration Test', () => {
                 campaignId: decodedCampaign!.campaignId,
                 affiliateId: decodedAffiliate1!.affiliateId,
                 advertiser: advertiser.address,
-                userActionOpCode: BOT_OP_CODE_USER_CLICK,
+                userActionOpCode: BigInt(BOT_OP_CODE_USER_CLICK),
                 isPremiumUser: false,
             }
         );
@@ -369,7 +369,7 @@ describe('AffiliateMarketplace Integration Test', () => {
             {
                 $$type: 'AffiliateUserAction',
                 affiliateId: decodedAffiliate2!.affiliateId,
-                userActionOpCode: ADVERTISER_OP_CODE_CUSTOMIZED_EVENT,
+                userActionOpCode: BigInt(ADVERTISER_OP_CODE_CUSTOMIZED_EVENT),
                 isPremiumUser: true,
             }
         );
@@ -532,7 +532,7 @@ describe('AffiliateMarketplace Integration Test', () => {
                 campaignId: decodedCampaign!.campaignId,
                 affiliateId: decodedAffiliate1!.affiliateId,
                 advertiser: advertiser.address,
-                userActionOpCode: BOT_OP_CODE_USER_CLICK,
+                userActionOpCode: BigInt(BOT_OP_CODE_USER_CLICK),
                 isPremiumUser: true,
             }
         );
