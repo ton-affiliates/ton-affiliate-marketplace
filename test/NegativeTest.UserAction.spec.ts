@@ -83,7 +83,7 @@ beforeEach(async () => {
         advertiser.getSender(),
         { value: toNano('0.05') },
         {
-            $$type: 'AdvertiserSigned',
+            $$type: 'AdvertiserSetCampaignDetails',
             campaignDetails: {
                 $$type: 'CampaignDetails',
                 regularUsersCostPerAction: regularUsersMapCostPerActionMap,
@@ -91,6 +91,7 @@ beforeEach(async () => {
                 allowedAffiliates: allowedAffiliates,
                 isOpenCampaign: false,
                 daysWithoutUserActionForWithdrawFunds: 21n,
+				campaignBalanceNotifyAdvertiserThreshold: toNano("5")
             }
         }
     );

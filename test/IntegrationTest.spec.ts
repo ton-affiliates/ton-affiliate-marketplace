@@ -117,13 +117,13 @@ describe('AffiliateMarketplace Integration Test', () => {
         premiumUsersMapCostPerActionMap.set(BigInt(BOT_OP_CODE_USER_CLICK), toNano('15'));
         premiumUsersMapCostPerActionMap.set(BigInt(ADVERTISER_OP_CODE_CUSTOMIZED_EVENT), toNano('15'));
 
-        const advertiserSignedResult = await campaignContract.send(
+        const advertiserSetCampaignDetailsResult = await campaignContract.send(
             advertiser.getSender(),
             {
                 value: toNano('0.05'),
             },
             {
-                $$type: 'AdvertiserSigned',
+                $$type: 'AdvertiserSetCampaignDetails',
                 campaignDetails: {
                     $$type: 'CampaignDetails',
                     regularUsersCostPerAction: regularUsersMapCostPerActionMap,
@@ -131,11 +131,12 @@ describe('AffiliateMarketplace Integration Test', () => {
                     allowedAffiliates: Dictionary.empty<Address, boolean>(),
                     isOpenCampaign: true,
                     daysWithoutUserActionForWithdrawFunds: 80n,
+					campaignBalanceNotifyAdvertiserThreshold: toNano("3")
                 }
             }
         );
 
-        expect(advertiserSignedResult.transactions).toHaveTransaction({
+        expect(advertiserSetCampaignDetailsResult.transactions).toHaveTransaction({
             from: advertiser.address,
             to: campaignContract.address,
             success: true,
@@ -160,6 +161,8 @@ describe('AffiliateMarketplace Integration Test', () => {
         );
 		
 		expect(campaignData.state).toBe(BigInt(1)); // state STATE_CAMPAIGN_INACTIVE
+		
+		expect(fromNano(campaignData.campaignDetails.campaignBalanceNotifyAdvertiserThreshold)).toBe("3");
 
       
         // --------------------------------------------------------------------------------------------------------

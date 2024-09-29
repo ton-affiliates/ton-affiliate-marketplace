@@ -18,17 +18,18 @@ const MIN_AMOUNT_REPLENISH_CAMPAIGN: Int = ton("20");
 
 const GAS_FEE: Int = ton("0.02");
 const CAMPAIGN_BUFFER: Int = ton("1");
-const MIN_CAMPAIGN_BALANCE_THRESHOLD: Int = ton("5");
 const MIN_COST_PER_USER_ACTION: Int = ton("0.01");
 
 const USER_ACTION_OP_CODES_BOT: Int = 200;  // 200 first user action op codes are saved for bot's acrions.  Anything above that is the advertiser's
 
+
 struct CampaignDetails {
     regularUsersCostPerAction: map<Int, Int>; // op code -> cpa
     premiumUsersCostPerAction: map<Int, Int>; // op code -> cpa
-    allowedAffiliates: map<Address, Bool>;  // address -> dummy (closed campaign)
+    allowedAffiliates: map<Address, Bool>;  // address -> dummy (closed campaign). Relevant only is 'ifOpenCampaign' is false
     isOpenCampaign: Bool; // anyone can be an affiliate
     daysWithoutUserActionForWithdrawFunds: Int as uint32;
+    campaignBalanceNotifyAdvertiserThreshold: Int as coins;  // notify advertiser when campaign balance is under this amount
 }
 
 struct AffiliateData {
@@ -86,7 +87,8 @@ contract Campaign {
         premiumUsersCostPerAction: emptyMap(),
         allowedAffiliates: emptyMap(),
         isOpenCampaign: false,
-        daysWithoutUserActionForWithdrawFunds: MIN_NUM_DAYS_NO_USER_ACTION_WITHDRAW_FUNDS
+        daysWithoutUserActionForWithdrawFunds: MIN_NUM_DAYS_NO_USER_ACTION_WITHDRAW_FUNDS,
+		campaignBalanceNotifyAdvertiserThreshold: ton("5")
         };
 
         self.state = STATE_CAMPAIGN_CREATED;
@@ -112,7 +114,7 @@ contract Campaign {
     }
 
     // advetiser can set details for the first time, or update the details if no affilites started orling on the campaign
-    receive (msg: AdvertiserSigned) {
+    receive (msg: AdvertiserSetCampaignDetails) {
 
         require(sender() == self.advertiser, "Only advertiser can invoke this function");
         require(self.state == STATE_CAMPAIGN_CREATED || self.currAffiliateId == 0, "Must be in state: STATE_CAMPAIGN_CREATED or have no affiliates at all");
@@ -302,7 +304,8 @@ contract Campaign {
                 body: InternalAffiliateUserAction{
                 campaignId: self.campaignId,
                 advertiser: self.advertiser,
-                campaginBalance: campaginBalance - costPerAction
+                campaginBalance: campaginBalance - costPerAction,
+                campaignBalanceNotifyAdvertiserThreshold: self.campaignDetails.campaignBalanceNotifyAdvertiserThreshold
                 }.toCell(),
                 value: GAS_FEE,  // return gas fee paid by the parent contract
                 mode: SendPayGasSeparately
@@ -313,7 +316,8 @@ contract Campaign {
                 body: InternalAffiliateUserAction{
                 campaignId: self.campaignId,
                 advertiser: self.advertiser,
-                campaginBalance: campaginBalance - costPerAction
+                campaginBalance: campaginBalance - costPerAction,
+                campaignBalanceNotifyAdvertiserThreshold: self.campaignDetails.campaignBalanceNotifyAdvertiserThreshold
                 }.toCell(),
                 value: 0,  
                 mode: SendRemainingValue
@@ -495,7 +499,8 @@ contract AffiliateMarketplace with Deployable, Resumable  {
 
         let expectedAddress: Address = contractAddress(self.campaignContractStateInit(msg.campaignId, msg.advertiser));
         require(sender() == expectedAddress, "Access denied");
-        if (msg.campaginBalance < MIN_CAMPAIGN_BALANCE_THRESHOLD) {
+        
+        if (msg.campaginBalance < msg.campaignBalanceNotifyAdvertiserThreshold) {
             emit(CampaignBalnceUnderThresholdEvent{
             campaignId: msg.campaignId,
             advertiser: msg.advertiser,

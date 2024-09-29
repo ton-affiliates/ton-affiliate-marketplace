@@ -4,6 +4,7 @@
     "scripts": {
         "start": "blueprint run",
         "build": "blueprint build",
+		"build:all": "blueprint build --all",
         "test": "jest --verbose"
     },
     "devDependencies": {

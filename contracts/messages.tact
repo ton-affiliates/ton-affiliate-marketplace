@@ -1,7 +1,7 @@
 
 message InternalCreatecampaign{campaignId: Int as uint32}
 
-message AdvertiserSigned {
+message AdvertiserSetCampaignDetails {
     campaignDetails: CampaignDetails;
 }
 
@@ -52,6 +52,7 @@ message InternalAffiliateUserAction {
     campaignId: Int as uint32;
     advertiser: Address;
     campaginBalance: Int as coins;
+    campaignBalanceNotifyAdvertiserThreshold: Int as coins;
 }
 
 message CampaignBalnceUnderThresholdEvent {

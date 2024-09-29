@@ -82,7 +82,7 @@ describe('Negative Tests for Campaign Details of Contract', () => {
             advertiser.getSender(),
             { value: toNano('0.05') },
             {
-                $$type: 'AdvertiserSigned',
+                $$type: 'AdvertiserSetCampaignDetails',
                 campaignDetails: {
                     $$type: 'CampaignDetails',
                     regularUsersCostPerAction: regularUsersMapCostPerActionMap,
@@ -90,6 +90,7 @@ describe('Negative Tests for Campaign Details of Contract', () => {
                     allowedAffiliates: Dictionary.empty<Address, boolean>(),
                     isOpenCampaign: true,
                     daysWithoutUserActionForWithdrawFunds: 1n,  // below MIN_NUM_DAYS_NO_USER_ACTION_WITHDRAW_FUNDS
+					campaignBalanceNotifyAdvertiserThreshold: toNano("5")
                 }
             }
         );
@@ -110,7 +111,7 @@ describe('Negative Tests for Campaign Details of Contract', () => {
             advertiser.getSender(),
             { value: toNano('0.05') },
             {
-                $$type: 'AdvertiserSigned',
+                $$type: 'AdvertiserSetCampaignDetails',
                 campaignDetails: {
                     $$type: 'CampaignDetails',
                     regularUsersCostPerAction: regularUsersMapCostPerActionMap,
@@ -118,6 +119,7 @@ describe('Negative Tests for Campaign Details of Contract', () => {
                     allowedAffiliates: Dictionary.empty<Address, boolean>(),
                     isOpenCampaign: true,
                     daysWithoutUserActionForWithdrawFunds: 21n,
+					campaignBalanceNotifyAdvertiserThreshold: toNano("5")
                 }
             }
         );
