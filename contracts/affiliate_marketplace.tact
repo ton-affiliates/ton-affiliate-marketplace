@@ -578,7 +578,8 @@ contract AffiliateMarketplace with Deployable, Resumable  {
 
     // Function to create a new campaign
     receive(msg: CreateCampaign) {
-
+		
+		self.requireNotStopped();
         require(context().value >= DEPLOY_NEW_CAMPAIGN_COST, "Insufficient funds");
 		require(context().value <= MAX_MESSAGE_VAL_NO_REPLENISH, "Can only replenish via 'AdvertiserReplenish' function");
 
@@ -608,6 +609,7 @@ contract AffiliateMarketplace with Deployable, Resumable  {
     receive(msg: UserAction) {
 
         require(sender() == self.bot, "Only bot can invoke User Actions");
+		self.requireNotStopped();
 
         let init: StateInit = self.campaignContractStateInit(msg.campaignId, msg.advertiser);
         let campaignContractAddress: Address = contractAddress(init);

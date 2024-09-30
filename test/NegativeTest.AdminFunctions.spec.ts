@@ -202,7 +202,7 @@ describe('Administrative Actions - Negative Tests for AffiliateMarketplace Contr
             { value: toNano('0.05') },
             {
                 $$type: 'AdminWithdraw',
-                amount: toNano('49.5'), // Violate the buffer requirement
+                amount: toNano('49.5'), // Violate the buffer requirement of 1 TON
                 wallets: Dictionary.empty<Address, boolean>().set(deployer.address, true),
             }
         );
