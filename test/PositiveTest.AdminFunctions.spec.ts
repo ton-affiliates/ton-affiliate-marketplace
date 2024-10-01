@@ -125,6 +125,101 @@ describe('Administrative Actions - positive test', () => {
 		let campaignData = await campaignContract.getCampaignData();
 		expect(campaignData.feePercentage).toBe(BigInt(150));
     });
+	
+	it('should stop/resume campaign successfully', async () => {
+        
+		 // 1. Deploy a new Campaign contract through the AffiliateMarketplace
+		const createCampaignResult = await affiliateMarketplaceContract.send(
+			advertiser.getSender(),
+			{ value: toNano('0.13') }, // Sufficient funds to deploy the campaign
+			{ $$type: 'CreateCampaign' }
+		);
+
+		expect(createCampaignResult.transactions).toHaveTransaction({
+			from: advertiser.address,
+			to: affiliateMarketplaceContract.address,
+			success: true,
+		});
+
+		// Retrieve the deployed Campaign contract address from the emitted event
+		let decodedCampaign: any | null = null;
+		for (const external of createCampaignResult.externals) {
+			if (external.body) {
+				decodedCampaign = loadCampaignCreatedEvent(external.body); // Assuming loadCampaignCreatedEvent parses the event correctly
+			}
+		}
+		expect(decodedCampaign).not.toBeNull();
+
+		const campaignContractAddress: Address = Address.parse(decodedCampaign!.campaignContractAddressStr);
+		let campaignContract = blockchain.openContract(await Campaign.fromAddress(campaignContractAddress));
+
+		const regularUsersMapCostPerActionMap = Dictionary.empty<bigint, bigint>();
+		regularUsersMapCostPerActionMap.set(BigInt(BOT_OP_CODE_USER_CLICK), toNano('0.1'));
+		regularUsersMapCostPerActionMap.set(BigInt(ADVERTISER_OP_CODE_CUSTOMIZED_EVENT), toNano('1'));
+
+		const setCampaignDetailsResult = await campaignContract.send(
+			advertiser.getSender(),
+			{ value: toNano('0.05') },
+			{
+				$$type: 'AdvertiserSetCampaignDetails',
+				campaignDetails: {
+					$$type: 'CampaignDetails',
+					regularUsersCostPerAction: regularUsersMapCostPerActionMap,
+					premiumUsersCostPerAction: Dictionary.empty<bigint, bigint>(),
+					allowedAffiliates: Dictionary.empty<Address, boolean>(),
+					isOpenCampaign: false,
+					daysWithoutUserActionForWithdrawFunds: 21n,
+					campaignBalanceNotifyAdvertiserThreshold: toNano("5")
+				}
+			}
+		);
+
+		expect(setCampaignDetailsResult.transactions).toHaveTransaction({
+			from: advertiser.address,
+			to: campaignContract.address,
+			success: true
+		});
+		
+		// 2. stop campaign
+		const adminStopCampaignResult = await affiliateMarketplaceContract.send(
+            deployer.getSender(),
+            { value: toNano('0.05') },
+            {
+                $$type: 'AdminStopCampaign',
+                campaignId: BigInt(decodedCampaign!.campaignId), 
+                advertiser: advertiser.address
+            }
+        );
+
+        expect(adminStopCampaignResult.transactions).toHaveTransaction({
+            from: deployer.address,
+            to: affiliateMarketplaceContract.address,
+            success: true
+        });
+		
+		let isCampaignStopped = await campaignContract.getStopped();
+		expect(isCampaignStopped).toBe(true);
+		
+		// 3. resume campaign
+		const adminResumeCampaignResult = await affiliateMarketplaceContract.send(
+            deployer.getSender(),
+            { value: toNano('0.05') },
+            {
+                $$type: 'AdminResumeCampaign',
+                campaignId: BigInt(decodedCampaign!.campaignId), 
+                advertiser: advertiser.address
+            }
+        );
+
+        expect(adminResumeCampaignResult.transactions).toHaveTransaction({
+            from: deployer.address,
+            to: affiliateMarketplaceContract.address,
+            success: true
+        });
+		
+		isCampaignStopped = await campaignContract.getStopped();
+		expect(isCampaignStopped).toBe(false);
+    });
 
     it('should replenish and withdraw funds successfully', async () => {
 
@@ -167,6 +262,8 @@ describe('Administrative Actions - positive test', () => {
 		expect(adminBalance - adminBalanceBeforeAdminWithdraw).toBeLessThan(toNano("30"));
 		expect(adminBalance - adminBalanceBeforeAdminWithdraw).toBeGreaterThan(toNano("29"));
     });
+	
+	
 
     // Test: stop affiliate marketplace
 	it('should stop and resume affiliate marketplace', async () => {

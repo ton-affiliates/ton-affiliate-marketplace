@@ -58,7 +58,7 @@ describe('AffiliateMarketplace Integration Test', () => {
         });
 
         blockchain.now = deployResult.transactions[1].now;  // necessary only for 'moving forward in time' for feature - advertiser withdraw balance
-    });
+    });	
 
     it('should create campaign, add affiliate1, add affiliate2, and handle user actions', async () => {
 	
@@ -97,10 +97,15 @@ describe('AffiliateMarketplace Integration Test', () => {
 
         // assert: campaignBalance = 0
         // assert: contractBalance = 0.1 - deploy costs
+		let affBalance = await affiliateMarketplaceContract.getBalance();
+		console.log(fromNano(affBalance));
+		console.log(fromNano(campaignData.contractBalance));
+		console.log(campaignData.contractBalance);
+		expect(campaignData.state).toBe(BigInt(0)); // state CAMPAIGN_CREATED
         expect(campaignData.contractBalance).toBeLessThan(toNano("0.1"));
         expect(campaignData.contractBalance).toBeGreaterThan(toNano("0"));
         expect(campaignData.campaignBalance).toBe(toNano("0"));
-		expect(campaignData.state).toBe(BigInt(0)); // state CAMPAIGN_CREATED
+		
 
         // ---------------------------------------------------------------------------------------------------------------------------------------------------
 

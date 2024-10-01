@@ -1,5 +1,14 @@
 
-message InternalCreatecampaign{campaignId: Int as uint32}
+message InternalCreateCampaign{
+    campaignId: Int as uint32; 
+    advertiser: Address;
+}
+
+message InternalCampaignContractDeployed {
+    campaignId: Int as uint32; 
+    advertiser: Address;
+    campaignContractAddress: Address;
+}
 
 message AdvertiserSetCampaignDetails {
     campaignDetails: CampaignDetails;
@@ -117,6 +126,16 @@ message AdminModifyCampaignFeePercentage {
     campaignId: Int as uint32;
     advertiser: Address;
     feePercentage: Int as uint32;
+}
+
+message AdminStopCampaign {
+	campaignId: Int as uint32;
+    advertiser: Address;
+}
+
+message AdminResumeCampaign {
+	campaignId: Int as uint32;
+    advertiser: Address;
 }
 
 message AffiliateCreatedEvent {

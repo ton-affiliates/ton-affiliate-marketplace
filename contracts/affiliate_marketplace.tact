@@ -53,9 +53,11 @@ struct CampaignData {
 }
 
 // Child contract for each affiliate
-contract Campaign {
+contract Campaign with Resumable  {
 
-    parent: Address;
+    owner: Address; // The Resumable trait requires you to add this exact state variable
+    stopped: Bool;  // The Resumable trait requires you to add this exact state variable
+
     campaignId: Int as uint32;
 
     advertiser: Address;
@@ -71,11 +73,12 @@ contract Campaign {
 
     feePercentage: Int as uint32 = 200;  // default - 2%
 
-    init(parent: Address, campaignId: Int, advertiser: Address) {
+    init(owner: Address, campaignId: Int, advertiser: Address) {
 
-        require(sender() == parent, "parent must be deployer");
+        require(sender() == owner, "owner must be deployer");
 
-        self.parent = parent;
+        self.owner = owner;
+        self.stopped = false;
         self.campaignId = campaignId;
         self.advertiser = advertiser;
 
@@ -83,12 +86,12 @@ contract Campaign {
         self.affiliates = emptyMap();
 
         self.campaignDetails = CampaignDetails{
-        regularUsersCostPerAction: emptyMap(),
-        premiumUsersCostPerAction: emptyMap(),
-        allowedAffiliates: emptyMap(),
-        isOpenCampaign: false,
-        daysWithoutUserActionForWithdrawFunds: MIN_NUM_DAYS_NO_USER_ACTION_WITHDRAW_FUNDS,
-		campaignBalanceNotifyAdvertiserThreshold: ton("5")
+            regularUsersCostPerAction: emptyMap(),
+            premiumUsersCostPerAction: emptyMap(),
+            allowedAffiliates: emptyMap(),
+            isOpenCampaign: false,
+            daysWithoutUserActionForWithdrawFunds: MIN_NUM_DAYS_NO_USER_ACTION_WITHDRAW_FUNDS,
+            campaignBalanceNotifyAdvertiserThreshold: ton("5")
         };
 
         self.state = STATE_CAMPAIGN_CREATED;
@@ -98,12 +101,22 @@ contract Campaign {
     }
 
     // piggyback deployment of contract on this message
-    receive(msg: InternalCreatecampaign) {
+    receive(msg: InternalCreateCampaign) {
         // dump(msg.campaignId);  // for debugging
+        send(SendParameters{
+            to: sender(),
+            body: InternalCampaignContractDeployed{
+                campaignId: msg.campaignId,
+                advertiser: msg.advertiser,
+                campaignContractAddress: myAddress()
+            }.toCell(),
+            value: GAS_FEE,
+            mode: SendPayGasSeparately
+        });
     }
 
     receive(msg: UpdateFeePercentage) {
-        require(sender() == self.parent, "Only parent can upate fee percentage");
+        self.requireOwner();
         self.feePercentage = msg.feePercentage;
     }
 
@@ -136,32 +149,35 @@ contract Campaign {
 
     // Function to handle advertiser replenishment
     receive(msg: AdvertiserReplenish) {
-
+        
+        self.requireNotStopped();
         require(sender() == self.advertiser, "Only the advertiser can replenish the contract");
         require(context().value >= MIN_AMOUNT_REPLENISH_CAMPAIGN, "Insufficient funds.  Need at least 20 Ton.");
         require(self.state == STATE_CAMPAIGN_INACTIVE || self.state == STATE_CAMPAIGN_ACTIVE, "Must be in states: [STATE_CAMPAIGN_INACTIVE, STATE_CAMPAIGN_ACTIVE] ");
 
         self.state = STATE_CAMPAIGN_ACTIVE;
 
-        // send 2% fee to parent
+        // send 2% fee to owner
         let fee: Int = (context().value * self.feePercentage + 9999) / 10000;  // 2% fee calculation
 
         // advertiser to cover gas costs
         send(SendParameters{
-        to: self.parent,
-        body: InternalAdvertiserReplenishFee{
-        campaignId: self.campaignId,
-        advertiser: self.advertiser,
-        replenishAmount: context().value,
-        fee: fee
-        }.toCell(),
-        value: fee,
-        mode: SendPayGasSeparately
+            to: self.owner,
+            body: InternalAdvertiserReplenishFee{
+                campaignId: self.campaignId,
+                advertiser: self.advertiser,
+                replenishAmount: context().value,
+                fee: fee
+            }.toCell(),
+            value: fee,
+            mode: SendPayGasSeparately
         });
     }
 
 
     receive(msg: CreateNewAffiliate) {
+
+        self.requireNotStopped();
 
         require(self.state == STATE_CAMPAIGN_ACTIVE, "Must be in state: STATE_CAMPAIGN_ACTIVE");
 
@@ -188,19 +204,21 @@ contract Campaign {
         self.affiliates.set(affilateId, AffiliateData{affiliate: sender(), userActionsStats: userActionsStats, premiumUserActionsStats: premiumUserActionsStats, accruedEarnings: 0});
 
         send(SendParameters{
-        to: self.parent,
-        body: InternalAffiliateCreated{
-        campaignId: self.campaignId,
-        affiliateId: affilateId,
-        advertiser: self.advertiser,
-        affiliate: sender()
-        }.toCell(),
-        value: 0,
-        mode: SendRemainingValue
+            to: self.owner,
+            body: InternalAffiliateCreated{
+                campaignId: self.campaignId,
+                affiliateId: affilateId,
+                advertiser: self.advertiser,
+                affiliate: sender()
+            }.toCell(),
+            value: 0,
+            mode: SendRemainingValue
         });
     }
 
     receive(msg: AddNewAffiliateToAllowedList) {
+
+        self.requireNotStopped();
 
         // Ensure only the advertiser can invoke this function
         require(sender() == self.advertiser, "Only the advertiser can add a new affiliate");
@@ -219,6 +237,8 @@ contract Campaign {
 
     receive(msg: RemoveCampaignAndWithdrawFunds) {
 
+        self.requireNotStopped();
+
         require(sender() == self.advertiser, "Only the advertiser can remove the campaign and withdraw all funds");
 
         if (self.currAffiliateId > 0) {
@@ -228,14 +248,16 @@ contract Campaign {
         let campaignBalance: Int = self.currentCampaignBalance();
         if (campaignBalance > 0) {
             send(SendParameters{
-            to: self.advertiser,
-            value: campaignBalance,
-            mode: SendRemainingValue
+                to: self.advertiser,
+                value: campaignBalance,
+                mode: SendRemainingValue
             });
         }
     }
 
     receive(msg: AffiliateUserAction) {
+
+        self.requireNotStopped();
 
         require(self.state == STATE_CAMPAIGN_ACTIVE, "Must be in state: STATE_CAMPAIGN_ACTIVE");
 
@@ -243,7 +265,7 @@ contract Campaign {
         require(affiliateDataOptional != null, "Affiliate does not exist");
         let affiliateData: AffiliateData = affiliateDataOptional!!;
 
-        let verifier = self.parent;
+        let verifier = self.owner;
         if (msg.userActionOpCode > USER_ACTION_OP_CODES_BOT) {
             verifier = self.advertiser;
         }
@@ -268,15 +290,15 @@ contract Campaign {
             self.state = STATE_CAMPAIGN_INACTIVE;
 
             send(SendParameters{
-            to: self.parent,
-            body: InternalInsufficientCampaignFunds {
-            campaignId: self.campaignId,
-            advertiser: self.advertiser,
-            campaginBalance: campaginBalance,
-            contractBalance: myBalance()
-            }.toCell(),
-            value: 0,
-            mode: SendRemainingValue
+                to: self.owner,
+                body: InternalInsufficientCampaignFunds {
+                    campaignId: self.campaignId,
+                    advertiser: self.advertiser,
+                    campaginBalance: campaginBalance,
+                    contractBalance: myBalance()
+                }.toCell(),
+                value: 0,
+                mode: SendRemainingValue
             });
             
         } else {
@@ -298,29 +320,29 @@ contract Campaign {
             self.numUserActions = self.numUserActions + 1;
             self.totalAccruedEarnings = self.totalAccruedEarnings + costPerAction;
 
-            if (verifier == self.parent) {
+            if (verifier == self.owner) {
                 send(SendParameters{
-                to: self.parent,
-                body: InternalAffiliateUserAction{
-                campaignId: self.campaignId,
-                advertiser: self.advertiser,
-                campaginBalance: campaginBalance - costPerAction,
-                campaignBalanceNotifyAdvertiserThreshold: self.campaignDetails.campaignBalanceNotifyAdvertiserThreshold
-                }.toCell(),
-                value: GAS_FEE,  // return gas fee paid by the parent contract
-                mode: SendPayGasSeparately
+                    to: self.owner,
+                    body: InternalAffiliateUserAction{
+                        campaignId: self.campaignId,
+                        advertiser: self.advertiser,
+                        campaginBalance: campaginBalance - costPerAction,
+                        campaignBalanceNotifyAdvertiserThreshold: self.campaignDetails.campaignBalanceNotifyAdvertiserThreshold
+                    }.toCell(),
+                    value: GAS_FEE,  // return gas fee paid by the owner contract
+                    mode: SendPayGasSeparately
                 });
             } else {
                 send(SendParameters{
-                to: self.parent,
-                body: InternalAffiliateUserAction{
-                campaignId: self.campaignId,
-                advertiser: self.advertiser,
-                campaginBalance: campaginBalance - costPerAction,
-                campaignBalanceNotifyAdvertiserThreshold: self.campaignDetails.campaignBalanceNotifyAdvertiserThreshold
-                }.toCell(),
-                value: 0,  
-                mode: SendRemainingValue
+                    to: self.owner,
+                    body: InternalAffiliateUserAction{
+                        campaignId: self.campaignId,
+                        advertiser: self.advertiser,
+                        campaginBalance: campaginBalance - costPerAction,
+                        campaignBalanceNotifyAdvertiserThreshold: self.campaignDetails.campaignBalanceNotifyAdvertiserThreshold
+                    }.toCell(),
+                    value: 0,  
+                    mode: SendRemainingValue
                 });
             }
 
@@ -328,6 +350,8 @@ contract Campaign {
     }
 
     receive(msg: AffiliateWithdrawEarnings) {
+
+        self.requireNotStopped();
 
         let affiliateDataOptional = self.affiliates.get(msg.affiliateId);
         require(affiliateDataOptional != null, "Affiliate does not exist");
@@ -347,28 +371,28 @@ contract Campaign {
         // Adjust the total accrued earnings to reflect the withdrawal
         self.totalAccruedEarnings = self.totalAccruedEarnings - paymentAmount;
 
-        // send 2% fee to parent
+        // send 2% fee to owner
         let fee: Int = (paymentAmount * self.feePercentage + 9999) / 10000;  // 2% fee calculation
 
         send(SendParameters{
-        to: self.parent,
-        body: InternalAffiliateWithdrawEarningsFee{
-        campaignId: self.campaignId,
-        advertiser: self.advertiser,
-        affiliateId: msg.affiliateId,
-        earnings: paymentAmount,
-		fee: fee
-        }.toCell(),
-        value: fee,
-        mode: SendPayGasSeparately
+            to: self.owner,
+            body: InternalAffiliateWithdrawEarningsFee{
+                campaignId: self.campaignId,
+                advertiser: self.advertiser,
+                affiliateId: msg.affiliateId,
+                earnings: paymentAmount,
+                fee: fee
+            }.toCell(),
+            value: fee,
+            mode: SendPayGasSeparately
         });
 
         send(SendParameters{
-        to: affiliateData.affiliate,
-        value: paymentAmount - fee,
-        bounce: true,
-        body: PayAffiliate{affiliateId: msg.affiliateId, amount: paymentAmount}.toCell(),
-        mode: SendPayGasSeparately
+            to: affiliateData.affiliate,
+            value: paymentAmount - fee,
+            bounce: true,
+            body: PayAffiliate{affiliateId: msg.affiliateId, amount: paymentAmount}.toCell(),
+            mode: SendPayGasSeparately
         });
 
     }
@@ -390,16 +414,16 @@ contract Campaign {
 
     get fun campaignData(): CampaignData {
         return CampaignData {
-        campaignId: self.campaignId,
-        advertiser: self.advertiser,
-        campaignDetails: self.campaignDetails,
-        numUserActions: self.numUserActions,
-        lastUserAction: self.lastUserAction,
-        state: self.state,
-        campaignBalance: self.currentCampaignBalance(),
-        contractBalance: myBalance(),
-        contractAddress: myAddress(),
-        feePercentage: self.feePercentage
+            campaignId: self.campaignId,
+            advertiser: self.advertiser,
+            campaignDetails: self.campaignDetails,
+            numUserActions: self.numUserActions,
+            lastUserAction: self.lastUserAction,
+            state: self.state,
+            campaignBalance: self.currentCampaignBalance(),
+            contractBalance: myBalance(),
+            contractAddress: myAddress(),
+            feePercentage: self.feePercentage
         }
     }
 
@@ -413,7 +437,7 @@ contract Campaign {
 }
 
 
-// Parent Contract
+// owner Contract
 contract AffiliateMarketplace with Deployable, Resumable  {
 
     // state
@@ -469,10 +493,10 @@ contract AffiliateMarketplace with Deployable, Resumable  {
 
         foreach(wallet,v in msg.wallets) {
             send(SendParameters{
-            to: wallet,
-            bounce: true,
-            value: fraction,
-            mode: SendPayGasSeparately
+                to: wallet,
+                bounce: true,
+                value: fraction,
+                mode: SendPayGasSeparately
             });
         }
     }
@@ -485,12 +509,42 @@ contract AffiliateMarketplace with Deployable, Resumable  {
         let campaignContractAddress: Address = contractAddress(init);
 
         send(SendParameters{
-        to: campaignContractAddress,
-        body: UpdateFeePercentage{
-        feePercentage: msg.feePercentage
-        }.toCell(),
-        value: 0,
-        mode: SendRemainingValue
+            to: campaignContractAddress,
+            body: UpdateFeePercentage{
+                feePercentage: msg.feePercentage
+            }.toCell(),
+            value: 0,
+            mode: SendRemainingValue
+        });
+    }
+
+    receive(msg: AdminStopCampaign) {
+
+        self.requireOwner();
+
+        let init: StateInit = self.campaignContractStateInit(msg.campaignId, msg.advertiser);
+        let campaignContractAddress: Address = contractAddress(init);
+
+        send(SendParameters{
+            to: campaignContractAddress,
+            body: "Stop".asComment(), 
+            value: 0,
+            mode: SendRemainingValue
+        });
+    }
+
+    receive(msg: AdminResumeCampaign) {
+
+        self.requireOwner();
+
+        let init: StateInit = self.campaignContractStateInit(msg.campaignId, msg.advertiser);
+        let campaignContractAddress: Address = contractAddress(init);
+
+        send(SendParameters{
+            to: campaignContractAddress,
+            body: "Resume".asComment(), 
+            value: 0,
+            mode: SendRemainingValue
         });
     }
 
@@ -502,9 +556,9 @@ contract AffiliateMarketplace with Deployable, Resumable  {
         
         if (msg.campaginBalance < msg.campaignBalanceNotifyAdvertiserThreshold) {
             emit(CampaignBalnceUnderThresholdEvent{
-            campaignId: msg.campaignId,
-            advertiser: msg.advertiser,
-            campaginBalance: msg.campaginBalance
+                campaignId: msg.campaignId,
+                advertiser: msg.advertiser,
+                campaginBalance: msg.campaginBalance
             }.toCell());
         }
     }
@@ -515,23 +569,10 @@ contract AffiliateMarketplace with Deployable, Resumable  {
         require(sender() == expectedAddress, "Access denied");
 
         emit(InsufficientCampaignFundsEvent{
-        campaignId: msg.campaignId,
-        advertiser: msg.advertiser,
-        campaginBalance: msg.campaginBalance,
-        contractBalance: msg.contractBalance
-        }.toCell());
-    }
-
-    receive(msg: InternalRemoveCampaign) {
-
-        let expectedAddress: Address = contractAddress(self.campaignContractStateInit(msg.campaignId, msg.advertiser));
-        require(sender() == expectedAddress, "Access denied");
-
-        emit(CampaignRemovedEvent{
-        campaignId: msg.campaignId,
-        advertiser: msg.advertiser,
-        campaginBalance: msg.campaginBalance,
-        contractBalance: msg.contractBalance
+            campaignId: msg.campaignId,
+            advertiser: msg.advertiser,
+            campaginBalance: msg.campaginBalance,
+            contractBalance: msg.contractBalance
         }.toCell());
     }
 
@@ -541,11 +582,11 @@ contract AffiliateMarketplace with Deployable, Resumable  {
         require(sender() == expectedAddress, "Access denied");
 
         emit(AffiliateWithdrawEarningsEvent{
-        campaignId: msg.campaignId,
-        advertiser: msg.advertiser,
-        affiliateId: msg.affiliateId,
-        earnings: msg.earnings,
-		fee: msg.fee
+            campaignId: msg.campaignId,
+            advertiser: msg.advertiser,
+            affiliateId: msg.affiliateId,
+            earnings: msg.earnings,
+            fee: msg.fee
         }.toCell());
     }
 
@@ -555,10 +596,10 @@ contract AffiliateMarketplace with Deployable, Resumable  {
         require(sender() == expectedAddress, "Access denied");
 
         emit(AdvertiserReplenisEvent{
-        campaignId: msg.campaignId,
-        advertiser: msg.advertiser,
-        replenishAmount: msg.replenishAmount,
-        fee: msg.fee
+            campaignId: msg.campaignId,
+            advertiser: msg.advertiser,
+            replenishAmount: msg.replenishAmount,
+            fee: msg.fee
         }.toCell());
     }
 
@@ -568,10 +609,10 @@ contract AffiliateMarketplace with Deployable, Resumable  {
         require(sender() == expectedAddress, "Access denied");
 
         emit(AffiliateCreatedEvent{
-        campaignId: msg.campaignId,
-        affiliateId: msg.affiliateId,
-        advertiser: msg.advertiser,
-        affiliate: msg.affiliate
+            campaignId: msg.campaignId,
+            affiliateId: msg.affiliateId,
+            advertiser: msg.advertiser,
+            affiliate: msg.affiliate
         }.toCell());
 
     }
@@ -591,17 +632,23 @@ contract AffiliateMarketplace with Deployable, Resumable  {
 
         // deploy contract
         send(SendParameters{
-        to: campaignContractAddress,
-        value: DEPLOY_NEW_CAMPAIGN_COST,
-        code: init.code,
-        data: init.data,
-        body: InternalCreatecampaign{campaignId: campaignId}.toCell()
+            to: campaignContractAddress,
+            value: DEPLOY_NEW_CAMPAIGN_COST,
+            code: init.code,
+            data: init.data,
+            body: InternalCreateCampaign{campaignId: campaignId, advertiser: sender()}.toCell()
         });
+    }
+
+    receive(msg: InternalCampaignContractDeployed) {
+
+        let expectedAddress: Address = contractAddress(self.campaignContractStateInit(msg.campaignId, msg.advertiser));
+        require(sender() == expectedAddress, "Access denied");
 
         emit(CampaignCreatedEvent{
-        campaignId: campaignId,
-        advertiser: sender(),
-        campaignContractAddress: campaignContractAddress
+            campaignId: msg.campaignId,
+            advertiser: msg.advertiser,
+            campaignContractAddress: msg.campaignContractAddress
         }.toCell());
     }
 
@@ -615,15 +662,15 @@ contract AffiliateMarketplace with Deployable, Resumable  {
         let campaignContractAddress: Address = contractAddress(init);
 
         send(SendParameters{
-        to: campaignContractAddress,
-        body: AffiliateUserAction{
-        affiliateId: msg.affiliateId,
-        userActionOpCode: msg.userActionOpCode,
-        isPremiumUser: msg.isPremiumUser
-        }.toCell(),
-        value: GAS_FEE,
-        mode: SendPayGasSeparately,
-        bounce: true
+            to: campaignContractAddress,
+            body: AffiliateUserAction{
+                affiliateId: msg.affiliateId,
+                userActionOpCode: msg.userActionOpCode,
+                isPremiumUser: msg.isPremiumUser
+            }.toCell(),
+            value: GAS_FEE,
+            mode: SendPayGasSeparately,
+            bounce: true
         });
     }
 
