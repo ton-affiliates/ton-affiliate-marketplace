@@ -426,11 +426,13 @@ describe('AffiliateMarketplace Integration Test', () => {
 		expect(decodedCampaignUnderFiveTon.campaginBalance).toBeLessThan(toNano("5"));
 
         expect(decodedInsufficientBalanceInCampaign).not.toBeNull();
-        expect(decodedCampaignUnderFiveTon.campaignId).toBe(0);
-		expect(decodedCampaignUnderFiveTon.advertiserAddressStr).toBe(advertiser.address.toString());
-		expect(decodedCampaignUnderFiveTon.campaginBalance).toBeLessThan(toNano("15"));  // 15 is the minimum campaign balance to suffice this campaign
+        expect(decodedInsufficientBalanceInCampaign.campaignId).toBe(0);
+		expect(decodedInsufficientBalanceInCampaign.advertiserAddressStr).toBe(advertiser.address.toString());
+		expect(decodedInsufficientBalanceInCampaign.campaginBalance).toBeLessThan(toNano("15"));  // 15 is the minimum campaign balance to suffice this campaign
 		
         campaignData = await campaignContract.getCampaignData();
+		
+		expect(campaignData.campaignHasSufficientFundsToPayMaxCpa).toBe(false);
         affiliateData2 = await campaignContract.getAffiliateData(decodedAffiliate2!.affiliateId);
 
         // contract balance - only gas on the message to parent should be deducted
