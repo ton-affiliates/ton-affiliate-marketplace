@@ -75,6 +75,9 @@ describe('AffiliateMarketplace Integration Test', () => {
         let affiliateMarketplaceContractBalanceBeforeDeployment = await affiliateMarketplaceContract.getBalance();
 		let numCampaigns = await affiliateMarketplaceContract.getNumCampaigns();
 		expect(numCampaigns).toBe(BigInt(0));
+		
+		let botAddress = await affiliateMarketplaceContract.getBot();
+		expect(botAddress.toString()).toBe(bot.address.toString());
 
         // 1. Bot deploys empty campaign
         const createCampaignResult = await affiliateMarketplaceContract.send(

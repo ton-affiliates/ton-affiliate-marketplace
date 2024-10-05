@@ -464,6 +464,10 @@ contract AffiliateMarketplace with Deployable, Resumable  {
         return myBalance(); // in nano-tons (like cents, just with 9 decimals)
     }
 
+    get fun bot(): Address {
+        return self.bot; 
+    }
+
     get fun numCampaigns(): Int {
         return self.currCampaignId; 
     }
