@@ -1,6 +1,8 @@
 // Import necessary modules and utilities from @ton/sandbox, @ton/core, and other dependencies
 import {
     Blockchain,
+    printTransactionFees,
+    prettyLogTransactions,
     SandboxContract,
     TreasuryContract
 } from '@ton/sandbox';
@@ -13,53 +15,67 @@ import { loadCampaignCreatedEvent } from './events'; // Ensure this utility is c
 // Set up global variables and initial state
 let blockchain: Blockchain;
 let affiliateMarketplaceContract: SandboxContract<AffiliateMarketplace>;
+let campaignContract: SandboxContract<Campaign>;
 let deployer: SandboxContract<TreasuryContract>;
 let bot: SandboxContract<TreasuryContract>;
 let advertiser: SandboxContract<TreasuryContract>;
 let affiliate: SandboxContract<TreasuryContract>;
 let unauthorizedUser: SandboxContract<TreasuryContract>;
-let campaignContract:  SandboxContract<Campaign>
+let decodedCampaign: any | null;
 
 const BOT_OP_CODE_USER_CLICK = 0;
-const ADVERTISER_OP_CODE_CUSTOMIZED_EVENT = 201;
+const ADVERTISER_OP_CODE_CUSTOMIZED_EVENT = 2001;
 
-
-//2417: daysWithoutUserActionForWithdrawFunds must be greater than MIN_NUM_DAYS_NO_USER_ACTION_WITHDRAW_FUNDS
-//2509: Must have at least one wallet to withdraw to
-//2839: Only the verifier contract can invoke this function
-//4138: Only the advertiser can add a new affiliate
-//6812: affiliate is on allowed list already
-//7477: Must be in states: [STATE_CAMPAIGN_INACTIVE, STATE_CAMPAIGN_ACTIVE]
-//9282: Only advertiser can invoke this function
-//11398: Advertiser can withdraw funds only after agreed upon time period with no user action
-//12533: Must be in state: STATE_CAMPAIGN_ACTIVE
-//14486: Cannot find cpa for the given op code
-//16628: cpa must be greater than min cost for premium user action
-//31512: Can only replenish via 'AdvertiserReplenish' function
-//32363: No earnings to withdraw
-//33594: Cannot manually add affiliates to an open campaign
-//36363: Only the advertiser can remove the campaign and withdraw all funds
-//40368: Contract stopped
-//41412: Only affiliate can withdraw earnings
-//43100: Reached max number of affiliates for this campagn
-//44322: parent must be deployer
-//48874: Insufficient contract funds to make payment
-//49469: Access denied
-//49782: affiliate not on allowed list
-//51754: Insufficient funds
-//53205: Only the advertiser can replenish the contract
-//53296: Contract not stopped
-//53456: Affiliate does not exist
-//54759: cpa must be greater than min cost for user action
-//55162: Must be in state: STATE_CAMPAIGN_CREATED or have no affiliates at all
-//61787: Only parent can upate fee percentage
-//62634: Only bot can invoke User Actions
-//63505: Must be in states: [STATE_CAMPAIGN_INACTIVE, STATE_CAMPAIGN_ACTIVE]
-//63968: Insufficient funds.  Need at least 20 Ton.
-
-
-
-
+// # Error Codes
+// 2: Stack underflow
+// 3: Stack overflow
+// 4: Integer overflow
+// 5: Integer out of expected range
+// 6: Invalid opcode
+// 7: Type check error
+// 8: Cell overflow
+// 9: Cell underflow
+// 10: Dictionary error
+// 13: Out of gas error
+// 32: Method ID not found
+// 34: Action is invalid or not supported
+// 37: Not enough TON
+// 38: Not enough extra-currencies
+// 128: Null reference exception
+// 129: Invalid serialization prefix
+// 130: Invalid incoming message
+// 131: Constraints error
+// 132: Access denied
+// 133: Contract stopped
+// 134: Invalid argument
+// 135: Code of a contract was not found
+// 136: Invalid address
+// 137: Masterchain support is not enabled for this contract
+// 2509: Must have at least one wallet to withdraw to
+// 2839: Only the verifier contract can invoke this function
+// 4138: Only the advertiser can add a new affiliate
+// 12969: Must be in state: STATE_CAMPAIGN_DETAILS_SET_BY_ADVERTISER
+// 14486: Cannot find cpa for the given op code
+// 32363: No earnings to withdraw
+// 33594: Cannot manually add affiliates to an open campaign
+// 36363: Only the advertiser can remove the campaign and withdraw all funds
+// 40058: Campaign has no funds
+// 40368: Contract stopped
+// 41412: Only affiliate can withdraw earnings
+// 43100: Reached max number of affiliates for this campagn
+// 44318: Only bot can Deploy new Campaign
+// 48874: Insufficient contract funds to make payment
+// 49469: Access denied
+// 49782: affiliate not on allowed list
+// 50865: owner must be deployer
+// 52003: Campaign is expired
+// 53205: Only the advertiser can replenish the contract
+// 53296: Contract not stopped
+// 53456: Affiliate does not exist
+// 54206: Insufficient campaign balance to make payment
+// 57313: Must be in state: STATE_CAMPAIGN_CREATED
+// 58053: OP codes for regular and premium users must match
+// 62634: Only bot can invoke User Actions
 
 
 beforeEach(async () => {
@@ -69,6 +85,7 @@ beforeEach(async () => {
     bot = await blockchain.treasury('bot');
     advertiser = await blockchain.treasury('advertiser');
     affiliate = await blockchain.treasury('affiliate');
+    unauthorizedUser = await blockchain.treasury('unauthorizedUser');
 
     // Deploy AffiliateMarketplace contract
     affiliateMarketplaceContract = blockchain.openContract(await AffiliateMarketplace.fromInit(bot.address));
@@ -84,49 +101,71 @@ beforeEach(async () => {
         deploy: true,
         success: true,
     });
+	
+	// set some TON in the affiliate marketplace contract
+	const adminReplenishMessageResult = await affiliateMarketplaceContract.send(
+		deployer.getSender(),
+		{ value: toNano('5') },
+		{
+		   $$type: "AdminReplenish"
+		}
+	);
 
-    // Deploy a new Campaign contract through the AffiliateMarketplace
-    const createCampaignResult = await affiliateMarketplaceContract.send(
-        advertiser.getSender(),
-        { value: toNano('0.13') }, // Sufficient funds to deploy the campaign
-        { $$type: 'CreateCampaign' }
-    );
+	expect(adminReplenishMessageResult.transactions).toHaveTransaction({
+		from: deployer.address,
+		to: affiliateMarketplaceContract.address,
+		success: true,
+	});
 
-    expect(createCampaignResult.transactions).toHaveTransaction({
-        from: advertiser.address,
-        to: affiliateMarketplaceContract.address,
-        success: true,
-    });
+	// 1. Bot deploys empty campaign
+	const createCampaignResult = await affiliateMarketplaceContract.send(
+		bot.getSender(),
+		{ value: toNano('0.05') },
+		{ $$type: 'CreateCampaign' }
+	);
 
-    // Retrieve the deployed Campaign contract address from the emitted event
-    let decodedCampaign: any | null = null;
-    for (const external of createCampaignResult.externals) {
-        if (external.body) {
-            decodedCampaign = loadCampaignCreatedEvent(external.body); // Assuming loadCampaignCreatedEvent parses the event correctly
-        }
-    }
-    expect(decodedCampaign).not.toBeNull();
+	expect(createCampaignResult.transactions).toHaveTransaction({
+		from: bot.address,
+		to: affiliateMarketplaceContract.address,
+		success: true,
+	});
 
-    const campaignContractAddress: Address = Address.parse(decodedCampaign!.campaignContractAddressStr);
-    campaignContract = blockchain.openContract(await Campaign.fromAddress(campaignContractAddress));
+	for (const external of createCampaignResult.externals) {
+		if (external.body) {
+			decodedCampaign = loadCampaignCreatedEvent(external.body);
+		}
+	}
+
+	expect(decodedCampaign).not.toBeNull();
+	expect(decodedCampaign!.campaignId).toBe(0);
+	let campaignContractAddress: Address = Address.parse(decodedCampaign!.campaignContractAddressStr);
+
+	expect(createCampaignResult.transactions).toHaveTransaction({
+		from: affiliateMarketplaceContract.address,
+		to: campaignContractAddress,
+		deploy: true,
+		success: true,
+	});
+
+	campaignContract = blockchain.openContract(await Campaign.fromAddress(campaignContractAddress));
 
     const regularUsersMapCostPerActionMap = Dictionary.empty<bigint, bigint>();
     regularUsersMapCostPerActionMap.set(BigInt(BOT_OP_CODE_USER_CLICK), toNano('0.1'));
     regularUsersMapCostPerActionMap.set(BigInt(ADVERTISER_OP_CODE_CUSTOMIZED_EVENT), toNano('1'));
-
+	
+	// closed campaign
     const setCampaignDetailsResult = await campaignContract.send(
         advertiser.getSender(),
-        { value: toNano('0.05') },
+        { value: toNano('10') },
         {
             $$type: 'AdvertiserSetCampaignDetails',
             campaignDetails: {
                 $$type: 'CampaignDetails',
                 regularUsersCostPerAction: regularUsersMapCostPerActionMap,
-                premiumUsersCostPerAction: Dictionary.empty<bigint, bigint>(),
+                premiumUsersCostPerAction: regularUsersMapCostPerActionMap,
                 allowedAffiliates: Dictionary.empty<Address, boolean>(),
                 isOpenCampaign: false,
-                daysWithoutUserActionForWithdrawFunds: 21n,
-				campaignBalanceNotifyAdvertiserThreshold: toNano("5")
+				campaignValidForNumDays: null
             }
         }
     );
@@ -141,42 +180,10 @@ beforeEach(async () => {
 
 describe('Negative Tests for Campaign', () => {
 
-     it('should fail to replenish the campaign with insufficient amount', async () => {
-
-        const replenishResult = await campaignContract.send(
-            advertiser.getSender(),
-            { value: toNano('10') }, // Less than MIN_AMOUNT_REPLENISH_CAMPAIGN
-            { $$type: 'AdvertiserReplenish' }
-        );
-
-        expect(replenishResult.transactions).toHaveTransaction({
-            from: advertiser.address,
-            to: campaignContract.address,
-            success: false, //63968: Insufficient funds.  Need at least 20 Ton.
-			exitCode: 63968
-        });
-    });
 
     // Affiliate Actions
     it('should fail to create an affiliate when campaign is closed and not in allowed list', async () => {
 	
-		const advertiserReplenishResult = await campaignContract.send(
-            advertiser.getSender(),
-            {
-                value: toNano('20'),
-            },
-            {
-                $$type: 'AdvertiserReplenish'
-            }
-        );
-
-        expect(advertiserReplenishResult.transactions).toHaveTransaction({
-            from: advertiser.address,
-            to: campaignContract.address,
-            success: true,
-        });
-
-
         const createAffiliateResult = await campaignContract.send(
             affiliate.getSender(),
             { value: toNano('0.05') },
@@ -193,25 +200,8 @@ describe('Negative Tests for Campaign', () => {
 
     // Test: Unauthorized Campaign Removal
     it('should fail when a non-advertiser tries to remove the campaign and withdraw funds', async () => {
-
-        unauthorizedUser = await blockchain.treasury('unauthorizedUser');
 		
-		const advertiserReplenishResult = await campaignContract.send(
-            advertiser.getSender(),
-            {
-                value: toNano('20'),
-            },
-            {
-                $$type: 'AdvertiserReplenish'
-            }
-        );
-
-        expect(advertiserReplenishResult.transactions).toHaveTransaction({
-            from: advertiser.address,
-            to: campaignContract.address,
-            success: true,
-        });
-
+		
         // Attempt to remove the campaign by a non-advertiser user
         const removeCampaignResult = await campaignContract.send(
             unauthorizedUser.getSender(),
@@ -228,143 +218,9 @@ describe('Negative Tests for Campaign', () => {
         });
     });
 	
-	it('should fail to replenish the campaign via AddNewAffiliateToAllowedList', async () => {
-	
-		const advertiserReplenishResult = await campaignContract.send(
-            advertiser.getSender(),
-            {
-                value: toNano('20'),
-            },
-            {
-                $$type: 'AdvertiserReplenish'
-            }
-        );
-
-        expect(advertiserReplenishResult.transactions).toHaveTransaction({
-            from: advertiser.address,
-            to: campaignContract.address,
-            success: true,
-        });
-
-	
-        const addNewAffiliateToAllowedListExcessiveFundsResult = await campaignContract.send(
-            advertiser.getSender(),
-            { value: toNano('50') }, 
-            { $$type: 'AddNewAffiliateToAllowedList',
-			  affiliate: affiliate.address
-			}
-        );
-		
-        expect(addNewAffiliateToAllowedListExcessiveFundsResult.transactions).toHaveTransaction({
-            from: advertiser.address,
-            to: campaignContract.address,
-            success: false, //31512: Can only replenish via 'AdvertiserReplenish' function
-			exitCode: 31512,
-			
-        });
-    });
-	
-	it('should fail to RemoveCampaignAndWithdrawFunds before expiration of daysWithoutUserActionForWithdrawFunds', async () => {
-	
-	
-		const advertiserReplenishResult = await campaignContract.send(
-            advertiser.getSender(),
-            {
-                value: toNano('20'),
-            },
-            {
-                $$type: 'AdvertiserReplenish'
-            }
-        );
-
-        expect(advertiserReplenishResult.transactions).toHaveTransaction({
-            from: advertiser.address,
-            to: campaignContract.address,
-            success: true,
-        });
-		
-		// need at least one Affiliate
-		const addNewAffiliateToAllowedListResult = await campaignContract.send(
-            advertiser.getSender(),
-            { value: toNano('0.05') }, 
-            { $$type: 'AddNewAffiliateToAllowedList',
-			  affiliate: affiliate.address
-			}
-        );
-
-        expect(addNewAffiliateToAllowedListResult.transactions).toHaveTransaction({
-            from: advertiser.address,
-            to: campaignContract.address,
-            success: true, 
-        });
-		
-		const createAffiliateResult = await campaignContract.send(
-            affiliate.getSender(),
-            { value: toNano('0.1') },
-            { $$type: 'CreateNewAffiliate' }
-        );
-
-        expect(createAffiliateResult.transactions).toHaveTransaction({
-            from: affiliate.address,
-            to: campaignContract.address,
-            success: true, 
-        });
-		
-		// user Action
-		const userActionResult = await affiliateMarketplaceContract.send(
-            bot.getSender(),
-            { value: toNano('0.05') },
-            {
-                $$type: 'UserAction',
-                campaignId: BigInt(0),
-                affiliateId: BigInt(0),
-                advertiser: advertiser.address,
-                userActionOpCode: BigInt(BOT_OP_CODE_USER_CLICK),
-                isPremiumUser: false,
-            }
-        );
-
-        expect(userActionResult.transactions).toHaveTransaction({
-            from: affiliateMarketplaceContract.address,
-            to: campaignContract.address,
-            success: true,
-        });
-	
-
-        const removeCampaignAndWithdrawFundsResult = await campaignContract.send(
-            advertiser.getSender(),
-            { value: toNano('0.05') }, 
-            { $$type: 'RemoveCampaignAndWithdrawFunds' }
-        );
-
-        expect(removeCampaignAndWithdrawFundsResult.transactions).toHaveTransaction({
-            from: advertiser.address,
-            to: campaignContract.address,
-            success: false, //11398: Advertiser can withdraw funds only after agreed upon time period with no user action
-			exitCode: 11398
-        });
-    });
 	
 	it('should fail if someone other than the affiliate tries to  withdraw earnings', async () => {
-		
-		unauthorizedUser = await blockchain.treasury('unauthorizedUser');
-		
-		const advertiserReplenishResult = await campaignContract.send(
-            advertiser.getSender(),
-            {
-                value: toNano('20'),
-            },
-            {
-                $$type: 'AdvertiserReplenish'
-            }
-        );
-
-        expect(advertiserReplenishResult.transactions).toHaveTransaction({
-            from: advertiser.address,
-            to: campaignContract.address,
-            success: true,
-        });
-		
+						
         const addNewAffiliateToAllowedListResult = await campaignContract.send(
             advertiser.getSender(),
             { value: toNano('0.05') }, 
@@ -399,7 +255,6 @@ describe('Negative Tests for Campaign', () => {
                 $$type: 'UserAction',
                 campaignId: BigInt(0),
                 affiliateId: BigInt(0),
-                advertiser: advertiser.address,
                 userActionOpCode: BigInt(BOT_OP_CODE_USER_CLICK),
                 isPremiumUser: false,
             }
