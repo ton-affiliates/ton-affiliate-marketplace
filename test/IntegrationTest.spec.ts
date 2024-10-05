@@ -73,6 +73,8 @@ describe('AffiliateMarketplace Integration Test', () => {
     it('should create campaign, add affiliate1, add affiliate2, and handle user actions', async () => {
         
         let affiliateMarketplaceContractBalanceBeforeDeployment = await affiliateMarketplaceContract.getBalance();
+		let numCampaigns = await affiliateMarketplaceContract.getNumCampaigns();
+		expect(numCampaigns).toBe(BigInt(0));
 
         // 1. Bot deploys empty campaign
         const createCampaignResult = await affiliateMarketplaceContract.send(
@@ -86,6 +88,9 @@ describe('AffiliateMarketplace Integration Test', () => {
             to: affiliateMarketplaceContract.address,
             success: true,
         });
+		
+		numCampaigns = await affiliateMarketplaceContract.getNumCampaigns();
+		expect(numCampaigns).toBe(BigInt(1));
 
         let decodedCampaign: any | null = null;
         for (const external of createCampaignResult.externals) {
@@ -93,10 +98,13 @@ describe('AffiliateMarketplace Integration Test', () => {
                 decodedCampaign = loadCampaignCreatedEvent(external.body);
             }
         }
-
+		
         expect(decodedCampaign).not.toBeNull();
         expect(decodedCampaign!.campaignId).toBe(0);
         let campaignContractAddress: Address = Address.parse(decodedCampaign!.campaignContractAddressStr);
+		
+		let campaignContractAddressFromMarketplace = await affiliateMarketplaceContract.getCampaignContractAddress(decodedCampaign!.campaignId);
+		expect(campaignContractAddressFromMarketplace.toString()).toBe(campaignContractAddress.toString());
 
         expect(createCampaignResult.transactions).toHaveTransaction({
             from: affiliateMarketplaceContract.address,
@@ -533,7 +541,6 @@ describe('AffiliateMarketplace Integration Test', () => {
 
         expect(decodedAdvertiserWithdrawFunds).not.toBeNull();
         expect(decodedAdvertiserWithdrawFunds!.campaignId).toBe(0);
-        console.log(decodedAdvertiserWithdrawFunds!.campaignBalance);
 
 		
 		campaignData = await campaignContract.getCampaignData();
