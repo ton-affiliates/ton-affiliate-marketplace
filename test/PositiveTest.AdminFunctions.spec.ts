@@ -15,13 +15,18 @@ import { loadCampaignCreatedEvent } from './events'; // Ensure this utility is c
 // Set up global variables and initial state
 let blockchain: Blockchain;
 let affiliateMarketplaceContract: SandboxContract<AffiliateMarketplace>;
+let campaignContract: SandboxContract<Campaign>;
 let deployer: SandboxContract<TreasuryContract>;
 let bot: SandboxContract<TreasuryContract>;
 let advertiser: SandboxContract<TreasuryContract>;
-let affiliate: SandboxContract<TreasuryContract>;
+let affiliate1: SandboxContract<TreasuryContract>;
+let affiliate2: SandboxContract<TreasuryContract>;
+let unauthorizedUser: SandboxContract<TreasuryContract>;
+let decodedCampaign: any | null;
 
 const BOT_OP_CODE_USER_CLICK = 0;
-const ADVERTISER_OP_CODE_CUSTOMIZED_EVENT = 201;
+const ADVERTISER_OP_CODE_CUSTOMIZED_EVENT = 2001;
+
 
 beforeEach(async () => {
     // Initialize blockchain and deployer wallets
@@ -29,7 +34,8 @@ beforeEach(async () => {
     deployer = await blockchain.treasury('deployer');
     bot = await blockchain.treasury('bot');
     advertiser = await blockchain.treasury('advertiser');
-    affiliate = await blockchain.treasury('affiliate');
+    affiliate1 = await blockchain.treasury('affiliate1');
+    unauthorizedUser = await blockchain.treasury('unauthorizedUser');
 
     // Deploy AffiliateMarketplace contract
     affiliateMarketplaceContract = blockchain.openContract(await AffiliateMarketplace.fromInit(bot.address));
@@ -45,73 +51,92 @@ beforeEach(async () => {
         deploy: true,
         success: true,
     });
+	
+	// set some TON in the affiliate marketplace contract
+	const adminReplenishMessageResult = await affiliateMarketplaceContract.send(
+		deployer.getSender(),
+		{ value: toNano('5') },
+		{
+		   $$type: "AdminReplenish"
+		}
+	);
 
+	expect(adminReplenishMessageResult.transactions).toHaveTransaction({
+		from: deployer.address,
+		to: affiliateMarketplaceContract.address,
+		success: true,
+	});
+
+	// 1. Bot deploys empty campaign
+	const createCampaignResult = await affiliateMarketplaceContract.send(
+		bot.getSender(),
+		{ value: toNano('0.05') },
+		{ $$type: 'CreateCampaign' }
+	);
+
+	expect(createCampaignResult.transactions).toHaveTransaction({
+		from: bot.address,
+		to: affiliateMarketplaceContract.address,
+		success: true,
+	});
+
+	for (const external of createCampaignResult.externals) {
+		if (external.body) {
+			decodedCampaign = loadCampaignCreatedEvent(external.body);
+		}
+	}
+
+	expect(decodedCampaign).not.toBeNull();
+	expect(decodedCampaign!.campaignId).toBe(0);
+	let campaignContractAddress: Address = Address.parse(decodedCampaign!.campaignContractAddressStr);
+
+	expect(createCampaignResult.transactions).toHaveTransaction({
+		from: affiliateMarketplaceContract.address,
+		to: campaignContractAddress,
+		deploy: true,
+		success: true,
+	});
+
+	campaignContract = blockchain.openContract(await Campaign.fromAddress(campaignContractAddress));
+
+    const regularUsersMapCostPerActionMap = Dictionary.empty<bigint, bigint>();
+    regularUsersMapCostPerActionMap.set(BigInt(BOT_OP_CODE_USER_CLICK), toNano('0.1'));
+    regularUsersMapCostPerActionMap.set(BigInt(ADVERTISER_OP_CODE_CUSTOMIZED_EVENT), toNano('1'));
+
+    const setCampaignDetailsResult = await campaignContract.send(
+        advertiser.getSender(),
+        { value: toNano('10') },
+        {
+            $$type: 'AdvertiserSetCampaignDetails',
+            campaignDetails: {
+                $$type: 'CampaignDetails',
+                regularUsersCostPerAction: regularUsersMapCostPerActionMap,
+                premiumUsersCostPerAction: regularUsersMapCostPerActionMap,
+                allowedAffiliates: Dictionary.empty<Address, boolean>(),
+                isOpenCampaign: false,
+				campaignValidForNumDays: null
+            }
+        }
+    );
+
+    expect(setCampaignDetailsResult.transactions).toHaveTransaction({
+        from: advertiser.address,
+        to: campaignContract.address,
+        success: true
+    });
 });
 
 describe('Administrative Actions - positive test', () => {
 
     it('should modify fee percentage of existing campaign successfully', async () => {
-        
-		 // 1. Deploy a new Campaign contract through the AffiliateMarketplace
-		const createCampaignResult = await affiliateMarketplaceContract.send(
-			advertiser.getSender(),
-			{ value: toNano('0.13') }, // Sufficient funds to deploy the campaign
-			{ $$type: 'CreateCampaign' }
-		);
-
-		expect(createCampaignResult.transactions).toHaveTransaction({
-			from: advertiser.address,
-			to: affiliateMarketplaceContract.address,
-			success: true,
-		});
-
-		// Retrieve the deployed Campaign contract address from the emitted event
-		let decodedCampaign: any | null = null;
-		for (const external of createCampaignResult.externals) {
-			if (external.body) {
-				decodedCampaign = loadCampaignCreatedEvent(external.body); // Assuming loadCampaignCreatedEvent parses the event correctly
-			}
-		}
-		expect(decodedCampaign).not.toBeNull();
-
-		const campaignContractAddress: Address = Address.parse(decodedCampaign!.campaignContractAddressStr);
-		let campaignContract = blockchain.openContract(await Campaign.fromAddress(campaignContractAddress));
-
-		const regularUsersMapCostPerActionMap = Dictionary.empty<bigint, bigint>();
-		regularUsersMapCostPerActionMap.set(BigInt(BOT_OP_CODE_USER_CLICK), toNano('0.1'));
-		regularUsersMapCostPerActionMap.set(BigInt(ADVERTISER_OP_CODE_CUSTOMIZED_EVENT), toNano('1'));
-
-		const setCampaignDetailsResult = await campaignContract.send(
-			advertiser.getSender(),
-			{ value: toNano('0.05') },
-			{
-				$$type: 'AdvertiserSetCampaignDetails',
-				campaignDetails: {
-					$$type: 'CampaignDetails',
-					regularUsersCostPerAction: regularUsersMapCostPerActionMap,
-					premiumUsersCostPerAction: Dictionary.empty<bigint, bigint>(),
-					allowedAffiliates: Dictionary.empty<Address, boolean>(),
-					isOpenCampaign: false,
-					daysWithoutUserActionForWithdrawFunds: 21n,
-					campaignBalanceNotifyAdvertiserThreshold: toNano("5")
-				}
-			}
-		);
-
-		expect(setCampaignDetailsResult.transactions).toHaveTransaction({
-			from: advertiser.address,
-			to: campaignContract.address,
-			success: true
-		});
-		
-		// 2. modify campaign's percentage fee from 2% (200) to 1.5% (150)
+	        
+		// 1. modify campaign's percentage fee from 2% (200) to 1.5% (150)
 		const adminModifyCampaignFeeResult = await affiliateMarketplaceContract.send(
             deployer.getSender(),
             { value: toNano('0.05') },
             {
                 $$type: 'AdminModifyCampaignFeePercentage',
                 campaignId: BigInt(decodedCampaign!.campaignId), 
-                advertiser: advertiser.address,
                 feePercentage: BigInt(150), // 1.5%
             }
         );
@@ -127,67 +152,14 @@ describe('Administrative Actions - positive test', () => {
     });
 	
 	it('should stop/resume campaign successfully', async () => {
-        
-		 // 1. Deploy a new Campaign contract through the AffiliateMarketplace
-		const createCampaignResult = await affiliateMarketplaceContract.send(
-			advertiser.getSender(),
-			{ value: toNano('0.13') }, // Sufficient funds to deploy the campaign
-			{ $$type: 'CreateCampaign' }
-		);
-
-		expect(createCampaignResult.transactions).toHaveTransaction({
-			from: advertiser.address,
-			to: affiliateMarketplaceContract.address,
-			success: true,
-		});
-
-		// Retrieve the deployed Campaign contract address from the emitted event
-		let decodedCampaign: any | null = null;
-		for (const external of createCampaignResult.externals) {
-			if (external.body) {
-				decodedCampaign = loadCampaignCreatedEvent(external.body); // Assuming loadCampaignCreatedEvent parses the event correctly
-			}
-		}
-		expect(decodedCampaign).not.toBeNull();
-
-		const campaignContractAddress: Address = Address.parse(decodedCampaign!.campaignContractAddressStr);
-		let campaignContract = blockchain.openContract(await Campaign.fromAddress(campaignContractAddress));
-
-		const regularUsersMapCostPerActionMap = Dictionary.empty<bigint, bigint>();
-		regularUsersMapCostPerActionMap.set(BigInt(BOT_OP_CODE_USER_CLICK), toNano('0.1'));
-		regularUsersMapCostPerActionMap.set(BigInt(ADVERTISER_OP_CODE_CUSTOMIZED_EVENT), toNano('1'));
-
-		const setCampaignDetailsResult = await campaignContract.send(
-			advertiser.getSender(),
-			{ value: toNano('0.05') },
-			{
-				$$type: 'AdvertiserSetCampaignDetails',
-				campaignDetails: {
-					$$type: 'CampaignDetails',
-					regularUsersCostPerAction: regularUsersMapCostPerActionMap,
-					premiumUsersCostPerAction: Dictionary.empty<bigint, bigint>(),
-					allowedAffiliates: Dictionary.empty<Address, boolean>(),
-					isOpenCampaign: false,
-					daysWithoutUserActionForWithdrawFunds: 21n,
-					campaignBalanceNotifyAdvertiserThreshold: toNano("5")
-				}
-			}
-		);
-
-		expect(setCampaignDetailsResult.transactions).toHaveTransaction({
-			from: advertiser.address,
-			to: campaignContract.address,
-			success: true
-		});
-		
-		// 2. stop campaign
+        	
+		//  stop campaign
 		const adminStopCampaignResult = await affiliateMarketplaceContract.send(
             deployer.getSender(),
             { value: toNano('0.05') },
             {
                 $$type: 'AdminStopCampaign',
-                campaignId: BigInt(decodedCampaign!.campaignId), 
-                advertiser: advertiser.address
+                campaignId: BigInt(decodedCampaign!.campaignId)
             }
         );
 
@@ -206,8 +178,7 @@ describe('Administrative Actions - positive test', () => {
             { value: toNano('0.05') },
             {
                 $$type: 'AdminResumeCampaign',
-                campaignId: BigInt(decodedCampaign!.campaignId), 
-                advertiser: advertiser.address
+                campaignId: BigInt(decodedCampaign!.campaignId)
             }
         );
 
