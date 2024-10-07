@@ -380,7 +380,7 @@ contract Campaign with Resumable  {
                 campaignId: self.campaignId,
                 advertiser: self.advertiser
             }.toCell(),
-            value: DEPLOY_NEW_CAMPAIGN_COST,
+            value: DEPLOY_NEW_CAMPAIGN_COST + GAS_FEE,
             mode: SendPayGasSeparately
         });
     }
@@ -800,7 +800,7 @@ contract AffiliateMarketplace with Deployable, Resumable  {
 
         send(SendParameters{
             to: campaignContractAddress,
-            body: ParentToChildSeizeCampaign{}, 
+            body: ParentToChildSeizeCampaign{}.toCell(), 
             value: GAS_FEE,
             mode: SendPayGasSeparately
         });
