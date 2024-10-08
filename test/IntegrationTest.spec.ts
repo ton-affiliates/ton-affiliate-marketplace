@@ -5,95 +5,16 @@ import {
     printTransactionFees 
 } from '@ton/sandbox';
 import { toNano, fromNano, Address, Dictionary, Cell } from '@ton/core';
-import { AffiliateMarketplace } from '../dist/tact_AffiliateMarketplace';
-import { Campaign } from '../dist/tact_Campaign';
+import { AffiliateMarketplace } from '../build/AffiliateMarketplace/tact_AffiliateMarketplace';
+import { Campaign } from '../build/Campaign/tact_Campaign';
 import '@ton/test-utils';
-// import {
-//      loadAffiliateCreatedEvent,
-//      loadCampaignCreatedEvent,
-//      loadAffiliateWithdrawEarningsEvent,
-//      loadCampaignUnderFiveTonEvent,
-//      loadInsufficientCampaignFundsEvent,
-// 	 loadAdvertiserWithdrawFundsEvent} from './events';
-
-// Event types from the ABI
-const EVENT_TYPE_CAMPAIGN_CREATED = 1630699180;
-const EVENT_TYPE_AFFILIATE_CREATED = 3273123323;
-const EVENT_TYPE_AFFILIATE_WITHDRAW_EARNINGS = 3696909830;
-const EVENT_TYPE_ADVERTISER_WITHDRAW_FUNDS = 2345188106;
-const EVENT_TYPE_CAMPAIGN_BALANCE_UNDER_FIVE_TON = 21630181;
-const EVENT_TYPE_INSUFFICIENT_CAMPAIGN_FUNDS = 1056081826;
-const EVENT_TYPE_CAMPAIGN_SEIZED = 799343753;
-
-
-function loadEvent(cell: Cell, expectedEventType: number) {
-    const slice = cell.beginParse();
-    const eventType = slice.loadUint(32);
-    if (eventType !== expectedEventType) {
-        throw new Error("Unexpected event type. Expected - " + expectedEventType + ", actual: " + eventType);
-    }
-    return slice;
-}
-
-function loadCampaignSeized(cell: Cell) {
-    const slice = loadEvent(cell, EVENT_TYPE_CAMPAIGN_SEIZED);
-    const campaignId = slice.loadUint(32);
-    const amountSeized = slice.loadCoins();
-    return { $$type: 'CampaignSeizedEvent', campaignId, amountSeized };
-}
-
-function loadCampaignUnderFiveTonEvent(cell: Cell) {
-    const slice = loadEvent(cell, EVENT_TYPE_CAMPAIGN_BALANCE_UNDER_FIVE_TON);
-    const campaignId = slice.loadUint(32);
-    const advertiserAddressStr = slice.loadAddress().toString();
-    const campaginBalance = slice.loadCoins();
-    return { $$type: 'CampaignBalnceUnderThresholdEvent', campaignId, advertiserAddressStr, campaginBalance };
-}
-
-function loadInsufficientCampaignFundsEvent(cell: Cell) {
-    const slice = loadEvent(cell, EVENT_TYPE_INSUFFICIENT_CAMPAIGN_FUNDS);
-    const campaignId = slice.loadUint(32);
-    const advertiserAddressStr = slice.loadAddress().toString();
-    const campaginBalance = slice.loadCoins();
-    const contractBalance = slice.loadCoins();
-    const maxCpaValue = slice.loadCoins();
-    return { $$type: 'InsufficientCampaignFundsEvent', campaignId, advertiserAddressStr, campaginBalance, contractBalance, maxCpaValue };
-}
-
-
-function loadCampaignCreatedEvent(cell: Cell) {
-    const slice = loadEvent(cell, EVENT_TYPE_CAMPAIGN_CREATED);
-    const campaignId = slice.loadUint(32);
-    const campaignContractAddressStr = slice.loadAddress().toString();
-    return { $$type: 'CampaignCreatedEvent', campaignId, campaignContractAddressStr };
-}
-
-function loadAffiliateCreatedEvent(cell: Cell) {
-    const slice = loadEvent(cell, EVENT_TYPE_AFFILIATE_CREATED);
-    const campaignId = slice.loadUint(32);
-    const affiliateId = slice.loadUint(32);
-    const advertiserAddressStr = slice.loadAddress().toString();
-    const affiliateAddressStr = slice.loadAddress().toString();
-    return { $$type: 'AffiliateCreatedEvent', campaignId, affiliateId, advertiserAddressStr, affiliateAddressStr };
-}
-
-function  loadAffiliateWithdrawEarningsEvent(cell: Cell) {
-    const slice = loadEvent(cell, EVENT_TYPE_AFFILIATE_WITHDRAW_EARNINGS);
-    const campaignId = slice.loadUint(32);
-    const advertiserAddressStr = slice.loadAddress().toString();
-    const affiliateId = slice.loadUint(32);
-    const earnings = slice.loadCoins();
-	const fee = slice.loadCoins();
-    return { $$type: 'AffiliateWithdrawEarningsEvent', campaignId, affiliateId, advertiserAddressStr, earnings, fee };
-}
-
-function loadAdvertiserWithdrawFundsEvent(cell: Cell) {
-    const slice = loadEvent(cell, EVENT_TYPE_ADVERTISER_WITHDRAW_FUNDS);
-    const campaignId = slice.loadUint(32);
-    const advertiserAddressStr = slice.loadAddress().toString();
-    const campaginBalance = slice.loadCoins();
-    return { $$type: 'CampaignBalnceUnderThresholdEvent', campaignId, advertiserAddressStr, campaginBalance };
-}
+import {
+      loadAffiliateCreatedEvent,
+      loadCampaignCreatedEvent,
+      loadAffiliateWithdrawEarningsEvent,
+      loadCampaignUnderFiveTonEvent,
+      loadInsufficientCampaignFundsEvent,
+  	  loadAdvertiserWithdrawFundsEvent} from './events';
 
 describe('AffiliateMarketplace Integration Test', () => {
     let blockchain: Blockchain;
@@ -423,21 +344,17 @@ describe('AffiliateMarketplace Integration Test', () => {
         campaignData = await campaignContract.getCampaignData();
         affiliateData1 = await campaignContract.getAffiliateData(decodedAffiliate1!.affiliateId);
 
-        // TODO guy - shouldn't this be th same valuw? why less?
-		// contract balance - 0.04 GAS FEE goes to parent + gas on the message
+		// contract balance - should only remove gas fees (for this function it is around ~0.03 TON)
         expect(campaignDataBeforeUserAction.contractBalance - campaignData.contractBalance)
             .toBeLessThan(toNano("0.04"));
 
-        // campaignBalance = 1.01 less than it was before this user action
+        // campaignBalance ~ 1 less than it was before this user action
 		// 1 for the user Action
-		// 0.02 GAS fee for parent that was taken from the contract itself
-		// Remember that the campaign balance is a derivative of the contractBalance (campaginBalance = contractBalance - totalAffiliatesEarnings - buffer)
-		
         expect(campaignDataBeforeUserAction.campaignBalance - campaignData.campaignBalance)
             .toBeGreaterThan(toNano("1"));
 
         expect(campaignDataBeforeUserAction.campaignBalance - campaignData.campaignBalance)
-            .toBeLessThan(toNano("1.03"));
+            .toBeLessThan(toNano("1.02"));
 
         // test Affiliate's accruedBalance = 1
         expect(affiliateData1!.accruedEarnings).toBe(toNano("1"));
@@ -499,12 +416,12 @@ describe('AffiliateMarketplace Integration Test', () => {
         expect(decodedCampaignUnderFiveTon).not.toBeNull();
 		expect(decodedCampaignUnderFiveTon.campaignId).toBe(0);
 		expect(decodedCampaignUnderFiveTon.advertiserAddressStr).toBe(advertiser.address.toString());
-		expect(decodedCampaignUnderFiveTon.campaginBalance).toBeLessThan(toNano("5"));
+		expect(decodedCampaignUnderFiveTon.campaignBalance).toBeLessThan(toNano("5"));
 
         expect(decodedInsufficientBalanceInCampaign).not.toBeNull();
         expect(decodedInsufficientBalanceInCampaign.campaignId).toBe(0);
 		expect(decodedInsufficientBalanceInCampaign.advertiserAddressStr).toBe(advertiser.address.toString());
-		expect(decodedInsufficientBalanceInCampaign.campaginBalance).toBeLessThan(toNano("15"));  // 15 is the minimum campaign balance to suffice this campaign
+		expect(decodedInsufficientBalanceInCampaign.campaignBalance).toBeLessThan(decodedInsufficientBalanceInCampaign.maxCpaValue);  
 		
         campaignData = await campaignContract.getCampaignData();
 		
@@ -589,16 +506,16 @@ describe('AffiliateMarketplace Integration Test', () => {
 
         //Advertiser - RemoveCampaignAndWithdrawFunds
         let advertiserBalanceBeforeRemoveCampaign = await advertiser.getBalance();
-		let campaginDataBeforeRemoveCampaign = await campaignContract.getCampaignData();
+		let campaignDataBeforeRemoveCampaign = await campaignContract.getCampaignData();
 		
-		// campaign balance ~ 2.95 TON
-		expect(campaginDataBeforeRemoveCampaign.campaignBalance).toBeLessThan(toNano("3"));
-		expect(campaginDataBeforeRemoveCampaign.campaignBalance).toBeGreaterThan(toNano("2.9"));
+		// campaign balance ~ 3 TON
+		expect(campaignDataBeforeRemoveCampaign.campaignBalance).toBeLessThan(toNano("3.1"));
+		expect(campaignDataBeforeRemoveCampaign.campaignBalance).toBeGreaterThan(toNano("3"));
 		        
 		const removeCampaignAndWithdrawFundsResult = await campaignContract.send(
             advertiser.getSender(),
             { value: toNano('0.05') },
-            { $$type: 'RemoveCampaignAndWithdrawFunds' }
+            { $$type: 'AdvertiserRemoveCampaignAndWithdrawFunds' }
         );
 
         expect(removeCampaignAndWithdrawFundsResult.transactions).toHaveTransaction({
@@ -622,6 +539,7 @@ describe('AffiliateMarketplace Integration Test', () => {
 
         expect(decodedAdvertiserWithdrawFunds).not.toBeNull();
         expect(decodedAdvertiserWithdrawFunds!.campaignId).toBe(0);
+        console.log(decodedAdvertiserWithdrawFunds); 
 
 		
 		campaignData = await campaignContract.getCampaignData();
@@ -629,12 +547,11 @@ describe('AffiliateMarketplace Integration Test', () => {
 				
 		let advertiserBalance = await advertiser.getBalance();
 		
-		expect(affiliateBalance - affiliateBalanceBeforeWithdraw).toBeLessThan(toNano("0.98"));		
 		expect(advertiserBalance - advertiserBalanceBeforeRemoveCampaign)
-            .toBeGreaterThan(toNano("2.9"));
+            .toBeGreaterThan(toNano("3"));
 			
         expect(advertiserBalance - advertiserBalanceBeforeRemoveCampaign)
-            .toBeLessThan(toNano("3"));
+            .toBeLessThan(toNano("3.02"));
 
         //------------------------------------------------------------------------------------------------------------------------
 
