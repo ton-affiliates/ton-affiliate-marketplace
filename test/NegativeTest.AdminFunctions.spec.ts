@@ -52,18 +52,20 @@ const ADVERTISER_OP_CODE_CUSTOMIZED_EVENT = 2001;
 // 136: Invalid address
 // 137: Masterchain support is not enabled for this contract
 // 2509: Must have at least one wallet to withdraw to
-// 2839: Only the verifier contract can invoke this function
 // 4138: Only the advertiser can add a new affiliate
+// 11661: Only advertiser can verify these events
 // 12969: Must be in state: STATE_CAMPAIGN_DETAILS_SET_BY_ADVERTISER
 // 14486: Cannot find cpa for the given op code
 // 32363: No earnings to withdraw
 // 33594: Cannot manually add affiliates to an open campaign
+// 34905: Bot can verify only op codes under 2000
 // 36363: Only the advertiser can remove the campaign and withdraw all funds
 // 40058: Campaign has no funds
 // 40368: Contract stopped
 // 41412: Only affiliate can withdraw earnings
 // 43100: Reached max number of affiliates for this campagn
 // 44318: Only bot can Deploy new Campaign
+// 47193: Insufficient funds to repay parent for deployment
 // 48874: Insufficient contract funds to make payment
 // 49469: Access denied
 // 49782: affiliate not on allowed list
@@ -75,6 +77,7 @@ const ADVERTISER_OP_CODE_CUSTOMIZED_EVENT = 2001;
 // 54206: Insufficient campaign balance to make payment
 // 57313: Must be in state: STATE_CAMPAIGN_CREATED
 // 58053: OP codes for regular and premium users must match
+// 60644: Advertiser can verify only op codes over 2000
 // 62634: Only bot can invoke User Actions
 
 
@@ -121,7 +124,7 @@ beforeEach(async () => {
 	const createCampaignResult = await affiliateMarketplaceContract.send(
 		bot.getSender(),
 		{ value: toNano('0.05') },
-		{ $$type: 'CreateCampaign' }
+		{ $$type: 'BotDeployNewCampaign' }
 	);
 
 	expect(createCampaignResult.transactions).toHaveTransaction({
