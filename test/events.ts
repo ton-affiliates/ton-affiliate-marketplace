@@ -8,10 +8,11 @@ const EVENT_TYPE_AFFILIATE_CREATED = 3273123323;
 const EVENT_TYPE_AFFILIATE_WITHDRAW_EARNINGS = 3696909830;
 const EVENT_TYPE_ADVERTISER_WITHDRAW_FUNDS = 2345188106;
 const EVENT_TYPE_CAMPAIGN_BALANCE_UNDER_FIVE_TON = 21630181;
-const EVENT_TYPE_INSUFFICIENT_CAMPAIGN_FUNDS = 4261604776;
+const EVENT_TYPE_INSUFFICIENT_CAMPAIGN_FUNDS = 1056081826;
+const EVENT_TYPE_CAMPAIGN_SEIZED = 799343753;
 
 
-function loadEvent(cell: Cell, expectedEventType: number) {
+export function loadEvent(cell: Cell, expectedEventType: number) {
     const slice = cell.beginParse();
     const eventType = slice.loadUint(32);
     if (eventType !== expectedEventType) {
@@ -20,21 +21,29 @@ function loadEvent(cell: Cell, expectedEventType: number) {
     return slice;
 }
 
+export function loadCampaignSeized(cell: Cell) {
+    const slice = loadEvent(cell, EVENT_TYPE_CAMPAIGN_SEIZED);
+    const campaignId = slice.loadUint(32);
+    const amountSeized = slice.loadCoins();
+    return { $$type: 'CampaignSeizedEvent', campaignId, amountSeized };
+}
+
 export function loadCampaignUnderFiveTonEvent(cell: Cell) {
     const slice = loadEvent(cell, EVENT_TYPE_CAMPAIGN_BALANCE_UNDER_FIVE_TON);
     const campaignId = slice.loadUint(32);
     const advertiserAddressStr = slice.loadAddress().toString();
-    const campaginBalance = slice.loadCoins();
-    return { $$type: 'CampaignBalnceUnderThresholdEvent', campaignId, advertiserAddressStr, campaginBalance };
+    const campaignBalance = slice.loadCoins();
+    return { $$type: 'CampaignBalnceUnderThresholdEvent', campaignId, advertiserAddressStr, campaignBalance };
 }
 
 export function loadInsufficientCampaignFundsEvent(cell: Cell) {
     const slice = loadEvent(cell, EVENT_TYPE_INSUFFICIENT_CAMPAIGN_FUNDS);
     const campaignId = slice.loadUint(32);
     const advertiserAddressStr = slice.loadAddress().toString();
-    const campaginBalance = slice.loadCoins();
+    const campaignBalance = slice.loadCoins();
     const contractBalance = slice.loadCoins();
-    return { $$type: 'InsufficientCampaignFundsEvent', campaignId, advertiserAddressStr, campaginBalance, contractBalance };
+    const maxCpaValue = slice.loadCoins();
+    return { $$type: 'InsufficientCampaignFundsEvent', campaignId, advertiserAddressStr, campaignBalance, contractBalance, maxCpaValue };
 }
 
 
@@ -68,6 +77,6 @@ export function loadAdvertiserWithdrawFundsEvent(cell: Cell) {
     const slice = loadEvent(cell, EVENT_TYPE_ADVERTISER_WITHDRAW_FUNDS);
     const campaignId = slice.loadUint(32);
     const advertiserAddressStr = slice.loadAddress().toString();
-    const campaginBalance = slice.loadCoins();
-    return { $$type: 'CampaignBalnceUnderThresholdEvent', campaignId, advertiserAddressStr, campaginBalance };
+    const campaignBalance = slice.loadCoins();
+    return { $$type: 'CampaignBalnceUnderThresholdEvent', campaignId, advertiserAddressStr, campaignBalance };
 }

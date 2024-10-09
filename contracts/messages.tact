@@ -1,38 +1,144 @@
-// parent to child messages
-message InternalAdminUpdateFeePercentage{feePercentage: Int as uint32}
+// * ------ AffiliateMarketplace API ------ *
 
-
-// Campaign API
-message CreateNewAffiliate{}
-message PayAffiliate{
-    affiliateId: Int as uint32;
+// Admin functions 
+message AdminWithdraw {
     amount: Int as coins;
+    wallets: map<Address, Bool>;
 }
-message AffiliateUserAction{
+
+message AdminReplenish {}
+
+message AdminModifyCampaignFeePercentage {
+    campaignId: Int as uint32;
+    feePercentage: Int as uint32;
+}
+
+message AdminStopCampaign {
+	campaignId: Int as uint32;
+}
+
+message AdminResumeCampaign {
+	campaignId: Int as uint32;
+}
+
+message AdminSeizeCampaignBalance {
+    campaignId: Int as uint32;
+}
+
+// Events - always emitted from parent contract
+message AdvertiserWithdrawFundsEvent{
+    campaignId: Int as uint32;
+    advertiser: Address;
+    campaignBalance: Int as coins;
+}
+
+message CampaignCreatedEvent {
+    campaignId: Int as uint32;
+    campaignContractAddress: Address;
+}
+
+message CampaignSeizedEvent{
+    campaignId: Int as uint32;
+    amountSeized: Int as coins;
+}
+
+message CampaignBalanceUnderFiveTonEvent {
+    campaignId: Int as uint32;
+    advertiser: Address;
+    campaignBalance: Int as coins;
+}
+
+message AffiliateCreatedEvent {
+    campaignId: Int as uint32;
+    affiliateId: Int as uint32;
+    advertiser: Address;
+    affiliate: Address;
+}
+
+message InsufficientCampaignFundsEvent {
+    campaignId: Int as uint32;
+    advertiser: Address;
+    campaignBalance: Int as coins;
+    contractBalance: Int as coins;
+    maxCpaValue: Int as coins;
+}
+
+message AffiliateWithdrawEarningsEvent {
+    campaignId: Int as uint32;
+    advertiser: Address;
+    affiliateId: Int as uint32;
+    earnings: Int as coins;
+	fee: Int as coins;
+}
+
+// Bot functions
+message BotDeployNewCampaign {}
+
+message BotUserAction {
+    campaignId: Int as uint32;
     affiliateId: Int as uint32;
     userActionOpCode: Int as uint32;
     isPremiumUser: Bool;
 }
 
+// parent to child INTERNAL messages
+message ParentToChildDeployCampaign {
+    campaignId: Int as uint32;
+}
+
+message ParentToChildUpdateFeePercentage{
+    feePercentage: Int as uint32
+}
+
+message ParentToChildBotUserAction{
+    affiliateId: Int as uint32;
+    userActionOpCode: Int as uint32;
+    isPremiumUser: Bool;
+}
+
+message ParentToChildSeizeCampaign{}
+
+// * ------ END AffiliateMarketplace API ------ *
+
+
+// * ------ Campaign API ------ *
+
+message PayAffiliate{
+    affiliateId: Int as uint32;
+    amount: Int as coins;
+}
+
+// Affiliate API
+message AffiliateCreateNewAffiliate{}
 message AffiliateWithdrawEarnings {
     affiliateId: Int as uint32;
 }
-message RemoveCampaignAndWithdrawFunds{}
+
+// Advertiser API
+message AdvertiserRemoveCampaignAndWithdrawFunds{}
 
 message AdvertiserSetCampaignDetails {
     campaignDetails: CampaignDetails;
 }
 
-message AddNewAffiliateToAllowedList{affiliate: Address}
+message AdvertiserUserAction {
+    affiliateId: Int as uint32;
+    userActionOpCode: Int as uint32;
+    isPremiumUser: Bool;
+} 
+
+message AdvertiserAddNewAffiliateToAllowedList{affiliate: Address}
 
 message AdvertiserReplenish {}
 
 
-// Child to Parent - Internal Messages
-message ChildToParentCampaignContractDeployed {
+// Child to Parent - INTERNAL Messages
+message ChildToParentCampaignDeployedSuccessfully {
     campaignId: Int as uint32; 
-    advertiser: Address;
-    campaignContractAddress: Address;
+}
+
+message ChildToParentSeizeCampaign {
+    campaignId: Int as uint32;
 }
 
 message ChildToParentAffiliateCreated {
@@ -67,7 +173,7 @@ message ChildToParentCampaignBalanceUnderFiveTon {
     campaignBalance: Int as coins;
 }
 
-message ChildToParentAffiliateUserActionFee {
+message ChildToParentBotUserActionFee {
     campaignId: Int as uint32;
 }
 
@@ -76,77 +182,7 @@ message ChildToParentInsufficientCampaignFunds {
     advertiser: Address;
     campaignBalance: Int as coins;
     contractBalance: Int as coins;
+    maxCpaValue: Int as coins;
 }
 
-
-// Events - always emitted from parent contract
-message AdvertiserWithdrawFundsEvent{
-    campaignId: Int as uint32;
-    advertiser: Address;
-    campaignBalance: Int as coins;
-}
-
-message CampaignCreatedEvent {
-    campaignId: Int as uint32;
-    campaignContractAddress: Address;
-}
-
-message CampaignBalanceUnderFiveTonEvent {
-    campaignId: Int as uint32;
-    advertiser: Address;
-    campaignBalance: Int as coins;
-}
-
-message AffiliateCreatedEvent {
-    campaignId: Int as uint32;
-    affiliateId: Int as uint32;
-    advertiser: Address;
-    affiliate: Address;
-}
-
-message InsufficientCampaignFundsEvent {
-    campaignId: Int as uint32;
-    advertiser: Address;
-    campaignBalance: Int as coins;
-    contractBalance: Int as coins;
-}
-
-message AffiliateWithdrawEarningsEvent {
-    campaignId: Int as uint32;
-    advertiser: Address;
-    affiliateId: Int as uint32;
-    earnings: Int as coins;
-	fee: Int as coins;
-}
-
-
-// Admin functions for parent contract
-message AdminWithdraw {
-    amount: Int as coins;
-    wallets: map<Address, Bool>;
-}
-
-message AdminReplenish {}
-
-message AdminModifyCampaignFeePercentage {
-    campaignId: Int as uint32;
-    feePercentage: Int as uint32;
-}
-
-message AdminStopCampaign {
-	campaignId: Int as uint32;
-}
-
-message AdminResumeCampaign {
-	campaignId: Int as uint32;
-}
-
-// Parent contract API
-message CreateCampaign {}
-
-message UserAction {
-    campaignId: Int as uint32;
-    affiliateId: Int as uint32;
-    userActionOpCode: Int as uint32;
-    isPremiumUser: Bool;
-}
+// * ------ END Campaign API ------ *

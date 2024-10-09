@@ -71,7 +71,7 @@ beforeEach(async () => {
 	const createCampaignResult = await affiliateMarketplaceContract.send(
 		bot.getSender(),
 		{ value: toNano('0.05') },
-		{ $$type: 'CreateCampaign' }
+		{ $$type: 'BotDeployNewCampaign' }
 	);
 
 	expect(createCampaignResult.transactions).toHaveTransaction({
@@ -148,7 +148,7 @@ describe('Verify campaign expire flag is set correctly after 10 days ', () => {
             advertiser.getSender(),
             { value: toNano('0.05') },
             {
-                $$type: 'AffiliateUserAction',
+                $$type: 'AdvertiserUserAction',
                 affiliateId: BigInt(0),
                 userActionOpCode: BigInt(ADVERTISER_OP_CODE_CUSTOMIZED_EVENT),
                 isPremiumUser: true,

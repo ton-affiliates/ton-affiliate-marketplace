@@ -6,7 +6,7 @@ import {
     SandboxContract,
     TreasuryContract
 } from '@ton/sandbox';
-import { toNano, Address, Dictionary } from '@ton/core';
+import { toNano, fromNano, Address, Dictionary } from '@ton/core';
 import { AffiliateMarketplace } from '../build/AffiliateMarketplace/tact_AffiliateMarketplace';
 import { Campaign } from '../build/Campaign/tact_Campaign';
 import '@ton/test-utils';
@@ -71,7 +71,7 @@ beforeEach(async () => {
 	const createCampaignResult = await affiliateMarketplaceContract.send(
 		bot.getSender(),
 		{ value: toNano('0.05') },
-		{ $$type: 'CreateCampaign' }
+		{ $$type: 'BotDeployNewCampaign' }
 	);
 
 	expect(createCampaignResult.transactions).toHaveTransaction({
@@ -128,6 +128,34 @@ beforeEach(async () => {
 
 describe('Administrative Actions - positive test', () => {
 
+	it('should seize campaign balance successfully', async () => {
+	        
+		let affiliateMarketplaceBalanceBeforeSeize = await affiliateMarketplaceContract.getBalance();
+		const adminSeizeCampaignBalanceResult = await affiliateMarketplaceContract.send(
+            deployer.getSender(),
+            { value: toNano('0.05') },
+            {
+                $$type: 'AdminSeizeCampaignBalance',
+                campaignId: BigInt(0) 
+            }
+        );
+
+        expect(adminSeizeCampaignBalanceResult.transactions).toHaveTransaction({
+            from: deployer.address,
+            to: affiliateMarketplaceContract.address,
+            success: true
+        });
+		
+		let campaignData = await campaignContract.getCampaignData();
+		expect(campaignData.contractBalance).toBe(BigInt(0));
+		expect(campaignData.campaignBalance).toBe(BigInt(0));
+		
+		let affiliateMarketplace = await affiliateMarketplaceContract.getBalance();
+		expect(affiliateMarketplace - affiliateMarketplaceBalanceBeforeSeize).toBeLessThan(toNano("10"));
+		expect(affiliateMarketplace - affiliateMarketplaceBalanceBeforeSeize).toBeGreaterThan(toNano("9.9"));
+    });
+	
+
     it('should modify fee percentage of existing campaign successfully', async () => {
 	        
 		// 1. modify campaign's percentage fee from 2% (200) to 1.5% (150)
@@ -150,6 +178,7 @@ describe('Administrative Actions - positive test', () => {
 		let campaignData = await campaignContract.getCampaignData();
 		expect(campaignData.feePercentage).toBe(BigInt(150));
     });
+	
 	
 	it('should stop/resume campaign successfully', async () => {
         	
