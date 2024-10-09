@@ -539,8 +539,6 @@ describe('AffiliateMarketplace Integration Test', () => {
 
         expect(decodedAdvertiserWithdrawFunds).not.toBeNull();
         expect(decodedAdvertiserWithdrawFunds!.campaignId).toBe(0);
-        console.log(decodedAdvertiserWithdrawFunds); 
-
 		
 		campaignData = await campaignContract.getCampaignData();
 		expect(campaignData.campaignBalance).toBe(toNano("0"));

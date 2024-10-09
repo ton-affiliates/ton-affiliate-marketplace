@@ -182,7 +182,24 @@ beforeEach(async () => {
 
 describe('Administrative Actions - Negative Tests for AffiliateMarketplace Contract Admin functions', () => {
 
-    // Test: Unauthorized Administrative Fee Updates
+	it('should fail when a non-owner tries to seize campaign balance', async () => {
+        const adminSeizeCampaignBalanceResult = await affiliateMarketplaceContract.send(
+            unauthorizedUser.getSender(),
+            { value: toNano('0.05') },
+            {
+                $$type: 'AdminSeizeCampaignBalance',
+                campaignId: BigInt(0) 
+            }
+        );
+
+        expect(adminSeizeCampaignBalanceResult.transactions).toHaveTransaction({
+            from: unauthorizedUser.address,
+            to: affiliateMarketplaceContract.address,
+            success: false, //132: Access denied
+			exitCode: 132
+        });
+    });
+
     it('should fail when a non-owner tries to update the campaign fee percentage', async () => {
         const adminModifyCampaignFeeResult = await affiliateMarketplaceContract.send(
             unauthorizedUser.getSender(),
