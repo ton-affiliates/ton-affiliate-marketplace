@@ -14,7 +14,8 @@ import {
       loadAffiliateWithdrawEarningsEvent,
       loadCampaignUnderFiveTonEvent,
       loadInsufficientCampaignFundsEvent,
-  	  loadAdvertiserWithdrawFundsEvent} from './events';
+  	  loadAdvertiserWithdrawFundsEvent,
+	  loadAdvertiserSignedCampaignDetailsEvent} from './events';
 
 describe('AffiliateMarketplace Integration Test', () => {
     let blockchain: Blockchain;
@@ -168,6 +169,18 @@ describe('AffiliateMarketplace Integration Test', () => {
             to: campaignContract.address,
             success: true,
         });
+		
+		let decodedAdvertiserSetCampaignDetailsEvent: any | null = null;
+        for (const external of advertiserSetCampaignDetailsResult.externals) {
+            if (external.body) {
+                decodedAdvertiserSetCampaignDetailsEvent = loadAdvertiserSignedCampaignDetailsEvent(external.body);
+            }
+        }
+		
+        expect(decodedAdvertiserSetCampaignDetailsEvent).not.toBeNull();
+        expect(decodedAdvertiserSetCampaignDetailsEvent!.campaignId).toBe(0);
+		expect(decodedAdvertiserSetCampaignDetailsEvent!.advertiserAddressStr).toBe(advertiser.address.toString());
+
 
         // printTransactionFees(advertiserSetCampaignDetailsResult.transactions);
         campaignData = await campaignContract.getCampaignData();

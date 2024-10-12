@@ -10,6 +10,7 @@ const EVENT_TYPE_ADVERTISER_WITHDRAW_FUNDS = 2345188106;
 const EVENT_TYPE_CAMPAIGN_BALANCE_UNDER_FIVE_TON = 21630181;
 const EVENT_TYPE_INSUFFICIENT_CAMPAIGN_FUNDS = 1056081826;
 const EVENT_TYPE_CAMPAIGN_SEIZED = 799343753;
+const EVENT_TYPE_ADVERTISER_SIGNED_CAMPAIGN_DETAILS = 1529127575;
 
 
 export function loadEvent(cell: Cell, expectedEventType: number) {
@@ -79,4 +80,11 @@ export function loadAdvertiserWithdrawFundsEvent(cell: Cell) {
     const advertiserAddressStr = slice.loadAddress().toString();
     const campaignBalance = slice.loadCoins();
     return { $$type: 'CampaignBalnceUnderThresholdEvent', campaignId, advertiserAddressStr, campaignBalance };
+}
+
+export function loadAdvertiserSignedCampaignDetailsEvent(cell: Cell) {
+    const slice = loadEvent(cell, EVENT_TYPE_ADVERTISER_SIGNED_CAMPAIGN_DETAILS);
+    const campaignId = slice.loadUint(32);
+    const advertiserAddressStr = slice.loadAddress().toString();
+    return { $$type: 'AdvertiserSignedCampaignDetailsEvent', campaignId, advertiserAddressStr };
 }
