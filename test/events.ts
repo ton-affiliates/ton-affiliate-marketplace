@@ -34,7 +34,7 @@ export function loadCampaignUnderFiveTonEvent(cell: Cell) {
     const campaignId = slice.loadUint(32);
     const advertiserAddressStr = slice.loadAddress().toString();
     const campaignBalance = slice.loadCoins();
-    return { $$type: 'CampaignBalnceUnderThresholdEvent', campaignId, advertiserAddressStr, campaignBalance };
+    return { $$type: 'CampaignBalanceUnderFiveTonEvent', campaignId, advertiserAddressStr, campaignBalance };
 }
 
 export function loadInsufficientCampaignFundsEvent(cell: Cell) {
@@ -79,7 +79,7 @@ export function loadAdvertiserWithdrawFundsEvent(cell: Cell) {
     const campaignId = slice.loadUint(32);
     const advertiserAddressStr = slice.loadAddress().toString();
     const campaignBalance = slice.loadCoins();
-    return { $$type: 'CampaignBalnceUnderThresholdEvent', campaignId, advertiserAddressStr, campaignBalance };
+    return { $$type: 'AdvertiserWithdrawFundsEvent', campaignId, advertiserAddressStr, campaignBalance };
 }
 
 export function loadAdvertiserSignedCampaignDetailsEvent(cell: Cell) {
