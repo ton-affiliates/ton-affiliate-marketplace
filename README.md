@@ -201,6 +201,82 @@ Handles situations where payments to an affiliate bounce back to the contract.
 - **Parameters**:
   - `affiliateId`: Unique ID of the affiliate.
   - `amount`: The amount that bounced back.
+ 
+
+### Getter Functions
+
+The `Campaign` and `AffiliateMarketplace` contracts offer various getter functions that allow querying key details regarding campaigns, affiliates, and contract balances. These functions are accessible to any user and do not modify the state.
+
+### Campaign Contract Getters
+
+1. **campaignData**
+   - **Access**: Public
+   - **Purpose**: Retrieves comprehensive data on the campaign.
+   - **Parameters**: None
+   - **Returns**: `CampaignData` object containing:
+     - `campaignId`: Campaign identifier.
+     - `advertiser`: Address of the advertiser.
+     - `owner`: Owner of the contract.
+     - `campaignDetails`: Struct of campaign specifics, including CPA rates, allowed affiliates, and open/closed status.
+     - `numAffiliates`: Total registered affiliates.
+     - `campaignStartTimestamp`: Campaign start time.
+     - `lastUserActionTimestamp`: Timestamp of the last user action.
+     - `numUserActions`: Total number of user actions tracked.
+     - `state`: Current state of the campaign.
+     - `campaignBalance`: Remaining balance available for affiliate payouts.
+     - `contractBalance`: Total contract balance.
+     - `contractAddress`: Address of the campaign contract.
+     - `feePercentage`: Fee percentage on affiliate earnings withdrawals.
+     - `campaignHasSufficientFundsToPayMaxCpa`: Boolean indicating if there are enough funds for max CPA.
+     - `isCampaignExpired`: Boolean indicating if the campaign has expired.
+     - `isCampaignPausedByAdmin`: Boolean indicating if the campaign is paused by admin.
+
+2. **affiliateData**
+   - **Access**: Public
+   - **Purpose**: Retrieves data related to a specific affiliate within the campaign.
+   - **Parameters**:
+     - `affiliateId`: The identifier of the affiliate.
+   - **Returns**: `AffiliateData` object containing:
+     - `affiliate`: Address of the affiliate.
+     - `userActionsStats`: Map of user actions (op code to count) by the affiliate.
+     - `premiumUserActionsStats`: Map of premium user actions (op code to count) by the affiliate.
+     - `accruedEarnings`: Total accrued earnings for the affiliate.
+
+3. **affiliatesData**
+   - **Access**: Public
+   - **Purpose**: Returns a mapping of all affiliate data in the campaign.
+   - **Parameters**: None
+   - **Returns**: `Map` of affiliate IDs to `AffiliateData` objects.
+
+### AffiliateMarketplace Contract Getters
+
+1. **balance**
+   - **Access**: Public
+   - **Purpose**: Provides the total TON balance of the `AffiliateMarketplace` contract.
+   - **Parameters**: None
+   - **Returns**: The balance of the contract as an integer in nano-TONs.
+
+2. **bot**
+   - **Access**: Public
+   - **Purpose**: Retrieves the address of the bot authorized to interact with the contract.
+   - **Parameters**: None
+   - **Returns**: The address of the bot.
+
+3. **numCampaigns**
+   - **Access**: Public
+   - **Purpose**: Provides the total number of campaigns deployed by the `AffiliateMarketplace` contract.
+   - **Parameters**: None
+   - **Returns**: The count of campaigns.
+
+4. **campaignContractAddress**
+   - **Access**: Public
+   - **Purpose**: Fetches the contract address of a specific campaign by its ID.
+   - **Parameters**:
+     - `campaignId`: The unique identifier of the campaign.
+   - **Returns**: The address of the corresponding campaign contract.
+
+These getter functions allow users to query contract state and specific details without affecting the contract, which is especially useful for frontend integrations and monitoring.
+
 
 ## Events
 
