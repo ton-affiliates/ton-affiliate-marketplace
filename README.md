@@ -180,7 +180,7 @@ Directly verifies a user action on the campaign (applicable to user actions occu
   - `userActionOpCode`: Operation code indicating the user action (must be > 2000).
   - `isPremiumUser`: Boolean indicating if the user is a premium user.
 
-#### Affiliate Functions
+### Affiliate Functions
 
 ### 1. AffiliateCreateNewAffiliate
 Registers an affiliate with the campaign, allowing them to start earning from user actions.
@@ -254,7 +254,7 @@ Emitted when an advertiser withdraws the entire campaign balance.
   - `advertiserAddress` (Address): Address of the advertiser.
   - `campaignBalance` (Coins): Amount withdrawn.
 
-### 5. CampaignBalanceUnderThresholdEvent
+### 5. CampaignBalanceUnderFiveTonEvent
 Emitted when a campaign balance drops below a threshold (5 TON). Emitted only upon user actions (not when advertiser withdraws fuds).
 - **Purpose**: Alerts of low campaign balance.
 - **Parameters**:
