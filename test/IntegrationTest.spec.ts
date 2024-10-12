@@ -515,7 +515,7 @@ describe('AffiliateMarketplace Integration Test', () => {
 		const removeCampaignAndWithdrawFundsResult = await campaignContract.send(
             advertiser.getSender(),
             { value: toNano('0.05') },
-            { $$type: 'AdvertiserRemoveCampaignAndWithdrawFunds' }
+            { $$type: 'AdvertiserWithdrawFunds' }
         );
 
         expect(removeCampaignAndWithdrawFundsResult.transactions).toHaveTransaction({

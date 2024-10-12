@@ -37,6 +37,11 @@ message CampaignCreatedEvent {
     campaignContractAddress: Address;
 }
 
+message AdvertiserSignedCampaignDetailsEvent {
+	campaignId: Int as uint32;
+	advertiser: Address;
+}
+
 message CampaignSeizedEvent{
     campaignId: Int as uint32;
     amountSeized: Int as coins;
@@ -115,7 +120,7 @@ message AffiliateWithdrawEarnings {
 }
 
 // Advertiser API
-message AdvertiserRemoveCampaignAndWithdrawFunds{}
+message AdvertiserWithdrawFunds{}
 
 message AdvertiserSetCampaignDetails {
     campaignDetails: CampaignDetails;

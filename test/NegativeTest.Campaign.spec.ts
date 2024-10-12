@@ -209,7 +209,7 @@ describe('Negative Tests for Campaign', () => {
         const removeCampaignResult = await campaignContract.send(
             unauthorizedUser.getSender(),
             { value: toNano('0.05') },
-            { $$type: 'AdvertiserRemoveCampaignAndWithdrawFunds' }
+            { $$type: 'AdvertiserWithdrawFunds' }
         );
 
         expect(removeCampaignResult.transactions).toHaveTransaction({

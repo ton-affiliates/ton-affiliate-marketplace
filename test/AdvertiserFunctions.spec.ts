@@ -295,7 +295,7 @@ describe('Advertiser Actions - Positive and Negative Tests for Advertiser Functi
         const withdrawFundsResult = await campaignContract.send(
             advertiser.getSender(),
             { value: toNano('0.05') },
-            { $$type: 'AdvertiserRemoveCampaignAndWithdrawFunds' }
+            { $$type: 'AdvertiserWithdrawFunds' }
         );
 
         expect(withdrawFundsResult.transactions).toHaveTransaction({
@@ -389,7 +389,7 @@ describe('Advertiser Actions - Positive and Negative Tests for Advertiser Functi
         const withdrawFundsResult = await campaignContract.send(
             unauthorizedUser.getSender(),
             { value: toNano('0.05') },
-            { $$type: 'AdvertiserRemoveCampaignAndWithdrawFunds' }
+            { $$type: 'AdvertiserWithdrawFunds' }
         );
 
         expect(withdrawFundsResult.transactions).toHaveTransaction({

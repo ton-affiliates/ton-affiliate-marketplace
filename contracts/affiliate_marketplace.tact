@@ -188,7 +188,7 @@ contract Campaign with Resumable  {
             to: self.owner,
             body: ChildToParentAdvertiserDeplyContractFee{
                 campaignId: self.campaignId,
-                advertiser: self.advertiser
+                advertiser: sender()
             }.toCell(),
             value: DEPLOY_NEW_CAMPAIGN_COST + GAS_FEE,
             mode: SendPayGasSeparately
@@ -260,7 +260,7 @@ contract Campaign with Resumable  {
 
     }
 
-    receive(msg: AdvertiserRemoveCampaignAndWithdrawFunds) {
+    receive(msg: AdvertiserWithdrawFunds) {
 
         self.requireNotStopped();
         require(self.state == STATE_CAMPAIGN_DETAILS_SET_BY_ADVERTISER, "Must be in state: STATE_CAMPAIGN_DETAILS_SET_BY_ADVERTISER");
@@ -676,6 +676,11 @@ contract AffiliateMarketplace with Deployable, Resumable  {
     receive(msg: ChildToParentAdvertiserDeplyContractFee) {
         let expectedAddress: Address = contractAddress(self.campaignContractStateInit(msg.campaignId));
         require(sender() == expectedAddress, "Access denied");
+
+        emit(AdvertiserSignedCampaignDetailsEvent{
+            campaignId: msg.campaignId,
+            advertiser: msg.advertiser
+        }.toCell());
     }
 
     receive(msg: ChildToParentAffiliateCreated) {
