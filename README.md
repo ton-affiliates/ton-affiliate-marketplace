@@ -14,7 +14,6 @@ This repository contains smart contracts for an affiliate marketing platform on 
 - [APIs](#apis)
 - [Events](#events)
 - [Error Codes](#error-codes)
-- [License](#license)
 
 ## Project Structure
 
