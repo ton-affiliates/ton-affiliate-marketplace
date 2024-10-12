@@ -26,7 +26,7 @@ This repository contains smart contracts for an affiliate marketing platform on 
 ## How to Use
 
 ### Build
-`npx blueprint build` or `yarn blueprint build`
+`npx blueprint build --all` or `yarn blueprint build --all`
 
 ### Test
 `npx blueprint test` or `yarn blueprint test`
