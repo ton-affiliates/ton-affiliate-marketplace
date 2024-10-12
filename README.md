@@ -9,8 +9,6 @@ This repository contains smart contracts for an affiliate marketing platform on 
 - [How to Use](#how-to-use)
   - [Build](#build)
   - [Test](#test)
-  - [Deploy or Run Scripts](#deploy-or-run-scripts)
-  - [Add a New Contract](#add-a-new-contract)
 - [Contract Overview](#contract-overview)
 - [Flow Overview](#flow-overview)
 - [APIs](#apis)
@@ -62,9 +60,9 @@ Each `Campaign` contract corresponds to a specific advertising campaign. The con
 
 ## APIs
 
-#### AffiliateMarketplace Contract
+### AffiliateMarketplace Contract
 
-#### Admin Functions
+### Admin Functions
 
 ### 1. AdminReplenish
 Allows the contract owner to replenish the balance of the `AffiliateMarketplace` contract.
@@ -119,7 +117,7 @@ Allows the owner to resume operations within the `AffiliateMarketplace` contract
 - **Purpose**: Reactivate the contract and all associated campaigns.
 
 
-#### Bot Functions
+### Bot Functions
 ### 1. BotDeployNewCampaign
 Allows the bot to deploy a new campaign contract within the `AffiliateMarketplace`.
 - **Access**: Bot only
@@ -136,11 +134,11 @@ Permits the bot to verify specific user actions related to a campaign. These act
   - `userActionOpCode`: The operation code corresponding to the specific user action (e.g., 0 for "user click").
   - `isPremiumUser`: Boolean indicating whether the user involved in the action is a premium user (subscribed) or a regular user.
 
-#### Campaign Contract
+### Campaign Contract
 
-The `Campaign` contract offers a set of functions that can be accessed exclusively by the advertiser of the campaign. These functions allow the advertiser to manage the campaign details, handle user actions, manage affiliates, and withdraw funds.
+The `Campaign` contract offers a set of functions that can be accessed by the advertiser and the affiliates of the campaign. These functions allow the advertiser to manage the campaign details, handle user actions, manage affiliates, and withdraw funds, and for the affiliate it allows registering as an affiliate of the campaign and withdrawing funds according to peformance.
 
-#### Advertiser Functions
+### Advertiser Functions
 
 ### 1. AdvertiserSetCampaignDetails
 Sets up campaign details, including CPA rates and affiliate permissions, and initializes the advertiser address.
@@ -167,8 +165,8 @@ Adds an affiliate to the list of allowed affiliates in a closed campaign.
 - **Parameters**:
   - `affiliate`: Address of the affiliate to be added.
 
-### 4. AdvertiserRemoveCampaignAndWithdrawFunds
-Removes the campaign and withdraws all remaining funds to the advertiser’s address.
+### 4. AdvertiserWithdrawFunds
+Withdraws all remaining funds to the advertiser’s address.
 - **Access**: Advertiser only
 - **Purpose**: Conclude a campaign and retrieve the remaining campaign funds.
 - **Parameters**: None
@@ -197,9 +195,9 @@ Allows an affiliate to withdraw their accrued earnings from the campaign.
 - **Parameters**:
   - `affiliateId`: Unique ID of the affiliate requesting the withdrawal.
 
-### 3. Bounced (Fallback)
+### 3. Bounced<PayAffiliate>
 Handles situations where payments to an affiliate bounce back to the contract.
-- **Access**: Internal function, called automatically upon a bounced payment.
+- **Access**: Called automatically upon a bounced payment.
 - **Purpose**: Ensures that the affiliate’s accrued earnings are updated in case of a failed withdrawal.
 - **Parameters**:
   - `affiliateId`: Unique ID of the affiliate.
@@ -221,6 +219,13 @@ Emitted when a new campaign is successfully created.
 - **Parameters**:
   - `campaignId` (uint32): Unique identifier for the campaign.
   - `campaignContractAddress` (Address): Address of the new campaign contract.
+ 
+### 2. AdvertiserSignedCampaignDetailsEvent
+Emitted when a an advertiser set the campaign details.
+- **Purpose**: Notifies when campaign details were signed by the advertiser and affiliates can start registration.
+- **Parameters**:
+  - `campaignId` (uint32): Unique identifier for the campaign.
+  - `advertiserAddress` (Address): Address of the avertiser.
 
 ### 2. AffiliateCreatedEvent
 Emitted when a new affiliate registers for a campaign.
@@ -250,7 +255,7 @@ Emitted when an advertiser withdraws the entire campaign balance.
   - `campaignBalance` (Coins): Amount withdrawn.
 
 ### 5. CampaignBalanceUnderThresholdEvent
-Emitted when a campaign balance drops below a threshold (5 TON).
+Emitted when a campaign balance drops below a threshold (5 TON). Emitted only upon user actions (not when advertiser withdraws fuds).
 - **Purpose**: Alerts of low campaign balance.
 - **Parameters**:
   - `campaignId` (uint32): ID of the campaign.
@@ -258,8 +263,8 @@ Emitted when a campaign balance drops below a threshold (5 TON).
   - `campaignBalance` (Coins): Remaining balance of the campaign.
 
 ### 6. InsufficientCampaignFundsEvent
-Emitted when a campaign has insufficient funds to cover maximum CPA set in Campaign Details.
-- **Purpose**: Notifies of insufficient funds in the campaign for upcoming payments.
+Emitted when a campaign has insufficient funds to cover maximum CPA set in Campaign Details. Emitted only upon user actions (not when advertiser withdraws fuds).
+- **Purpose**: Notifies of insufficient funds in the campaign for upcoming payments of the maximum CPA set in the campaign details.
 - **Parameters**:
   - `campaignId` (uint32): ID of the campaign.
   - `advertiserAddress` (Address): Address of the advertiser.
