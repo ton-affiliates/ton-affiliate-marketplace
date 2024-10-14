@@ -158,7 +158,7 @@ contract Campaign with Resumable  {
     receive (msg: AdvertiserSetCampaignDetails) {
 
         require(self.state == STATE_CAMPAIGN_CREATED, "Must be in state: STATE_CAMPAIGN_CREATED");
-        require(context().value > DEPLOY_NEW_CAMPAIGN_COST, "Insufficient funds to repay parent for deployment");
+        require(context().value > DEPLOY_NEW_CAMPAIGN_COST + GAS_FEE, "Insufficient funds to repay parent for deployment");
 
         // verify keys are the same in both sets
         // get maxCpaValue
