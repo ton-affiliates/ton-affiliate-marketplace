@@ -130,8 +130,8 @@ contract Campaign with Resumable  {
 
     receive(msg: ParentToChildSeizeCampaign) {
         self.requireOwner();
-         send(SendParameters{
-            to: self.owner,
+        send(SendParameters{
+            to: self.payout,
             body: ChildToParentSeizeCampaign{
                 campaignId: self.campaignId
             }.toCell(),

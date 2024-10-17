@@ -130,7 +130,7 @@ describe('Administrative Actions - positive test', () => {
 
 	it('should seize campaign balance successfully', async () => {
 	        
-		let affiliateMarketplaceBalanceBeforeSeize = await affiliateMarketplaceContract.getBalance();
+		let deployerBalanceBeforeSeize = await deployer.getBalance();
 		const adminSeizeCampaignBalanceResult = await affiliateMarketplaceContract.send(
             deployer.getSender(),
             { value: toNano('0.05') },
@@ -150,9 +150,9 @@ describe('Administrative Actions - positive test', () => {
 		expect(campaignData.contractBalance).toBe(BigInt(0));
 		expect(campaignData.campaignBalance).toBe(BigInt(0));
 		
-		let affiliateMarketplace = await affiliateMarketplaceContract.getBalance();
-		expect(affiliateMarketplace - affiliateMarketplaceBalanceBeforeSeize).toBeLessThan(toNano("10"));
-		expect(affiliateMarketplace - affiliateMarketplaceBalanceBeforeSeize).toBeGreaterThan(toNano("9.9"));
+		let deployerBalance = await deployer.getBalance();
+		expect(deployerBalance - deployerBalanceBeforeSeize).toBeLessThan(toNano("10"));
+		expect(deployerBalance - deployerBalanceBeforeSeize).toBeGreaterThan(toNano("9.9"));
     });
 	
 
