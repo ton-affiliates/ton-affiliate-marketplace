@@ -447,10 +447,10 @@ describe('AffiliateMarketplace Integration Test', () => {
 
         // test: campaignBalance = 15 less than it was before this user action (minus gas fees)
         expect(campaignDataBeforeCustomizedEvent.campaignBalance - campaignData.campaignBalance)
-            .toBeGreaterThan(toNano("15"));
+            .toBeGreaterThan(toNano("14.98"));
 
         expect(campaignDataBeforeCustomizedEvent.campaignBalance - campaignData.campaignBalance)
-            .toBeLessThan(toNano("15.03"));
+            .toBeLessThan(toNano("15"));
 
         expect(affiliateData2!.userActionsStats.get(BigInt(BOT_OP_CODE_USER_CLICK))).toBe(BigInt(0));
         expect(affiliateData2!.userActionsStats.get(BigInt(ADVERTISER_OP_CODE_CUSTOMIZED_EVENT))).toBe(BigInt(0));
@@ -463,6 +463,7 @@ describe('AffiliateMarketplace Integration Test', () => {
         //-------------------------------------------------------------------------------------------
 
         let affiliateBalanceBeforeWithdraw = await affiliate1.getBalance();
+		let deployerBalanceBeforeWithdraw = await deployer.getBalance();
 
         // AffiliateWithdrawResult
         const affiliateWithdrawResult = await campaignContract.send(
@@ -507,13 +508,19 @@ describe('AffiliateMarketplace Integration Test', () => {
         expect(affiliateData1!.accruedEarnings).toBe(toNano("0"));
 
         let affiliateBalance = await affiliate1.getBalance();
+		let deployerBalance = await deployer.getBalance();
 		
 		// earnings = 2% fee to parent
 		// earnings = 1 TON
 		// fee = 0.02
-		// total 0.98 TON - gas fees paied for 3 tx (one for the tx, one for parent fee, and one for the payment back to the publisher)	
+		// total 0.98 TON - gas fees paied for 3 tx 	
 		expect(affiliateBalance - affiliateBalanceBeforeWithdraw).toBeLessThan(toNano("0.98"));
 		expect(affiliateBalance - affiliateBalanceBeforeWithdraw).toBeGreaterThan(toNano("0.9"));
+		
+		expect(deployerBalance - deployerBalanceBeforeWithdraw)
+            .toBeGreaterThan(toNano("0"));
+		expect(deployerBalance - deployerBalanceBeforeWithdraw)
+            .toBeLessThan(toNano("0.02"));
 
         //-------------------------------------------------------------------------------------------
 
@@ -562,7 +569,7 @@ describe('AffiliateMarketplace Integration Test', () => {
             .toBeGreaterThan(toNano("3"));
 			
         expect(advertiserBalance - advertiserBalanceBeforeRemoveCampaign)
-            .toBeLessThan(toNano("3.02"));
+            .toBeLessThan(toNano("3.05"));
 
         //------------------------------------------------------------------------------------------------------------------------
 

@@ -13,7 +13,7 @@ const STATE_CAMPAIGN_DETAILS_SET_BY_ADVERTISER: Int = 1;
 
 const DEPLOY_NEW_CAMPAIGN_COST: Int = ton("0.1");
 
-const GAS_FEE: Int = ton("0.02");
+const GAS_FEE: Int = ton("0.01");
 const CAMPAIGN_BUFFER: Int = ton("1");
 
 const USER_ACTION_OP_CODES_BOT: Int = 2000;  // 2000 first user action op codes are saved for bot's acrions.  Anything above that is the advertiser's
@@ -38,6 +38,7 @@ struct CampaignData {
     campaignId: Int as uint32;
     advertiser: Address;
     owner: Address;
+    payout: Address;
     campaignDetails: CampaignDetails;
     numAffiliates: Int as uint32;
     state: Int as uint32;
@@ -61,6 +62,8 @@ contract Campaign with Resumable  {
 
     campaignId: Int as uint32;
 
+    payout: Address;  // wallet to receive all fees
+
     advertiser: Address;
     campaignDetails: CampaignDetails;
 
@@ -75,11 +78,12 @@ contract Campaign with Resumable  {
     maxCpaValue: Int as coins; // minimum balance needed for a campaign to be considered as 'ACTIVE'
     feePercentage: Int as uint32 = 200;  // for affiliates when withdrawing funds. default is 200 which is 2%
 
-    init(owner: Address, campaignId: Int) {
+    init(owner: Address, campaignId: Int, payout: Address) {
 
         require(sender() == owner, "owner must be deployer");
 
         self.owner = owner;
+        self.payout = payout;
         self.stopped = false;
         self.campaignId = campaignId;
         self.advertiser = owner; // tmp until set details
@@ -394,6 +398,8 @@ contract Campaign with Resumable  {
 
         self.requireNotStopped();
 
+        require(context().value >= GAS_FEE*3, "Insufficient funds to pay gas");
+
         let affiliateDataOptional = self.affiliates.get(msg.affiliateId);
         require(affiliateDataOptional != null, "Affiliate does not exist");
         let affiliateData: AffiliateData = affiliateDataOptional!!;
@@ -414,6 +420,7 @@ contract Campaign with Resumable  {
         // send 2% fee to owner
         let fee: Int = (paymentAmount * self.feePercentage + 9999) / 10000;  // 2% fee calculation
 
+        // notify parent
         send(SendParameters{
             to: self.owner,
             body: ChildToParentAffiliateWithdrawEarningsFee{
@@ -423,10 +430,19 @@ contract Campaign with Resumable  {
                 earnings: paymentAmount,
                 fee: fee
             }.toCell(),
-            value: fee,
+            value: GAS_FEE,
             mode: SendPayGasSeparately
         });
 
+        // send fee to payout
+        send(SendParameters{
+            to: self.payout,
+            value: fee,
+            bounce: true,
+            mode: SendPayGasSeparately
+        });
+
+        // send payment to affiliate
         send(SendParameters{
             to: affiliateData.affiliate,
             value: paymentAmount - fee,
@@ -456,6 +472,7 @@ contract Campaign with Resumable  {
             campaignId: self.campaignId,
             advertiser: self.advertiser,
             owner: self.owner,
+            payout: self.payout,
             campaignDetails: self.campaignDetails,
             numAffiliates: self.currAffiliateId,
             campaignStartTimestamp: self.campaignStartTimestamp,
@@ -517,7 +534,7 @@ contract AffiliateMarketplace with Deployable, Resumable  {
     }
 
     fun campaignContractStateInit(campaignId: Int): StateInit {
-        let initCode: StateInit = initOf Campaign(myAddress(), campaignId);
+        let initCode: StateInit = initOf Campaign(myAddress(), campaignId, self.owner);
         return initCode;
     }
 
