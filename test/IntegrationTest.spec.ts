@@ -121,8 +121,7 @@ describe('AffiliateMarketplace Integration Test', () => {
 
         expect(campaignData.owner.toString()).toBe(affiliateMarketplaceContract.address.toString());
         expect(campaignData.state).toBe(BigInt(0)); // state: CAMPAIGN_CREATED
-        expect(campaignData.contractBalance).toBeGreaterThan(toNano("0")); // ~0.1
-        expect(campaignData.contractBalance).toBeLessThan(toNano("0.1")); // ~0.1
+        expect(campaignData.contractBalance).toBe(toNano("0")); 
         expect(campaignData.campaignBalance).toBe(toNano("0"));
 
         let affiliateMarketplaceContractBalanceAfterDeployment = await affiliateMarketplaceContract.getBalance();
@@ -202,7 +201,7 @@ describe('AffiliateMarketplace Integration Test', () => {
         );
 		
 		expect(campaignData.state).toBe(BigInt(1)); // state STATE_CAMPAIGN_DETAILS_SET_BY_ADVERTISER
-        expect(campaignData.contractBalance).toBeGreaterThan(toNano("9.9")); // 10 - gas spent 
+        expect(campaignData.contractBalance).toBeGreaterThan(toNano("8.9")); // 10 - Buffer - gas spent 
         expect(campaignData.campaignBalance).toBeGreaterThan(toNano("8.9")); // minus another 1 TON buffer
         
         let affiliateMarketplaceBalanceAfterAdvertiserSetDetails = await affiliateMarketplaceContract.getBalance();
@@ -235,7 +234,7 @@ describe('AffiliateMarketplace Integration Test', () => {
         });
 
         campaignData = await campaignContract.getCampaignData();
-        expect(campaignData.contractBalance).toBeGreaterThan(toNano("19.88")); 
+        expect(campaignData.contractBalance).toBeGreaterThan(toNano("18.88")); 
         expect(campaignData.campaignBalance).toBeGreaterThan(toNano("18.88")); 
 
 

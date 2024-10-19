@@ -140,10 +140,14 @@ contract Campaign with Resumable  {
         });
     }
 
-    // Reserve funds for affiliate withdrawals
-    fun currentCampaignBalance(): Int {
-        let campaignBalance: Int = myBalance() - (self.totalAccruedEarnings + CAMPAIGN_BUFFER);  // can be negative
+    fun calcCampaignBalance(): Int {
+        let campaignBalance: Int = self.calcContractBalance() - self.totalAccruedEarnings;  // can be negative in the beginning
         return max(campaignBalance, ton("0"));  // if negative return 0
+    }
+
+    fun calcContractBalance(): Int {
+        let contractBalance: Int = myBalance() - CAMPAIGN_BUFFER;  // can be negative in the beginning
+        return max(contractBalance, ton("0"));  // if negative return 0
     }
 
     fun isCampaignExpired(): Bool {
@@ -270,7 +274,7 @@ contract Campaign with Resumable  {
         require(self.state == STATE_CAMPAIGN_DETAILS_SET_BY_ADVERTISER, "Must be in state: STATE_CAMPAIGN_DETAILS_SET_BY_ADVERTISER");
         require(sender() == self.advertiser, "Only the advertiser can remove the campaign and withdraw all funds");
 
-        let campaignBalance: Int = self.currentCampaignBalance();
+        let campaignBalance: Int = self.calcCampaignBalance();
         require(campaignBalance > ton("0"), "Campaign has no funds");
 
         send(SendParameters{
@@ -338,7 +342,7 @@ contract Campaign with Resumable  {
         require(cpaOptional != null, "Cannot find cpa for the given op code");
 
         let costPerAction: Int = cpaOptional!!;
-        let campaignBalance: Int = self.currentCampaignBalance();
+        let campaignBalance: Int = self.calcCampaignBalance();
 
         require(campaignBalance >= costPerAction, "Insufficient campaign balance to make payment");
 
@@ -369,7 +373,6 @@ contract Campaign with Resumable  {
                     campaignId: self.campaignId,
                     advertiser: self.advertiser,
                     campaignBalance: newCampaignBalance,
-                    contractBalance: myBalance(),
                     maxCpaValue: self.maxCpaValue
                 }.toCell(),
                 value: GAS_FEE,
@@ -408,7 +411,7 @@ contract Campaign with Resumable  {
 
         let paymentAmount: Int = affiliateData.accruedEarnings;
         require(paymentAmount > ton("0"), "No earnings to withdraw");
-        require(myBalance() >= paymentAmount, "Insufficient contract funds to make payment");  // should never reach this
+        require(self.calcContractBalance() >= paymentAmount, "Insufficient contract funds to make payment");  // should never reach this
 
         // Reset accrued earnings and update last payment time
         affiliateData.accruedEarnings = ton("0");
@@ -479,11 +482,11 @@ contract Campaign with Resumable  {
             lastUserActionTimestamp: self.lastUserActionTimestamp,
             numUserActions: self.numUserActions,
             state: self.state,
-            campaignBalance: self.currentCampaignBalance(),
-            contractBalance: myBalance(),
+            campaignBalance: self.calcCampaignBalance(),
+            contractBalance: self.calcContractBalance(),
             contractAddress: myAddress(),
             feePercentage: self.feePercentage,
-            campaignHasSufficientFundsToPayMaxCpa: self.campaignHasSufficientFundsToPayMaxCpa(self.currentCampaignBalance()), // ha sufficient balance to pay max CPA
+            campaignHasSufficientFundsToPayMaxCpa: self.campaignHasSufficientFundsToPayMaxCpa(self.calcCampaignBalance()), // ha sufficient balance to pay max CPA
             isCampaignExpired: self.isCampaignExpired(),
             isCampaignPausedByAdmin: self.stopped
         }
@@ -659,7 +662,6 @@ contract AffiliateMarketplace with Deployable, Resumable  {
             campaignId: msg.campaignId,
             advertiser: msg.advertiser,
             campaignBalance: msg.campaignBalance,
-            contractBalance: msg.contractBalance,
             maxCpaValue: msg.maxCpaValue
         }.toCell());
     }

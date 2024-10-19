@@ -64,7 +64,6 @@ message InsufficientCampaignFundsEvent {
     campaignId: Int as uint32;
     advertiser: Address;
     campaignBalance: Int as coins;
-    contractBalance: Int as coins;
     maxCpaValue: Int as coins;
 }
 
@@ -186,7 +185,6 @@ message ChildToParentInsufficientCampaignFunds {
     campaignId: Int as uint32;
     advertiser: Address;
     campaignBalance: Int as coins;
-    contractBalance: Int as coins;
     maxCpaValue: Int as coins;
 }
 

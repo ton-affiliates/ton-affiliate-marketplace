@@ -8,7 +8,7 @@ const EVENT_TYPE_AFFILIATE_CREATED = 3273123323;
 const EVENT_TYPE_AFFILIATE_WITHDRAW_EARNINGS = 3696909830;
 const EVENT_TYPE_ADVERTISER_WITHDRAW_FUNDS = 2345188106;
 const EVENT_TYPE_CAMPAIGN_BALANCE_UNDER_FIVE_TON = 21630181;
-const EVENT_TYPE_INSUFFICIENT_CAMPAIGN_FUNDS = 1056081826;
+const EVENT_TYPE_INSUFFICIENT_CAMPAIGN_FUNDS = 1852244882;
 const EVENT_TYPE_CAMPAIGN_SEIZED = 799343753;
 const EVENT_TYPE_ADVERTISER_SIGNED_CAMPAIGN_DETAILS = 1529127575;
 
@@ -42,9 +42,8 @@ export function loadInsufficientCampaignFundsEvent(cell: Cell) {
     const campaignId = slice.loadUint(32);
     const advertiserAddressStr = slice.loadAddress().toString();
     const campaignBalance = slice.loadCoins();
-    const contractBalance = slice.loadCoins();
     const maxCpaValue = slice.loadCoins();
-    return { $$type: 'InsufficientCampaignFundsEvent', campaignId, advertiserAddressStr, campaignBalance, contractBalance, maxCpaValue };
+    return { $$type: 'InsufficientCampaignFundsEvent', campaignId, advertiserAddressStr, campaignBalance, maxCpaValue };
 }
 
 
