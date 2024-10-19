@@ -219,12 +219,14 @@ The `Campaign` and `AffiliateMarketplace` contracts offer various getter functio
      - `owner`: Owner of the contract.  Always the Parent contract which is AffiliateMarketplace.
      - `campaignDetails`: Struct of campaign specifics, including CPA rates, allowed affiliates, and open/closed status.
      - `numAffiliates`: Total registered affiliates.
+     - `totalAccruedEarnings`: Total accrued earnings of all affiliates yet to be withdrawed from the contract.
      - `campaignStartTimestamp`: Campaign start time as a unix timestamp.
      - `lastUserActionTimestamp`: Timestamp of the last user action as a unix timestamp.
      - `numUserActions`: Total number of user actions tracked.
      - `state`: Current state of the campaign.  States are 0 - STATE_CAMPAIGN_CREATED, or 1 - STATE_CAMPAIGN_DETAILS_SET_BY_ADVERTISER.
      - `campaignBalance`: Remaining balance available for affiliate payouts.
-     - `contractBalance`: Total contract balance.
+     - `contractBalance`: Total contract balance minus the buffer.
+     - `contractTonBalance`: Total contract balance.
      - `contractAddress`: Address of the campaign contract.
      - `feePercentage`: Fee percentage on affiliate earnings withdrawals.
      - `campaignHasSufficientFundsToPayMaxCpa`: Boolean indicating if there are enough funds for max CPA.
