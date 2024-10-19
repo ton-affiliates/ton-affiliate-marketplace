@@ -41,12 +41,14 @@ struct CampaignData {
     payout: Address;
     campaignDetails: CampaignDetails;
     numAffiliates: Int as uint32;
+    totalAccruedEarnings: Int as coins;
     state: Int as uint32;
     campaignStartTimestamp: Int as uint32;
     lastUserActionTimestamp: Int as uint32;
     numUserActions: Int as uint32;
     campaignBalance: Int as coins;
     contractBalance: Int as coins;
+    contractTonBalance: Int as coins;
     contractAddress: Address;
     feePercentage: Int as uint32;  // 200 for 2 %, 150 for 1.5 % etc...
     campaignHasSufficientFundsToPayMaxCpa: Bool;  // campaignBalance > highest CPA
@@ -478,12 +480,14 @@ contract Campaign with Resumable  {
             payout: self.payout,
             campaignDetails: self.campaignDetails,
             numAffiliates: self.currAffiliateId,
+            totalAccruedEarnings: self.totalAccruedEarnings,
             campaignStartTimestamp: self.campaignStartTimestamp,
             lastUserActionTimestamp: self.lastUserActionTimestamp,
             numUserActions: self.numUserActions,
             state: self.state,
             campaignBalance: self.calcCampaignBalance(),
             contractBalance: self.calcContractBalance(),
+            contractTonBalance: myBalance(),
             contractAddress: myAddress(),
             feePercentage: self.feePercentage,
             campaignHasSufficientFundsToPayMaxCpa: self.campaignHasSufficientFundsToPayMaxCpa(self.calcCampaignBalance()), // ha sufficient balance to pay max CPA
@@ -498,6 +502,10 @@ contract Campaign with Resumable  {
 
     get fun affiliatesData(affiliateId: Int): map<Int, AffiliateData> {
         return self.affiliates;
+    }
+	
+	get fun balance(): Int {
+        return myBalance(); // in nano-tons (like cents, just with 9 decimals)
     }
 }
 
