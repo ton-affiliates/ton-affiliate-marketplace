@@ -12,6 +12,7 @@ This repository contains smart contracts for an affiliate marketing platform on 
 - [Contract Overview](#contract-overview)
 - [Flow Overview](#flow-overview)
 - [APIs](#apis)
+- [Getter Functions] (#getter-functions).
 - [Events](#events)
 - [Error Codes](#error-codes)
 
@@ -220,7 +221,7 @@ Here’s the updated section of the README with the new getter functions based o
 
 ---
 
-### Getter Functions
+## Getter Functions
 
 The `Campaign` and `AffiliateMarketplace` contracts offer various getter functions that allow querying key details regarding campaigns, affiliates, and contract balances. These functions are accessible to any user and do not modify the state.
 
