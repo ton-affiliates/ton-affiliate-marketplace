@@ -398,6 +398,7 @@ The `AffiliateMarketplace` contract uses various error codes to indicate specifi
 - **14486**: Cannot find CPA for the given op code
 - **32363**: No earnings to withdraw
 - **33594**: Cannot manually add affiliates to an open campaign
+- **33318**: Insufficient funds to repay parent for deployment and keep buffer
 - **34905**: Bot can verify only op codes under 2000
 - **36363**: Only the advertiser can remove the campaign and withdraw all funds
 - **40058**: Campaign has no funds
@@ -405,7 +406,6 @@ The `AffiliateMarketplace` contract uses various error codes to indicate specifi
 - **41412**: Only affiliate can withdraw earnings
 - **43100**: Reached max number of affiliates for this campaign
 - **44318**: Only bot can deploy new campaign
-- **47193**: Insufficient funds to repay parent for deployment
 - **48874**: Insufficient contract funds to make payment
 - **49469**: Access denied
 - **49782**: Affiliate not on allowed list
