@@ -23,6 +23,8 @@ This repository contains smart contracts for an affiliate marketing platform on 
 - `tests` - tests for the contracts.
 - `scripts` - scripts used by the project, mainly for deployment.
 
+---
+
 ## How to Use
 
 ### Build
@@ -31,6 +33,7 @@ This repository contains smart contracts for an affiliate marketing platform on 
 ### Test
 `npx blueprint test` or `yarn blueprint test`
 
+---
 
 ## Contract Overview
 
@@ -57,6 +60,8 @@ Each `Campaign` contract corresponds to a specific advertising campaign. The con
 
 5. **Affiliate Participation**:
    Affiliates can register with specific campaigns and accrue earnings based on verified actions. They can later withdraw these earnings.
+
+---
 
 ## APIs
 
