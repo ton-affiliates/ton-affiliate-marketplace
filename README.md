@@ -12,7 +12,7 @@ This repository contains smart contracts for an affiliate marketing platform on 
 - [Contract Overview](#contract-overview)
 - [Flow Overview](#flow-overview)
 - [APIs](#apis)
-- [Getter Functions] (#getter-functions).
+- [Getter Functions](#getter-functions).
 - [Events](#events)
 - [Error Codes](#error-codes)
 
