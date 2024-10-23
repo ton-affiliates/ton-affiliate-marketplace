@@ -27,11 +27,18 @@ struct CampaignDetails {
     campaignValidForNumDays: Int? as uint32; // optional - advetiser can set campaign as valid only for one week
 }
 
+struct UserActionStats {
+    numActions: Int as uint32;
+    lastUserActionTimestamp: Int as uint32;
+}
+
 struct AffiliateData {
     affiliate: Address;
-    userActionsStats: map<Int, Int>;  // stats - user action -> num user actions
-    premiumUserActionsStats: map<Int, Int>;  // stats - user action -> num user actions
-    accruedEarnings: Int as coins;  // accumulated earnings since the last payment
+    userActionsStats: map<Int, UserActionStats>;  // user action OP CODE -> UserActionStats
+    premiumUserActionsStats: map<Int, UserActionStats>;  // user action OP CODE -> UserActionStats
+    accruedEarnings: Int as coins;  // accumulated earnings since the last withdrawl
+    lastWithdrawlAmount: Int as coins;
+    lastWithdrawlTimestamp: Int as uint32;
 }
 
 struct CampaignData {
@@ -230,14 +237,21 @@ contract Campaign with Resumable  {
         let affiliateId = self.currAffiliateId;
         self.currAffiliateId = self.currAffiliateId + 1;
 
-        let userActionsStats: map<Int, Int> = emptyMap();
-        let premiumUserActionsStats: map<Int, Int> = emptyMap();
+        let userActionsStats: map<Int, UserActionStats> = emptyMap();
+        let premiumUserActionsStats: map<Int, UserActionStats> = emptyMap();
         foreach (userActionOpCode, cpa in self.campaignDetails.regularUsersCostPerAction) {
-            userActionsStats.set(userActionOpCode, 0);
-            premiumUserActionsStats.set(userActionOpCode, 0);
+            userActionsStats.set(userActionOpCode, UserActionStats{numActions: 0, lastUserActionTimestamp: 0});
+            premiumUserActionsStats.set(userActionOpCode, UserActionStats{numActions: 0, lastUserActionTimestamp: 0});
         }
 
-        self.affiliates.set(affiliateId, AffiliateData{affiliate: sender(), userActionsStats: userActionsStats, premiumUserActionsStats: premiumUserActionsStats, accruedEarnings: 0});
+        self.affiliates.set(affiliateId, AffiliateData{
+            affiliate: sender(), 
+            userActionsStats: userActionsStats, 
+            premiumUserActionsStats: premiumUserActionsStats, 
+            accruedEarnings: ton("0"),
+            lastWithdrawlAmount: ton("0"),
+            lastWithdrawlTimestamp: 0
+        });
 
         // notify parent
         send(SendParameters{
@@ -351,19 +365,24 @@ contract Campaign with Resumable  {
         let newCampaignBalance: Int = campaignBalance - costPerAction;
         
         // process user action - no need to check optional because we set it when advertiser setup the campaign
+        let currTime: Int = now();
         if (isPremiumUser) {
-            let numActions: Int? = affiliateData.premiumUserActionsStats.get(userActionOpCode);
-            affiliateData.premiumUserActionsStats.set(userActionOpCode, numActions!! + 1);
+            let userActionStats: UserActionStats = affiliateData.premiumUserActionsStats.get(userActionOpCode)!!;
+            userActionStats.numActions = userActionStats.numActions + 1;
+            userActionStats.lastUserActionTimestamp = currTime; 
+            affiliateData.premiumUserActionsStats.set(userActionOpCode, userActionStats);
         } else {
-            let numActions: Int? = affiliateData.userActionsStats.get(userActionOpCode);
-            affiliateData.userActionsStats.set(userActionOpCode, numActions!! + 1);
+            let userActionStats: UserActionStats = affiliateData.userActionsStats.get(userActionOpCode)!!;
+            userActionStats.numActions = userActionStats.numActions + 1;
+            userActionStats.lastUserActionTimestamp = currTime; 
+            affiliateData.userActionsStats.set(userActionOpCode, userActionStats);
         }
 
         // Accumulate the earnings for the affiliate
         affiliateData.accruedEarnings = affiliateData.accruedEarnings + costPerAction;
         self.affiliates.set(affiliateId, affiliateData);  // update affiliate data
 
-        self.lastUserActionTimestamp = now();
+        self.lastUserActionTimestamp = currTime;
         self.numUserActions = self.numUserActions + 1;
         self.totalAccruedEarnings = self.totalAccruedEarnings + costPerAction;
 
@@ -415,15 +434,17 @@ contract Campaign with Resumable  {
         require(paymentAmount > ton("0"), "No earnings to withdraw");
         require(self.calcContractBalance() >= paymentAmount, "Insufficient contract funds to make payment");  // should never reach this
 
+        // send 2% fee to owner
+        let fee: Int = (paymentAmount * self.feePercentage + 9999) / 10000;  // fee=200 = 2% fee calculation
+
         // Reset accrued earnings and update last payment time
         affiliateData.accruedEarnings = ton("0");
+        affiliateData.lastWithdrawlAmount = paymentAmount - fee;
+        affiliateData.lastWithdrawlTimestamp = now();
         self.affiliates.set(msg.affiliateId, affiliateData);
 
         // Adjust the total accrued earnings to reflect the withdrawal
         self.totalAccruedEarnings = self.totalAccruedEarnings - paymentAmount;
-
-        // send 2% fee to owner
-        let fee: Int = (paymentAmount * self.feePercentage + 9999) / 10000;  // 2% fee calculation
 
         // notify parent
         send(SendParameters{
@@ -500,8 +521,18 @@ contract Campaign with Resumable  {
         return self.affiliates.get(affiliateId);
     }
 
-    get fun affiliatesData(affiliateId: Int): map<Int, AffiliateData> {
+    get fun affiliatesData(): map<Int, AffiliateData> {
         return self.affiliates;
+    }
+
+    get fun hundredAffiliatesDataFromIdx(idx: Int): map<Int, AffiliateData> {
+        let hundredAffiliates: map<Int, AffiliateData> = emptyMap();
+        let i: Int = 0;
+        repeat (100) {  
+            hundredAffiliates.set(idx + i, self.affiliates.get(idx + i));
+            i = i + 1;
+        }
+        return hundredAffiliates;
     }
 	
 	get fun balance(): Int {
