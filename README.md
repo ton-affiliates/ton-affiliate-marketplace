@@ -209,6 +209,23 @@ The `Campaign` and `AffiliateMarketplace` contracts offer various getter functio
 
 ### Campaign Contract Getters
 
+Public
+   - **Purpose**: Returns a mapping of all affiliate data in the campaign.
+   - **Parameters**: None
+   - **Returns**: `Map` of affiliate IDs to `AffiliateData` objects.
+
+### AffiliateMarketplace Contract Getters
+
+Here’s the updated section of the README with the new getter functions based on the provided contract:
+
+---
+
+### Getter Functions
+
+The `Campaign` and `AffiliateMarketplace` contracts offer various getter functions that allow querying key details regarding campaigns, affiliates, and contract balances. These functions are accessible to any user and do not modify the state.
+
+### Campaign Contract Getters
+
 1. **campaignData**
    - **Access**: Public
    - **Purpose**: Retrieves comprehensive data on the campaign.
@@ -216,14 +233,15 @@ The `Campaign` and `AffiliateMarketplace` contracts offer various getter functio
    - **Returns**: `CampaignData` object containing:
      - `campaignId`: Campaign identifier.
      - `advertiser`: Address of the advertiser.
-     - `owner`: Owner of the contract.  Always the Parent contract which is AffiliateMarketplace.
+     - `owner`: Owner of the contract (the `AffiliateMarketplace` contract).
+     - `payout`: Address to receive the fees.
      - `campaignDetails`: Struct of campaign specifics, including CPA rates, allowed affiliates, and open/closed status.
      - `numAffiliates`: Total registered affiliates.
-     - `totalAccruedEarnings`: Total accrued earnings of all affiliates yet to be withdrawed from the contract.
-     - `campaignStartTimestamp`: Campaign start time as a unix timestamp.
-     - `lastUserActionTimestamp`: Timestamp of the last user action as a unix timestamp.
+     - `totalAccruedEarnings`: Total accrued earnings of all affiliates yet to be withdrawn from the contract.
+     - `campaignStartTimestamp`: Campaign start time as a Unix timestamp.
+     - `lastUserActionTimestamp`: Timestamp of the last user action as a Unix timestamp.
      - `numUserActions`: Total number of user actions tracked.
-     - `state`: Current state of the campaign.  States are 0 - STATE_CAMPAIGN_CREATED, or 1 - STATE_CAMPAIGN_DETAILS_SET_BY_ADVERTISER.
+     - `state`: Current state of the campaign (e.g., STATE_CAMPAIGN_CREATED or STATE_CAMPAIGN_DETAILS_SET_BY_ADVERTISER).
      - `campaignBalance`: Remaining balance available for affiliate payouts.
      - `contractBalance`: Total contract balance minus the buffer.
      - `contractTonBalance`: Total contract balance.
@@ -231,7 +249,7 @@ The `Campaign` and `AffiliateMarketplace` contracts offer various getter functio
      - `feePercentage`: Fee percentage on affiliate earnings withdrawals.
      - `campaignHasSufficientFundsToPayMaxCpa`: Boolean indicating if there are enough funds for max CPA.
      - `isCampaignExpired`: Boolean indicating if the campaign has expired.
-     - `isCampaignPausedByAdmin`: Boolean indicating if the campaign is paused by admin.
+     - `isCampaignPausedByAdmin`: Boolean indicating if the campaign is paused by the admin.
 
 2. **affiliateData**
    - **Access**: Public
@@ -240,15 +258,24 @@ The `Campaign` and `AffiliateMarketplace` contracts offer various getter functio
      - `affiliateId`: The identifier of the affiliate.
    - **Returns**: `AffiliateData` object containing:
      - `affiliate`: Address of the affiliate.
-     - `userActionsStats`: Map of user actions (op code to count) by the affiliate.
-     - `premiumUserActionsStats`: Map of premium user actions (op code to count) by the affiliate.
+     - `userActionsStats`: Map of user actions (operation code to `UserActionStats`) by the affiliate.
+     - `premiumUserActionsStats`: Map of premium user actions (operation code to `UserActionStats`) by the affiliate.
      - `accruedEarnings`: Total accrued earnings for the affiliate.
+     - `lastWithdrawlAmount`: Amount withdrawn by the affiliate in the last withdrawal.
+     - `lastWithdrawlTimestamp`: Unix timestamp of the last withdrawal.
 
 3. **affiliatesData**
    - **Access**: Public
    - **Purpose**: Returns a mapping of all affiliate data in the campaign.
    - **Parameters**: None
    - **Returns**: `Map` of affiliate IDs to `AffiliateData` objects.
+
+4. **hundredAffiliatesDataFromIdx**
+   - **Access**: Public
+   - **Purpose**: Returns data for 100 affiliates starting from the given index.
+   - **Parameters**:
+     - `idx`: The starting index for retrieving the affiliates.
+   - **Returns**: `Map` of up to 100 affiliate IDs to `AffiliateData` objects.
 
 ### AffiliateMarketplace Contract Getters
 
@@ -276,6 +303,8 @@ The `Campaign` and `AffiliateMarketplace` contracts offer various getter functio
    - **Parameters**:
      - `campaignId`: The unique identifier of the campaign.
    - **Returns**: The address of the corresponding campaign contract.
+
+---
 
 These getter functions allow users to query contract state and specific details without affecting the contract, which is especially useful for frontend integrations and monitoring.
 
