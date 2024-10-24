@@ -1,30 +1,245 @@
 import "@stdlib/stoppable";
 import "@stdlib/ownable";
 import "@stdlib/deploy";
-import "./messages.tact";
+// import "./messages.tact";
+
+
+// * ------ AffiliateMarketplace API ------ *
+
+// Admin functions 
+message AdminWithdraw {
+    amount: Int as coins;
+    wallets: map<Address, Bool>;
+}
+
+message AdminReplenish {}
+
+message AdminModifyCampaignFeePercentage {
+    campaignId: Int as uint32;
+    feePercentage: Int as uint32;
+}
+
+message AdminStopCampaign {
+	campaignId: Int as uint32;
+}
+
+message AdminResumeCampaign {
+	campaignId: Int as uint32;
+}
+
+message AdminSeizeCampaignBalance {
+    campaignId: Int as uint32;
+}
+
+// Events - always emitted from parent contract
+message AdvertiserWithdrawFundsEvent{
+    campaignId: Int as uint32;
+    advertiser: Address;
+    campaignBalance: Int as coins;
+}
+
+message CampaignCreatedEvent {
+    campaignId: Int as uint32;
+    campaignContractAddress: Address;
+}
+
+message AdvertiserSignedCampaignDetailsEvent {
+	campaignId: Int as uint32;
+	advertiser: Address;
+}
+
+message CampaignSeizedEvent{
+    campaignId: Int as uint32;
+    amountSeized: Int as coins;
+}
+
+message CampaignBalanceUnderFiveTonEvent {
+    campaignId: Int as uint32;
+    advertiser: Address;
+    campaignBalance: Int as coins;
+}
+
+message AffiliateCreatedEvent {
+    campaignId: Int as uint32;
+    affiliateId: Int as uint32;
+    advertiser: Address;
+    affiliate: Address;
+}
+
+message InsufficientCampaignFundsEvent {
+    campaignId: Int as uint32;
+    advertiser: Address;
+    campaignBalance: Int as coins;
+    maxCpaValue: Int as coins;
+}
+
+message AffiliateWithdrawEarningsEvent {
+    campaignId: Int as uint32;
+    advertiser: Address;
+    affiliateId: Int as uint32;
+    earnings: Int as coins;
+	fee: Int as coins;
+}
+
+// Bot functions
+message BotDeployNewCampaign {}
+
+message BotUserAction {
+    campaignId: Int as uint32;
+    affiliateId: Int as uint32;
+    userActionOpCode: Int as uint32;
+    isPremiumUser: Bool;
+}
+
+// parent to child INTERNAL messages
+message ParentToChildDeployCampaign {
+    campaignId: Int as uint32;
+}
+
+message ParentToChildUpdateFeePercentage{
+    feePercentage: Int as uint32
+}
+
+message ParentToChildBotUserAction{
+    affiliateId: Int as uint32;
+    userActionOpCode: Int as uint32;
+    isPremiumUser: Bool;
+}
+
+message ParentToChildSeizeCampaign{}
+
+// * ------ END AffiliateMarketplace API ------ *
+
+
+// * ------ Campaign API ------ *
+
+message PayAffiliate{
+    affiliateId: Int as uint32;
+    amount: Int as coins;
+}
+
+// Affiliate API
+message AffiliateCreateNewAffiliate{}
+message AffiliateWithdrawEarnings {
+    affiliateId: Int as uint32;
+}
+
+// Advertiser API
+message AdvertiserWithdrawFunds{}
+
+message AdvertiserSetCampaignDetails {
+    campaignDetails: CampaignDetails;
+}
+
+message AdvertiserUserAction {
+    affiliateId: Int as uint32;
+    userActionOpCode: Int as uint32;
+    isPremiumUser: Bool;
+} 
+
+message AdvertiserAddNewAffiliateToAllowedList{affiliate: Address}
+
+message AdvertiserReplenish {}
+
+
+// Child to Parent - INTERNAL Messages
+message ChildToParentCampaignDeployedSuccessfully {
+    campaignId: Int as uint32; 
+}
+
+message ChildToParentSeizeCampaign {
+    campaignId: Int as uint32;
+}
+
+message ChildToParentAffiliateCreated {
+    campaignId: Int as uint32;
+    affiliateId: Int as uint32;
+    advertiser: Address;
+    affiliate: Address;
+}
+
+message ChildToParentAffiliateWithdrawEarningsFee {
+    campaignId: Int as uint32;
+    advertiser: Address;
+    affiliateId: Int as uint32;
+    earnings: Int as coins;
+	fee: Int as coins;
+}
+
+message ChildToParentAdvertiserDeplyContractFee {
+    campaignId: Int as uint32;
+    advertiser: Address;
+}
+
+message ChildToParentAdvertiserWithdrawFunds{
+    campaignId: Int as uint32;
+    advertiser: Address;
+    campaignBalance: Int as coins;
+}
+
+message ChildToParentCampaignBalanceUnderFiveTon {
+    campaignId: Int as uint32;
+    advertiser: Address;
+    campaignBalance: Int as coins;
+}
+
+message ChildToParentBotUserActionFee {
+    campaignId: Int as uint32;
+}
+
+message ChildToParentInsufficientCampaignFunds {
+    campaignId: Int as uint32;
+    advertiser: Address;
+    campaignBalance: Int as coins;
+    maxCpaValue: Int as coins;
+}
+
+// USDT
+message(0x7362d09c) JettonTransferNotification {
+    queryId: Int as uint64;
+    amount: Int as coins;
+    sender: Address;
+    forwardPayload: Slice as remaining;
+}
+
+message(0xf8a7ea5) JettonTransfer {
+    queryId: Int as uint64;
+    amount: Int as coins;
+    destination: Address;
+    responseDestination: Address?;
+    customPayload: Cell? = null;
+    forwardTonAmount: Int as coins;
+    forwardPayload: Slice as remaining;
+}
+
+// * ------ END Campaign API ------ *
+
+
+
 
 
 // constants
-const MAX_NUM_AFFILIATES: Int = 20000;  // twenty thousand
-
-// affiliate contract state
+const MAX_NUM_AFFILIATES: Int = 20000;
 const STATE_CAMPAIGN_CREATED: Int = 0;
 const STATE_CAMPAIGN_DETAILS_SET_BY_ADVERTISER: Int = 1;
 
 const DEPLOY_NEW_CAMPAIGN_COST: Int = ton("0.1");
-
 const GAS_FEE: Int = ton("0.01");
 const CAMPAIGN_BUFFER: Int = ton("1");
 
-const USER_ACTION_OP_CODES_BOT: Int = 2000;  // 2000 first user action op codes are saved for bot's acrions.  Anything above that is the advertiser's
+const USER_ACTION_OP_CODES_BOT: Int = 2000;
 
+// Payment method options
+const PAYMENT_METHOD_TON: Int = 0;
+const PAYMENT_METHOD_USDT: Int = 1;
 
 struct CampaignDetails {
     regularUsersCostPerAction: map<Int, Int>; // op code -> cpa
     premiumUsersCostPerAction: map<Int, Int>; // op code -> cpa
-    allowedAffiliates: map<Address, Bool>;  // address -> dummy (closed campaign). Relevant only is 'ifOpenCampaign' is false
+    allowedAffiliates: map<Address, Bool>;  // closed campaign affiliates list
     isOpenCampaign: Bool; // anyone can be an affiliate
-    campaignValidForNumDays: Int? as uint32; // optional - advetiser can set campaign as valid only for one week
+    campaignValidForNumDays: Int? as uint32; // optional - campaign expiry period
+    paymentMethod: Int as uint32; // TON (0) or USDT (1)
 }
 
 struct UserActionStats {
@@ -34,9 +249,9 @@ struct UserActionStats {
 
 struct AffiliateData {
     affiliate: Address;
-    userActionsStats: map<Int, UserActionStats>;  // user action OP CODE -> UserActionStats
-    premiumUserActionsStats: map<Int, UserActionStats>;  // user action OP CODE -> UserActionStats
-    accruedEarnings: Int as coins;  // accumulated earnings since the last withdrawl
+    userActionsStats: map<Int, UserActionStats>;
+    premiumUserActionsStats: map<Int, UserActionStats>;
+    accruedEarnings: Int as coins;
     lastWithdrawlAmount: Int as coins;
     lastWithdrawlTimestamp: Int as uint32;
 }
@@ -56,48 +271,71 @@ struct CampaignData {
     campaignBalance: Int as coins;
     contractBalance: Int as coins;
     contractTonBalance: Int as coins;
+    contractUSDTBalance: Int as coins; // NEW: USDT balance tracked manually
     contractAddress: Address;
-    feePercentage: Int as uint32;  // 200 for 2 %, 150 for 1.5 % etc...
-    campaignHasSufficientFundsToPayMaxCpa: Bool;  // campaignBalance > highest CPA
+    feePercentage: Int as uint32;
+    campaignHasSufficientFundsToPayMaxCpa: Bool;
     isCampaignExpired: Bool;
     isCampaignPausedByAdmin: Bool;
 }
 
-// Child contract for each affiliate
-contract Campaign with Resumable  {
+struct JettonWalletData {
+    status: Int as uint4;
+    balance: Int as coins;
+    ownerAddress: Address;
+    jettonMasterAddress: Address;
+}
 
-    owner: Address; // The Resumable trait requires you to add this exact state variable
-    stopped: Bool;  // The Resumable trait requires you to add this exact state variable
+fun calculateJettonWalletAddress(ownerAddress: Address, jettonMasterAddress: Address, jettonWalletCode: Cell): Address {
+    
+    let initData = JettonWalletData{
+        status: 0,
+        balance: 0,
+        ownerAddress,
+        jettonMasterAddress,
+    };
+
+    return contractAddress(StateInit{code: jettonWalletCode, data: initData.toCell()});
+}
+
+// Child contract for each affiliate
+contract Campaign with Resumable {
+
+    owner: Address;
+    stopped: Bool;
 
     campaignId: Int as uint32;
-
-    payout: Address;  // wallet to receive all fees
-
+    payout: Address;
     advertiser: Address;
     campaignDetails: CampaignDetails;
 
-    currAffiliateId: Int as uint32; // runningId
+    currAffiliateId: Int as uint32;
     affiliates: map<Int, AffiliateData>;
 
-    state: Int as uint32;  // state of the contract
-    campaignStartTimestamp: Int as uint32; // timestamp of campaign start
-    lastUserActionTimestamp: Int as uint32; // timestamp of last user action
-    numUserActions: Int as uint32;  // Track number of user actions
-    totalAccruedEarnings: Int as coins; // accrued earnings of all affiliates
-    maxCpaValue: Int as coins; // minimum balance needed for a campaign to be considered as 'ACTIVE'
-    feePercentage: Int as uint32 = 200;  // for affiliates when withdrawing funds. default is 200 which is 2%
+    state: Int as uint32;
+    campaignStartTimestamp: Int as uint32;
+    lastUserActionTimestamp: Int as uint32;
+    numUserActions: Int as uint32;
+    totalAccruedEarnings: Int as coins;
+    maxCpaValue: Int as coins;
+    feePercentage: Int as uint32 = 200;
+
+    usdtMasterAddress: Address; 
+    usdtWalletCode: Cell;
+    contractUSDTBalance: Int as coins;
+    contractUsdtJettonWallet: Address;
 
     init(owner: Address, campaignId: Int, payout: Address) {
-
+        
         require(sender() == owner, "owner must be deployer");
 
         self.owner = owner;
         self.payout = payout;
         self.stopped = false;
         self.campaignId = campaignId;
-        self.advertiser = owner; // tmp until set details
+        self.advertiser = owner; // temporary until set
 
-        self.currAffiliateId = 0;  // running id
+        self.currAffiliateId = 0; 
         self.affiliates = emptyMap();
 
         self.campaignDetails = CampaignDetails {
@@ -105,7 +343,8 @@ contract Campaign with Resumable  {
             premiumUsersCostPerAction: emptyMap(),
             allowedAffiliates: emptyMap(),
             isOpenCampaign: false,
-            campaignValidForNumDays: null
+            campaignValidForNumDays: null,
+            paymentMethod: PAYMENT_METHOD_TON // Default to TON
         };
 
         self.state = STATE_CAMPAIGN_CREATED;
@@ -114,6 +353,11 @@ contract Campaign with Resumable  {
         self.numUserActions = 0;
         self.totalAccruedEarnings = 0;
         self.maxCpaValue = ton("0");
+
+        self.usdtMasterAddress = address("EQCxE6mUtQJKFnGfaROTKOt1lZbDiiX1kCixRv7Nw2Id_sDs"); 
+        self.usdtWalletCode = beginCell().storeSlice(hex("b5ee9c72010101010023000842028f452d7a4dfd74066b682365177259ed05734435be76b5fd4bd5d8af2b7c3d68")).endCell();  
+        self.contractUsdtJettonWallet = calculateJettonWalletAddress(myAddress(), self.jettonMasterAddress, self.jettonWalletCode);
+        self.contractUSDTBalance = 0;
     }
 
     // piggyback on this message for deployment
@@ -132,31 +376,20 @@ contract Campaign with Resumable  {
         });
     }
 
-    receive(msg: ParentToChildUpdateFeePercentage) {
-        self.requireOwner();
-        self.feePercentage = msg.feePercentage;
-    }
-
-    receive(msg: ParentToChildSeizeCampaign) {
-        self.requireOwner();
-        send(SendParameters{
-            to: self.payout,
-            body: ChildToParentSeizeCampaign{
-                campaignId: self.campaignId
-            }.toCell(),
-            value: 0,
-            mode: SendRemainingBalance
-        });
-    }
-
+    // Function to calculate campaign balance (supports TON and USDT)
     fun calcCampaignBalance(): Int {
-        let campaignBalance: Int = self.calcContractBalance() - self.totalAccruedEarnings;  // can be negative in the beginning
-        return max(campaignBalance, ton("0"));  // if negative return 0
+        let campaignBalance: Int = self.calcContractBalance() - self.totalAccruedEarnings;
+        return max(campaignBalance, ton("0"));
     }
 
+    // Helper function to calculate contract balance (TON case)
     fun calcContractBalance(): Int {
-        let contractBalance: Int = myBalance() - CAMPAIGN_BUFFER;  // can be negative in the beginning
-        return max(contractBalance, ton("0"));  // if negative return 0
+        if (self.campaignDetails.paymentMethod == PAYMENT_METHOD_TON) {
+            let contractBalance: Int = myBalance() - CAMPAIGN_BUFFER;
+            return max(contractBalance, ton("0"));
+        } else {
+            return self.contractUSDTBalance
+        }
     }
 
     fun isCampaignExpired(): Bool {
@@ -171,12 +404,130 @@ contract Campaign with Resumable  {
         return campaignBalance > self.maxCpaValue;
     }
 
+    fun transferJettonUSDT(to: Address, amount: Int) {        
+        send(SendParameters{
+            to: self.contractUsdtJettonWallet,  // The Jetton wallet to send from
+            value: ton("0.05"),  // This TON is for paying for gas fees of the transfer
+            body: JettonTransfer{
+                queryId: 42,
+                amount: amount,  // Jetton amount to transfer
+                destination: to,  // The recipient of the Jettons (owner of the jetton wallet)
+                responseDestination: myAddress(),  // Set the contract as the destination to receive any excess TON
+                customPayload: null,  // For simple transfers, this can be null
+                forwardTonAmount: ton("0.1"),  // The TON amount forwarded to cover the recipient's processing cost
+                forwardPayload: rawSlice("F")  // Simple forward payload for the transfer
+            }.toCell(),
+            mode: SendPayGasSeparately
+        }); 
+    }
+
+    // receive any amount of incoming TON
+    receive() {}
+
+    // Function to track received USDT Jettons and update balance
+    receive(msg: JettonTransferNotification) {
+        
+        require(msg.sender == self.contractUsdtJettonWallet, "Only USDT Jetton transfers allowed");
+        
+        // Update the USDT balance in the state
+        self.contractUSDTBalance = self.contractUSDTBalance + msg.amount;
+    }
+
+    // Function to handle affiliate withdrawals (supports both TON and USDT)
+    receive(msg: AffiliateWithdrawEarnings) {
+        
+        self.requireNotStopped();
+
+        require(context().value >= GAS_FEE*3, "Insufficient funds to pay gas");
+
+        let affiliateDataOptional = self.affiliates.get(msg.affiliateId);
+        require(affiliateDataOptional != null, "Affiliate does not exist");
+        let affiliateData: AffiliateData = affiliateDataOptional!!;
+
+        require(sender() == affiliateData.affiliate, "Only affiliate can withdraw earnings");
+
+        let paymentAmount: Int = affiliateData.accruedEarnings;
+        require(paymentAmount > 0, "No earnings to withdraw");
+
+        require(self.calcContractBalance() >= paymentAmount, "Insufficient contract funds for payment");
+
+        // send 2% fee to owner
+        let fee: Int = (paymentAmount * self.feePercentage + 9999) / 10000;  // fee=200 = 2%
+
+        // Reset accrued earnings
+        affiliateData.accruedEarnings = ton("0");
+        affiliateData.lastWithdrawlAmount = paymentAmount - fee;
+        affiliateData.lastWithdrawlTimestamp = now();
+        self.affiliates.set(msg.affiliateId, affiliateData);
+
+        self.totalAccruedEarnings = self.totalAccruedEarnings - paymentAmount;
+
+        // Handle the payment based on the payment method
+        if (self.campaignDetails.paymentMethod == PAYMENT_METHOD_TON) {
+
+            // fee
+            send(SendParameters{
+                to: self.payout,
+                value: fee,
+                bounce: true,
+                mode: SendPayGasSeparately
+            });
+
+            // Payment in TON
+            send(SendParameters{
+                to: affiliateData.affiliate,
+                value: paymentAmount - fee,
+                bounce: true,
+                body: PayAffiliate{affiliateId: msg.affiliateId, amount: paymentAmount}.toCell(),
+                mode: SendPayGasSeparately
+            });
+
+        } else {
+            
+            // fee also in USDT
+            self.transferJettonUSDT(self.payout, fee);
+
+            // Payment in USDT Jetton 
+            self.transferJettonUSDT(affiliateData.affiliate, paymentAmount - fee, msg.affiliateId);
+
+            // Deduct amount from the contract's USDT balance
+            self.contractUSDTBalance = self.contractUSDTBalance - paymentAmount;
+        }
+    }
+
+    receive(msg: ParentToChildUpdateFeePercentage) {
+        self.requireOwner();
+        self.feePercentage = msg.feePercentage;
+    }
+
+    receive(msg: ParentToChildSeizeCampaign) {
+        
+        self.requireOwner();
+
+        let contractBalance = self.calcContractBalance();
+
+        // Check for TON or USDT based on the payment method
+        if (self.campaignDetails.paymentMethod == PAYMENT_METHOD_TON) { 
+            send(SendParameters{
+                to: self.payout,
+                body: ChildToParentSeizeCampaign{
+                    campaignId: self.campaignId
+                }.toCell(),
+                value: contractBalance,
+                mode: SendPayGasSeparately
+            });
+        } else {
+            self.transferJettonUSDT(self.payout, contractBalance);
+        }
+    }
+
     // advetiser sets campaign details 
     receive (msg: AdvertiserSetCampaignDetails) {
 
         require(self.state == STATE_CAMPAIGN_CREATED, "Must be in state: STATE_CAMPAIGN_CREATED");
         require(context().value > DEPLOY_NEW_CAMPAIGN_COST + GAS_FEE + CAMPAIGN_BUFFER, "Insufficient funds to repay parent for deployment and keep buffer");
-
+        require(msg.campaignDetails.paymentMethod == PAYMENT_METHOD_TON || msg.campaignDetails.paymentMethod == PAYMENT_METHOD_USDT, "Only TON or USDT supported as payment methods");
+        
         // verify keys are the same in both sets
         // get maxCpaValue
         let maxCpaValue: Int = ton("0");
@@ -214,7 +565,6 @@ contract Campaign with Resumable  {
 
     // Function to handle advertiser replenishment
     receive(msg: AdvertiserReplenish) {
-
         self.requireNotStopped();
         require(self.state == STATE_CAMPAIGN_DETAILS_SET_BY_ADVERTISER, "Must be in state: STATE_CAMPAIGN_DETAILS_SET_BY_ADVERTISER");
         require(sender() == self.advertiser, "Only the advertiser can replenish the contract");
@@ -303,12 +653,17 @@ contract Campaign with Resumable  {
             value: GAS_FEE,
             mode: SendPayGasSeparately
         });
-        
-        send(SendParameters{
-            to: self.advertiser,
-            value: campaignBalance,
-            mode: SendPayGasSeparately
-        });
+
+        // Check for TON or USDT based on the payment method
+        if (self.campaignDetails.paymentMethod == PAYMENT_METHOD_TON) { 
+            send(SendParameters{
+                to: self.advertiser,
+                value: campaignBalance,
+                mode: SendPayGasSeparately
+            });
+        } else {
+            self.transferJettonUSDT(self.advertiser, campaignBalance);
+        }
     }
 
     receive(msg: ParentToChildBotUserAction) {
@@ -415,67 +770,6 @@ contract Campaign with Resumable  {
         }
 
         return true;
-
-    }
-
-    receive(msg: AffiliateWithdrawEarnings) {
-
-        self.requireNotStopped();
-
-        require(context().value >= GAS_FEE*3, "Insufficient funds to pay gas");
-
-        let affiliateDataOptional = self.affiliates.get(msg.affiliateId);
-        require(affiliateDataOptional != null, "Affiliate does not exist");
-        let affiliateData: AffiliateData = affiliateDataOptional!!;
-
-        require(sender() == affiliateData.affiliate, "Only affiliate can withdraw earnings");
-
-        let paymentAmount: Int = affiliateData.accruedEarnings;
-        require(paymentAmount > ton("0"), "No earnings to withdraw");
-        require(self.calcContractBalance() >= paymentAmount, "Insufficient contract funds to make payment");  // should never reach this
-
-        // send 2% fee to owner
-        let fee: Int = (paymentAmount * self.feePercentage + 9999) / 10000;  // fee=200 = 2% fee calculation
-
-        // Reset accrued earnings and update last payment time
-        affiliateData.accruedEarnings = ton("0");
-        affiliateData.lastWithdrawlAmount = paymentAmount - fee;
-        affiliateData.lastWithdrawlTimestamp = now();
-        self.affiliates.set(msg.affiliateId, affiliateData);
-
-        // Adjust the total accrued earnings to reflect the withdrawal
-        self.totalAccruedEarnings = self.totalAccruedEarnings - paymentAmount;
-
-        // notify parent
-        send(SendParameters{
-            to: self.owner,
-            body: ChildToParentAffiliateWithdrawEarningsFee{
-                campaignId: self.campaignId,
-                advertiser: self.advertiser,
-                affiliateId: msg.affiliateId,
-                earnings: paymentAmount,
-                fee: fee
-            }.toCell(),
-            value: GAS_FEE,
-            mode: SendPayGasSeparately
-        });
-
-        // send fee to payout
-        send(SendParameters{
-            to: self.payout,
-            value: fee,
-            bounce: true,
-            mode: SendPayGasSeparately
-        });
-
-        // send payment to affiliate
-        send(SendParameters{
-            to: affiliateData.affiliate,
-            value: paymentAmount - fee,
-            bounce: true,
-            body: PayAffiliate{affiliateId: msg.affiliateId, amount: paymentAmount}.toCell(),
-            mode: SendPayGasSeparately
-        });
 
     }
 
@@ -820,6 +1114,9 @@ contract AffiliateMarketplace with Deployable, Resumable  {
             mode: SendPayGasSeparately
         });
     }
+
+    // receive any amount of incoming TON
+    receive() {}
 
     // receive("Resume") is added automatically to allow owner to resume the contract
     // receive("Stop") is added automatically to allow owner to stop the contract

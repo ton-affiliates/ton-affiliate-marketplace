@@ -188,4 +188,22 @@ message ChildToParentInsufficientCampaignFunds {
     maxCpaValue: Int as coins;
 }
 
+// USDT
+message(0x7362d09c) JettonTransferNotification {
+    queryId: Int as uint64;
+    amount: Int as coins;
+    sender: Address;
+    forwardPayload: Slice as remaining;
+}
+
+message(0xf8a7ea5) JettonTransfer {
+    queryId: Int as uint64;
+    amount: Int as coins;
+    destination: Address;
+    responseDestination: Address?;
+    customPayload: Cell? = null;
+    forwardTonAmount: Int as coins;
+    forwardPayload: Slice as remaining;
+}
+
 // * ------ END Campaign API ------ *
