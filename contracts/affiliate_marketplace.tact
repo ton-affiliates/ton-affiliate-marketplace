@@ -2,7 +2,7 @@ import "@stdlib/stoppable";
 import "@stdlib/ownable";
 import "@stdlib/deploy";
 // import "./messages.tact";
-
+import "./jettonWallet.tact";
 
 // * ------ AffiliateMarketplace API ------ *
 
@@ -194,28 +194,6 @@ message ChildToParentInsufficientCampaignFunds {
     maxCpaValue: Int as coins;
 }
 
-// USDT
-message(0x7362d09c) JettonTransferNotification {
-    queryId: Int as uint64;
-    amount: Int as coins;
-    sender: Address;
-    forwardPayload: Slice as remaining;
-}
-
-message(0xf8a7ea5) JettonTransfer {
-    queryId: Int as uint64;
-    amount: Int as coins;
-    destination: Address;
-    responseDestination: Address?;
-    customPayload: Cell? = null;
-    forwardTonAmount: Int as coins;
-    forwardPayload: Slice as remaining;
-}
-
-// * ------ END Campaign API ------ *
-
-
-
 
 
 // constants
@@ -286,6 +264,7 @@ struct JettonWalletData {
     jettonMasterAddress: Address;
 }
 
+
 fun calculateJettonWalletAddress(ownerAddress: Address, jettonMasterAddress: Address, jettonWalletCode: Cell): Address {
     
     let initData = JettonWalletData{
@@ -296,6 +275,22 @@ fun calculateJettonWalletAddress(ownerAddress: Address, jettonMasterAddress: Add
     };
 
     return contractAddress(StateInit{code: jettonWalletCode, data: initData.toCell()});
+}
+
+//https://github.com/Ton-Dynasty/tondynasty-contracts/blob/main/contracts/jetton_example.tact
+contract ExampleJettonWallet with JettonWallet {
+    balance: Int as coins = 0;
+    owner: Address;
+    jetton_master: Address;
+
+    init(owner: Address, jetton_master: Address) {
+        self.owner = owner;
+        self.jetton_master = jetton_master;
+    }
+
+    override inline fun calculate_jetton_wallet_init(owner_address: Address): StateInit {
+        return initOf ExampleJettonWallet(owner_address, self.jetton_master);
+    }
 }
 
 // Child contract for each affiliate
@@ -354,9 +349,13 @@ contract Campaign with Resumable {
         self.totalAccruedEarnings = 0;
         self.maxCpaValue = ton("0");
 
-        self.usdtMasterAddress = address("EQCxE6mUtQJKFnGfaROTKOt1lZbDiiX1kCixRv7Nw2Id_sDs"); 
-        self.usdtWalletCode = beginCell().storeSlice(hex("b5ee9c72010101010023000842028f452d7a4dfd74066b682365177259ed05734435be76b5fd4bd5d8af2b7c3d68")).endCell();  
-        self.contractUsdtJettonWallet = calculateJettonWalletAddress(myAddress(), self.jettonMasterAddress, self.jettonWalletCode);
+        let usdtMasterAddress = address("EQCxE6mUtQJKFnGfaROTKOt1lZbDiiX1kCixRv7Nw2Id_sDs");
+        self.usdtMasterAddress =  usdtMasterAddress;// mainnet address of USDT
+
+        let init: StateInit = initOf ExampleJettonWallet(myAddress(), usdtMasterAddress);
+        let walletCode = init.code;
+        self.usdtWalletCode = walletCode;
+        self.contractUsdtJettonWallet = calculateJettonWalletAddress(myAddress(), usdtMasterAddress, walletCode);
         self.contractUSDTBalance = 0;
     }
 
@@ -409,13 +408,13 @@ contract Campaign with Resumable {
             to: self.contractUsdtJettonWallet,  // The Jetton wallet to send from
             value: ton("0.05"),  // This TON is for paying for gas fees of the transfer
             body: JettonTransfer{
-                queryId: 42,
+                query_id: 42,
                 amount: amount,  // Jetton amount to transfer
                 destination: to,  // The recipient of the Jettons (owner of the jetton wallet)
-                responseDestination: myAddress(),  // Set the contract as the destination to receive any excess TON
-                customPayload: null,  // For simple transfers, this can be null
-                forwardTonAmount: ton("0.1"),  // The TON amount forwarded to cover the recipient's processing cost
-                forwardPayload: rawSlice("F")  // Simple forward payload for the transfer
+                response_destination: myAddress(),  // Set the contract as the destination to receive any excess TON
+                custom_payload: null,  // For simple transfers, this can be null
+                forward_ton_amount: ton("0.1"),  // The TON amount forwarded to cover the recipient's processing cost
+                forward_payload: rawSlice("F")  // Simple forward payload for the transfer
             }.toCell(),
             mode: SendPayGasSeparately
         }); 
@@ -488,7 +487,7 @@ contract Campaign with Resumable {
             self.transferJettonUSDT(self.payout, fee);
 
             // Payment in USDT Jetton 
-            self.transferJettonUSDT(affiliateData.affiliate, paymentAmount - fee, msg.affiliateId);
+            self.transferJettonUSDT(affiliateData.affiliate, paymentAmount - fee);
 
             // Deduct amount from the contract's USDT balance
             self.contractUSDTBalance = self.contractUSDTBalance - paymentAmount;
@@ -803,6 +802,7 @@ contract Campaign with Resumable {
             campaignBalance: self.calcCampaignBalance(),
             contractBalance: self.calcContractBalance(),
             contractTonBalance: myBalance(),
+            contractUSDTBalance: self.contractUSDTBalance,
             contractAddress: myAddress(),
             feePercentage: self.feePercentage,
             campaignHasSufficientFundsToPayMaxCpa: self.campaignHasSufficientFundsToPayMaxCpa(self.calcCampaignBalance()), // ha sufficient balance to pay max CPA
