@@ -44,6 +44,11 @@ message(0x178d4519) JettonInternalTransfer {
     forward_payload: Slice as remaining;    // optional custom data that should be sent to the destination address.
 }
 
+message JettonInternalTransferFailedNotification {
+    query_id: Int as uint64;                // arbitrary request number
+    amount: Int as coins;                   // amount of jettons to transfer
+}
+
 message(0x7bdd97de) JettonBurnNotification {
     query_id: Int as uint64;          // arbitrary request number
     amount: Int as coins;             // amount of jettons to burn
@@ -104,6 +109,16 @@ trait JettonWallet {
 
     bounced(src: bounced<JettonInternalTransfer>) {
         self.balance = self.balance + src.amount;
+
+        send(SendParameters{
+            to: self.owner,
+            value: 0.01,
+            mode: SendPayGasSeparately,
+            body: JettonInternalTransferFailedNotification{
+                query_id: msg.query_id,
+                amount: msg.amount
+            }.toCell()
+        });
     }
 
     bounced(src: bounced<JettonBurnNotification>) {

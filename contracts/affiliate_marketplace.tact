@@ -404,7 +404,8 @@ contract Campaign with Resumable {
     }
 
     fun transferJettonUSDT(to: Address, amount: Int) {        
-        send(SendParameters{
+        
+		send(SendParameters{
             to: self.contractUsdtJettonWallet,  // The Jetton wallet to send from
             value: ton("0.05"),  // This TON is for paying for gas fees of the transfer
             body: JettonTransfer{
@@ -418,6 +419,9 @@ contract Campaign with Resumable {
             }.toCell(),
             mode: SendPayGasSeparately
         }); 
+		
+		// Deduct amount from the contract's USDT balance
+        self.contractUSDTBalance = self.contractUSDTBalance - amount;
     }
 
     // receive any amount of incoming TON
@@ -489,8 +493,6 @@ contract Campaign with Resumable {
             // Payment in USDT Jetton 
             self.transferJettonUSDT(affiliateData.affiliate, paymentAmount - fee);
 
-            // Deduct amount from the contract's USDT balance
-            self.contractUSDTBalance = self.contractUSDTBalance - paymentAmount;
         }
     }
 
@@ -773,17 +775,29 @@ contract Campaign with Resumable {
     }
 
     // if payment bounces - adjust the affiliate's accruedEarnings and totalAccruedEarnings accordingly
+    fun bouncedPayment(affiliateId: Int, amount: Int) {
+        
+        let affiliateDataOptional = self.affiliates.get(affiliateId);
+		if (affiliateDataOptional != null {
+			let affiliateData: AffiliateData = affiliateDataOptional!!;
+			affiliateData.accruedEarnings = affiliateData.accruedEarnings + amount;
+			self.affiliates.set(affiliateId, affiliateData);
+			self.totalAccruedEarnings = self.totalAccruedEarnings + amount;
+		}
+        
+		if (self.campaignDetails.paymentMethod == PAYMENT_METHOD_USDT) {
+			self.contractUSDTBalance = self.contractUSDTBalance + amount;
+		}
+    }
+
+    // bounced USDT
+    receive(msg: JettonInternalTransferFailedNotification) {
+        bouncedPayment(msg.query_id, msg.amount);
+    }
+
+    // bounced TON
     bounced(msg: PayAffiliate) {
-
-        let affiliateDataOptional = self.affiliates.get(msg.affiliateId);
-        require(affiliateDataOptional != null, "Affiliate does not exist");
-        let affiliateData: AffiliateData = affiliateDataOptional!!;
-
-        affiliateData.accruedEarnings = affiliateData.accruedEarnings + msg.amount;
-
-        self.affiliates.set(msg.affiliateId, affiliateData);
-
-        self.totalAccruedEarnings = self.totalAccruedEarnings + msg.amount;
+        bouncedPayment(msg.affiliateId, msg.amount);
     }
 
     get fun campaignData(): CampaignData {
