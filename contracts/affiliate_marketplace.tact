@@ -1,200 +1,8 @@
 import "@stdlib/stoppable";
 import "@stdlib/ownable";
 import "@stdlib/deploy";
-// import "./messages.tact";
-import "./jettonWallet.tact";
-
-// * ------ AffiliateMarketplace API ------ *
-
-// Admin functions 
-message AdminWithdraw {
-    amount: Int as coins;
-    wallets: map<Address, Bool>;
-}
-
-message AdminReplenish {}
-
-message AdminModifyCampaignFeePercentage {
-    campaignId: Int as uint32;
-    feePercentage: Int as uint32;
-}
-
-message AdminStopCampaign {
-	campaignId: Int as uint32;
-}
-
-message AdminResumeCampaign {
-	campaignId: Int as uint32;
-}
-
-message AdminSeizeCampaignBalance {
-    campaignId: Int as uint32;
-}
-
-// Events - always emitted from parent contract
-message AdvertiserWithdrawFundsEvent{
-    campaignId: Int as uint32;
-    advertiser: Address;
-    campaignBalance: Int as coins;
-}
-
-message CampaignCreatedEvent {
-    campaignId: Int as uint32;
-    campaignContractAddress: Address;
-}
-
-message AdvertiserSignedCampaignDetailsEvent {
-	campaignId: Int as uint32;
-	advertiser: Address;
-}
-
-message CampaignSeizedEvent{
-    campaignId: Int as uint32;
-    amountSeized: Int as coins;
-}
-
-message CampaignBalanceUnderFiveTonEvent {
-    campaignId: Int as uint32;
-    advertiser: Address;
-    campaignBalance: Int as coins;
-}
-
-message AffiliateCreatedEvent {
-    campaignId: Int as uint32;
-    affiliateId: Int as uint32;
-    advertiser: Address;
-    affiliate: Address;
-}
-
-message InsufficientCampaignFundsEvent {
-    campaignId: Int as uint32;
-    advertiser: Address;
-    campaignBalance: Int as coins;
-    maxCpaValue: Int as coins;
-}
-
-message AffiliateWithdrawEarningsEvent {
-    campaignId: Int as uint32;
-    advertiser: Address;
-    affiliateId: Int as uint32;
-    earnings: Int as coins;
-	fee: Int as coins;
-}
-
-// Bot functions
-message BotDeployNewCampaign {}
-
-message BotUserAction {
-    campaignId: Int as uint32;
-    affiliateId: Int as uint32;
-    userActionOpCode: Int as uint32;
-    isPremiumUser: Bool;
-}
-
-// parent to child INTERNAL messages
-message ParentToChildDeployCampaign {
-    campaignId: Int as uint32;
-}
-
-message ParentToChildUpdateFeePercentage{
-    feePercentage: Int as uint32
-}
-
-message ParentToChildBotUserAction{
-    affiliateId: Int as uint32;
-    userActionOpCode: Int as uint32;
-    isPremiumUser: Bool;
-}
-
-message ParentToChildSeizeCampaign{}
-
-// * ------ END AffiliateMarketplace API ------ *
-
-
-// * ------ Campaign API ------ *
-
-message PayAffiliate{
-    affiliateId: Int as uint32;
-    amount: Int as coins;
-}
-
-// Affiliate API
-message AffiliateCreateNewAffiliate{}
-message AffiliateWithdrawEarnings {
-    affiliateId: Int as uint32;
-}
-
-// Advertiser API
-message AdvertiserWithdrawFunds{}
-
-message AdvertiserSetCampaignDetails {
-    campaignDetails: CampaignDetails;
-}
-
-message AdvertiserUserAction {
-    affiliateId: Int as uint32;
-    userActionOpCode: Int as uint32;
-    isPremiumUser: Bool;
-} 
-
-message AdvertiserAddNewAffiliateToAllowedList{affiliate: Address}
-
-message AdvertiserReplenish {}
-
-
-// Child to Parent - INTERNAL Messages
-message ChildToParentCampaignDeployedSuccessfully {
-    campaignId: Int as uint32; 
-}
-
-message ChildToParentSeizeCampaign {
-    campaignId: Int as uint32;
-}
-
-message ChildToParentAffiliateCreated {
-    campaignId: Int as uint32;
-    affiliateId: Int as uint32;
-    advertiser: Address;
-    affiliate: Address;
-}
-
-message ChildToParentAffiliateWithdrawEarningsFee {
-    campaignId: Int as uint32;
-    advertiser: Address;
-    affiliateId: Int as uint32;
-    earnings: Int as coins;
-	fee: Int as coins;
-}
-
-message ChildToParentAdvertiserDeplyContractFee {
-    campaignId: Int as uint32;
-    advertiser: Address;
-}
-
-message ChildToParentAdvertiserWithdrawFunds{
-    campaignId: Int as uint32;
-    advertiser: Address;
-    campaignBalance: Int as coins;
-}
-
-message ChildToParentCampaignBalanceUnderFiveTon {
-    campaignId: Int as uint32;
-    advertiser: Address;
-    campaignBalance: Int as coins;
-}
-
-message ChildToParentBotUserActionFee {
-    campaignId: Int as uint32;
-}
-
-message ChildToParentInsufficientCampaignFunds {
-    campaignId: Int as uint32;
-    advertiser: Address;
-    campaignBalance: Int as coins;
-    maxCpaValue: Int as coins;
-}
-
-
+import "./messages.tact";
+import "./jetton/jetton.tact";
 
 // constants
 const MAX_NUM_AFFILIATES: Int = 20000;
@@ -249,19 +57,12 @@ struct CampaignData {
     campaignBalance: Int as coins;
     contractBalance: Int as coins;
     contractTonBalance: Int as coins;
-    contractUSDTBalance: Int as coins; // NEW: USDT balance tracked manually
+    contractUSDTBalance: Int as coins; 
     contractAddress: Address;
     feePercentage: Int as uint32;
     campaignHasSufficientFundsToPayMaxCpa: Bool;
     isCampaignExpired: Bool;
     isCampaignPausedByAdmin: Bool;
-}
-
-struct JettonWalletData {
-    status: Int as uint4;
-    balance: Int as coins;
-    ownerAddress: Address;
-    jettonMasterAddress: Address;
 }
 
 
@@ -271,26 +72,10 @@ fun calculateJettonWalletAddress(ownerAddress: Address, jettonMasterAddress: Add
         status: 0,
         balance: 0,
         ownerAddress,
-        jettonMasterAddress,
+        jettonMasterAddress
     };
 
     return contractAddress(StateInit{code: jettonWalletCode, data: initData.toCell()});
-}
-
-//https://github.com/Ton-Dynasty/tondynasty-contracts/blob/main/contracts/jetton_example.tact
-contract ExampleJettonWallet with JettonWallet {
-    balance: Int as coins = 0;
-    owner: Address;
-    jetton_master: Address;
-
-    init(owner: Address, jetton_master: Address) {
-        self.owner = owner;
-        self.jetton_master = jetton_master;
-    }
-
-    override inline fun calculate_jetton_wallet_init(owner_address: Address): StateInit {
-        return initOf ExampleJettonWallet(owner_address, self.jetton_master);
-    }
 }
 
 // Child contract for each affiliate
@@ -316,7 +101,6 @@ contract Campaign with Resumable {
     feePercentage: Int as uint32 = 200;
 
     usdtMasterAddress: Address; 
-    usdtWalletCode: Cell;
     contractUSDTBalance: Int as coins;
     contractUsdtJettonWallet: Address;
 
@@ -352,10 +136,8 @@ contract Campaign with Resumable {
         let usdtMasterAddress = address("EQCxE6mUtQJKFnGfaROTKOt1lZbDiiX1kCixRv7Nw2Id_sDs");
         self.usdtMasterAddress =  usdtMasterAddress;// mainnet address of USDT
 
-        let init: StateInit = initOf ExampleJettonWallet(myAddress(), usdtMasterAddress);
-        let walletCode = init.code;
-        self.usdtWalletCode = walletCode;
-        self.contractUsdtJettonWallet = calculateJettonWalletAddress(myAddress(), usdtMasterAddress, walletCode);
+        let init: StateInit = initOf JettonWalletTemplate(usdtMasterAddress, myAddress());
+        self.contractUsdtJettonWallet = calculateJettonWalletAddress(myAddress(), usdtMasterAddress, init.code);
         self.contractUSDTBalance = 0;
     }
 
@@ -387,7 +169,7 @@ contract Campaign with Resumable {
             let contractBalance: Int = myBalance() - CAMPAIGN_BUFFER;
             return max(contractBalance, ton("0"));
         } else {
-            return self.contractUSDTBalance
+            return self.contractUSDTBalance;
         }
     }
 
@@ -403,19 +185,18 @@ contract Campaign with Resumable {
         return campaignBalance > self.maxCpaValue;
     }
 
-    fun transferJettonUSDT(to: Address, amount: Int) {        
-        
+    fun transferJettonUSDT(to: Address, amount: Int, queryId: Int) {  
 		send(SendParameters{
             to: self.contractUsdtJettonWallet,  // The Jetton wallet to send from
             value: ton("0.05"),  // This TON is for paying for gas fees of the transfer
-            body: JettonTransfer{
-                query_id: 42,
+            body: TokenTransfer{
+                queryId: 42,
                 amount: amount,  // Jetton amount to transfer
                 destination: to,  // The recipient of the Jettons (owner of the jetton wallet)
-                response_destination: myAddress(),  // Set the contract as the destination to receive any excess TON
-                custom_payload: null,  // For simple transfers, this can be null
-                forward_ton_amount: ton("0.1"),  // The TON amount forwarded to cover the recipient's processing cost
-                forward_payload: rawSlice("F")  // Simple forward payload for the transfer
+                responseDestination: myAddress(),  // Set the contract as the destination to receive any excess TON
+                customPayload: null,  // For simple transfers, this can be null
+                forwardAmount: ton("0.1"),  // The TON amount forwarded to cover the recipient's processing cost
+                forwardPayload: beginCell().storeUint(0xF, 4).endCell()  // Simple forward payload for the transfer
             }.toCell(),
             mode: SendPayGasSeparately
         }); 
@@ -428,7 +209,7 @@ contract Campaign with Resumable {
     receive() {}
 
     // Function to track received USDT Jettons and update balance
-    receive(msg: JettonTransferNotification) {
+    receive(msg: TransferNotification) {
         
         require(msg.sender == self.contractUsdtJettonWallet, "Only USDT Jetton transfers allowed");
         
@@ -488,10 +269,10 @@ contract Campaign with Resumable {
         } else {
             
             // fee also in USDT
-            self.transferJettonUSDT(self.payout, fee);
+            self.transferJettonUSDT(self.payout, fee, MAX_NUM_AFFILIATES + 2);
 
             // Payment in USDT Jetton 
-            self.transferJettonUSDT(affiliateData.affiliate, paymentAmount - fee);
+            self.transferJettonUSDT(affiliateData.affiliate, paymentAmount - fee, msg.affiliateId);
 
         }
     }
@@ -518,7 +299,7 @@ contract Campaign with Resumable {
                 mode: SendPayGasSeparately
             });
         } else {
-            self.transferJettonUSDT(self.payout, contractBalance);
+            self.transferJettonUSDT(self.payout, contractBalance, MAX_NUM_AFFILIATES + 2);
         }
     }
 
@@ -663,7 +444,7 @@ contract Campaign with Resumable {
                 mode: SendPayGasSeparately
             });
         } else {
-            self.transferJettonUSDT(self.advertiser, campaignBalance);
+            self.transferJettonUSDT(self.advertiser, campaignBalance, MAX_NUM_AFFILIATES + 1);
         }
     }
 
@@ -778,7 +559,7 @@ contract Campaign with Resumable {
     fun bouncedPayment(affiliateId: Int, amount: Int) {
         
         let affiliateDataOptional = self.affiliates.get(affiliateId);
-		if (affiliateDataOptional != null {
+		if (affiliateDataOptional != null) {
 			let affiliateData: AffiliateData = affiliateDataOptional!!;
 			affiliateData.accruedEarnings = affiliateData.accruedEarnings + amount;
 			self.affiliates.set(affiliateId, affiliateData);
@@ -792,12 +573,12 @@ contract Campaign with Resumable {
 
     // bounced USDT
     receive(msg: JettonInternalTransferFailedNotification) {
-        bouncedPayment(msg.query_id, msg.amount);
+        self.bouncedPayment(msg.queryId, msg.amount);
     }
 
     // bounced TON
     bounced(msg: PayAffiliate) {
-        bouncedPayment(msg.affiliateId, msg.amount);
+        self.bouncedPayment(msg.affiliateId, msg.amount);
     }
 
     get fun campaignData(): CampaignData {
