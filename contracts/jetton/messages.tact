@@ -62,3 +62,5 @@ message JettonInternalTransferFailedNotification {
     queryId: Int as uint64;                // arbitrary request number
     amount: Int as coins;                   // amount of jettons to transfer
 }
+
+message PiggyBackDeployMessage{}

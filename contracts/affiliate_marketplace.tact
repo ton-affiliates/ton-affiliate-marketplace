@@ -192,6 +192,8 @@ contract Campaign with Resumable {
     }
 
     fun transferJettonUSDT(to: Address, amount: Int, destintaionId: Int) {  
+	
+		require(self.contractUSDTBalance > amount, "Insufficient USDT funds to make transfer");
 		let queryId = self.queryId;
         self.queryId = self.queryId + 1;
         self.queryIdToDestintaionId.set(queryId, destintaionId);
@@ -212,7 +214,6 @@ contract Campaign with Resumable {
 		
 		// Deduct amount from the contract's USDT balance
         self.contractUSDTBalance = self.contractUSDTBalance - amount;
-        self.contractUSDTBalance = max(self.contractUSDTBalance, 0);
     }
 
     // receive any amount of incoming TON
@@ -374,12 +375,19 @@ contract Campaign with Resumable {
             // set USDT details
             self.usdtMasterAddress = address("EQCxE6mUtQJKFnGfaROTKOt1lZbDiiX1kCixRv7Nw2Id_sDs");// mainnet address of USDT
 
-            let init: StateInit = initOf JettonWalletTemplate(self.usdtMasterAddress, myAddress());
-            self.contractUsdtJettonWallet = calculateJettonWalletAddress(myAddress(), self.usdtMasterAddress, init.code);
+            let walletInit: StateInit = initOf JettonWalletTemplate(self.usdtMasterAddress, myAddress());
+            self.contractUsdtJettonWallet = calculateJettonWalletAddress(myAddress(), self.usdtMasterAddress, walletInit.code);
 
             // deploy wallet by transferring funds to payout (which will bounce because thre is no balance in the wallet).
             // it will deploy the implementation of OUR wallet
-            self.transferJettonUSDT(self.payout, 1, DESTINATION_ID_PAYOUT); 
+			send(SendParameters{
+				to: self.contractUsdtJettonWallet,  // The Jetton wallet to send from
+				value: DEPLOY_NEW_CAMPAIGN_COST,  // This TON is for paying for gas fees of the transfer
+				body: PiggyBackDeployMessage{}.toCell(),
+				code: walletInit.code,
+				data: walletInit.data,
+				mode: SendPayGasSeparately
+			}); 
         }
     }
 
@@ -682,7 +690,7 @@ contract Campaign with Resumable {
         return myBalance(); // in nano-tons (like cents, just with 9 decimals)
     }
 
-    get fun destinationId(queryId: Int) {
+    get fun destinationId(queryId: Int): Int? {
         return self.queryIdToDestintaionId.get(queryId);
     }
 }

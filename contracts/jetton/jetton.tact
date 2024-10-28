@@ -287,6 +287,8 @@ trait JettonWallet with Common {
     receive(msg: Burn) {
         self.receiveBurn(msg);
     }
+	
+	receive(msg: PiggyBackDeployMessage) {}
 
     // this is a TEP-074 standard getter method
     get fun get_wallet_data(): JettonWalletData {
