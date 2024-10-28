@@ -212,6 +212,7 @@ contract Campaign with Resumable {
 		
 		// Deduct amount from the contract's USDT balance
         self.contractUSDTBalance = self.contractUSDTBalance - amount;
+        self.contractUSDTBalance = max(self.contractUSDTBalance, 0);
     }
 
     // receive any amount of incoming TON
@@ -371,10 +372,14 @@ contract Campaign with Resumable {
         if (msg.campaignDetails.paymentMethod == PAYMENT_METHOD_USDT) {
             
             // set USDT details
-            self.usdtMasterAddress =  address("EQCxE6mUtQJKFnGfaROTKOt1lZbDiiX1kCixRv7Nw2Id_sDs");// mainnet address of USDT
+            self.usdtMasterAddress = address("EQCxE6mUtQJKFnGfaROTKOt1lZbDiiX1kCixRv7Nw2Id_sDs");// mainnet address of USDT
 
             let init: StateInit = initOf JettonWalletTemplate(self.usdtMasterAddress, myAddress());
             self.contractUsdtJettonWallet = calculateJettonWalletAddress(myAddress(), self.usdtMasterAddress, init.code);
+
+            // deploy wallet by transferring funds to payout (which will bounce because thre is no balance in the wallet).
+            // it will deploy the implementation of OUR wallet
+            self.transferJettonUSDT(self.payout, 1, DESTINATION_ID_PAYOUT); 
         }
     }
 
@@ -675,6 +680,10 @@ contract Campaign with Resumable {
 	
 	get fun balance(): Int {
         return myBalance(); // in nano-tons (like cents, just with 9 decimals)
+    }
+
+    get fun destinationId(queryId: Int) {
+        return self.queryIdToDestintaionId.get(queryId);
     }
 }
 
