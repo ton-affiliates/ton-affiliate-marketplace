@@ -168,7 +168,8 @@ beforeEach(async () => {
                 premiumUsersCostPerAction: regularUsersMapCostPerActionMap,
                 allowedAffiliates: Dictionary.empty<Address, boolean>(),
                 isOpenCampaign: false,
-				campaignValidForNumDays: null
+				campaignValidForNumDays: null,
+				paymentMethod: BigInt(0) // TON
             }
         }
     );

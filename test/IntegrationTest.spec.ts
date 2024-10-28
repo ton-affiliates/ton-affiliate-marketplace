@@ -158,7 +158,8 @@ describe('AffiliateMarketplace Integration Test', () => {
                     premiumUsersCostPerAction: premiumUsersMapCostPerActionMap,
                     allowedAffiliates: Dictionary.empty<Address, boolean>(),
                     isOpenCampaign: true,  // open campaign
-                    campaignValidForNumDays: null // no end date
+                    campaignValidForNumDays: null, // no end date
+					paymentMethod: BigInt(0) // TON
                 }
             }
         );

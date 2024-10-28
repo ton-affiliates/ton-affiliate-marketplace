@@ -173,7 +173,8 @@ describe('Bot Actions - Positive and Negative Tests for Bot Functions', () => {
                     premiumUsersCostPerAction: regularUsersMapCostPerActionMap,
                     allowedAffiliates: Dictionary.empty<Address, boolean>(),
                     isOpenCampaign: false,
-                    campaignValidForNumDays: null
+                    campaignValidForNumDays: null,
+					paymentMethod: BigInt(0) // TON
                 }
             }
         );
@@ -267,7 +268,8 @@ describe('Bot Actions - Positive and Negative Tests for Bot Functions', () => {
                     premiumUsersCostPerAction: regularUsersMapCostPerActionMap,
                     allowedAffiliates: Dictionary.empty<Address, boolean>(),
                     isOpenCampaign: false,
-                    campaignValidForNumDays: null
+                    campaignValidForNumDays: null,
+					paymentMethod: BigInt(0) // TON
                 }
             }
         );

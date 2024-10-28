@@ -114,7 +114,8 @@ beforeEach(async () => {
                 premiumUsersCostPerAction: regularUsersMapCostPerActionMap,
                 allowedAffiliates: Dictionary.empty<Address, boolean>(),
                 isOpenCampaign: false,
-				campaignValidForNumDays: null
+				campaignValidForNumDays: null,
+				paymentMethod: BigInt(0) // TON
             }
         }
     );
@@ -151,8 +152,8 @@ describe('Administrative Actions - positive test', () => {
 		expect(campaignData.campaignBalance).toBe(BigInt(0));
 		
 		let deployerBalance = await deployer.getBalance();
-		expect(deployerBalance - deployerBalanceBeforeSeize).toBeLessThan(toNano("10"));
-		expect(deployerBalance - deployerBalanceBeforeSeize).toBeGreaterThan(toNano("9.9"));
+		expect(deployerBalance - deployerBalanceBeforeSeize).toBeLessThan(toNano("9"));
+		expect(deployerBalance - deployerBalanceBeforeSeize).toBeGreaterThan(toNano("8.9"));
     });
 	
 

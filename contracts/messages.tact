@@ -132,6 +132,7 @@ message AdvertiserUserAction {
 } 
 
 message AdvertiserAddNewAffiliateToAllowedList{affiliate: Address}
+message AdvertiserRemoveExistingAffiliateFromAllowedList{affiliate: Address}
 
 message AdvertiserReplenish {}
 

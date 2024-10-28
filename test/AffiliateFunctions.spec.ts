@@ -146,7 +146,8 @@ beforeEach(async () => {
                 premiumUsersCostPerAction: regularUsersMapCostPerActionMap,
                 allowedAffiliates: Dictionary.empty<Address, boolean>().set(affiliate1.address, true),
                 isOpenCampaign: false,
-                campaignValidForNumDays: null
+                campaignValidForNumDays: null,
+				paymentMethod: BigInt(0) // TON
             }
         }
     );

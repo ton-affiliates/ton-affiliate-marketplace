@@ -6,6 +6,8 @@ import "./jetton/jetton.tact";
 
 // constants
 const MAX_NUM_AFFILIATES: Int = 20000;
+const DESTINATION_ID_ADVERTISER: Int = 20001;
+const DESTINATION_ID_PAYOUT: Int = 20002;
 const STATE_CAMPAIGN_CREATED: Int = 0;
 const STATE_CAMPAIGN_DETAILS_SET_BY_ADVERTISER: Int = 1;
 
@@ -55,10 +57,12 @@ struct CampaignData {
     lastUserActionTimestamp: Int as uint32;
     numUserActions: Int as uint32;
     campaignBalance: Int as coins;
-    contractBalance: Int as coins;
+    contractBalance: Int as coins;  // balance 
     contractTonBalance: Int as coins;
-    contractUSDTBalance: Int as coins; 
     contractAddress: Address;
+    usdtMasterAddress: Address; 
+    contractUSDTBalance: Int as coins;
+    contractUsdtJettonWallet: Address;
     feePercentage: Int as uint32;
     campaignHasSufficientFundsToPayMaxCpa: Bool;
     isCampaignExpired: Bool;
@@ -103,6 +107,8 @@ contract Campaign with Resumable {
     usdtMasterAddress: Address; 
     contractUSDTBalance: Int as coins;
     contractUsdtJettonWallet: Address;
+    queryId: Int as uint32; // running Id
+    queryIdToDestintaionId: map<Int, Int>;
 
     init(owner: Address, campaignId: Int, payout: Address) {
         
@@ -133,12 +139,12 @@ contract Campaign with Resumable {
         self.totalAccruedEarnings = 0;
         self.maxCpaValue = ton("0");
 
-        let usdtMasterAddress = address("EQCxE6mUtQJKFnGfaROTKOt1lZbDiiX1kCixRv7Nw2Id_sDs");
-        self.usdtMasterAddress =  usdtMasterAddress;// mainnet address of USDT
-
-        let init: StateInit = initOf JettonWalletTemplate(usdtMasterAddress, myAddress());
-        self.contractUsdtJettonWallet = calculateJettonWalletAddress(myAddress(), usdtMasterAddress, init.code);
+        // usdt details
+        self.usdtMasterAddress =  newAddress(0, 0); 
+        self.contractUsdtJettonWallet = newAddress(0, 0); 
         self.contractUSDTBalance = 0;
+        self.queryId = 0;
+        self.queryIdToDestintaionId = emptyMap();
     }
 
     // piggyback on this message for deployment
@@ -185,12 +191,15 @@ contract Campaign with Resumable {
         return campaignBalance > self.maxCpaValue;
     }
 
-    fun transferJettonUSDT(to: Address, amount: Int, queryId: Int) {  
-		send(SendParameters{
+    fun transferJettonUSDT(to: Address, amount: Int, destintaionId: Int) {  
+		let queryId = self.queryId;
+        self.queryId = self.queryId + 1;
+        self.queryIdToDestintaionId.set(queryId, destintaionId);
+        send(SendParameters{
             to: self.contractUsdtJettonWallet,  // The Jetton wallet to send from
             value: ton("0.05"),  // This TON is for paying for gas fees of the transfer
             body: TokenTransfer{
-                queryId: 42,
+                queryId: queryId,  // must be unique - used against replay attacks
                 amount: amount,  // Jetton amount to transfer
                 destination: to,  // The recipient of the Jettons (owner of the jetton wallet)
                 responseDestination: myAddress(),  // Set the contract as the destination to receive any excess TON
@@ -211,7 +220,8 @@ contract Campaign with Resumable {
     // Function to track received USDT Jettons and update balance
     receive(msg: TransferNotification) {
         
-        require(msg.sender == self.contractUsdtJettonWallet, "Only USDT Jetton transfers allowed");
+        require(sender() == self.contractUsdtJettonWallet, "Only contract wallet allowed to invoke");
+        require(msg.sender == self.contractUsdtJettonWallet, "Contract wallet should be the same as sender");
         
         // Update the USDT balance in the state
         self.contractUSDTBalance = self.contractUSDTBalance + msg.amount;
@@ -245,6 +255,20 @@ contract Campaign with Resumable {
         self.affiliates.set(msg.affiliateId, affiliateData);
 
         self.totalAccruedEarnings = self.totalAccruedEarnings - paymentAmount;
+		
+		// notify parent
+        send(SendParameters{
+            to: self.owner,
+            body: ChildToParentAffiliateWithdrawEarningsFee{
+                campaignId: self.campaignId,
+                advertiser: self.advertiser,
+                affiliateId: msg.affiliateId,
+                earnings: paymentAmount,
+                fee: fee
+            }.toCell(),
+            value: GAS_FEE,
+            mode: SendPayGasSeparately
+        });
 
         // Handle the payment based on the payment method
         if (self.campaignDetails.paymentMethod == PAYMENT_METHOD_TON) {
@@ -269,7 +293,7 @@ contract Campaign with Resumable {
         } else {
             
             // fee also in USDT
-            self.transferJettonUSDT(self.payout, fee, MAX_NUM_AFFILIATES + 2);
+            self.transferJettonUSDT(self.payout, fee, DESTINATION_ID_PAYOUT);
 
             // Payment in USDT Jetton 
             self.transferJettonUSDT(affiliateData.affiliate, paymentAmount - fee, msg.affiliateId);
@@ -299,7 +323,7 @@ contract Campaign with Resumable {
                 mode: SendPayGasSeparately
             });
         } else {
-            self.transferJettonUSDT(self.payout, contractBalance, MAX_NUM_AFFILIATES + 2);
+            self.transferJettonUSDT(self.payout, contractBalance, DESTINATION_ID_PAYOUT);
         }
     }
 
@@ -343,6 +367,15 @@ contract Campaign with Resumable {
             value: DEPLOY_NEW_CAMPAIGN_COST + GAS_FEE,
             mode: SendPayGasSeparately
         });
+
+        if (msg.campaignDetails.paymentMethod == PAYMENT_METHOD_USDT) {
+            
+            // set USDT details
+            self.usdtMasterAddress =  address("EQCxE6mUtQJKFnGfaROTKOt1lZbDiiX1kCixRv7Nw2Id_sDs");// mainnet address of USDT
+
+            let init: StateInit = initOf JettonWalletTemplate(self.usdtMasterAddress, myAddress());
+            self.contractUsdtJettonWallet = calculateJettonWalletAddress(myAddress(), self.usdtMasterAddress, init.code);
+        }
     }
 
     // Function to handle advertiser replenishment
@@ -399,7 +432,7 @@ contract Campaign with Resumable {
         });
     }
 
-    receive(msg: AdvertiserAddNewAffiliateToAllowedList) {
+    fun setAffiliateAllowedListStatus(affiliate: Address, isAllowed: Bool?) {
 
         self.requireNotStopped();
         require(self.state == STATE_CAMPAIGN_DETAILS_SET_BY_ADVERTISER, "Must be in state: STATE_CAMPAIGN_DETAILS_SET_BY_ADVERTISER");
@@ -412,8 +445,15 @@ contract Campaign with Resumable {
         require(!self.campaignDetails.isOpenCampaign, "Cannot manually add affiliates to an open campaign");
 
         // Add the new affiliate to the allowed affiliates list
-        self.campaignDetails.allowedAffiliates.set(msg.affiliate, true);
+        self.campaignDetails.allowedAffiliates.set(affiliate, isAllowed);
+    }
 
+    receive(msg: AdvertiserAddNewAffiliateToAllowedList) {
+        self.setAffiliateAllowedListStatus(msg.affiliate, true);
+    }
+
+    receive(msg: AdvertiserRemoveExistingAffiliateFromAllowedList) {
+        self.setAffiliateAllowedListStatus(msg.affiliate, null);
     }
 
     receive(msg: AdvertiserWithdrawFunds) {
@@ -444,7 +484,7 @@ contract Campaign with Resumable {
                 mode: SendPayGasSeparately
             });
         } else {
-            self.transferJettonUSDT(self.advertiser, campaignBalance, MAX_NUM_AFFILIATES + 1);
+            self.transferJettonUSDT(self.advertiser, campaignBalance, DESTINATION_ID_ADVERTISER);
         }
     }
 
@@ -556,15 +596,18 @@ contract Campaign with Resumable {
     }
 
     // if payment bounces - adjust the affiliate's accruedEarnings and totalAccruedEarnings accordingly
-    fun bouncedPayment(affiliateId: Int, amount: Int) {
+    fun bouncedPayment(destinationId: Int, amount: Int) {
         
-        let affiliateDataOptional = self.affiliates.get(affiliateId);
+        let affiliateDataOptional = self.affiliates.get(destinationId);
 		if (affiliateDataOptional != null) {
+            // pay affiliate
 			let affiliateData: AffiliateData = affiliateDataOptional!!;
 			affiliateData.accruedEarnings = affiliateData.accruedEarnings + amount;
-			self.affiliates.set(affiliateId, affiliateData);
+			self.affiliates.set(destinationId, affiliateData);
 			self.totalAccruedEarnings = self.totalAccruedEarnings + amount;
-		}
+		} else {
+            require(destinationId == DESTINATION_ID_PAYOUT || destinationId == DESTINATION_ID_ADVERTISER, "Invalid destinationId!");
+        }
         
 		if (self.campaignDetails.paymentMethod == PAYMENT_METHOD_USDT) {
 			self.contractUSDTBalance = self.contractUSDTBalance + amount;
@@ -573,7 +616,11 @@ contract Campaign with Resumable {
 
     // bounced USDT
     receive(msg: JettonInternalTransferFailedNotification) {
-        self.bouncedPayment(msg.queryId, msg.amount);
+        require(sender() == self.contractUsdtJettonWallet, "Only contract wallet can invoke");
+        let destinationIdOptional = self.queryIdToDestintaionId.get(msg.queryId);
+        if (destinationIdOptional != null) {
+            self.bouncedPayment(destinationIdOptional!!, msg.amount);
+        }
     }
 
     // bounced TON
@@ -597,8 +644,10 @@ contract Campaign with Resumable {
             campaignBalance: self.calcCampaignBalance(),
             contractBalance: self.calcContractBalance(),
             contractTonBalance: myBalance(),
-            contractUSDTBalance: self.contractUSDTBalance,
             contractAddress: myAddress(),
+            usdtMasterAddress: self.usdtMasterAddress, 
+            contractUSDTBalance: self.contractUSDTBalance,
+            contractUsdtJettonWallet: self.contractUsdtJettonWallet,
             feePercentage: self.feePercentage,
             campaignHasSufficientFundsToPayMaxCpa: self.campaignHasSufficientFundsToPayMaxCpa(self.calcCampaignBalance()), // ha sufficient balance to pay max CPA
             isCampaignExpired: self.isCampaignExpired(),

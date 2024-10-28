@@ -75,6 +75,7 @@ let deployer: SandboxContract<TreasuryContract>;
 let bot: SandboxContract<TreasuryContract>;
 let advertiser: SandboxContract<TreasuryContract>;
 let affiliate1: SandboxContract<TreasuryContract>;
+let affiliate2: SandboxContract<TreasuryContract>;
 let unauthorizedUser: SandboxContract<TreasuryContract>;
 
 beforeEach(async () => {
@@ -84,6 +85,7 @@ beforeEach(async () => {
     bot = await blockchain.treasury('bot');
     advertiser = await blockchain.treasury('advertiser');
     affiliate1 = await blockchain.treasury('affiliate1');
+	affiliate2 = await blockchain.treasury('affiliate2');
     unauthorizedUser = await blockchain.treasury('unauthorizedUser');
 
     // Deploy AffiliateMarketplace contract
@@ -154,7 +156,8 @@ describe('Advertiser Actions - Positive and Negative Tests for Advertiser Functi
                     premiumUsersCostPerAction: premiumUsersMapCostPerActionMap,
                     allowedAffiliates: Dictionary.empty<Address, boolean>().set(affiliate1.address, true),
                     isOpenCampaign: false,
-                    campaignValidForNumDays: null
+                    campaignValidForNumDays: null,
+					paymentMethod: BigInt(0) // TON
                 }
             }
         );
@@ -185,7 +188,8 @@ describe('Advertiser Actions - Positive and Negative Tests for Advertiser Functi
                     premiumUsersCostPerAction: premiumUsersMapCostPerActionMap,
                     allowedAffiliates: Dictionary.empty<Address, boolean>(),
                     isOpenCampaign: false,
-                    campaignValidForNumDays: null
+                    campaignValidForNumDays: null,
+					paymentMethod: BigInt(0) // TON
                 }
             }
         );
@@ -215,7 +219,8 @@ describe('Advertiser Actions - Positive and Negative Tests for Advertiser Functi
                     premiumUsersCostPerAction: regularUsersMapCostPerActionMap,
                     allowedAffiliates: Dictionary.empty<Address, boolean>().set(affiliate1.address, true),
                     isOpenCampaign: false,
-                    campaignValidForNumDays: null
+                    campaignValidForNumDays: null,
+					paymentMethod: BigInt(0) // TON
                 }
             }
         );
@@ -242,7 +247,8 @@ describe('Advertiser Actions - Positive and Negative Tests for Advertiser Functi
                     premiumUsersCostPerAction: regularUsersMapCostPerActionMap,
                     allowedAffiliates: Dictionary.empty<Address, boolean>().set(affiliate1.address, true),
                     isOpenCampaign: false,
-                    campaignValidForNumDays: null
+                    campaignValidForNumDays: null,
+					paymentMethod: BigInt(0) // TON
                 }
             }
         );
@@ -264,6 +270,82 @@ describe('Advertiser Actions - Positive and Negative Tests for Advertiser Functi
         const campaignData = await campaignContract.getCampaignData();
         expect(campaignData.campaignBalance).toBeGreaterThan(0);
     });
+	
+	it('should allow the advertiser to add and remove afiliate from allowed list', async () => {
+        // Set campaign details
+        const regularUsersMapCostPerActionMap = Dictionary.empty<bigint, bigint>();
+        regularUsersMapCostPerActionMap.set(BigInt(0), toNano('0.1'));
+        await campaignContract.send(
+            advertiser.getSender(),
+            { value: toNano('10') },
+            {
+                $$type: 'AdvertiserSetCampaignDetails',
+                campaignDetails: {
+                    $$type: 'CampaignDetails',
+                    regularUsersCostPerAction: regularUsersMapCostPerActionMap,
+                    premiumUsersCostPerAction: regularUsersMapCostPerActionMap,
+                    allowedAffiliates: Dictionary.empty<Address, boolean>().set(affiliate1.address, true),
+                    isOpenCampaign: false,
+                    campaignValidForNumDays: null,
+					paymentMethod: BigInt(0) // TON
+                }
+            }
+        );
+
+        const addAffiliateToAllowedListResult = await campaignContract.send(
+            advertiser.getSender(),
+            { 
+				value: toNano('0.05') },
+            { 
+				$$type: 'AdvertiserAddNewAffiliateToAllowedList',
+                affiliate: affiliate2.address 
+			}
+        );
+
+        expect(addAffiliateToAllowedListResult.transactions).toHaveTransaction({
+            from: advertiser.address,
+            to: campaignContract.address,
+            success: true
+        });
+
+        let campaignData = await campaignContract.getCampaignData();
+        let afiliate2OnAllowedList = false;
+		for (const [key, value] of campaignData.campaignDetails.allowedAffiliates) {
+			if (affiliate2.address.toString() == key.toString()) {
+				afiliate2OnAllowedList = true;
+			}
+		}
+		
+		expect(afiliate2OnAllowedList).toBe(true);
+		
+		//------------------------------------------------------
+		
+		const removeAffiliateFromAllowedListResult = await campaignContract.send(
+            advertiser.getSender(),
+            { 
+				value: toNano('0.05') },
+            { 
+				$$type: 'AdvertiserRemoveExistingAffiliateFromAllowedList',
+                affiliate: affiliate1.address 
+			}
+        );
+
+        expect(removeAffiliateFromAllowedListResult.transactions).toHaveTransaction({
+            from: advertiser.address,
+            to: campaignContract.address,
+            success: true
+        });
+
+        campaignData = await campaignContract.getCampaignData();
+        let afiliate1OnAllowedList = false;
+		for (const [key, value] of campaignData.campaignDetails.allowedAffiliates) {
+			if (affiliate1.address.toString() == key.toString()) {
+				afiliate1OnAllowedList = true;
+			}
+		}
+		
+		expect(afiliate1OnAllowedList).toBe(false);
+    });
 
     it('should allow the advertiser to withdraw all campaign funds after setting details', async () => {
         // Set campaign details and replenish funds
@@ -280,7 +362,8 @@ describe('Advertiser Actions - Positive and Negative Tests for Advertiser Functi
                     premiumUsersCostPerAction: regularUsersMapCostPerActionMap,
                     allowedAffiliates: Dictionary.empty<Address, boolean>().set(affiliate1.address, true),
                     isOpenCampaign: false,
-                    campaignValidForNumDays: null
+                    campaignValidForNumDays: null,
+					paymentMethod: BigInt(0) // TON
                 }
             }
         );
@@ -325,7 +408,8 @@ describe('Advertiser Actions - Positive and Negative Tests for Advertiser Functi
                     premiumUsersCostPerAction: regularUsersMapCostPerActionMap,
                     allowedAffiliates: Dictionary.empty<Address, boolean>().set(affiliate1.address, true),
                     isOpenCampaign: false,
-                    campaignValidForNumDays: null
+                    campaignValidForNumDays: null,
+					paymentMethod: BigInt(0) // TON
                 }
             }
         );
@@ -380,7 +464,8 @@ describe('Advertiser Actions - Positive and Negative Tests for Advertiser Functi
                     premiumUsersCostPerAction: regularUsersMapCostPerActionMap,
                     allowedAffiliates: Dictionary.empty<Address, boolean>(),
                     isOpenCampaign: false,
-                    campaignValidForNumDays: null
+                    campaignValidForNumDays: null,
+					paymentMethod: BigInt(0) // TON
                 }
             }
         );
