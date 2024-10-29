@@ -26,6 +26,8 @@ let decodedCampaign: any | null;
 
 const BOT_OP_CODE_USER_CLICK = 0;
 const ADVERTISER_OP_CODE_CUSTOMIZED_EVENT = 2001;
+const USDT_MAINNET_ADDRESS = Address.parse("EQAMrDBMZywwkCRJSuV9i-bUFnCJSyCSioHLkInvCJZr2kmW");
+
 
 
 beforeEach(async () => {
@@ -38,7 +40,7 @@ beforeEach(async () => {
     unauthorizedUser = await blockchain.treasury('unauthorizedUser');
 
     // Deploy AffiliateMarketplace contract
-    affiliateMarketplaceContract = blockchain.openContract(await AffiliateMarketplace.fromInit(bot.address));
+    affiliateMarketplaceContract = blockchain.openContract(await AffiliateMarketplace.fromInit(bot.address, USDT_MAINNET_ADDRESS));
     const deployResult = await affiliateMarketplaceContract.send(
         deployer.getSender(),
         { value: toNano('0.05') },
@@ -152,8 +154,8 @@ describe('Administrative Actions - positive test', () => {
 		expect(campaignData.campaignBalance).toBe(BigInt(0));
 		
 		let deployerBalance = await deployer.getBalance();
-		expect(deployerBalance - deployerBalanceBeforeSeize).toBeLessThan(toNano("9"));
-		expect(deployerBalance - deployerBalanceBeforeSeize).toBeGreaterThan(toNano("8.9"));
+		expect(deployerBalance - deployerBalanceBeforeSeize).toBeLessThan(toNano("8.9"));
+		expect(deployerBalance - deployerBalanceBeforeSeize).toBeGreaterThan(toNano("8.8"));
     });
 	
 

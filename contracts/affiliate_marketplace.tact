@@ -110,7 +110,7 @@ contract Campaign with Resumable {
     queryId: Int as uint32; // running Id
     queryIdToDestintaionId: map<Int, Int>;
 
-    init(owner: Address, campaignId: Int, payout: Address) {
+    init(owner: Address, campaignId: Int, payout: Address, usdtMasterAddress: Address) {
         
         require(sender() == owner, "owner must be deployer");
 
@@ -139,27 +139,22 @@ contract Campaign with Resumable {
         self.totalAccruedEarnings = 0;
         self.maxCpaValue = ton("0");
 
-        
-        // self.usdtMasterAddress =  newAddress(0, 0); 
-        // self.contractUsdtJettonWallet = newAddress(0, 0); 
         self.contractUSDTBalance = 0;
         self.queryId = 0;
         self.queryIdToDestintaionId = emptyMap();
 
         // set USDT details
-		let jettonMasterAddress = address("EQCxE6mUtQJKFnGfaROTKOt1lZbDiiX1kCixRv7Nw2Id_sDs");// mainnet address of USDT
-        self.usdtMasterAddress = jettonMasterAddress;
+        self.usdtMasterAddress = usdtMasterAddress;
 
 		let status: Int = 0 & 0xF;  // Mask to keep only 4 bits
 		let balance = ton("0");
 		let ownerAddress = myAddress();
 		
-        let walletInit: StateInit = initOf JettonWalletTemplate(JettonWalletData {status, balance, ownerAddress, jettonMasterAddress});
-        self.contractUsdtJettonWallet = calculateJettonWalletAddress(myAddress(), self.usdtMasterAddress, walletInit.code);
+        let walletInit: StateInit = initOf JettonWalletTemplate(status, balance, ownerAddress, usdtMasterAddress);
+        self.contractUsdtJettonWallet = contractAddress(walletInit); // calculateJettonWalletAddress(myAddress(), self.usdtMasterAddress, walletInit.code);
 
         // deploy wallet by transferring funds to payout (which will bounce because thre is no balance in the wallet).
         // it will deploy the implementation of OUR wallet
-		dump("Before deploy");
         send(SendParameters{
             to: self.contractUsdtJettonWallet,  // The Jetton wallet to send from
             value: DEPLOY_NEW_CAMPAIGN_COST,  // This TON is for paying for gas fees of the transfer
@@ -247,7 +242,7 @@ contract Campaign with Resumable {
         
         require(sender() == self.contractUsdtJettonWallet, "Only contract wallet allowed to invoke");
         require(msg.sender == self.contractUsdtJettonWallet, "Contract wallet should be the same as sender");
-        
+        require(self.campaignDetails.paymentMethod == PAYMENT_METHOD_USDT, "Only USDT Campaigns can accept USDT");
         // Update the USDT balance in the state
         self.contractUSDTBalance = self.contractUSDTBalance + msg.amount;
     }
@@ -389,7 +384,7 @@ contract Campaign with Resumable {
                 campaignId: self.campaignId,
                 advertiser: sender()
             }.toCell(),
-            value: DEPLOY_NEW_CAMPAIGN_COST + GAS_FEE,
+            value: (DEPLOY_NEW_CAMPAIGN_COST*2) + GAS_FEE,
             mode: SendPayGasSeparately
         });
     }
@@ -706,14 +701,16 @@ contract AffiliateMarketplace with Deployable, Resumable  {
     owner: Address;
     stopped: Bool;
     bot: Address;
+    usdtMasterAddress: Address;
 
     currCampaignId: Int as uint32;  // running id
 
     // Constructor
-    init(bot: Address) {
+    init(bot: Address, usdtMasterAddress: Address) {
         self.owner = sender();
         self.stopped = false;
         self.bot = bot;
+        self.usdtMasterAddress = usdtMasterAddress;
         self.currCampaignId = 0; // running id
     }
 
@@ -734,7 +731,7 @@ contract AffiliateMarketplace with Deployable, Resumable  {
     }
 
     fun campaignContractStateInit(campaignId: Int): StateInit {
-        let initCode: StateInit = initOf Campaign(myAddress(), campaignId, self.owner);
+        let initCode: StateInit = initOf Campaign(myAddress(), campaignId, self.owner, self.usdtMasterAddress);
         return initCode;
     }
 

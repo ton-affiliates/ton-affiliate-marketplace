@@ -77,6 +77,9 @@ let advertiser: SandboxContract<TreasuryContract>;
 let affiliate1: SandboxContract<TreasuryContract>;
 let unauthorizedUser: SandboxContract<TreasuryContract>;
 
+const USDT_MAINNET_ADDRESS = Address.parse("EQAMrDBMZywwkCRJSuV9i-bUFnCJSyCSioHLkInvCJZr2kmW");
+
+
 beforeEach(async () => {
     // Initialize blockchain and deployer wallets
     blockchain = await Blockchain.create();
@@ -87,7 +90,7 @@ beforeEach(async () => {
     unauthorizedUser = await blockchain.treasury('unauthorizedUser');
 
     // Deploy AffiliateMarketplace contract
-    affiliateMarketplaceContract = blockchain.openContract(await AffiliateMarketplace.fromInit(bot.address));
+    affiliateMarketplaceContract = blockchain.openContract(await AffiliateMarketplace.fromInit(bot.address, USDT_MAINNET_ADDRESS));
     const deployResult = await affiliateMarketplaceContract.send(
         deployer.getSender(),
         { value: toNano('0.05') },

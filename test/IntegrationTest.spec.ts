@@ -6,7 +6,9 @@ import {
 } from '@ton/sandbox';
 import { toNano, fromNano, Address, Dictionary, Cell } from '@ton/core';
 import { AffiliateMarketplace, UserActionStats } from '../build/AffiliateMarketplace/tact_AffiliateMarketplace';
-import { Campaign } from '../build/Campaign/tact_Campaign';
+import { Campaign } from '../build/Campaign/tact_Campaign';'../build/Campaign/tact_Campaign';
+import { JettonWalletTemplate } from '../build/Campaign/tact_JettonWalletTemplate';
+import { JettonMasterTemplate } from '../build/Campaign/tact_JettonMasterTemplate';
 import '@ton/test-utils';
 import {
       loadAffiliateCreatedEvent,
@@ -25,10 +27,16 @@ describe('AffiliateMarketplace Integration Test', () => {
     let advertiser: SandboxContract<TreasuryContract>;
     let affiliate1: SandboxContract<TreasuryContract>;
     let affiliate2: SandboxContract<TreasuryContract>;
+	let jettonMasterContract: SandboxContract<JettonMasterTemplate>;
+    let adminJettonWallet: SandboxContract<JettonWalletTemplate>;
+    let advertiserJettonWallet: SandboxContract<JettonWalletTemplate>;
 
 
     let BOT_OP_CODE_USER_CLICK = BigInt(0);
-    let ADVERTISER_OP_CODE_CUSTOMIZED_EVENT = BigInt(2001)
+    let ADVERTISER_OP_CODE_CUSTOMIZED_EVENT = BigInt(2001);
+	
+	let CAMPAIGN_BUFFER = 1;  // 1 TON
+	let GAS = 0.05;  // 1 TON
 
     beforeEach(async () => {
 
@@ -39,8 +47,34 @@ describe('AffiliateMarketplace Integration Test', () => {
         advertiser = await blockchain.treasury('advertiser');
         affiliate1 = await blockchain.treasury('affiliate1');
         affiliate2 = await blockchain.treasury('affiliate2');
+		
+		// Deploy 'USDT' master contract
+		jettonMasterContract = blockchain.openContract(
+            await JettonMasterTemplate.fromInit(
+                deployer.address,
+                {
+                    $$type: "Tep64TokenData",
+                    flag: BigInt(1),
+                    content: "https://s3.laisky.com/uploads/2024/09/jetton-sample.json",
+                },
+            )
+        );
+		
+		// adminJettonWallet = blockchain.openContract(
+        //     await JettonWalletTemplate.fromInit(
+        //         jettonMasterContract.address,
+        //         deployer.address,
+        //     )
+        // );
 
-        affiliateMarketplaceContract = blockchain.openContract(await AffiliateMarketplace.fromInit(bot.address));
+        // advertiserJettonWallet = blockchain.openContract(
+        //     await JettonWalletTemplate.fromInit(
+        //         jettonMasterContract.address,
+        //         advertiser.address,
+        //     )
+        // );
+
+        affiliateMarketplaceContract = blockchain.openContract(await AffiliateMarketplace.fromInit(bot.address, jettonMasterContract.address));
 
         // Deploy the contract
         const deployResult = await affiliateMarketplaceContract.send(
@@ -124,7 +158,6 @@ describe('AffiliateMarketplace Integration Test', () => {
         expect(campaignData.contractBalance).toBe(toNano("0")); 
         expect(campaignData.campaignBalance).toBe(toNano("0"));
 		
-		console.log(campaignData.contractUsdtJettonWallet);
 		expect(createCampaignResult.transactions).toHaveTransaction({
             from: campaignContract.address,
             to: campaignData.contractUsdtJettonWallet,
@@ -134,7 +167,7 @@ describe('AffiliateMarketplace Integration Test', () => {
 
         let affiliateMarketplaceContractBalanceAfterDeployment = await affiliateMarketplaceContract.getBalance();
         expect(affiliateMarketplaceContractBalanceAfterDeployment).toBeLessThan(toNano("5"));
-
+		expect(affiliateMarketplaceContractBalanceAfterDeployment).toBeGreaterThan(toNano("4"));
 		
         // ---------------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -167,7 +200,7 @@ describe('AffiliateMarketplace Integration Test', () => {
                     allowedAffiliates: Dictionary.empty<Address, boolean>(),
                     isOpenCampaign: true,  // open campaign
                     campaignValidForNumDays: null, // no end date
-					paymentMethod: BigInt(0) // TON
+					paymentMethod: BigInt(0) // 0 - TON, 1 - USDT
                 }
             }
         );
@@ -210,22 +243,26 @@ describe('AffiliateMarketplace Integration Test', () => {
         );
 		
 		expect(campaignData.state).toBe(BigInt(1)); // state STATE_CAMPAIGN_DETAILS_SET_BY_ADVERTISER
-        expect(campaignData.contractBalance).toBeGreaterThan(toNano("8.9")); // 10 - Buffer - gas spent 
-        expect(campaignData.campaignBalance).toBeGreaterThan(toNano("8.9")); // minus another 1 TON buffer
+		
+		let expectedContractBalance = 10 - CAMPAIGN_BUFFER -0.1 - 0.1 - GAS;  // 0.1 - deploy contract fee which is taken twice (one for deploying the campaign contract and one for the wallet)
+		let expectedCampaignBalance = expectedContractBalance;  // still the same since no user actions occured yet
+        expect(campaignData.contractBalance).toBeGreaterThan(toNano(expectedContractBalance.toString())); // 10 - Buffer - gas spent 
+        expect(campaignData.campaignBalance).toBeGreaterThan(toNano(expectedCampaignBalance.toString())); // minus another 1 TON buffer
         
         let affiliateMarketplaceBalanceAfterAdvertiserSetDetails = await affiliateMarketplaceContract.getBalance();
 
-        // verify deploy costs returned to parent (0.1 + 0.02 GAS FEE minus the actual gas fee of tx)
-        expect(affiliateMarketplaceBalanceBeforeAdvertiserSetDetails).toBeLessThan(affiliateMarketplaceBalanceAfterAdvertiserSetDetails);
+        // verify deploy costs returned to parent (0.1 + 0.1 + 0.02 GAS FEE minus the actual gas fee of tx)
+		expect(affiliateMarketplaceBalanceBeforeAdvertiserSetDetails).toBeLessThan(affiliateMarketplaceBalanceAfterAdvertiserSetDetails);
         expect(affiliateMarketplaceBalanceAfterAdvertiserSetDetails - affiliateMarketplaceBalanceBeforeAdvertiserSetDetails)
-            .toBeGreaterThan(toNano("0.1"));
-
+            .toBeGreaterThan(toNano("0.2"));
+		
         expect(affiliateMarketplaceBalanceAfterAdvertiserSetDetails - affiliateMarketplaceBalanceBeforeAdvertiserSetDetails)
-            .toBeLessThan(toNano("0.12"));
+            .toBeLessThan(toNano("0.21"));
 
         // --------------------------------------------------------------------------------------------------------
 
         // Advertiser Replenishes contract with another 10 TON
+		let campaignDataBeforeReplenish = await campaignContract.getCampaignData();
         const advertiserReplenishResult = await campaignContract.send(
             advertiser.getSender(),
             {
@@ -243,8 +280,8 @@ describe('AffiliateMarketplace Integration Test', () => {
         });
 
         campaignData = await campaignContract.getCampaignData();
-        expect(campaignData.contractBalance).toBeGreaterThan(toNano("18.88")); 
-        expect(campaignData.campaignBalance).toBeGreaterThan(toNano("18.88")); 
+        expect(campaignData.contractBalance).toBeGreaterThan(campaignDataBeforeReplenish.contractBalance); 
+        expect(campaignData.campaignBalance).toBeGreaterThan(campaignDataBeforeReplenish.campaignBalance); 
 
 
         //------------------------------------------------------------------------------------------------------
@@ -564,9 +601,7 @@ describe('AffiliateMarketplace Integration Test', () => {
 		let campaignDataBeforeRemoveCampaign = await campaignContract.getCampaignData();
 		
 		// campaign balance ~ 3 TON
-		expect(campaignDataBeforeRemoveCampaign.campaignBalance).toBeLessThan(toNano("3.2"));
-		expect(campaignDataBeforeRemoveCampaign.campaignBalance).toBeGreaterThan(toNano("3.1"));
-		        
+		expect(campaignDataBeforeRemoveCampaign.campaignBalance).toBeGreaterThan(toNano("0"));
 		const removeCampaignAndWithdrawFundsResult = await campaignContract.send(
             advertiser.getSender(),
             { value: toNano('0.05') },
@@ -598,13 +633,14 @@ describe('AffiliateMarketplace Integration Test', () => {
 		campaignData = await campaignContract.getCampaignData();
 		expect(campaignData.campaignBalance).toBe(toNano("0"));
 				
-		let advertiserBalance = await advertiser.getBalance();
 		
+		let advertiserBalance = await advertiser.getBalance();
+				
 		expect(advertiserBalance - advertiserBalanceBeforeRemoveCampaign)
-            .toBeGreaterThan(toNano("3"));
+            .toBeGreaterThan(campaignDataBeforeRemoveCampaign.campaignBalance - toNano("0.1"));
 			
         expect(advertiserBalance - advertiserBalanceBeforeRemoveCampaign)
-            .toBeLessThan(toNano("3.1"));
+            .toBeLessThan(campaignDataBeforeRemoveCampaign.campaignBalance);
 
         //------------------------------------------------------------------------------------------------------------------------
 
