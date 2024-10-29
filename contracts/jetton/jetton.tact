@@ -34,7 +34,6 @@ contract JettonMasterTemplate with JettonMaster {
 
     init(owner: Address, content: Tep64TokenData) {
         self.owner = owner;
-
         self.content = content.toCell();
         self.totalSupply = 0;
         self.mintable = true;
@@ -56,11 +55,12 @@ contract JettonWalletTemplate with JettonWallet {
 
     // The parameters of the init function should not be too complex,
     // as it will be called frequently when generating the jetton wallet address.
-    init(master: Address, owner: Address) {
-        self.balance = 0;
-        self.owner = owner;
-        self.master = master;
-    }
+    init(jettonWalletData: JettonWalletData) {
+		dump("constructor");
+        self.balance = ton("0");
+        self.owner = jettonWalletData.ownerAddress;
+        self.master = jettonWalletData.jettonMasterAddress;
+    }	
 }
 
 // =====================================
@@ -134,7 +134,14 @@ trait JettonMaster with Common {
     }
 
     virtual fun getJettonWalletContract(owner: Address): StateInit {
-        return initOf JettonWalletTemplate(myAddress(), owner);
+        return initOf JettonWalletTemplate(
+			JettonWalletData {
+				status: 0 & 0xF, // Mask to keep only 4 bits
+				balance: ton("0"),
+				ownerAddress: owner,
+			   jettonMasterAddress: myAddress()
+			}
+		);
     }
 
     virtual fun receiveBurnInternal(msg: TokenBurnNotification) {
@@ -288,7 +295,9 @@ trait JettonWallet with Common {
         self.receiveBurn(msg);
     }
 	
-	receive(msg: PiggyBackDeployMessage) {}
+	receive(msg: PiggyBackDeployMessage) {
+		dump("PiggyBackDeployMessage");
+	}
 
     // this is a TEP-074 standard getter method
     get fun get_wallet_data(): JettonWalletData {
@@ -317,7 +326,14 @@ trait JettonWallet with Common {
     }
 
     virtual fun getJettonWalletContract(owner: Address): StateInit {
-        return initOf JettonWalletTemplate(self.master, owner);
+        return initOf JettonWalletTemplate(
+			JettonWalletData {
+				status: 0 & 0xF, // Mask to keep only 4 bits
+				balance: ton("0"),
+				ownerAddress: owner,
+				jettonMasterAddress: self.master
+			}
+		);
     }
 
     virtual fun receiveTokenTransfer(msg: TokenTransfer) {
@@ -434,10 +450,10 @@ trait JettonWallet with Common {
 	
 		// usdt format
 		return JettonWalletData {
-			status: 0,
+			status: 0 & 0xF, // Mask to keep only 4 bits
 			balance: self.balance,
 			ownerAddress: self.owner,
-			jettonMasterAddress: self.master
+		   jettonMasterAddress: self.master
 		}
     }
 }

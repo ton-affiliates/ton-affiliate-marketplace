@@ -33,7 +33,7 @@ message UpdateJettonContent {
 
 // USDT format
 struct JettonWalletData {
-    status: Int as uint8;
+    status: Int;  // uint4
     balance: Int as coins;
     ownerAddress: Address;
     jettonMasterAddress: Address;

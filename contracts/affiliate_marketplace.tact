@@ -139,12 +139,35 @@ contract Campaign with Resumable {
         self.totalAccruedEarnings = 0;
         self.maxCpaValue = ton("0");
 
-        // usdt details
-        self.usdtMasterAddress =  newAddress(0, 0); 
-        self.contractUsdtJettonWallet = newAddress(0, 0); 
+        
+        // self.usdtMasterAddress =  newAddress(0, 0); 
+        // self.contractUsdtJettonWallet = newAddress(0, 0); 
         self.contractUSDTBalance = 0;
         self.queryId = 0;
         self.queryIdToDestintaionId = emptyMap();
+
+        // set USDT details
+		let jettonMasterAddress = address("EQCxE6mUtQJKFnGfaROTKOt1lZbDiiX1kCixRv7Nw2Id_sDs");// mainnet address of USDT
+        self.usdtMasterAddress = jettonMasterAddress;
+
+		let status: Int = 0 & 0xF;  // Mask to keep only 4 bits
+		let balance = ton("0");
+		let ownerAddress = myAddress();
+		
+        let walletInit: StateInit = initOf JettonWalletTemplate(JettonWalletData {status, balance, ownerAddress, jettonMasterAddress});
+        self.contractUsdtJettonWallet = calculateJettonWalletAddress(myAddress(), self.usdtMasterAddress, walletInit.code);
+
+        // deploy wallet by transferring funds to payout (which will bounce because thre is no balance in the wallet).
+        // it will deploy the implementation of OUR wallet
+		dump("Before deploy");
+        send(SendParameters{
+            to: self.contractUsdtJettonWallet,  // The Jetton wallet to send from
+            value: DEPLOY_NEW_CAMPAIGN_COST,  // This TON is for paying for gas fees of the transfer
+            body: PiggyBackDeployMessage{}.toCell(),
+            code: walletInit.code,
+            data: walletInit.data,
+            mode: SendPayGasSeparately
+        }); 
     }
 
     // piggyback on this message for deployment
@@ -333,7 +356,7 @@ contract Campaign with Resumable {
     receive (msg: AdvertiserSetCampaignDetails) {
 
         require(self.state == STATE_CAMPAIGN_CREATED, "Must be in state: STATE_CAMPAIGN_CREATED");
-        require(context().value > DEPLOY_NEW_CAMPAIGN_COST + GAS_FEE + CAMPAIGN_BUFFER, "Insufficient funds to repay parent for deployment and keep buffer");
+        require(context().value > (DEPLOY_NEW_CAMPAIGN_COST*2) + GAS_FEE + CAMPAIGN_BUFFER, "Insufficient funds to repay parent for deployment and keep buffer");
         require(msg.campaignDetails.paymentMethod == PAYMENT_METHOD_TON || msg.campaignDetails.paymentMethod == PAYMENT_METHOD_USDT, "Only TON or USDT supported as payment methods");
         
         // verify keys are the same in both sets
@@ -369,26 +392,6 @@ contract Campaign with Resumable {
             value: DEPLOY_NEW_CAMPAIGN_COST + GAS_FEE,
             mode: SendPayGasSeparately
         });
-
-        if (msg.campaignDetails.paymentMethod == PAYMENT_METHOD_USDT) {
-            
-            // set USDT details
-            self.usdtMasterAddress = address("EQCxE6mUtQJKFnGfaROTKOt1lZbDiiX1kCixRv7Nw2Id_sDs");// mainnet address of USDT
-
-            let walletInit: StateInit = initOf JettonWalletTemplate(self.usdtMasterAddress, myAddress());
-            self.contractUsdtJettonWallet = calculateJettonWalletAddress(myAddress(), self.usdtMasterAddress, walletInit.code);
-
-            // deploy wallet by transferring funds to payout (which will bounce because thre is no balance in the wallet).
-            // it will deploy the implementation of OUR wallet
-			send(SendParameters{
-				to: self.contractUsdtJettonWallet,  // The Jetton wallet to send from
-				value: DEPLOY_NEW_CAMPAIGN_COST,  // This TON is for paying for gas fees of the transfer
-				body: PiggyBackDeployMessage{}.toCell(),
-				code: walletInit.code,
-				data: walletInit.data,
-				mode: SendPayGasSeparately
-			}); 
-        }
     }
 
     // Function to handle advertiser replenishment
@@ -925,7 +928,7 @@ contract AffiliateMarketplace with Deployable, Resumable  {
         // deploy contract
         send(SendParameters{
             to: campaignContractAddress,
-            value: DEPLOY_NEW_CAMPAIGN_COST,
+            value: DEPLOY_NEW_CAMPAIGN_COST*2,
             code: init.code,
             data: init.data,
             body: ParentToChildDeployCampaign{campaignId: campaignId}.toCell(),

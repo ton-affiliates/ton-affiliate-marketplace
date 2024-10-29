@@ -123,6 +123,14 @@ describe('AffiliateMarketplace Integration Test', () => {
         expect(campaignData.state).toBe(BigInt(0)); // state: CAMPAIGN_CREATED
         expect(campaignData.contractBalance).toBe(toNano("0")); 
         expect(campaignData.campaignBalance).toBe(toNano("0"));
+		
+		console.log(campaignData.contractUsdtJettonWallet);
+		expect(createCampaignResult.transactions).toHaveTransaction({
+            from: campaignContract.address,
+            to: campaignData.contractUsdtJettonWallet,
+			deploy: true,
+            success: true,
+        });
 
         let affiliateMarketplaceContractBalanceAfterDeployment = await affiliateMarketplaceContract.getBalance();
         expect(affiliateMarketplaceContractBalanceAfterDeployment).toBeLessThan(toNano("5"));
@@ -556,8 +564,8 @@ describe('AffiliateMarketplace Integration Test', () => {
 		let campaignDataBeforeRemoveCampaign = await campaignContract.getCampaignData();
 		
 		// campaign balance ~ 3 TON
-		expect(campaignDataBeforeRemoveCampaign.campaignBalance).toBeLessThan(toNano("3.1"));
-		expect(campaignDataBeforeRemoveCampaign.campaignBalance).toBeGreaterThan(toNano("3"));
+		expect(campaignDataBeforeRemoveCampaign.campaignBalance).toBeLessThan(toNano("3.2"));
+		expect(campaignDataBeforeRemoveCampaign.campaignBalance).toBeGreaterThan(toNano("3.1"));
 		        
 		const removeCampaignAndWithdrawFundsResult = await campaignContract.send(
             advertiser.getSender(),
@@ -596,7 +604,7 @@ describe('AffiliateMarketplace Integration Test', () => {
             .toBeGreaterThan(toNano("3"));
 			
         expect(advertiserBalance - advertiserBalanceBeforeRemoveCampaign)
-            .toBeLessThan(toNano("3.05"));
+            .toBeLessThan(toNano("3.1"));
 
         //------------------------------------------------------------------------------------------------------------------------
 
