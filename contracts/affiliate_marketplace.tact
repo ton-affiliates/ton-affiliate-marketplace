@@ -69,19 +69,6 @@ struct CampaignData {
     isCampaignPausedByAdmin: Bool;
 }
 
-
-fun calculateJettonWalletAddress(ownerAddress: Address, jettonMasterAddress: Address, jettonWalletCode: Cell): Address {
-    
-    let initData = JettonWalletData{
-        status: 0,
-        balance: 0,
-        ownerAddress,
-        jettonMasterAddress
-    };
-
-    return contractAddress(StateInit{code: jettonWalletCode, data: initData.toCell()});
-}
-
 // Child contract for each affiliate
 contract Campaign with Resumable {
 
@@ -146,12 +133,12 @@ contract Campaign with Resumable {
         // set USDT details
         self.usdtMasterAddress = usdtMasterAddress;
 
-		let status: Int = "0".asSlice().loadUint(4);  // Mask to keep only 4 bits
-		let balance = ton("0");
+		let status: Int = "0".asSlice().loadUint(4);  // keep only 4 bits to match USDT standard
+		let balance = ton("0"); // wallet balance - initially zero
 		let ownerAddress = myAddress();
 		
-        let walletInit: StateInit = initOf JettonWalletTemplate(status, balance, ownerAddress, usdtMasterAddress);
-        self.contractUsdtJettonWallet = contractAddress(walletInit); // calculateJettonWalletAddress(myAddress(), self.usdtMasterAddress, walletInit.code);
+        let walletInit: StateInit = initOf JettonDefaultWallet(status, balance, ownerAddress, usdtMasterAddress);
+        self.contractUsdtJettonWallet = contractAddress(walletInit); 
 
         // deploy wallet by transferring funds to payout (which will bounce because thre is no balance in the wallet).
         // it will deploy the implementation of OUR wallet
@@ -215,17 +202,18 @@ contract Campaign with Resumable {
 		let queryId = self.queryId;
         self.queryId = self.queryId + 1;
         self.queryIdToDestintaionId.set(queryId, destintaionId);
-        send(SendParameters{
+        
+		send(SendParameters{
             to: self.contractUsdtJettonWallet,  // The Jetton wallet to send from
             value: ton("0.05"),  // This TON is for paying for gas fees of the transfer
             body: TokenTransfer{
-                queryId: queryId,  // must be unique - used against replay attacks
+                query_id: queryId,  // must be unique - used against replay attacks
                 amount: amount,  // Jetton amount to transfer
-                destination: to,  // The recipient of the Jettons (owner of the jetton wallet)
-                responseDestination: myAddress(),  // Set the contract as the destination to receive any excess TON
-                customPayload: null,  // For simple transfers, this can be null
-                forwardAmount: ton("0.1"),  // The TON amount forwarded to cover the recipient's processing cost
-                forwardPayload: beginCell().storeUint(0xF, 4).endCell()  // Simple forward payload for the transfer
+                sender: to,  // The recipient of the Jettons (owner of the jetton wallet)
+                response_destination: myAddress(),  // Set the contract as the destination to receive any excess TON
+                custom_payload: null,  // For simple transfers, this can be null
+                forward_ton_amount: ton("0.1"),  // The TON amount forwarded to cover the recipient's processing cost
+                forward_payload: beginCell().storeUint(0xF, 4).endCell().asSlice()  // Simple forward payload for the transfer
             }.toCell(),
             mode: SendPayGasSeparately
         }); 
@@ -237,15 +225,15 @@ contract Campaign with Resumable {
     // receive any amount of incoming TON
     receive() {}
 
-    receive(msg: Excesses) {
+    receive(msg: TokenExcesses) {
         // do nothing - excess ton will be added to the contract's balance
     }
 
     // Function to track received USDT Jettons and update balance
-    receive(msg: TransferNotification) {
+    receive(msg: TokenNotification) {
         
         require(sender() == self.contractUsdtJettonWallet, "Only contract wallet allowed to invoke");
-        require(msg.sender == self.advertiser, "Only advertiser can send tokens to this contract");
+        require(msg.from == self.advertiser, "Only advertiser can send tokens to this contract");
         require(self.campaignDetails.paymentMethod == PAYMENT_METHOD_USDT, "Only USDT Campaigns can accept USDT");
         // Update the USDT balance in the state
         self.contractUSDTBalance = self.contractUSDTBalance + msg.amount;

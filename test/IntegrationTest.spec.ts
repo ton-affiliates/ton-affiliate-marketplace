@@ -1,3 +1,4 @@
+import { buildOnchainMetadata } from "./utils/jettonHelpers";
 import {
     Blockchain,
     SandboxContract,
@@ -7,8 +8,8 @@ import {
 import { toNano, fromNano, Address, Dictionary, Cell } from '@ton/core';
 import { AffiliateMarketplace, UserActionStats } from '../build/AffiliateMarketplace/tact_AffiliateMarketplace';
 import { Campaign } from '../build/Campaign/tact_Campaign';'../build/Campaign/tact_Campaign';
-import { JettonWalletTemplate } from '../build/Campaign/tact_JettonWalletTemplate';
-import { JettonMasterTemplate } from '../build/Campaign/tact_JettonMasterTemplate';
+import { JettonDefaultWallet } from '../build/Campaign/tact_JettonDefaultWallet';
+import { SampleJetton } from '../build/Campaign/tact_SampleJetton';
 import '@ton/test-utils';
 import {
       loadAffiliateCreatedEvent,
@@ -27,9 +28,9 @@ describe('AffiliateMarketplace Integration Test', () => {
     let advertiser: SandboxContract<TreasuryContract>;
     let affiliate1: SandboxContract<TreasuryContract>;
     let affiliate2: SandboxContract<TreasuryContract>;
-	let jettonMasterContract: SandboxContract<JettonMasterTemplate>;
-    let adminJettonWallet: SandboxContract<JettonWalletTemplate>;
-    let advertiserJettonWallet: SandboxContract<JettonWalletTemplate>;
+	let jettonMasterContract: SandboxContract<SampleJetton>;
+    let adminJettonWallet: SandboxContract<JettonDefaultWallet>;
+    let advertiserJettonWallet: SandboxContract<JettonDefaultWallet>;
 
 
     let BOT_OP_CODE_USER_CLICK = BigInt(0);
@@ -49,14 +50,20 @@ describe('AffiliateMarketplace Integration Test', () => {
         affiliate2 = await blockchain.treasury('affiliate2');
 		
 		// Deploy 'USDT' master contract
+		const jettonParams = {
+			name: "USDT Token TON",
+			description: "Stable Coin for TON",
+			symbol: "USDT",
+			image: "https://play-lh.googleusercontent.com/ahJtMe0vfOlAu1XJVQ6rcaGrQBgtrEZQefHy7SXB7jpijKhu1Kkox90XDuH8RmcBOXNn",
+		};
+		let content = buildOnchainMetadata(jettonParams);
+		let max_supply = toNano(1234766689011); // Set the specific total supply in nano
+		
 		jettonMasterContract = blockchain.openContract(
-            await JettonMasterTemplate.fromInit(
-                deployer.address,
-                {
-                    $$type: "Tep64TokenData",
-                    flag: BigInt(1),
-                    content: "https://s3.laisky.com/uploads/2024/09/jetton-sample.json",
-                },
+            await SampleJetton.fromInit(
+                deployer.address,  // owner of Jetton
+                content,
+				max_supply  // max supply of 1 million
             )
         );
 		

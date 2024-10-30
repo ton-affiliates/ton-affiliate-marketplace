@@ -1,452 +1,324 @@
-// =====================================
-// https://blog.laisky.com/p/ton-tact/
-// =====================================
-
 import "@stdlib/ownable";
-
-import "../common/traits.tact";
-import "../common/messages.tact";
-
-import "./errcodes.tact";
-import "./messages.tact";
-
-
-// =====================================
-// Contracts
-//
-// https://github.com/ton-blockchain/TEPs/blob/master/text/0062-nft-standard.md
-// =====================================
-
-
-// This is your custom jetton's master contract.
-contract JettonMasterTemplate with JettonMaster {
-    owner: Address;
-    staticTax: Int as coins = ton("0.001");
-    lockedValue: Int as coins = 0;
-
-    // Cell to store arbitrary data related to the jetton
-    //
-    // https://github.com/ton-blockchain/TEPs/blob/master/text/0064-token-data-standard.md#jetton-metadata-example-offchain
-    content: Cell;
-    // Total number of tokens in existence.
-    totalSupply: Int as coins;
-    mintable: Bool;
-
-    init(owner: Address, content: Tep64TokenData) {
-        self.owner = owner;
-        self.content = content.toCell();
-        self.totalSupply = 0;
-        self.mintable = true;
-    }
-}
-
-contract JettonWalletTemplate with JettonWallet {
-    // owner is the address of the user who owns the wallet.
-    owner: Address;
-    // master is the address of the master contract that deployed this wallet.
-    master: Address;
-    // balance is the number of tokens that the wallet currently holds.
-    // unlike the centralized ledger of Ethereum Tokens,
-    // TON users keep track of the number of tokens they own in their own wallets.
-    balance: Int;
-    // staticTax is the fee that will be charged for each transaction.
-    staticTax: Int as coins = ton("0.001");
-    lockedValue: Int as coins = 0;
-
-    // The parameters of the init function should not be too complex,
-    // as it will be called frequently when generating the jetton wallet address.
-    init(status: Int,
-        balance: Int,
-        ownerAddress: Address,
-        jettonMasterAddress: Address) {
-        self.balance = ton("0");
-        self.owner = ownerAddress;
-        self.master = jettonMasterAddress;
-    }	
-}
-
-// =====================================
-// Traits
-//
-// https://github.com/ton-blockchain/TEPs/blob/master/text/0062-nft-standard.md
-// =====================================
-
+import "./messages";
+// ============================================================================================================ //
 @interface("org.ton.jetton.master")
-trait JettonMaster with Common {
-    owner: Address;
-    staticTax: Int;
-    lockedValue: Int;
-
-    content: Cell;
-    totalSupply: Int;
+trait Jetton with Ownable {
+    total_supply: Int;
     mintable: Bool;
+    owner: Address;
+    content: Cell;
 
-    // this is a non-standard method, it's used to mint new tokens to specified user.
-    receive(msg: MintJetton) {
-        self.receiveMintJetton(msg);
+    receive(msg: TokenUpdateContent){
+        self.requireOwner(); // Allow changing content only by owner
+        self.content = msg.content; // Update content
     }
 
-    // this is a non-standard method, it's used to mint new tokens to multiple users.
-    receive(msg: MultiMint) {
-        self.receiveMultiMint(msg);
-    }
-
-    // this is a TEP-074 standard receiver method,
-    // it's used to update the jetton total supply when burning tokens.
-    receive(msg: TokenBurnNotification) {
-        self.receiveBurnInternal(msg);
-    }
-
-    // this is a TEP-89 standard receiver method,
-    // it's used to provide the wallet address of the specified owner.
-    receive(msg: ProvideWalletAddress) {
-        self.receiveProvideWalletAddress(msg);
-    }
-
-    // this is a TEP-074 standard getter method
-    get fun get_jetton_data(): JettonMasterData {
-        return self.getJettonData();
-    }
-
-    // this is a TEP-074 standard getter method,
-    // generate the jetton wallet address for any user.
-    get fun get_wallet_address(owner: Address): Address {
-        return self.getWalletAddress(owner);
-    }
-
-    virtual fun getWalletAddress(owner: Address): Address {
-        return contractAddress(self.getJettonWalletContract(owner));
-    }
-
-    virtual fun receiveProvideWalletAddress(msg: ProvideWalletAddress) {
-        let walletAddr = self.get_wallet_address(msg.ownerAddress);
-
-        self.reserveValue(0);
-        send(SendParameters{
-            to: sender(),
-            value: 0,
-            bounce: false,
-            mode: SendRemainingBalance,
-            body: TakeWalletAddress{
-                queryId: msg.queryId,
-                walletAddress: walletAddr,
-                ownerAddress: msg.includeAddress ? msg.ownerAddress : null,
-            }.toCell(),
-        });
-    }
-
-    virtual fun getJettonWalletContract(owner: Address): StateInit {
-        return initOf JettonWalletTemplate(
-			0 & 0xF, // Mask to keep only 4 bits
-			ton("0"),
-			owner,
-			myAddress()
-		);
-    }
-
-    virtual fun receiveBurnInternal(msg: TokenBurnNotification) {
-        let ctx: Context = context();
-        nativeThrowUnless(codeJettonBalanceInsufficient, self.totalSupply >= msg.amount);
-
-        let walletAddr = self.get_wallet_address(msg.sender);
-        nativeThrowUnless(codeUnauthorized, sender() == walletAddr);
-
-        self.totalSupply -= msg.amount;
-
-        // refund the excess TON to the sender.
-        self.reserveValue(0);
-        send(SendParameters{
-            to: msg.responseDestination,
-            value: 0,
-            bounce: false,
-            mode: SendRemainingBalance,
-            body: Excesses{
-                queryId: msg.queryId,
-            }.toCell(),
-        });
-    }
-
-    virtual fun receiveMintJetton(msg: MintJetton) {
-        let ctx: Context = context();
-        nativeThrowUnless(codeUnauthorized, ctx.sender == self.owner);
-        nativeThrowUnless(codeNotMintable, self.mintable);
-        nativeThrowUnless(codeAmountShouldBePositive, msg.amount > 0);
-        nativeThrowUnless(codeInflowValueNotSufficient,
-            ctx.value >= msg.forwardAmount + self.staticTax);
-
-        self.totalSupply += msg.amount;
-        let jettonWallet = self.getJettonWalletContract(msg.receiver);
-
-        // deploy the wallet if it's not deployed yet,
-        // then send the minted tokens to the wallet.
-        self.reserveValue(0);
-        send(SendParameters{
-            to: contractAddress(jettonWallet),
-            value: 0,
-            bounce: false,
-            mode: SendRemainingBalance,
-            body: TokenTransferInternal{
-                queryId: msg.queryId,
-                amount: msg.amount,
-                from: sender(),
-                responseDestination: msg.responseDestination,
-                forwardAmount: msg.forwardAmount,
-                forwardPayload: msg.forwardPayload,
-            }.toCell(),
-            code: jettonWallet.code,
-            data: jettonWallet.data
-        });
-    }
-
-    virtual fun receiveMultiMint(msg: MultiMint) {
-        let ctx: Context = context();
-        nativeThrowUnless(codeNotMintable, self.mintable);
-        nativeThrowUnless(codeUnauthorized, ctx.sender == self.owner);
-
-        let totalTonCost: Int = 0;
-        let i: Int = 0;
-        while (i < msg.receiverCount) {
-            let receiver = msg.receivers.get(i);
-            nativeThrowUnless(codeMapIndexNotExists, receiver != null);
-            nativeThrowUnless(codeAmountShouldBePositive, receiver!!.amount > 0);
-            nativeThrowUnless(codeAmountShouldBePositive, receiver!!.tonAmount > 0);
-            nativeThrowUnless(codeReceiverInsufficientReceiverTonAmount,
-                receiver!!.tonAmount > receiver!!.forwardAmount);
-
-            self.totalSupply += receiver!!.amount;
-            totalTonCost += receiver!!.tonAmount;
-
-            let jettonWallet = self.getJettonWalletContract(receiver!!.receiver);
+    receive(msg: TokenBurnNotification){
+        self.requireSenderAsWalletOwner(msg.sender); // Check wallet
+        self.total_supply = (self.total_supply - msg.amount); // Update supply
+        if (msg.response_destination != null) {
+            // Cashback
             send(SendParameters{
-                to: contractAddress(jettonWallet),
-                value: receiver!!.tonAmount,
-                bounce: false,
-                body: TokenTransferInternal{
-                    queryId: msg.queryId,
-                    amount: receiver!!.amount,
-                    from: sender(),
-                    responseDestination: receiver!!.responseDestination,
-                    forwardAmount: receiver!!.forwardAmount,
-                    forwardPayload: receiver!!.forwardPayload,
-                }.toCell(),
-                code: jettonWallet.code,
-                data: jettonWallet.data
-            });
-
-            i = i + 1;
+                    to: msg.response_destination!!,
+                    value: 0,
+                    bounce: false,
+                    mode: SendRemainingValue,
+                    body: TokenExcesses{query_id: msg.query_id}.toCell()
+                }
+            );
         }
-
-        nativeThrowUnless(codeInflowValueNotSufficient,
-            ctx.value >= totalTonCost + self.staticTax);
-
-        // refund
-        self.reserveValue(0);
-        send(SendParameters{
-            to: sender(),
-            value: 0,
-            bounce: false,
-            mode: SendRemainingBalance,
-            body: Excesses{
-                queryId: msg.queryId,
-            }.toCell(),
-        });
     }
 
-    virtual fun getJettonData(): JettonMasterData {
-        return JettonMasterData{
-            totalSupply: self.totalSupply,
-            mintable: self.mintable,
-            owner: self.owner,
-            content: self.content,
-            walletCode: self.getJettonWalletContract(myAddress()).code
-        };
+    // https://github.com/ton-blockchain/TEPs/blob/master/text/0089-jetton-wallet-discovery.md
+    receive(msg: ProvideWalletAddress){
+        // 0x2c76b973
+        require(context().value >= ton("0.0061"), "Insufficient gas");
+        let init: StateInit = self.getJettonWalletInit(msg.owner_address); 
+        if (msg.include_address) {
+            send(SendParameters{
+                    to: sender(),
+                    value: 0,
+                    mode: SendRemainingValue,
+                    body: TakeWalletAddress{
+                        query_id: msg.query_id,
+                        wallet_address: contractAddress(init),
+                        owner_address: beginCell().storeBool(true).storeAddress(msg.owner_address).endCell().asSlice()
+                    }.toCell()
+                }
+            );
+        } else {
+            send(SendParameters{
+                    to: sender(),
+                    value: 0,
+                    mode: SendRemainingValue,
+                    body: TakeWalletAddress{ // 0xd1735400
+                        query_id: msg.query_id,
+                        wallet_address: contractAddress(init),
+                        owner_address: beginCell().storeBool(false).endCell().asSlice()
+                    }.toCell()
+                }
+            );
+        }
+    }
+
+    // Private Methods //
+    // @to The Address receive the Jetton token after minting
+    // @amount The amount of Jetton token being minted
+    // @response_destination The previous owner address
+    fun mint(to: Address, amount: Int, response_destination: Address) {
+        require(self.mintable, "Can't Mint Anymore");
+        self.total_supply = (self.total_supply + amount); // Update total supply
+
+        let winit: StateInit = self.getJettonWalletInit(to); // Create message
+        send(SendParameters{
+                to: contractAddress(winit),
+                value: 0,
+                bounce: true,
+                mode: SendRemainingValue,
+                body: TokenTransferInternal{
+                    query_id: 0,
+                    amount: amount,
+                    from: myAddress(),
+                    response_destination: response_destination,
+                    forward_ton_amount: 0,
+                    forward_payload: beginCell().endCell().asSlice()
+                }.toCell(),
+                code: winit.code,
+                data: winit.data
+            }
+        );
+    }
+
+    fun requireSenderAsWalletOwner(owner: Address) {
+        let ctx: Context = context();
+        let winit: StateInit = self.getJettonWalletInit(owner);
+        require(contractAddress(winit) == ctx.sender, "Invalid sender");
+    }
+
+    fun getJettonWalletInit(address: Address): StateInit {
+		let status: Int = "0".asSlice().loadUint(4);
+        return initOf JettonDefaultWallet(status, ton("0"), address, myAddress());
+    }
+
+    // ====== Get Methods ====== //
+
+    get fun get_jetton_data(): JettonData {
+        return
+            JettonData{
+                total_supply: self.total_supply,
+                mintable: self.mintable,
+                owner: self.owner,
+                content: self.content,
+                wallet_code: self.getJettonWalletInit(self.owner).code
+            };
+    }
+
+    get fun get_wallet_address(owner: Address): Address {
+		let sInit: StateInit = self.getJettonWalletInit(owner);
+        return contractAddress(sInit);
     }
 }
 
-@interface("org.ton.jetton.wallet")
-trait JettonWallet with Common {
-    // owner is the address of the user who owns the wallet.
+message Mint {
+    amount: Int;
+    receiver: Address;
+}
+
+contract SampleJetton with Jetton {
+    total_supply: Int as coins;
     owner: Address;
-    // master is the address of the master contract that deployed this wallet.
+    content: Cell;
+    mintable: Bool;
+
+    max_supply: Int as coins; // Extract parameter we set here. The Jetton Standards doesn't have this parameter.
+
+    init(owner: Address, content: Cell, max_supply: Int) {
+        self.total_supply = 0;
+        self.owner = owner;
+        self.mintable = true;
+        self.content = content;
+        self.max_supply = max_supply;
+    }
+
+    receive(msg: Mint) { // 0xfc708bd2
+        let ctx: Context = context();
+        require(ctx.sender == self.owner, "Not owner");
+        require(self.mintable, "Not mintable");
+        require(self.total_supply + msg.amount <= self.max_supply, "Max supply exceeded");
+        self.mint(msg.receiver, msg.amount, self.owner); // (to, amount, response_destination)
+    }
+
+    receive("Mint: 100") { // Public Minting
+        let ctx: Context = context();
+        require(self.mintable, "Not mintable");
+        require(self.total_supply + 100 <= self.max_supply, "Max supply exceeded");
+        self.mint(ctx.sender, 100, self.owner); // 🔴 
+    }
+
+    receive("Owner: MintClose") {
+        let ctx: Context = context();
+        require(ctx.sender == self.owner, "Not owner");
+        self.mintable = false;
+    }
+} 
+
+
+// ============================================================ //
+@interface("org.ton.jetton.wallet")
+contract JettonDefaultWallet
+{
+    const minTonsForStorage: Int = ton("0.019");
+    const gasConsumption: Int = ton("0.013");
+    status: Int;
+	balance: Int as coins = 0;
+    owner: Address;
     master: Address;
-    // balance is the number of tokens that the wallet currently holds.
-    // unlike the centralized ledger of Ethereum Tokens,
-    // TON users keep track of the number of tokens they own in their own wallets.
-    balance: Int;
-    // staticTax is the fee that will be charged for each transaction.
-    staticTax: Int;
-    lockedValue: Int;
-
-    // this is a TEP-074 standard receiver method,
-    // owner can transfer tokens to another jetton wallet
-    // by sending TokenTransfer message to the contract.
-    receive(msg: TokenTransfer) {
-        self.receiveTokenTransfer(msg);
-    }
-
-    // this is unspecified by standard, but suggested format of internal message.
-    // receive tokens from another jetton wallet
-    receive(msg: TokenTransferInternal) {
-        self.receiveTokenTransferInternal(msg);
-    }
-
-    // this is a TEP-074 standard receiver method
-    receive(msg: Burn) {
-        self.receiveBurn(msg);
+    init(status: Int, balance: Int, owner: Address, master: Address){
+        self.status = "0".asSlice().loadUint(4);
+		self.balance = 0;
+        self.owner = owner;
+        self.master = master;
     }
 	
 	receive(msg: PiggyBackDeployMessage) {}
-
-    // this is a TEP-074 standard getter method
-    get fun get_wallet_data(): JettonWalletData {
-        return self.getWalletData();
+	
+	fun getJettonWalletInit(owner: Address): StateInit {
+		let status: Int = "0".asSlice().loadUint(4);
+        return initOf JettonDefaultWallet(status, ton("0"), owner, self.master);
+    }
+	
+    receive(msg: TokenTransfer){
+        // 0xf8a7ea5
+        let ctx: Context = context(); // Check sender
+        require(ctx.sender == self.owner, "Invalid sender");
+        let final: Int =
+            (((ctx.readForwardFee() * 2 + 2 * self.gasConsumption) + self.minTonsForStorage) + msg.forward_ton_amount); // Gas checks, forward_ton = 0.152
+        require(ctx.value > final, "Invalid value");
+        // Update balance
+        self.balance = (self.balance - msg.amount);
+        require(self.balance >= 0, "Invalid balance");
+        let init: StateInit = self.getJettonWalletInit(msg.sender);
+        let wallet_address: Address = contractAddress(init);
+        send(SendParameters{
+                to: wallet_address,
+                value: 0,
+                mode: SendRemainingValue,
+                bounce: true,
+                body: TokenTransferInternal{ // 0x178d4519
+                    query_id: msg.query_id,
+                    amount: msg.amount,
+                    from: self.owner,
+                    response_destination: msg.response_destination,
+                    forward_ton_amount: msg.forward_ton_amount,
+                    forward_payload: msg.forward_payload
+                }.toCell(),
+                code: init.code,
+                data: init.data
+            }
+        );
     }
 
-    bounced(src: bounced<TokenTransferInternal>) {
-        self.balance += src.amount;
+    receive(msg: TokenTransferInternal){
+        // 0x178d4519
+        let ctx: Context = context();
+        if (ctx.sender != self.master) {
+            let sinit: StateInit = self.getJettonWalletInit(msg.from);
+            require(contractAddress(sinit) == ctx.sender, "Invalid sender!");
+        }
+        // Update balance
+        self.balance = (self.balance + msg.amount);
+        require(self.balance >= 0, "Invalid balance");
+        // Get value for gas
+        let msg_value: Int = self.msg_value(ctx.value);
+        let fwd_fee: Int = ctx.readForwardFee();
+        if (msg.forward_ton_amount > 0) {
+            msg_value = ((msg_value - msg.forward_ton_amount) - fwd_fee);
+            send(SendParameters{
+                    to: self.owner,
+                    value: msg.forward_ton_amount,
+                    mode: SendPayGasSeparately,
+                    bounce: false,
+                    body: TokenNotification{ // 0x7362d09c -- Remind the new Owner
+                        query_id: msg.query_id,
+                        amount: msg.amount,
+                        from: msg.from,
+                        forward_payload: msg.forward_payload
+                    }.toCell()
+                }
+            );
+        }
+        // 0xd53276db -- Cashback to the original Sender
+        if (msg.response_destination != null && msg_value > 0) {
+            send(SendParameters{
+                    to: msg.response_destination!!,
+                    value: msg_value,
+                    bounce: false,
+                    body: TokenExcesses{query_id: msg.query_id}.toCell(),
+                    mode: SendPayGasSeparately
+                }
+            );
+        }
+    }
 
-        // notify owner that transfer failed
+    receive(msg: TokenBurn){
+        let ctx: Context = context();
+        require(ctx.sender == self.owner, "Invalid sender"); // Check sender
+
+        self.balance = (self.balance - msg.amount); // Update balance
+        require(self.balance >= 0, "Invalid balance");
+        let fwd_fee: Int = ctx.readForwardFee(); // Gas checks
+        require(ctx.value > ((fwd_fee + 2 * self.gasConsumption) + self.minTonsForStorage), "Invalid value - Burn");
+        // Burn tokens
+        send(SendParameters{
+                to: self.master,
+                value: 0,
+                mode: SendRemainingValue,
+                bounce: true,
+                body: TokenBurnNotification{
+                    query_id: msg.query_id,
+                    amount: msg.amount,
+                    sender: self.owner,
+                    response_destination: msg.response_destination
+                }.toCell()
+            }
+        );
+    }
+
+    fun msg_value(value: Int): Int {
+        let msgValue: Int = value;
+        let ton_balance_before_msg: Int = (myBalance() - msgValue);
+        let storage_fee: Int = (self.minTonsForStorage - min(ton_balance_before_msg, self.minTonsForStorage));
+        msgValue = (msgValue - (storage_fee + self.gasConsumption));
+        return msgValue;
+    }
+
+    bounced(msg: bounced<TokenTransferInternal>){
+        self.balance = (self.balance + msg.amount);
+		
+		// notify owner that transfer failed
         send(SendParameters{
             to: self.owner,
             value: 0,
-            mode: SendRemainingBalance,
+            mode: SendRemainingValue,
             body: JettonInternalTransferFailedNotification{
-                queryId: src.queryId,
-                amount: src.amount
+                queryId: msg.query_id,
+                amount: msg.amount
             }.toCell(),
         });
         
-
     }
 
-    bounced(src: bounced<TokenBurnNotification>) {
-        self.balance += src.amount;
+    bounced(msg: bounced<TokenBurnNotification>){
+        self.balance = (self.balance + msg.amount);
     }
 
-    virtual fun getJettonWalletContract(owner: Address): StateInit {
-        return initOf JettonWalletTemplate(0 & 0xF, ton("0"), self.master, owner);
-    }
-
-    virtual fun receiveTokenTransfer(msg: TokenTransfer) {
-        let ctx: Context = context();
-        nativeThrowUnless(codeUnauthorized, ctx.sender == self.owner);
-        nativeThrowUnless(codeJettonBalanceInsufficient, self.balance >= msg.amount);
-        nativeThrowUnless(codeAmountShouldBePositive, msg.amount > 0);
-        nativeThrowUnless(codeInflowValueNotSufficient,
-            ctx.value >= msg.forwardAmount + self.staticTax);
-
-        self.balance -= msg.amount;
-
-        let destJettonContract = self.getJettonWalletContract(msg.destination);
-
-        // deploy the wallet if it's not deployed yet,
-        // then transfer the tokens to the wallet.
-        self.reserveValue(0);
-        send(SendParameters{
-            to: contractAddress(destJettonContract),
-            value: 0,
-            mode: SendRemainingBalance,
-            // amount could be negative, it is impossible to pre-confirm whether
-            // the receiver has enough balance to cover the negative amount,
-            // which means the transfer may fail. If that happens,
-            // the contract's balance must be adjusted using a bounced message.
-            bounce: true,
-            body: TokenTransferInternal{
-                queryId: msg.queryId,
-                amount: msg.amount,
-                from: self.owner,
-                responseDestination: msg.responseDestination,
-                forwardAmount: msg.forwardAmount,
-                forwardPayload: msg.forwardPayload
-            }.toCell(),
-            code: destJettonContract.code,
-            data: destJettonContract.data
-        });
-    }
-
-    virtual fun receiveTokenTransferInternal(msg: TokenTransferInternal){
-        let ctx: Context = context();
-        nativeThrowUnless(codeAmountShouldBePositive, msg.amount > 0);
-        nativeThrowUnless(codeInflowValueNotSufficient,
-            ctx.value > msg.forwardAmount + self.staticTax);
-
-        // only the owner or another jetton wallet can send TokenTransferInternal
-        if (ctx.sender != self.master) {
-            let peerJettonContractAddr = contractAddress(self.getJettonWalletContract(msg.from));
-            nativeThrowUnless(codeUnauthorized, ctx.sender == peerJettonContractAddr);
-        }
-
-        // Update balance
-        self.balance += msg.amount;
-
-        // https://github.com/ton-blockchain/TEPs/blob/master/text/0074-jettons-standard.md
-        // if forward_amount > 0 ensure that receiver's jetton-wallet
-        // send message to destination address, which means the new owner of the token
-        if (msg.forwardAmount > 0) {
-            send(SendParameters{
-                to: self.owner,
-                value: msg.forwardAmount,
-                bounce: false,
-                // mode: SendIgnoreErrors,
-                body: TransferNotification{
-                    queryId: msg.queryId,
-                    amount: msg.amount,
-                    sender: msg.from,
-                    forwardPayload: msg.forwardPayload
-                }.toCell()
-            });
-        }
-
-        // refund the excess TON to the sender.
-        //
-        // using the SendRemainingBalance mode will transfer all balances
-        // that are not locked by nativeReserve.
-        // https://docs.tact-lang.org/ref/core-advanced#nativereserve
-        self.reserveValue(0);
-        send(SendParameters{
-            to: msg.responseDestination,
-            value: 0,
-            bounce: false,
-            mode: SendRemainingBalance,
-            body: Excesses{queryId: msg.queryId}.toCell(),
-        });
-    }
-
-    virtual fun receiveBurn(msg: Burn) {
-        let ctx: Context = context();
-        nativeThrowUnless(codeUnauthorized, ctx.sender == self.owner);
-        nativeThrowUnless(codeBalanceNotSufficient, self.balance >= msg.amount);
-        nativeThrowUnless(codeAmountShouldBePositive, msg.amount > 0);
-
-        // Update balance
-        self.balance -= msg.amount;
-
-        // notify master to update totalSupply
-        self.reserveValue(0);
-        send(SendParameters{
-            to: self.master,
-            value: 0,
-            mode: SendRemainingBalance,
-            bounce: true,
-            body: TokenBurnNotification{
-                queryId: msg.queryId,
-                amount: msg.amount,
-                sender: self.owner,
-                responseDestination: msg.responseDestination,
-            }.toCell(),
-        });
-    }
-
-    virtual fun getWalletData(): JettonWalletData {
-	
-		// usdt format
-		return JettonWalletData {
-			status: 0,
-			balance: self.balance,
-			ownerAddress: self.owner,
-			jettonMasterAddress: self.master
-		}
+    get fun get_wallet_data(): JettonWalletData {
+        return
+            JettonWalletData{
+                balance: self.balance,
+                owner: self.owner,
+                master: self.master,
+                code: self.getJettonWalletInit(self.owner).code
+            };
     }
 }
-
-    
