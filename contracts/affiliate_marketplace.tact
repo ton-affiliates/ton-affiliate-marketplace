@@ -11,7 +11,7 @@ const DESTINATION_ID_PAYOUT: Int = 20002;
 const STATE_CAMPAIGN_CREATED: Int = 0;
 const STATE_CAMPAIGN_DETAILS_SET_BY_ADVERTISER: Int = 1;
 
-const DEPLOY_NEW_CAMPAIGN_COST: Int = ton("0.1");
+const DEPLOY_NEW_CONTRACT_COST: Int = ton("0.1");
 const GAS_FEE: Int = ton("0.01");
 const CAMPAIGN_BUFFER: Int = ton("1");
 
@@ -146,7 +146,7 @@ contract Campaign with Resumable {
         // set USDT details
         self.usdtMasterAddress = usdtMasterAddress;
 
-		let status: Int = 0 & 0xF;  // Mask to keep only 4 bits
+		let status: Int = "0".asSlice().loadUint(4);  // Mask to keep only 4 bits
 		let balance = ton("0");
 		let ownerAddress = myAddress();
 		
@@ -157,7 +157,7 @@ contract Campaign with Resumable {
         // it will deploy the implementation of OUR wallet
         send(SendParameters{
             to: self.contractUsdtJettonWallet,  // The Jetton wallet to send from
-            value: DEPLOY_NEW_CAMPAIGN_COST,  // This TON is for paying for gas fees of the transfer
+            value: DEPLOY_NEW_CONTRACT_COST,  // This TON is for paying for gas fees of the transfer
             body: PiggyBackDeployMessage{}.toCell(),
             code: walletInit.code,
             data: walletInit.data,
@@ -237,11 +237,15 @@ contract Campaign with Resumable {
     // receive any amount of incoming TON
     receive() {}
 
+    receive(msg: Excesses) {
+        // do nothing - excess ton will be added to the contract's balance
+    }
+
     // Function to track received USDT Jettons and update balance
     receive(msg: TransferNotification) {
         
         require(sender() == self.contractUsdtJettonWallet, "Only contract wallet allowed to invoke");
-        require(msg.sender == self.contractUsdtJettonWallet, "Contract wallet should be the same as sender");
+        require(msg.sender == self.advertiser, "Only advertiser can send tokens to this contract");
         require(self.campaignDetails.paymentMethod == PAYMENT_METHOD_USDT, "Only USDT Campaigns can accept USDT");
         // Update the USDT balance in the state
         self.contractUSDTBalance = self.contractUSDTBalance + msg.amount;
@@ -351,7 +355,7 @@ contract Campaign with Resumable {
     receive (msg: AdvertiserSetCampaignDetails) {
 
         require(self.state == STATE_CAMPAIGN_CREATED, "Must be in state: STATE_CAMPAIGN_CREATED");
-        require(context().value > (DEPLOY_NEW_CAMPAIGN_COST*2) + GAS_FEE + CAMPAIGN_BUFFER, "Insufficient funds to repay parent for deployment and keep buffer");
+        require(context().value > (DEPLOY_NEW_CONTRACT_COST*2) + GAS_FEE + CAMPAIGN_BUFFER, "Insufficient funds to repay parent for deployment and keep buffer");
         require(msg.campaignDetails.paymentMethod == PAYMENT_METHOD_TON || msg.campaignDetails.paymentMethod == PAYMENT_METHOD_USDT, "Only TON or USDT supported as payment methods");
         
         // verify keys are the same in both sets
@@ -384,7 +388,7 @@ contract Campaign with Resumable {
                 campaignId: self.campaignId,
                 advertiser: sender()
             }.toCell(),
-            value: (DEPLOY_NEW_CAMPAIGN_COST*2) + GAS_FEE,
+            value: (DEPLOY_NEW_CONTRACT_COST*2) + GAS_FEE,
             mode: SendPayGasSeparately
         });
     }
@@ -925,7 +929,7 @@ contract AffiliateMarketplace with Deployable, Resumable  {
         // deploy contract
         send(SendParameters{
             to: campaignContractAddress,
-            value: DEPLOY_NEW_CAMPAIGN_COST*2,
+            value: DEPLOY_NEW_CONTRACT_COST*2,
             code: init.code,
             data: init.data,
             body: ParentToChildDeployCampaign{campaignId: campaignId}.toCell(),
