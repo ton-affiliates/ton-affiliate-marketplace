@@ -695,7 +695,7 @@ contract AffiliateMarketplace with Deployable, Resumable  {
     bot: Address;
     usdtMasterAddress: Address;
 
-    currCampaignId: Int as uint32;  // running id
+    numCampaigns: Int as uint32; 
 
     // Constructor
     init(bot: Address, usdtMasterAddress: Address) {
@@ -703,7 +703,7 @@ contract AffiliateMarketplace with Deployable, Resumable  {
         self.stopped = false;
         self.bot = bot;
         self.usdtMasterAddress = usdtMasterAddress;
-        self.currCampaignId = 0; // running id
+        self.numCampaigns = 0; 
     }
 
     get fun balance(): Int {
@@ -715,7 +715,7 @@ contract AffiliateMarketplace with Deployable, Resumable  {
     }
 
     get fun numCampaigns(): Int {
-        return self.currCampaignId; 
+        return self.numCampaigns; 
     }
 
     get fun campaignContractAddress(campaignId: Int): Address {
@@ -908,8 +908,8 @@ contract AffiliateMarketplace with Deployable, Resumable  {
 		self.requireNotStopped();
         require(sender() == self.bot, "Only bot can Deploy new Campaign");
 
-        let campaignId = self.currCampaignId;
-        self.currCampaignId = campaignId + 1;
+        let campaignId: Int = random(0, 4294967294); // Generate a new random number, which is an unsigned 256-bit integer
+        self.numCampaigns = self.numCampaigns + 1;
 
         let init: StateInit = self.campaignContractStateInit(campaignId);
         let campaignContractAddress: Address = contractAddress(init);

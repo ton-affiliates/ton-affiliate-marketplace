@@ -27,6 +27,8 @@ const BOT_OP_CODE_USER_CLICK = 0;
 const ADVERTISER_OP_CODE_CUSTOMIZED_EVENT = 2001;
 const USDT_MAINNET_ADDRESS = Address.parse("EQAMrDBMZywwkCRJSuV9i-bUFnCJSyCSioHLkInvCJZr2kmW");
 
+let campaignId = BigInt(0);
+
 // # Error Codes
 // 2: Stack underflow
 // 3: Stack overflow
@@ -142,7 +144,8 @@ beforeEach(async () => {
 	}
 
 	expect(decodedCampaign).not.toBeNull();
-	expect(decodedCampaign!.campaignId).toBe(0);
+	campaignId = BigInt(decodedCampaign!.campaignId);  // set campaignId
+
 	let campaignContractAddress: Address = Address.parse(decodedCampaign!.campaignContractAddressStr);
 
 	expect(createCampaignResult.transactions).toHaveTransaction({
@@ -190,7 +193,7 @@ describe('Administrative Actions - Negative Tests for AffiliateMarketplace Contr
             { value: toNano('0.05') },
             {
                 $$type: 'AdminSeizeCampaignBalance',
-                campaignId: BigInt(0) 
+                campaignId: campaignId 
             }
         );
 
@@ -208,7 +211,7 @@ describe('Administrative Actions - Negative Tests for AffiliateMarketplace Contr
             { value: toNano('0.05') },
             {
                 $$type: 'AdminModifyCampaignFeePercentage',
-                campaignId: BigInt(0), // Assuming campaignId is 0 for simplicity; adjust as needed
+                campaignId: campaignId, 
                 feePercentage: BigInt(150), // 1.5%
             }
         );
@@ -353,7 +356,7 @@ describe('Administrative Actions - Negative Tests for AffiliateMarketplace Contr
             { value: toNano('0.05') },
             {
                 $$type: 'AdminStopCampaign',
-                campaignId: BigInt(0n)
+                campaignId: campaignId
             }
         );
 		
@@ -372,7 +375,7 @@ describe('Administrative Actions - Negative Tests for AffiliateMarketplace Contr
             { value: toNano('0.05') },
             {
                 $$type: 'AdminResumeCampaign',
-                campaignId: BigInt(0n)
+                campaignId: campaignId
             }
         );
 		

@@ -28,6 +28,7 @@ const BOT_OP_CODE_USER_CLICK = 0;
 const ADVERTISER_OP_CODE_CUSTOMIZED_EVENT = 2001;
 const USDT_MAINNET_ADDRESS = Address.parse("EQAMrDBMZywwkCRJSuV9i-bUFnCJSyCSioHLkInvCJZr2kmW");
 
+let campaignId = BigInt(0);
 
 
 beforeEach(async () => {
@@ -89,7 +90,7 @@ beforeEach(async () => {
 	}
 
 	expect(decodedCampaign).not.toBeNull();
-	expect(decodedCampaign!.campaignId).toBe(0);
+	campaignId = decodedCampaign!.campaignId;
 	let campaignContractAddress: Address = Address.parse(decodedCampaign!.campaignContractAddressStr);
 
 	expect(createCampaignResult.transactions).toHaveTransaction({
@@ -139,7 +140,7 @@ describe('Administrative Actions - positive test', () => {
             { value: toNano('0.05') },
             {
                 $$type: 'AdminSeizeCampaignBalance',
-                campaignId: BigInt(0) 
+                campaignId: campaignId
             }
         );
 

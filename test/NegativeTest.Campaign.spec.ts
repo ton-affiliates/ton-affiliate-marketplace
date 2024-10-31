@@ -27,6 +27,8 @@ const BOT_OP_CODE_USER_CLICK = 0;
 const ADVERTISER_OP_CODE_CUSTOMIZED_EVENT = 2001;
 const USDT_MAINNET_ADDRESS = Address.parse("EQAMrDBMZywwkCRJSuV9i-bUFnCJSyCSioHLkInvCJZr2kmW");
 
+let campaignId = BigInt(0);
+
 // # Error Codes
 // 2: Stack underflow
 // 3: Stack overflow
@@ -141,7 +143,7 @@ beforeEach(async () => {
 	}
 
 	expect(decodedCampaign).not.toBeNull();
-	expect(decodedCampaign!.campaignId).toBe(0);
+	campaignId = decodedCampaign!.campaignId;
 	let campaignContractAddress: Address = Address.parse(decodedCampaign!.campaignContractAddressStr);
 
 	expect(createCampaignResult.transactions).toHaveTransaction({
@@ -258,7 +260,7 @@ describe('Negative Tests for Campaign', () => {
             { value: toNano('0.05') },
             {
                 $$type: 'BotUserAction',
-                campaignId: BigInt(0),
+                campaignId: campaignId,
                 affiliateId: BigInt(0),
                 userActionOpCode: BigInt(BOT_OP_CODE_USER_CLICK),
                 isPremiumUser: false,

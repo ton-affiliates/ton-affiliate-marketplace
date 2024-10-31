@@ -78,7 +78,7 @@ let affiliate1: SandboxContract<TreasuryContract>;
 let unauthorizedUser: SandboxContract<TreasuryContract>;
 
 const USDT_MAINNET_ADDRESS = Address.parse("EQAMrDBMZywwkCRJSuV9i-bUFnCJSyCSioHLkInvCJZr2kmW");
-
+let campaignId = BigInt(0);
 
 beforeEach(async () => {
     // Initialize blockchain and deployer wallets
@@ -130,6 +130,8 @@ beforeEach(async () => {
             decodedCampaign = loadCampaignCreatedEvent(external.body);
         }
     }
+	
+	campaignId = BigInt(decodedCampaign!.campaignId);
 
     let campaignContractAddress: Address = Address.parse(decodedCampaign!.campaignContractAddressStr);
     campaignContract = blockchain.openContract(await Campaign.fromAddress(campaignContractAddress));
@@ -178,7 +180,7 @@ describe('Affiliate Actions - Positive and Negative Tests for Affiliate Function
             { value: toNano('0.05') },
             {
                 $$type: 'BotUserAction',
-                campaignId: BigInt(0),
+                campaignId: campaignId,
                 affiliateId: BigInt(0), // ID corresponding to affiliate1
                 userActionOpCode: BigInt(0), // Valid op code
                 isPremiumUser: false
@@ -203,7 +205,7 @@ describe('Affiliate Actions - Positive and Negative Tests for Affiliate Function
             { value: toNano('0.05') },
             {
                 $$type: 'BotUserAction',
-                campaignId: BigInt(0),
+                campaignId: campaignId,
                 affiliateId: BigInt(0), // ID corresponding to affiliate1
                 userActionOpCode: BigInt(0), // Valid op code
                 isPremiumUser: false

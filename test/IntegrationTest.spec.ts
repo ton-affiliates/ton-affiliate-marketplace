@@ -144,7 +144,6 @@ describe('AffiliateMarketplace Integration Test', () => {
         }
 		
         expect(decodedCampaign).not.toBeNull();
-        expect(decodedCampaign!.campaignId).toBe(0);
         let campaignContractAddress: Address = Address.parse(decodedCampaign!.campaignContractAddressStr);
 		
 		let campaignContractAddressFromMarketplace = await affiliateMarketplaceContract.getCampaignContractAddress(decodedCampaign!.campaignId);
@@ -226,7 +225,6 @@ describe('AffiliateMarketplace Integration Test', () => {
         }
 		
         expect(decodedAdvertiserSetCampaignDetailsEvent).not.toBeNull();
-        expect(decodedAdvertiserSetCampaignDetailsEvent!.campaignId).toBe(0);
 		expect(decodedAdvertiserSetCampaignDetailsEvent!.advertiserAddressStr).toBe(advertiser.address.toString());
 
 
@@ -498,12 +496,12 @@ describe('AffiliateMarketplace Integration Test', () => {
         }
 
         expect(decodedCampaignUnderFiveTon).not.toBeNull();
-		expect(decodedCampaignUnderFiveTon.campaignId).toBe(0);
+		expect(decodedCampaignUnderFiveTon.campaignId).toBe(decodedCampaign!.campaignId);
 		expect(decodedCampaignUnderFiveTon.advertiserAddressStr).toBe(advertiser.address.toString());
 		expect(decodedCampaignUnderFiveTon.campaignBalance).toBeLessThan(toNano("5"));
 
         expect(decodedInsufficientBalanceInCampaign).not.toBeNull();
-        expect(decodedInsufficientBalanceInCampaign.campaignId).toBe(0);
+        expect(decodedInsufficientBalanceInCampaign.campaignId).toBe(decodedCampaign!.campaignId);
 		expect(decodedInsufficientBalanceInCampaign.advertiserAddressStr).toBe(advertiser.address.toString());
 		expect(decodedInsufficientBalanceInCampaign.campaignBalance).toBeLessThan(decodedInsufficientBalanceInCampaign.maxCpaValue);  
 		
@@ -635,7 +633,7 @@ describe('AffiliateMarketplace Integration Test', () => {
         }
 
         expect(decodedAdvertiserWithdrawFunds).not.toBeNull();
-        expect(decodedAdvertiserWithdrawFunds!.campaignId).toBe(0);
+        expect(decodedAdvertiserWithdrawFunds!.campaignId).toBe(decodedCampaign!.campaignId);
 		
 		campaignData = await campaignContract.getCampaignData();
 		expect(campaignData.campaignBalance).toBe(toNano("0"));

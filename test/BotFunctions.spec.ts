@@ -186,7 +186,7 @@ describe('Bot Actions - Positive and Negative Tests for Bot Functions', () => {
             { value: toNano('0.05') },
             {
                 $$type: 'BotUserAction',
-                campaignId: BigInt(0),
+                campaignId: BigInt(decodedCampaign!.campaignId),
                 affiliateId: BigInt(0),
                 userActionOpCode: BigInt(BOT_OP_CODE_USER_CLICK),
                 isPremiumUser: false
@@ -280,7 +280,7 @@ describe('Bot Actions - Positive and Negative Tests for Bot Functions', () => {
             { value: toNano('0.05') },
             {
                 $$type: 'BotUserAction',
-                campaignId: BigInt(0),
+                campaignId: BigInt(decodedCampaign!.campaignId),
                 affiliateId: BigInt(0),
                 userActionOpCode: BigInt(2001), // Unauthorized op code for bots
                 isPremiumUser: false
