@@ -96,8 +96,12 @@ trait Jetton with Ownable {
     }
 
     fun getJettonWalletInit(address: Address): StateInit {
-		let status: Int = "0".asSlice().loadUint(4);
-        return initOf JettonDefaultWallet(status, ton("0"), address, myAddress());
+		return initOf JettonDefaultWallet(JettonWalletData{
+			status: 0,
+			balance: ton("0"),
+			ownerAddress: address,
+			jettonMasterAddress: myAddress() 
+		});
     }
 
     // ====== Get Methods ====== //
@@ -169,25 +173,38 @@ contract JettonDefaultWallet
 {
     const minTonsForStorage: Int = ton("0.019");
     const gasConsumption: Int = ton("0.013");
-    status: Int;
-	balance: Int as coins = 0;
+	
+	status: Int as uint4;
+	balance: Int as coins;
     owner: Address;
     master: Address;
-    init(status: Int, balance: Int, owner: Address, master: Address){
-        self.status = "0".asSlice().loadUint(4);
-		self.balance = 0;
-        self.owner = owner;
-        self.master = master;
+	tokenTransferInternal: Bool;
+	tokenTransfer: Bool;
+	
+    init(jettonWalletData: JettonWalletData){
+        require(sender() == jettonWalletData.ownerAddress, "Only owner can deploy");
+		self.status = 0;
+        self.balance = ton("0");
+        self.owner = jettonWalletData.ownerAddress;
+        self.master = jettonWalletData.jettonMasterAddress;
+		self.tokenTransferInternal = false;
+		self.tokenTransfer = false;
     }
 	
 	receive(msg: PiggyBackDeployMessage) {}
 	
 	fun getJettonWalletInit(owner: Address): StateInit {
-		let status: Int = "0".asSlice().loadUint(4);
-        return initOf JettonDefaultWallet(status, ton("0"), owner, self.master);
+        return initOf JettonDefaultWallet(JettonWalletData{
+			status: 0,
+			balance: ton("0"),
+			ownerAddress: owner,
+			jettonMasterAddress: self.master 
+		});
     }
 	
     receive(msg: TokenTransfer){
+	
+		self.tokenTransfer = true;
         // 0xf8a7ea5
         let ctx: Context = context(); // Check sender
         require(ctx.sender == self.owner, "Invalid sender");
@@ -219,6 +236,7 @@ contract JettonDefaultWallet
     }
 
     receive(msg: TokenTransferInternal){
+		self.tokenTransferInternal = true;
         // 0x178d4519
         let ctx: Context = context();
         if (ctx.sender != self.master) {
@@ -241,7 +259,7 @@ contract JettonDefaultWallet
                     body: TokenNotification{ // 0x7362d09c -- Remind the new Owner
                         query_id: msg.query_id,
                         amount: msg.amount,
-                        from: msg.from,
+                        sender: msg.from,
                         forward_payload: msg.forward_payload
                     }.toCell()
                 }
@@ -313,12 +331,19 @@ contract JettonDefaultWallet
     }
 
     get fun get_wallet_data(): JettonWalletData {
-        return
-            JettonWalletData{
-                balance: self.balance,
-                owner: self.owner,
-                master: self.master,
-                code: self.getJettonWalletInit(self.owner).code
-            };
+        return JettonWalletData {
+			status: 0,
+			balance: self.balance,
+			ownerAddress: self.owner,
+			jettonMasterAddress: self.master
+		}
     }
+	
+	get fun tokenTransferInternal(): Bool {
+		return self.tokenTransferInternal;
+	}
+	
+	get fun tokenTransfer(): Bool {
+		return self.tokenTransfer;
+	}
 }

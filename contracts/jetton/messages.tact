@@ -6,11 +6,18 @@ struct JettonData {
     wallet_code: Cell;
 }
 
-struct JettonWalletData {
-    balance: Int;
-    owner: Address;
-    master: Address;
-    code: Cell;
+//struct JettonWalletData {
+//    balance: Int;
+//    owner: Address;
+//    master: Address;
+//    code: Cell;
+//}
+
+struct JettonWalletData{
+    status: Int as uint4;
+    balance: Int as coins;
+    ownerAddress: Address;
+    jettonMasterAddress: Address;
 }
 
 message(0xf8a7ea5) TokenTransfer {
@@ -35,7 +42,7 @@ message(0x178d4519) TokenTransferInternal {
 message(0x7362d09c) TokenNotification {
     query_id: Int as uint64;
     amount: Int as coins;
-    from: Address;
+    sender: Address;
     forward_payload: Slice as remaining;
 }
 

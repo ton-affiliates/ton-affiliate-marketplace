@@ -69,6 +69,28 @@ struct CampaignData {
     isCampaignPausedByAdmin: Bool;
 }
 
+
+
+// And the function to calculate the wallet address may look like this:
+fun calculateJettonWalletAddress(
+    ownerAddress: Address,
+    jettonMasterAddress: Address,
+    jettonWalletCode: Cell
+): Address {
+
+    let initData = JettonWalletData{
+        status: 0,
+        balance: 0,
+        ownerAddress,
+        jettonMasterAddress,
+    };
+
+    return contractAddress(StateInit{
+        code: jettonWalletCode,
+        data: initData.toCell(),
+    });
+}
+
 // Child contract for each affiliate
 contract Campaign with Resumable {
 
@@ -94,7 +116,6 @@ contract Campaign with Resumable {
     usdtMasterAddress: Address; 
     contractUSDTBalance: Int as coins;
     contractUsdtJettonWallet: Address;
-    queryId: Int as uint32; // running Id
     queryIdToDestintaionId: map<Int, Int>;
 
     init(owner: Address, campaignId: Int, payout: Address, usdtMasterAddress: Address) {
@@ -127,23 +148,26 @@ contract Campaign with Resumable {
         self.maxCpaValue = ton("0");
 
         self.contractUSDTBalance = 0;
-        self.queryId = 0;
         self.queryIdToDestintaionId = emptyMap();
 
         // set USDT details
         self.usdtMasterAddress = usdtMasterAddress;
-
-		let status: Int = "0".asSlice().loadUint(4);  // keep only 4 bits to match USDT standard
-		let balance = ton("0"); // wallet balance - initially zero
-		let ownerAddress = myAddress();
 		
-        let walletInit: StateInit = initOf JettonDefaultWallet(status, balance, ownerAddress, usdtMasterAddress);
-        self.contractUsdtJettonWallet = contractAddress(walletInit); 
+		let jettonInitData: JettonWalletData = JettonWalletData{
+			status: 0,
+			balance: ton("0"),
+			ownerAddress: myAddress(),
+			jettonMasterAddress: usdtMasterAddress,
+		};
+		
+		let walletInit: StateInit = initOf JettonDefaultWallet(jettonInitData);
+		let usdtWalletAddress: Address = calculateJettonWalletAddress(myAddress(), usdtMasterAddress, walletInit.code);
+        self.contractUsdtJettonWallet = usdtWalletAddress; 
 
         // deploy wallet by transferring funds to payout (which will bounce because thre is no balance in the wallet).
         // it will deploy the implementation of OUR wallet
         send(SendParameters{
-            to: self.contractUsdtJettonWallet,  // The Jetton wallet to send from
+            to: usdtWalletAddress,  // The Jetton wallet to send from
             value: DEPLOY_NEW_CONTRACT_COST,  // This TON is for paying for gas fees of the transfer
             body: PiggyBackDeployMessage{}.toCell(),
             code: walletInit.code,
@@ -199,8 +223,7 @@ contract Campaign with Resumable {
     fun transferJettonUSDT(to: Address, amount: Int, destintaionId: Int) {  
 	
 		require(self.contractUSDTBalance > amount, "Insufficient USDT funds to make transfer");
-		let queryId = self.queryId;
-        self.queryId = self.queryId + 1;
+		let queryId: Int = random(0, 4294967294); // Generate a new random number, which is an unsigned 32-bit integer;
         self.queryIdToDestintaionId.set(queryId, destintaionId);
         
 		send(SendParameters{
@@ -233,7 +256,7 @@ contract Campaign with Resumable {
     receive(msg: TokenNotification) {
         
         require(sender() == self.contractUsdtJettonWallet, "Only contract wallet allowed to invoke");
-        require(msg.from == self.advertiser, "Only advertiser can send tokens to this contract");
+        require(msg.sender == self.advertiser, "Only advertiser can send tokens to this contract");
         require(self.campaignDetails.paymentMethod == PAYMENT_METHOD_USDT, "Only USDT Campaigns can accept USDT");
         // Update the USDT balance in the state
         self.contractUSDTBalance = self.contractUSDTBalance + msg.amount;
@@ -693,10 +716,10 @@ contract AffiliateMarketplace with Deployable, Resumable  {
     owner: Address;
     stopped: Bool;
     bot: Address;
-    usdtMasterAddress: Address;
 
     numCampaigns: Int as uint32; 
-
+	usdtMasterAddress: Address;
+	
     // Constructor
     init(bot: Address, usdtMasterAddress: Address) {
         self.owner = sender();
@@ -908,7 +931,7 @@ contract AffiliateMarketplace with Deployable, Resumable  {
 		self.requireNotStopped();
         require(sender() == self.bot, "Only bot can Deploy new Campaign");
 
-        let campaignId: Int = random(0, 4294967294); // Generate a new random number, which is an unsigned 256-bit integer
+        let campaignId: Int = random(0, 4294967294); // Generate a new random number, which is an unsigned 32-bit integer
         self.numCampaigns = self.numCampaigns + 1;
 
         let init: StateInit = self.campaignContractStateInit(campaignId);

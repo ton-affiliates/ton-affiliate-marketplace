@@ -66,20 +66,6 @@ describe('AffiliateMarketplace Integration Test', () => {
 				max_supply  // max supply of 1 million
             )
         );
-		
-		// adminJettonWallet = blockchain.openContract(
-        //     await JettonWalletTemplate.fromInit(
-        //         jettonMasterContract.address,
-        //         deployer.address,
-        //     )
-        // );
-
-        // advertiserJettonWallet = blockchain.openContract(
-        //     await JettonWalletTemplate.fromInit(
-        //         jettonMasterContract.address,
-        //         advertiser.address,
-        //     )
-        // );
 
         affiliateMarketplaceContract = blockchain.openContract(await AffiliateMarketplace.fromInit(bot.address, jettonMasterContract.address));
 
