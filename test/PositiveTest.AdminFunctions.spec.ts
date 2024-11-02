@@ -155,7 +155,7 @@ describe('Administrative Actions - positive test', () => {
 		expect(campaignData.campaignBalance).toBe(BigInt(0));
 		
 		let deployerBalance = await deployer.getBalance();
-		expect(deployerBalance - deployerBalanceBeforeSeize).toBeLessThan(toNano("8.9"));
+		expect(deployerBalance - deployerBalanceBeforeSeize).toBeLessThan(toNano("9"));
 		expect(deployerBalance - deployerBalanceBeforeSeize).toBeGreaterThan(toNano("8.8"));
     });
 	

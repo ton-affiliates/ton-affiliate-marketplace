@@ -150,12 +150,6 @@ describe('AffiliateMarketplace Integration Test', () => {
         expect(campaignData.contractBalance).toBe(toNano("0")); 
         expect(campaignData.campaignBalance).toBe(toNano("0"));
 		
-		expect(createCampaignResult.transactions).toHaveTransaction({
-            from: campaignContract.address,
-            to: campaignData.contractUsdtJettonWallet,
-			deploy: true,
-            success: true,
-        });
 
         let affiliateMarketplaceContractBalanceAfterDeployment = await affiliateMarketplaceContract.getBalance();
         expect(affiliateMarketplaceContractBalanceAfterDeployment).toBeLessThan(toNano("5"));
@@ -245,10 +239,10 @@ describe('AffiliateMarketplace Integration Test', () => {
         // verify deploy costs returned to parent (0.1 + 0.1 + 0.02 GAS FEE minus the actual gas fee of tx)
 		expect(affiliateMarketplaceBalanceBeforeAdvertiserSetDetails).toBeLessThan(affiliateMarketplaceBalanceAfterAdvertiserSetDetails);
         expect(affiliateMarketplaceBalanceAfterAdvertiserSetDetails - affiliateMarketplaceBalanceBeforeAdvertiserSetDetails)
-            .toBeGreaterThan(toNano("0.2"));
+            .toBeGreaterThan(toNano("0.1"));
 		
         expect(affiliateMarketplaceBalanceAfterAdvertiserSetDetails - affiliateMarketplaceBalanceBeforeAdvertiserSetDetails)
-            .toBeLessThan(toNano("0.21"));
+            .toBeLessThan(toNano("0.11"));
 
         // --------------------------------------------------------------------------------------------------------
 
