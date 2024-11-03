@@ -172,7 +172,8 @@ beforeEach(async () => {
                 allowedAffiliates: Dictionary.empty<Address, boolean>().set(affiliate.address, true),
                 isOpenCampaign: false,
 				campaignValidForNumDays: null,
-				paymentMethod: BigInt(0) // TON
+				paymentMethod: BigInt(0), // TON
+				requiresAdvertiserApprovalForWithdrawl: false
             }
         }
     );

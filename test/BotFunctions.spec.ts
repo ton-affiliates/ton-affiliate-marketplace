@@ -175,7 +175,8 @@ describe('Bot Actions - Positive and Negative Tests for Bot Functions', () => {
                     allowedAffiliates: Dictionary.empty<Address, boolean>(),
                     isOpenCampaign: false,
                     campaignValidForNumDays: null,
-					paymentMethod: BigInt(0) // TON
+					paymentMethod: BigInt(0), // TON
+					requiresAdvertiserApprovalForWithdrawl: false
                 }
             }
         );
@@ -270,7 +271,8 @@ describe('Bot Actions - Positive and Negative Tests for Bot Functions', () => {
                     allowedAffiliates: Dictionary.empty<Address, boolean>(),
                     isOpenCampaign: false,
                     campaignValidForNumDays: null,
-					paymentMethod: BigInt(0) // TON
+					paymentMethod: BigInt(0), // TON
+					requiresAdvertiserApprovalForWithdrawl: false
                 }
             }
         );

@@ -39,11 +39,23 @@ let campaignId = BigInt(0);
 // 8: Cell overflow
 // 9: Cell underflow
 // 10: Dictionary error
+// 11: 'Unknown' error
+// 12: Fatal error
 // 13: Out of gas error
-// 32: Method ID not found
+// 14: Virtualization error
+// 32: Action list is invalid
+// 33: Action list is too long
 // 34: Action is invalid or not supported
+// 35: Invalid source address in outbound message
+// 36: Invalid destination address in outbound message
 // 37: Not enough TON
 // 38: Not enough extra-currencies
+// 39: Outbound message does not fit into a cell after rewriting
+// 40: Cannot process a message
+// 41: Library reference is null
+// 42: Library change action error
+// 43: Exceeded maximum number of cells in the library or the maximum depth of the Merkle tree
+// 50: Account state size exceeded limits
 // 128: Null reference exception
 // 129: Invalid serialization prefix
 // 130: Invalid incoming message
@@ -54,21 +66,40 @@ let campaignId = BigInt(0);
 // 135: Code of a contract was not found
 // 136: Invalid address
 // 137: Masterchain support is not enabled for this contract
+// 1919: Insufficient USDT funds to make transfer
+// 2432: Only contract wallet can invoke
 // 2509: Must have at least one wallet to withdraw to
+// 3688: Not mintable
 // 4138: Only the advertiser can add a new affiliate
+// 4429: Invalid sender
+// 7226: Only advertiser can approve withdrawal
 // 11661: Only advertiser can verify these events
+// 12241: Max supply exceeded
 // 12969: Must be in state: STATE_CAMPAIGN_DETAILS_SET_BY_ADVERTISER
+// 13965: Invalid destinationId!
 // 14486: Cannot find cpa for the given op code
-// 32363: No earnings to withdraw
+// 14534: Not owner
+// 16059: Invalid value
+// 17062: Invalid amount
+// 18026: Only advertiser can modify affiliates withdrawl flag
+// 18668: Can't Mint Anymore
+// 23951: Insufficient gas
+// 26205: Only USDT Campaigns can accept USDT
+// 26953: Only affiliate can withdraw funds
+// 30892: Only owner can deploy
+// 33318: Insufficient funds to repay parent for deployment and keep buffer
 // 33594: Cannot manually add affiliates to an open campaign
+// 34085: Only TON supported as payment method
 // 34905: Bot can verify only op codes under 2000
+// 35494: Affiliate with requiresAdvertiserApprovalForWithdrawl flag
 // 36363: Only the advertiser can remove the campaign and withdraw all funds
 // 40058: Campaign has no funds
 // 40368: Contract stopped
-// 41412: Only affiliate can withdraw earnings
+// 40755: Only advertiser can send tokens to this contract
+// 42708: Invalid sender!
 // 43100: Reached max number of affiliates for this campagn
+// 43422: Invalid value - Burn
 // 44318: Only bot can Deploy new Campaign
-// 47193: Insufficient funds to repay parent for deployment
 // 48874: Insufficient contract funds to make payment
 // 49469: Access denied
 // 49782: affiliate not on allowed list
@@ -78,10 +109,13 @@ let campaignId = BigInt(0);
 // 53296: Contract not stopped
 // 53456: Affiliate does not exist
 // 54206: Insufficient campaign balance to make payment
+// 57013: Affiliate without requiresAdvertiserApprovalForWithdrawl flag
 // 57313: Must be in state: STATE_CAMPAIGN_CREATED
 // 58053: OP codes for regular and premium users must match
+// 59035: Only contract wallet allowed to invoke
 // 60644: Advertiser can verify only op codes over 2000
 // 62634: Only bot can invoke User Actions
+// 62972: Invalid balance
 
 
 beforeEach(async () => {
@@ -172,7 +206,8 @@ beforeEach(async () => {
                 allowedAffiliates: Dictionary.empty<Address, boolean>(),
                 isOpenCampaign: false,
 				campaignValidForNumDays: null,
-				paymentMethod: BigInt(0) // TON
+				paymentMethod: BigInt(0), // TON
+				requiresAdvertiserApprovalForWithdrawl: false
             }
         }
     );
@@ -284,8 +319,8 @@ describe('Negative Tests for Campaign', () => {
         expect(unauthorizedUserWithdrawResult.transactions).toHaveTransaction({
             from: unauthorizedUser.address,
             to: campaignContract.address,
-            success: false,  //41412: Only affiliate can withdraw earnings
-			exitCode: 41412
+            success: false,  //26953: Only affiliate can withdraw funds
+			exitCode: 26953
         });
 		
 		// affiliate can withdraw funds

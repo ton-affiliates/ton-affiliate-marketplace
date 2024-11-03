@@ -187,7 +187,7 @@ beforeEach(async () => {
                 isOpenCampaign: false,
                 campaignValidForNumDays: null,
 				paymentMethod: BigInt(0), // TON
-				requiresAdvertiserApprovalForWithdrawl: false
+				requiresAdvertiserApprovalForWithdrawl: true
             }
         }
     );
@@ -208,7 +208,10 @@ beforeEach(async () => {
 
 describe('Affiliate Actions - Positive and Negative Tests for Affiliate Functions', () => {
 
-    it('should allow an authorized affiliate to accrue earnings from user actions', async () => {
+    it('should allow advertiser to withdraw for affiliate', async () => {
+		
+		let affiliateBalanceBeforeWithdrawl = await affiliate1.getBalance();
+	
         // Perform a user action that accrues earnings for affiliate1
         const userActionResult = await affiliateMarketplaceContract.send(
             bot.getSender(),
@@ -221,21 +224,46 @@ describe('Affiliate Actions - Positive and Negative Tests for Affiliate Function
                 isPremiumUser: false
             }
         );
-
+		
         expect(userActionResult.transactions).toHaveTransaction({
             from: affiliateMarketplaceContract.address,
             to: campaignContract.address,
             success: true
         });
-
+		
         // Confirm that affiliate1 accrued earnings
-        const affiliateData = await campaignContract.getAffiliateData(BigInt(0));
-        expect(affiliateData!.accruedEarnings).toBeGreaterThan(0);
+        let affiliateData = await campaignContract.getAffiliateData(BigInt(0));
+		const affiliateEarnings = affiliateData!.accruedEarnings;
+        expect(affiliateEarnings).toBeGreaterThan(0);
+				
+		// advertiser withdraw 
+		const advetiserWithdrawForAffiliateResult = await campaignContract.send(
+            advertiser.getSender(),
+            { value: toNano('0.05') },
+            {
+                $$type: 'AdvertiserWithdrawEarningsForAffiliates',
+                affiliatesEarnings: Dictionary.empty<bigint, bigint>().set(BigInt(0), affiliateEarnings) //map<Int, Int>; 
+            }
+        );
+		
+		expect(advetiserWithdrawForAffiliateResult.transactions).toHaveTransaction({
+            from: advertiser.address,
+            to: campaignContract.address,
+            success: true
+        });
+				
+		affiliateData = await campaignContract.getAffiliateData(BigInt(0));
+        expect(affiliateData!.accruedEarnings).toBe(BigInt(0));
+		
+		let affiliateBalance = await affiliate1.getBalance();
+		expect(affiliateBalance - affiliateBalanceBeforeWithdrawl).toBeGreaterThan(toNano("0"));
+		
     });
 
-    it('should allow an authorized affiliate to withdraw accrued earnings', async () => {
-        // Accrue earnings for affiliate1 through a user action
-        await affiliateMarketplaceContract.send(
+    it('should fail if affiliate tries to withdrawe funds', async () => {
+	        
+		// Perform a user action that accrues earnings for affiliate1
+        const userActionResult = await affiliateMarketplaceContract.send(
             bot.getSender(),
             { value: toNano('0.05') },
             {
@@ -246,74 +274,33 @@ describe('Affiliate Actions - Positive and Negative Tests for Affiliate Function
                 isPremiumUser: false
             }
         );
-
-        // Withdraw accrued earnings
-        const withdrawEarningsResult = await campaignContract.send(
-            affiliate1.getSender(),
-            { value: toNano('0.05') },
-            {
-                $$type: 'AffiliateWithdrawEarnings',
-                affiliateId: BigInt(0)
-            }
-        );
-
-        expect(withdrawEarningsResult.transactions).toHaveTransaction({
-            from: campaignContract.address,
-            to: affiliate1.address,
+		
+        expect(userActionResult.transactions).toHaveTransaction({
+            from: affiliateMarketplaceContract.address,
+            to: campaignContract.address,
             success: true
         });
-    });
-
-    it('should fail when an unauthorized affiliate tries to join a closed campaign', async () => {
-        const createAffiliateResult = await campaignContract.send(
-            unauthorizedUser.getSender(),
-            { value: toNano('0.05') },
-            { $$type: 'AffiliateCreateNewAffiliate' }
-        );
-
-        expect(createAffiliateResult.transactions).toHaveTransaction({
-            from: unauthorizedUser.address,
-            to: campaignContract.address,
-            success: false,
-            exitCode: 49782 // Unauthorized affiliate access error code
-        });
-    });
-
-    it('should fail when an authorized affiliate tries to withdraw without earnings', async () => {
-        // Attempt withdrawal without earnings
-        const withdrawEarningsResult = await campaignContract.send(
+		
+		let affiliateData = await campaignContract.getAffiliateData(BigInt(0));
+		const affiliateEarnings = affiliateData!.accruedEarnings;
+        expect(affiliateEarnings).toBeGreaterThan(0);
+		
+		// affiliate tries to withdraw and fails
+		const advetiserWithdrawForAffiliateResult = await campaignContract.send(
             affiliate1.getSender(),
             { value: toNano('0.05') },
             {
-                $$type: 'AffiliateWithdrawEarnings',
-                affiliateId: BigInt(0)
+                $$type: 'AdvertiserWithdrawEarningsForAffiliates',
+                affiliatesEarnings: Dictionary.empty<bigint, bigint>().set(BigInt(0), affiliateEarnings) //map<Int, Int>; 
             }
         );
-
-        expect(withdrawEarningsResult.transactions).toHaveTransaction({
+				
+		expect(advetiserWithdrawForAffiliateResult.transactions).toHaveTransaction({
             from: affiliate1.address,
             to: campaignContract.address,
             success: false,
-            exitCode: 17062 // Invalid amount
-        });
-    });
-
-    it('should fail when a non-affiliate user tries to withdraw earnings', async () => {
-        // Attempt to withdraw by a non-affiliate user
-        const withdrawEarningsResult = await campaignContract.send(
-            unauthorizedUser.getSender(),
-            { value: toNano('0.05') },
-            {
-                $$type: 'AffiliateWithdrawEarnings',
-                affiliateId: BigInt(0)
-            }
-        );
-
-        expect(withdrawEarningsResult.transactions).toHaveTransaction({
-            from: unauthorizedUser.address,
-            to: campaignContract.address,
-            success: false, //26953: Only affiliate can withdraw funds
-			exitCode: 26953
+			exitCode: 7226 //Only advertiser can approve withdrawal
+			
         });
     });
 });

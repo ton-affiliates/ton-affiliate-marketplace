@@ -136,6 +136,15 @@ message AdvertiserRemoveExistingAffiliateFromAllowedList{affiliate: Address}
 
 message AdvertiserReplenish {}
 
+message AdvertiserModifyAffiliateRequiresApprovalForWithdrawlFlag{
+	affiliateId: Int as uint32;
+	requiresAdvertiserApprovalForWithdrawl: Bool;
+}
+
+message AdvertiserWithdrawEarningsForAffiliates {
+	affiliatesEarnings: map<Int, Int>;  // affiliateId -> withdrawalAmount
+}
+
 
 // Child to Parent - INTERNAL Messages
 message ChildToParentCampaignDeployedSuccessfully {

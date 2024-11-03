@@ -160,7 +160,8 @@ describe('Advertiser Actions - Positive and Negative Tests for Advertiser Functi
                     allowedAffiliates: Dictionary.empty<Address, boolean>().set(affiliate1.address, true),
                     isOpenCampaign: false,
                     campaignValidForNumDays: null,
-					paymentMethod: BigInt(0) // TON
+					paymentMethod: BigInt(0), // TON
+					requiresAdvertiserApprovalForWithdrawl: false
                 }
             }
         );
@@ -192,7 +193,8 @@ describe('Advertiser Actions - Positive and Negative Tests for Advertiser Functi
                     allowedAffiliates: Dictionary.empty<Address, boolean>(),
                     isOpenCampaign: false,
                     campaignValidForNumDays: null,
-					paymentMethod: BigInt(0) // TON
+					paymentMethod: BigInt(0), // TON
+					requiresAdvertiserApprovalForWithdrawl: false
                 }
             }
         );
@@ -223,7 +225,8 @@ describe('Advertiser Actions - Positive and Negative Tests for Advertiser Functi
                     allowedAffiliates: Dictionary.empty<Address, boolean>().set(affiliate1.address, true),
                     isOpenCampaign: false,
                     campaignValidForNumDays: null,
-					paymentMethod: BigInt(0) // TON
+					paymentMethod: BigInt(0), // TON
+					requiresAdvertiserApprovalForWithdrawl: false
                 }
             }
         );
@@ -251,7 +254,8 @@ describe('Advertiser Actions - Positive and Negative Tests for Advertiser Functi
                     allowedAffiliates: Dictionary.empty<Address, boolean>().set(affiliate1.address, true),
                     isOpenCampaign: false,
                     campaignValidForNumDays: null,
-					paymentMethod: BigInt(0) // TON
+					paymentMethod: BigInt(0), // TON
+					requiresAdvertiserApprovalForWithdrawl: false
                 }
             }
         );
@@ -290,7 +294,8 @@ describe('Advertiser Actions - Positive and Negative Tests for Advertiser Functi
                     allowedAffiliates: Dictionary.empty<Address, boolean>().set(affiliate1.address, true),
                     isOpenCampaign: false,
                     campaignValidForNumDays: null,
-					paymentMethod: BigInt(0) // TON
+					paymentMethod: BigInt(0), // TON
+					requiresAdvertiserApprovalForWithdrawl: false
                 }
             }
         );
@@ -366,7 +371,8 @@ describe('Advertiser Actions - Positive and Negative Tests for Advertiser Functi
                     allowedAffiliates: Dictionary.empty<Address, boolean>().set(affiliate1.address, true),
                     isOpenCampaign: false,
                     campaignValidForNumDays: null,
-					paymentMethod: BigInt(0) // TON
+					paymentMethod: BigInt(0), // TON
+					requiresAdvertiserApprovalForWithdrawl: false
                 }
             }
         );
@@ -412,7 +418,8 @@ describe('Advertiser Actions - Positive and Negative Tests for Advertiser Functi
                     allowedAffiliates: Dictionary.empty<Address, boolean>().set(affiliate1.address, true),
                     isOpenCampaign: false,
                     campaignValidForNumDays: null,
-					paymentMethod: BigInt(0) // TON
+					paymentMethod: BigInt(0), // TON
+					requiresAdvertiserApprovalForWithdrawl: false
                 }
             }
         );
@@ -468,7 +475,8 @@ describe('Advertiser Actions - Positive and Negative Tests for Advertiser Functi
                     allowedAffiliates: Dictionary.empty<Address, boolean>(),
                     isOpenCampaign: false,
                     campaignValidForNumDays: null,
-					paymentMethod: BigInt(0) // TON
+					paymentMethod: BigInt(0), // TON
+					requiresAdvertiserApprovalForWithdrawl: false
                 }
             }
         );

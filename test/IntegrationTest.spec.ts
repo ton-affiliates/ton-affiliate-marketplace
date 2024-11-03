@@ -186,7 +186,8 @@ describe('AffiliateMarketplace Integration Test', () => {
                     allowedAffiliates: Dictionary.empty<Address, boolean>(),
                     isOpenCampaign: true,  // open campaign
                     campaignValidForNumDays: null, // no end date
-					paymentMethod: BigInt(0) // 0 - TON, 1 - USDT
+					paymentMethod: BigInt(0), // TON
+					requiresAdvertiserApprovalForWithdrawl: false
                 }
             }
         );
@@ -512,7 +513,6 @@ describe('AffiliateMarketplace Integration Test', () => {
         expect(affiliateData2!.accruedEarnings).toBe(toNano("15"));
 
         //-------------------------------------------------------------------------------------------
-
         let affiliateBalanceBeforeWithdraw = await affiliate1.getBalance();
 		let deployerBalanceBeforeWithdraw = await deployer.getBalance();
 
@@ -547,20 +547,20 @@ describe('AffiliateMarketplace Integration Test', () => {
                 decodedAffiliateWithdraw = loadAffiliateWithdrawEarningsEvent(external.body);
             }
         }
-
+		
         expect(decodedAffiliateWithdraw).not.toBeNull();
-		expect(decodedAffiliateWithdraw.earnings).toBe(toNano("1"));
+		expect(decodedAffiliateWithdraw.earnings).toBe(toNano("0.98"));
 		expect(decodedAffiliateWithdraw.fee).toBe(toNano("0.02"));
-
+				
         campaignData = await campaignContract.getCampaignData();
         affiliateData1 = await campaignContract.getAffiliateData(decodedAffiliate1!.affiliateId);
-
+		
         // test: Affiliate's accrued earnings is now 0
         expect(affiliateData1!.accruedEarnings).toBe(toNano("0"));
-
+				
         let affiliateBalance = await affiliate1.getBalance();
 		let deployerBalance = await deployer.getBalance();
-		
+						
 		// earnings = 2% fee to parent
 		// earnings = 1 TON
 		// fee = 0.02
@@ -569,14 +569,14 @@ describe('AffiliateMarketplace Integration Test', () => {
 		expect(affiliateBalance - affiliateBalanceBeforeWithdraw).toBeGreaterThan(toNano("0.9"));
 		expect(affiliateData1!.lastWithdrawlAmount).toBe(toNano("0.98"));
 		expect(affiliateData1!.lastWithdrawlTimestamp).toBeGreaterThan(BigInt(0));
-		
+						
 		// to print a nice looking and correct timestamp we must multiply by 1000
 		let lastWithdrawlTimestamp = affiliateData1!.lastWithdrawlTimestamp;
 		console.log(new Date(Number(lastWithdrawlTimestamp) * 1000).toLocaleString());
 		
-		expect(deployerBalance - deployerBalanceBeforeWithdraw)
+		expect(BigInt(deployerBalance - deployerBalanceBeforeWithdraw))
             .toBeGreaterThan(toNano("0"));
-		expect(deployerBalance - deployerBalanceBeforeWithdraw)
+		expect(BigInt(deployerBalance - deployerBalanceBeforeWithdraw))
             .toBeLessThan(toNano("0.02"));
 
         //-------------------------------------------------------------------------------------------
@@ -584,7 +584,7 @@ describe('AffiliateMarketplace Integration Test', () => {
         //Advertiser - RemoveCampaignAndWithdrawFunds
         let advertiserBalanceBeforeRemoveCampaign = await advertiser.getBalance();
 		let campaignDataBeforeRemoveCampaign = await campaignContract.getCampaignData();
-		
+				
 		// campaign balance ~ 3 TON
 		expect(campaignDataBeforeRemoveCampaign.campaignBalance).toBeGreaterThan(toNano("0"));
 		const removeCampaignAndWithdrawFundsResult = await campaignContract.send(
@@ -611,7 +611,7 @@ describe('AffiliateMarketplace Integration Test', () => {
                 decodedAdvertiserWithdrawFunds = loadAdvertiserWithdrawFundsEvent(external.body);
             }
         }
-
+		
         expect(decodedAdvertiserWithdrawFunds).not.toBeNull();
         expect(decodedAdvertiserWithdrawFunds!.campaignId).toBe(decodedCampaign!.campaignId);
 		
