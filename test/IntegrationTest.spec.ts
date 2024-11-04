@@ -18,7 +18,8 @@ import {
       loadCampaignUnderFiveTonEvent,
       loadInsufficientCampaignFundsEvent,
   	  loadAdvertiserWithdrawFundsEvent,
-	  loadAdvertiserSignedCampaignDetailsEvent} from './events';
+	  loadAdvertiserSignedCampaignDetailsEvent,
+	  loadAffiliateAskToJoinAllowedListEvent} from './events';
 
 describe('AffiliateMarketplace Integration Test', () => {
     let blockchain: Blockchain;

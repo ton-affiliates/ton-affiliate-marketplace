@@ -11,7 +11,7 @@ const EVENT_TYPE_CAMPAIGN_BALANCE_UNDER_FIVE_TON = 21630181;
 const EVENT_TYPE_INSUFFICIENT_CAMPAIGN_FUNDS = 1852244882;
 const EVENT_TYPE_CAMPAIGN_SEIZED = 799343753;
 const EVENT_TYPE_ADVERTISER_SIGNED_CAMPAIGN_DETAILS = 1529127575;
-
+const EVENT_TYPE_AFFILIATE_ASK_TO_JOIN_ALLOWED_LIST = 851937543;
 
 export function loadEvent(cell: Cell, expectedEventType: number) {
     const slice = cell.beginParse();
@@ -86,4 +86,12 @@ export function loadAdvertiserSignedCampaignDetailsEvent(cell: Cell) {
     const campaignId = slice.loadUint(32);
     const advertiserAddressStr = slice.loadAddress().toString();
     return { $$type: 'AdvertiserSignedCampaignDetailsEvent', campaignId, advertiserAddressStr };
+}
+
+export function loadAffiliateAskToJoinAllowedListEvent(cell: Cell) {
+    const slice = loadEvent(cell, EVENT_TYPE_AFFILIATE_ASK_TO_JOIN_ALLOWED_LIST);
+    const campaignId = slice.loadUint(32);
+    const advertiserAddressStr = slice.loadAddress().toString();
+	const affiliateAddressStr = slice.loadAddress().toString();
+    return { $$type: 'AffiliateAskToJoinAllowedListEvent', campaignId, advertiserAddressStr, affiliateAddressStr };
 }

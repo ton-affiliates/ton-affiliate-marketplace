@@ -1,7 +1,7 @@
 
 
 
-//# Error Codes
+// # Error Codes
 // 2: Stack underflow
 // 3: Stack overflow
 // 4: Integer overflow
@@ -104,7 +104,7 @@ import { toNano, Address, Dictionary } from '@ton/core';
 import { AffiliateMarketplace } from '../build/AffiliateMarketplace/tact_AffiliateMarketplace';
 import { Campaign } from '../build/Campaign/tact_Campaign';
 import '@ton/test-utils';
-import { loadCampaignCreatedEvent } from './events'; // Ensure this utility is correctly set up for testing
+import { loadCampaignCreatedEvent, loadAffiliateAskToJoinAllowedListEvent } from './events'; // Ensure this utility is correctly set up for testing
 
 // Set up global variables and initial state
 let blockchain: Blockchain;
@@ -188,137 +188,173 @@ beforeEach(async () => {
                 $$type: 'CampaignDetails',
                 regularUsersCostPerAction: regularUsersMapCostPerActionMap,
                 premiumUsersCostPerAction: regularUsersMapCostPerActionMap,
-                allowedAffiliates: Dictionary.empty<Address, boolean>().set(affiliate1.address, true),
+                allowedAffiliates: Dictionary.empty<Address, boolean>(),
                 isOpenCampaign: false,
                 campaignValidForNumDays: null,
 				paymentMethod: BigInt(0), // TON
-				requiresAdvertiserApprovalForWithdrawl: false
+				requiresAdvertiserApprovalForWithdrawl: true
             }
         }
     );
-
-    // Register affiliate1 in the campaign by creating their affiliate link
-    const createAffiliateResult = await campaignContract.send(
-        affiliate1.getSender(),
-        { value: toNano('0.05') },
-        { $$type: 'AffiliateCreateNewAffiliate' }
-    );
-
-    expect(createAffiliateResult.transactions).toHaveTransaction({
-        from: affiliate1.address,
-        to: campaignContract.address,
-        success: true
-    });
 });
 
 describe('Affiliate Actions - Positive and Negative Tests for Affiliate Functions', () => {
 
-    it('should allow an authorized affiliate to accrue earnings from user actions', async () => {
-        // Perform a user action that accrues earnings for affiliate1
-        const userActionResult = await affiliateMarketplaceContract.send(
-            bot.getSender(),
-            { value: toNano('0.05') },
-            {
-                $$type: 'BotUserAction',
-                campaignId: campaignId,
-                affiliateId: BigInt(0), // ID corresponding to affiliate1
-                userActionOpCode: BigInt(0), // Valid op code
-                isPremiumUser: false
-            }
-        );
+    it('should allow affiliate to ask to join a campaign and allow advertiser to approve', async () => {
+	
+		let createAffiliateResult = await campaignContract.send(
+			affiliate1.getSender(),
+			{ value: toNano('0.05') },
+			{ $$type: 'AffiliateCreateNewAffiliate' }
+		);
 
-        expect(userActionResult.transactions).toHaveTransaction({
-            from: affiliateMarketplaceContract.address,
-            to: campaignContract.address,
-            success: true
-        });
-
-        // Confirm that affiliate1 accrued earnings
-        const affiliateData = await campaignContract.getAffiliateData(BigInt(0));
-        expect(affiliateData!.accruedEarnings).toBeGreaterThan(0);
-    });
-
-    it('should allow an authorized affiliate to withdraw accrued earnings', async () => {
-        // Accrue earnings for affiliate1 through a user action
-        await affiliateMarketplaceContract.send(
-            bot.getSender(),
-            { value: toNano('0.05') },
-            {
-                $$type: 'BotUserAction',
-                campaignId: campaignId,
-                affiliateId: BigInt(0), // ID corresponding to affiliate1
-                userActionOpCode: BigInt(0), // Valid op code
-                isPremiumUser: false
-            }
-        );
-
-        // Withdraw accrued earnings
-        const withdrawEarningsResult = await campaignContract.send(
+		expect(createAffiliateResult.transactions).toHaveTransaction({
+			from: affiliate1.address,
+			to: campaignContract.address,
+			success: false, // 49782: affiliate not on allowed list 
+			exitCode: 49782
+		});
+		
+		// affiliate ask to join campaign 
+		const affiliateAskToJoinAllowedListResult = await campaignContract.send(
             affiliate1.getSender(),
             { value: toNano('0.05') },
             {
-                $$type: 'AffiliateWithdrawEarnings',
-                affiliateId: BigInt(0)
+                $$type: 'AffiliateAskToJoinAllowedList'
             }
         );
-
-        expect(withdrawEarningsResult.transactions).toHaveTransaction({
-            from: campaignContract.address,
-            to: affiliate1.address,
-            success: true
-        });
-    });
-
-    it('should fail when an unauthorized affiliate tries to join a closed campaign', async () => {
-        const createAffiliateResult = await campaignContract.send(
-            unauthorizedUser.getSender(),
-            { value: toNano('0.05') },
-            { $$type: 'AffiliateCreateNewAffiliate' }
-        );
-
-        expect(createAffiliateResult.transactions).toHaveTransaction({
-            from: unauthorizedUser.address,
-            to: campaignContract.address,
-            success: false,
-            exitCode: 49782 // Unauthorized affiliate access error code
-        });
-    });
-
-    it('should fail when an authorized affiliate tries to withdraw without earnings', async () => {
-        // Attempt withdrawal without earnings
-        const withdrawEarningsResult = await campaignContract.send(
-            affiliate1.getSender(),
-            { value: toNano('0.05') },
-            {
-                $$type: 'AffiliateWithdrawEarnings',
-                affiliateId: BigInt(0)
-            }
-        );
-
-        expect(withdrawEarningsResult.transactions).toHaveTransaction({
+		
+		expect(affiliateAskToJoinAllowedListResult.transactions).toHaveTransaction({
             from: affiliate1.address,
             to: campaignContract.address,
-            success: false,
-            exitCode: 17062 // Invalid amount
+            success: true
         });
-    });
+		
+		let decodedAffiliateAskToJoinAllowedList: any | null = null;
+        for (const external of affiliateAskToJoinAllowedListResult.externals) {
+            if (external.body) {
+                decodedAffiliateAskToJoinAllowedList = loadAffiliateAskToJoinAllowedListEvent(external.body);
+            }
+        }
+		
+        expect(decodedAffiliateAskToJoinAllowedList).not.toBeNull();
+        expect(BigInt(decodedAffiliateAskToJoinAllowedList!.campaignId)).toBe(campaignId);
+		
+		
+		
+		let campaignData = await campaignContract.getCampaignData();
+		let affiliate1AddedToAllowedListOnHold = false;
+		
+		for (const [affiliate, isAllowed] of campaignData.campaignDetails.allowedAffiliates) {
+			//console.log(`Affiliate: ${affiliate}, isAllowed: ${isAllowed}`);
+			if (affiliate.toString() == affiliate1.address.toString() && isAllowed == false) {
+				affiliate1AddedToAllowedListOnHold = true;
+			}
+		}
+		
+		expect(affiliate1AddedToAllowedListOnHold).toBe(true);
+		
+		createAffiliateResult = await campaignContract.send(
+			affiliate1.getSender(),
+			{ value: toNano('0.05') },
+			{ $$type: 'AffiliateCreateNewAffiliate' }
+		);
 
-    it('should fail when a non-affiliate user tries to withdraw earnings', async () => {
-        // Attempt to withdraw by a non-affiliate user
-        const withdrawEarningsResult = await campaignContract.send(
+		expect(createAffiliateResult.transactions).toHaveTransaction({
+			from: affiliate1.address,
+			to: campaignContract.address,
+			success: false, // 26924: affiliate not approved yet 
+			exitCode: 26924
+		});
+		
+		
+		//----
+		
+		// Now advertiser approves Affiliate
+		const advetiserApprovesRequestResult = await campaignContract.send(
+            advertiser.getSender(),
+            { value: toNano('0.05') },
+            {
+                $$type: 'AdvertiserAddNewAffiliateToAllowedList',
+				affiliate: affiliate1.address
+            }
+        );
+		
+		expect(advetiserApprovesRequestResult.transactions).toHaveTransaction({
+            from: advertiser.address,
+            to: campaignContract.address,
+            success: true
+        });
+		
+		campaignData = await campaignContract.getCampaignData();
+		let affiliate1AddedToAllowedListApproved = false;
+		
+		for (const [affiliate, isAllowed] of campaignData.campaignDetails.allowedAffiliates) {
+			//console.log(`Affiliate: ${affiliate}, isAllowed: ${isAllowed}`);
+			if (affiliate.toString() == affiliate1.address.toString() && isAllowed == true) {
+				affiliate1AddedToAllowedListApproved = true;
+			}
+		}
+		
+		expect(affiliate1AddedToAllowedListApproved).toBe(true);
+		
+		// -----
+		
+		// finally, affiliate can create a new affiliate
+		createAffiliateResult = await campaignContract.send(
+			affiliate1.getSender(),
+			{ value: toNano('0.05') },
+			{ $$type: 'AffiliateCreateNewAffiliate' }
+		);
+
+		expect(createAffiliateResult.transactions).toHaveTransaction({
+			from: affiliate1.address,
+			to: campaignContract.address,
+			success: true
+		});
+			
+    });
+	
+	it('should not allow unauthorizedUser to approve other affiliates', async () => {
+	
+		const unauthorizedUserApprovesRequestResult = await campaignContract.send(
             unauthorizedUser.getSender(),
             { value: toNano('0.05') },
             {
-                $$type: 'AffiliateWithdrawEarnings',
-                affiliateId: BigInt(0)
+                $$type: 'AdvertiserAddNewAffiliateToAllowedList',
+				affiliate: affiliate1.address
             }
         );
-
-        expect(withdrawEarningsResult.transactions).toHaveTransaction({
+		
+		expect(unauthorizedUserApprovesRequestResult.transactions).toHaveTransaction({
             from: unauthorizedUser.address,
             to: campaignContract.address,
-            success: false, //26953: Only affiliate can withdraw funds
-			exitCode: 26953
+            success: false, // 4138: Only the advertiser can add a new affiliate
+			exitCode: 4138
         });
-    });
+	
+	});
+	
+	
+	it('should not allow unauthorizedUser to remove other affiliates', async () => {
+	
+		const unauthorizedUseRemoveALlowedAffiliaterResult = await campaignContract.send(
+            unauthorizedUser.getSender(),
+            { value: toNano('0.05') },
+            {
+                $$type: 'AdvertiserRemoveExistingAffiliateFromAllowedList',
+				affiliate: affiliate1.address
+            }
+        );
+		
+		expect(unauthorizedUseRemoveALlowedAffiliaterResult.transactions).toHaveTransaction({
+            from: unauthorizedUser.address,
+            to: campaignContract.address,
+            success: false, // 19587: Only the advertiser can remove an existing affiliate
+			exitCode: 19587
+        });
+	
+	});
+
+    
 });

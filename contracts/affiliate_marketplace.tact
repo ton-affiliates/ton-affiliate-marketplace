@@ -252,7 +252,7 @@ contract Campaign with Resumable {
     receive() {}
 
     receive(msg: TokenExcesses) {
-        // do nothing - excess ton will be added to the contract's balance
+        // do nothing - excess ton will be added to the contract's TON balance
     }
 
     // Function to track received USDT Jettons and update balance
