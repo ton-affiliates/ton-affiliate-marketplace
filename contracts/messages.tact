@@ -75,6 +75,12 @@ message AffiliateWithdrawEarningsEvent {
 	fee: Int as coins;
 }
 
+message AffiliateAskToJoinAllowedListEvent {
+	campaignId: Int as uint32;
+    advertiser: Address;
+	affiliate: Address;
+}
+
 // Bot functions
 message BotDeployNewCampaign {}
 
@@ -117,6 +123,8 @@ message AffiliateCreateNewAffiliate{}
 message AffiliateWithdrawEarnings {
     affiliateId: Int as uint32;
 }
+
+message AffiliateAskToJoinAllowedList{}
 
 // Advertiser API
 message AdvertiserWithdrawFunds{}
@@ -196,6 +204,12 @@ message ChildToParentInsufficientCampaignFunds {
     advertiser: Address;
     campaignBalance: Int as coins;
     maxCpaValue: Int as coins;
+}
+
+message ChildToParentAffiliateAskToJoinAllowedList {
+	campaignId: Int as uint32;
+    advertiser: Address;
+	affiliate: Address;
 }
 
 // * ------ END Campaign API ------ *

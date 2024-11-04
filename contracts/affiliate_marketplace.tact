@@ -436,6 +436,8 @@ contract Campaign with Resumable {
     receive(msg: AdvertiserModifyAffiliateRequiresApprovalForWithdrawlFlag) {
         
         require(sender() == self.advertiser, "Only advertiser can modify affiliates withdrawl flag");
+        require(self.state == STATE_CAMPAIGN_DETAILS_SET_BY_ADVERTISER, "Must be in state: STATE_CAMPAIGN_DETAILS_SET_BY_ADVERTISER");
+        require(self.campaignDetails.requiresAdvertiserApprovalForWithdrawl, "Advertiser can only modify requiresApprovalForWithdrawlFlag if campaign is setup this way");
         
         let affiliateDataOptional = self.affiliates.get(msg.affiliateId);
         require(affiliateDataOptional != null, "Affiliate does not exist");
@@ -445,7 +447,6 @@ contract Campaign with Resumable {
         affiliateData.requiresAdvertiserApprovalForWithdrawl = msg.requiresAdvertiserApprovalForWithdrawl;
         self.affiliates.set(msg.affiliateId, affiliateData);
     }
-
 
     receive(msg: AffiliateCreateNewAffiliate) {
 
@@ -458,6 +459,7 @@ contract Campaign with Resumable {
 
         if (!self.campaignDetails.isOpenCampaign) {
             require(self.campaignDetails.allowedAffiliates.get(sender()) != null, "affiliate not on allowed list");
+            require(self.campaignDetails.allowedAffiliates.get(sender())!! == true, "affiliate not approved yet");
         }
 
         let affiliateId = self.currAffiliateId;
@@ -500,9 +502,6 @@ contract Campaign with Resumable {
         require(self.state == STATE_CAMPAIGN_DETAILS_SET_BY_ADVERTISER, "Must be in state: STATE_CAMPAIGN_DETAILS_SET_BY_ADVERTISER");
         require(!self.isCampaignExpired(), "Campaign is expired");
 
-        // Ensure only the advertiser can invoke this function
-        require(sender() == self.advertiser, "Only the advertiser can add a new affiliate");
-
         // Check if the campaign is not open (closed campaign)
         require(!self.campaignDetails.isOpenCampaign, "Cannot manually add affiliates to an open campaign");
 
@@ -511,11 +510,31 @@ contract Campaign with Resumable {
     }
 
     receive(msg: AdvertiserAddNewAffiliateToAllowedList) {
+        // Ensure only the advertiser can invoke this function
+        require(sender() == self.advertiser, "Only the advertiser can add a new affiliate");
         self.setAffiliateAllowedListStatus(msg.affiliate, true);
     }
 
     receive(msg: AdvertiserRemoveExistingAffiliateFromAllowedList) {
+        // Ensure only the advertiser can invoke this function
+        require(sender() == self.advertiser, "Only the advertiser can remove an existing affiliate");
         self.setAffiliateAllowedListStatus(msg.affiliate, null);
+    }
+
+    receive(msg: AffiliateAskToJoinAllowedList) {
+        self.setAffiliateAllowedListStatus(sender(), false);
+
+        //emit event so parent will notify advertiser
+        send(SendParameters{
+            to: self.owner,
+            body: ChildToParentAffiliateAskToJoinAllowedList {
+                campaignId: self.campaignId,
+                advertiser: self.advertiser,
+                affiliate: sender()
+            }.toCell(),
+            value: 0,
+            mode: SendRemainingValue
+        });
     }
 
     receive(msg: AdvertiserWithdrawFunds) {
@@ -885,6 +904,18 @@ contract AffiliateMarketplace with Deployable, Resumable  {
     receive(msg: ChildToParentBotUserActionFee) {
         let expectedAddress: Address = contractAddress(self.campaignContractStateInit(msg.campaignId));
         require(sender() == expectedAddress, "Access denied");
+    }
+
+    receive(msg: ChildToParentAffiliateAskToJoinAllowedList) {
+
+        let expectedAddress: Address = contractAddress(self.campaignContractStateInit(msg.campaignId));
+        require(sender() == expectedAddress, "Access denied");
+
+        emit(AffiliateAskToJoinAllowedListEvent{
+            campaignId: msg.campaignId,
+            advertiser: msg.advertiser,
+            affiliate: msg.affiliate}.toCell());
+
     }
 
     receive(msg: ChildToParentAdvertiserWithdrawFunds) {
