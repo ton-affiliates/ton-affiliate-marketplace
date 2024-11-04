@@ -443,9 +443,27 @@ contract Campaign with Resumable {
         require(affiliateDataOptional != null, "Affiliate does not exist");
         let affiliateData: AffiliateData = affiliateDataOptional!!;
 
-        // Update affiliate’s accrued earnings
         affiliateData.requiresAdvertiserApprovalForWithdrawl = msg.requiresAdvertiserApprovalForWithdrawl;
         self.affiliates.set(msg.affiliateId, affiliateData);
+    }
+	
+	receive(msg: AdvertiserModifyAffiliateAccruedEarnings) {
+        
+        require(sender() == self.advertiser, "Only advertiser can modify affiliates withdrawl flag");
+        require(self.state == STATE_CAMPAIGN_DETAILS_SET_BY_ADVERTISER, "Must be in state: STATE_CAMPAIGN_DETAILS_SET_BY_ADVERTISER");
+        require(self.campaignDetails.requiresAdvertiserApprovalForWithdrawl, "Advertiser can only modify affiliate accrued earnings only if campaign is setup this requiresApprovalForWithdrawlFlag");
+        
+        let affiliateDataOptional = self.affiliates.get(msg.affiliateId);
+        require(affiliateDataOptional != null, "Affiliate does not exist");
+        let affiliateData: AffiliateData = affiliateDataOptional!!;
+		
+		require(msg.amount <= affiliateData.accruedEarnings, "Cannot take from Affiliate more than their accruedEarnings");
+		
+        // Update affiliate’s accrued earnings
+        affiliateData.accruedEarnings = affiliateData.accruedEarnings - msg.amount;
+        self.affiliates.set(msg.affiliateId, affiliateData);
+		
+		self.totalAccruedEarnings = self.totalAccruedEarnings - msg.amount; // return funds back to campaign 
     }
 
     receive(msg: AffiliateCreateNewAffiliate) {

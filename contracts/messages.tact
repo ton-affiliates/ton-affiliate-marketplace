@@ -149,6 +149,11 @@ message AdvertiserModifyAffiliateRequiresApprovalForWithdrawlFlag{
 	requiresAdvertiserApprovalForWithdrawl: Bool;
 }
 
+message AdvertiserModifyAffiliateAccruedEarnings{
+	affiliateId: Int as uint32;
+	amount: Int as coins;
+}
+
 message AdvertiserWithdrawEarningsForAffiliates {
 	affiliatesEarnings: map<Int, Int>;  // affiliateId -> withdrawalAmount
 }
