@@ -11,6 +11,7 @@ import { AffiliateMarketplace } from '../build/AffiliateMarketplace/tact_Affilia
 import { Campaign } from '../build/Campaign/tact_Campaign';
 import '@ton/test-utils';
 import { loadCampaignCreatedEvent } from './events'; // Ensure this utility is correctly set up for testing
+import { hexToCell, USDT_MAINNET_ADDRESS, USDT_WALLET_BYTECODE } from './utils'
 
 // Set up global variables and initial state
 let blockchain: Blockchain;
@@ -27,7 +28,6 @@ let decodedCampaign: any | null;
 const BOT_OP_CODE_USER_CLICK = 0;
 const ADVERTISER_OP_CODE_CUSTOMIZED_EVENT = 2001;
 
-const USDT_MAINNET_ADDRESS = Address.parse("EQAMrDBMZywwkCRJSuV9i-bUFnCJSyCSioHLkInvCJZr2kmW");
 
 let campaignId = BigInt(0);
 
@@ -42,7 +42,7 @@ beforeEach(async () => {
     unauthorizedUser = await blockchain.treasury('unauthorizedUser');
 
     // Deploy AffiliateMarketplace contract
-	affiliateMarketplaceContract = blockchain.openContract(await AffiliateMarketplace.fromInit(bot.address, USDT_MAINNET_ADDRESS));
+	affiliateMarketplaceContract = blockchain.openContract(await AffiliateMarketplace.fromInit(bot.address, USDT_MAINNET_ADDRESS, hexToCell(USDT_WALLET_BYTECODE)));
     const deployResult = await affiliateMarketplaceContract.send(
         deployer.getSender(),
         { value: toNano('0.05') },
