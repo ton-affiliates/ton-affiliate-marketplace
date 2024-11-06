@@ -238,11 +238,14 @@ contract Campaign with Resumable {
     // Function to track received USDT Jettons and update balance
     receive(msg: JettonTransferNotification) {
         
-        require(sender() == self.contractUsdtJettonWallet, "Only contract wallet allowed to invoke");
-        require(msg.sender == self.advertiser, "Only advertiser can send tokens to this contract");
-        require(self.campaignDetails.paymentMethod == PAYMENT_METHOD_USDT, "Only USDT Campaigns can accept USDT");
+        //require(sender() == self.contractUsdtJettonWallet, "Only contract wallet allowed to invoke");
+        //require(msg.sender == self.advertiser, "Only advertiser can send tokens to this contract");
+        //require(self.campaignDetails.paymentMethod == PAYMENT_METHOD_USDT, "Only USDT Campaigns can accept USDT");
         // Update the USDT balance in the state
         self.contractUSDTBalance = self.contractUSDTBalance + msg.amount;
+		
+		// TODO tmp Guy
+		//self.transferJettonUSDT(msg.sender, msg.amount, 1);
     }
 
     // Function to handle affiliate withdrawals (supports both TON and USDT)

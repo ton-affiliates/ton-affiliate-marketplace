@@ -1,14 +1,14 @@
 import { toNano, Address } from '@ton/core';
 import { AffiliateMarketplace } from '../wrappers/AffiliateMarketplace';
 import { NetworkProvider } from '@ton/blueprint';
+import { hexToCell, USDT_MAINNET_ADDRESS, USDT_WALLET_BYTECODE } from '../test/utils'
 
 export async function run(provider: NetworkProvider) {
 
-	const usdtMasterAddress = Address.parse("kQD0GKBM8ZbryVk2aESmzfU6b9b_8era_IkvBSELujFZPsyy");
     const botAddress = Address.parse("0QCslGoFs0l5iNsxK47W6gAedbdZ51lR_ZUm5prC8RUoL5kn");
 
     // Initialize contract object
-    const affiliateMarketplace = provider.open(await AffiliateMarketplace.fromInit(botAddress, usdtMasterAddress));
+    const affiliateMarketplace = provider.open(await AffiliateMarketplace.fromInit(botAddress, USDT_MAINNET_ADDRESS, hexToCell(USDT_WALLET_BYTECODE)));
 
     await affiliateMarketplace.send(
         provider.sender(),
