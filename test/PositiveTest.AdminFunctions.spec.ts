@@ -116,7 +116,7 @@ beforeEach(async () => {
                 regularUsersCostPerAction: regularUsersMapCostPerActionMap,
                 premiumUsersCostPerAction: regularUsersMapCostPerActionMap,
                 allowedAffiliates: Dictionary.empty<Address, boolean>(),
-                isOpenCampaign: false,
+                isOpenCampaign: true,
 				campaignValidForNumDays: null,
 				paymentMethod: BigInt(0), // TON
 				requiresAdvertiserApprovalForWithdrawl: false
@@ -309,11 +309,39 @@ describe('Administrative Actions - positive test', () => {
 		stopped = await affiliateMarketplaceContract.getStopped();
 		expect(stopped).toBe(false);
 		
-	
-		// receive("Resume") is added automatically to allow owner to resume the contract
-		// receive("Stop") is added automatically to allow owner to stop the contract
-		// get fun stopped(): Bool is added automatically to query if contract is stopped
-		// get fun owner(): Address is added automatically to query who the owner is
 	});
+	
+	
+	it('should update campaign USDT balance successfully', async () => {
+	
+		let campaignData = await campaignContract.getCampaignData();
+		expect(campaignData.contractUSDTBalance).toBe(toNano('0'));
+        	
+		const adminUpdateUSDTCampaignBalanceResult = await affiliateMarketplaceContract.send(
+            deployer.getSender(),
+            { value: toNano('0.05') },
+            {
+                $$type: 'AdminJettonNotificationMessageFailure',
+                campaignId: BigInt(decodedCampaign!.campaignId),
+				amount: toNano('10')
+            }
+        );
+
+        expect(adminUpdateUSDTCampaignBalanceResult.transactions).toHaveTransaction({
+            from: deployer.address,
+            to: affiliateMarketplaceContract.address,
+            success: true
+        });
+		
+		expect(adminUpdateUSDTCampaignBalanceResult.transactions).toHaveTransaction({
+            from: affiliateMarketplaceContract.address,
+            to: campaignContract.address,
+            success: true
+        });
+		
+		campaignData = await campaignContract.getCampaignData();
+		expect(campaignData.contractUSDTBalance).toBe(toNano('10'));
+    });
+	
  
 });

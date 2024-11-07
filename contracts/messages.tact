@@ -25,6 +25,17 @@ message AdminSeizeCampaignBalance {
     campaignId: Int as uint32;
 }
 
+message AdminJettonNotificationMessageFailure {
+	campaignId: Int as uint32;
+	amount: Int as coins;
+}
+
+message AdminPayAffiliateUSDTBounced {
+	campaignId: Int as uint32;
+	queryId: Int as uint64;
+	amount: Int as coins;
+}
+
 // Events - always emitted from parent contract
 message AdvertiserWithdrawFundsEvent{
     campaignId: Int as uint32;
@@ -107,6 +118,17 @@ message ParentToChildBotUserAction{
 }
 
 message ParentToChildSeizeCampaign{}
+
+
+message ParentToChildJettonNotificationMessageFailure {
+	amount: Int as coins;
+}
+
+message ParentToChildPayAffiliateUSDTBounced {
+	queryId: Int as uint64;
+	amount: Int as coins;
+}
+
 
 // * ------ END AffiliateMarketplace API ------ *
 

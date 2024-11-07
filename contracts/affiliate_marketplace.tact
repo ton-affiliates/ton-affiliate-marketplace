@@ -238,14 +238,11 @@ contract Campaign with Resumable {
     // Function to track received USDT Jettons and update balance
     receive(msg: JettonTransferNotification) {
         
-        //require(sender() == self.contractUsdtJettonWallet, "Only contract wallet allowed to invoke");
-        //require(msg.sender == self.advertiser, "Only advertiser can send tokens to this contract");
-        //require(self.campaignDetails.paymentMethod == PAYMENT_METHOD_USDT, "Only USDT Campaigns can accept USDT");
+        require(sender() == self.contractUsdtJettonWallet, "Only contract wallet allowed to invoke");
+        require(msg.sender == self.advertiser, "Only advertiser can send tokens to this contract");
+        require(self.campaignDetails.paymentMethod == PAYMENT_METHOD_USDT, "Only USDT Campaigns can accept USDT");
         // Update the USDT balance in the state
         self.contractUSDTBalance = self.contractUSDTBalance + msg.amount;
-		
-		// TODO tmp Guy
-		//self.transferJettonUSDT(msg.sender, msg.amount, 1);
     }
 
     // Function to handle affiliate withdrawals (supports both TON and USDT)
@@ -676,6 +673,12 @@ contract Campaign with Resumable {
         return true;
 
     }
+    
+    // Jetton notification did not arrive.  In this case the contract's wallet holds X USDT but it does not reflect here
+    receive(msg: ParentToChildJettonNotificationMessageFailure) {
+        self.requireOwner();
+        self.contractUSDTBalance = self.contractUSDTBalance + msg.amount;
+    } 
 
     // if payment bounces - adjust the affiliate's accruedEarnings and totalAccruedEarnings accordingly
     fun bouncedPayment(destinationId: Int, amount: Int) {
@@ -697,14 +700,12 @@ contract Campaign with Resumable {
     }
 
     // bounced USDT
-    // TODO guy
-    //receive(msg: JettonInternalTransferFailedNotification) {
-    //    require(sender() == self.contractUsdtJettonWallet, "Only contract wallet can invoke");
-    //    let destinationIdOptional = self.queryIdToDestintaionId.get(msg.queryId);
-    //    if (destinationIdOptional != null) {
-    //        self.bouncedPayment(destinationIdOptional!!, msg.amount);
-    //    }
-    //}
+    receive(msg: ParentToChildPayAffiliateUSDTBounced) {
+        self.requireOwner();
+        let destinationIdOptional = self.queryIdToDestintaionId.get(msg.queryId);
+        require(destinationIdOptional != null, "Unknown destinationId");
+        self.bouncedPayment(destinationIdOptional!!, msg.amount);
+    }
 
     // bounced TON
     bounced(msg: PayAffiliate) {
@@ -899,6 +900,41 @@ contract AffiliateMarketplace with Deployable, Resumable  {
         send(SendParameters{
             to: campaignContractAddress,
             body: ParentToChildSeizeCampaign{}.toCell(), 
+            value: GAS_FEE,
+            mode: SendPayGasSeparately
+        });
+    }
+
+    receive(msg: AdminPayAffiliateUSDTBounced) {
+
+        self.requireOwner();
+
+        let init: StateInit = self.campaignContractStateInit(msg.campaignId);
+        let campaignContractAddress: Address = contractAddress(init);
+
+        send(SendParameters{
+            to: campaignContractAddress,
+            body: ParentToChildPayAffiliateUSDTBounced{
+                queryId: msg.queryId,
+                amount: msg.amount
+            }.toCell(),
+            value: GAS_FEE,
+            mode: SendPayGasSeparately
+        });
+    }
+
+    receive(msg: AdminJettonNotificationMessageFailure) {
+
+        self.requireOwner();
+
+        let init: StateInit = self.campaignContractStateInit(msg.campaignId);
+        let campaignContractAddress: Address = contractAddress(init);
+
+        send(SendParameters{
+            to: campaignContractAddress,
+            body: ParentToChildJettonNotificationMessageFailure{
+                amount: msg.amount
+            }.toCell(),
             value: GAS_FEE,
             mode: SendPayGasSeparately
         });
