@@ -32,7 +32,7 @@ message AdminJettonNotificationMessageFailure {
 
 message AdminPayAffiliateUSDTBounced {
 	campaignId: Int as uint32;
-	queryId: Int as uint64;
+	affiliateId: Int as uint64;
 	amount: Int as coins;
 }
 
@@ -125,7 +125,7 @@ message ParentToChildJettonNotificationMessageFailure {
 }
 
 message ParentToChildPayAffiliateUSDTBounced {
-	queryId: Int as uint64;
+	affiliateId: Int as uint64;
 	amount: Int as coins;
 }
 

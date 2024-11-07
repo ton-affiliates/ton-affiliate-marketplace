@@ -304,6 +304,43 @@ describe('Administrative Actions - Negative Tests for AffiliateMarketplace Contr
         });
     });
 	
+    it('should fail when an unauthorized sender attempts to invoke AdminPayAffiliateUSDTBounced', async () => {
+        const adminPayAffiliateUSDTBounced = await affiliateMarketplaceContract.send(
+            unauthorizedUser.getSender(),
+            { value: toNano('10') },
+            { $$type: 'AdminPayAffiliateUSDTBounced',
+			  campaignId: BigInt(campaignId),
+			  affiliateId: BigInt(0),
+			  amount: toNano('10')
+			}
+        );
+
+        expect(adminPayAffiliateUSDTBounced.transactions).toHaveTransaction({
+            from: unauthorizedUser.address,
+            to: affiliateMarketplaceContract.address,
+            success: false, //132: Access denied
+			exitCode: 132
+        });
+    });
+	
+	it('should fail when an unauthorized sender attempts to invoke AdminPayAffiliateUSDTBounced', async () => {
+        const adminUpdateUSDTCampaignBalanceResult = await affiliateMarketplaceContract.send(
+            unauthorizedUser.getSender(),
+            { value: toNano('10') },
+            { $$type: 'AdminJettonNotificationMessageFailure',
+			  campaignId: BigInt(campaignId),
+			  amount: toNano('10')
+			}
+        );
+
+        expect(adminUpdateUSDTCampaignBalanceResult.transactions).toHaveTransaction({
+            from: unauthorizedUser.address,
+            to: affiliateMarketplaceContract.address,
+            success: false, //132: Access denied
+			exitCode: 132
+        });
+    });
+	
 	it('should fail to stop and resume affiliate marketplace from unknown user', async () => {
 	
 		let stopped = await affiliateMarketplaceContract.getStopped();

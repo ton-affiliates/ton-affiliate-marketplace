@@ -702,9 +702,7 @@ contract Campaign with Resumable {
     // bounced USDT
     receive(msg: ParentToChildPayAffiliateUSDTBounced) {
         self.requireOwner();
-        let destinationIdOptional = self.queryIdToDestintaionId.get(msg.queryId);
-        require(destinationIdOptional != null, "Unknown destinationId");
-        self.bouncedPayment(destinationIdOptional!!, msg.amount);
+        self.bouncedPayment(msg.affiliateId, msg.amount);
     }
 
     // bounced TON
@@ -915,7 +913,7 @@ contract AffiliateMarketplace with Deployable, Resumable  {
         send(SendParameters{
             to: campaignContractAddress,
             body: ParentToChildPayAffiliateUSDTBounced{
-                queryId: msg.queryId,
+                affiliateId: msg.affiliateId,
                 amount: msg.amount
             }.toCell(),
             value: GAS_FEE,

@@ -343,5 +343,48 @@ describe('Administrative Actions - positive test', () => {
 		expect(campaignData.contractUSDTBalance).toBe(toNano('10'));
     });
 	
+	it('should update affiliate USDT balance if payment bounced', async () => {
+	
+		const createAffiliateResult = await campaignContract.send(
+        affiliate1.getSender(),
+        { value: toNano('0.05') },
+        { $$type: 'AffiliateCreateNewAffiliate' }
+		);
+
+		expect(createAffiliateResult.transactions).toHaveTransaction({
+			from: affiliate1.address,
+			to: campaignContract.address,
+			success: true
+		});
+	
+		let affiliateData = await campaignContract.getAffiliateData(BigInt(0));
+		expect(affiliateData!.accruedEarnings).toBe(toNano('0'));
+        	
+		const adminUpdateAffiliateBalance = await affiliateMarketplaceContract.send(
+            deployer.getSender(),
+            { value: toNano('0.05') },
+            {
+                $$type: 'AdminPayAffiliateUSDTBounced',
+                campaignId: BigInt(decodedCampaign!.campaignId),
+				affiliateId: BigInt(0),
+				amount: toNano('10')
+            }
+        );
+
+        expect(adminUpdateAffiliateBalance.transactions).toHaveTransaction({
+            from: deployer.address,
+            to: affiliateMarketplaceContract.address,
+            success: true
+        });
+		
+		expect(adminUpdateAffiliateBalance.transactions).toHaveTransaction({
+            from: affiliateMarketplaceContract.address,
+            to: campaignContract.address,
+            success: true
+        });
+		
+		affiliateData = await campaignContract.getAffiliateData(BigInt(0));
+		expect(affiliateData!.accruedEarnings).toBe(toNano('10'));
+    });
  
 });
