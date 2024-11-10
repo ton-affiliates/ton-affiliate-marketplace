@@ -287,17 +287,66 @@ yarn blueprint test
    - **Parameters**:
      - `campaignId`: Campaign ID.
      - `affiliate`: Affiliate address.
+9. **AdvertiserSignedCampaignDetailsEvent**
+   - Emitted when an advertiser sets and signs campaign details.  
+   - **Parameters**:
+     - `campaignId`: Campaign ID.
+     - `advertiser`: Address of the advertiser.
+10.  **CampaignSeizedEvent**
+   - Emitted when the admin forcibly seizes a campaign's balance. 
+   - **Parameters**:
+     - `campaignId`: Campaign ID.
+     - `amountSeized`: Amount seized from the campaign.
+
 
 ---
 
 ## Error Codes
 
-### **AffiliateMarketplace Errors**
-- **2509**: At least one wallet required for withdrawal.  
-- **53205**: Only advertiser can replenish funds.  
+The following are contract-specific errors defined within the Affiliate Marketplace and Campaign smart contracts. These errors provide precise feedback for debugging and managing operations.
 
-### **Campaign Errors**
-- **57313**: Must be in `STATE_CAMPAIGN_CREATED`.  
-- **62634**: Only bot can invoke user actions.  
-- **49782**: Affiliate not on allowed list.  
-
+**Affiliate Marketplace and Campaign Contract Errors**
+1919: Insufficient USDT funds to make transfer.
+2509: Must have at least one wallet to withdraw to.
+4138: Only the advertiser can add a new affiliate.
+5136: Only TON or USDT supported as payment methods.
+7226: Only advertiser can approve withdrawal.
+11661: Only advertiser can verify these events.
+12969: Must be in state: STATE_CAMPAIGN_DETAILS_SET_BY_ADVERTISER.
+13965: Invalid destinationId.
+14486: Cannot find CPA for the given operation code.
+17062: Invalid amount.
+18026: Only advertiser can modify affiliate withdrawal flag.
+19587: Only the advertiser can remove an existing affiliate.
+26205: Only USDT campaigns can accept USDT.
+26924: Affiliate not approved yet.
+26953: Only affiliate can withdraw funds.
+27029: Cannot take from Affiliate more than their accrued earnings.
+33318: Insufficient funds to repay parent for deployment and keep buffer.
+33594: Cannot manually add affiliates to an open campaign.
+34905: Bot can verify only operation codes under 2000.
+35494: Affiliate has requiresAdvertiserApprovalForWithdrawl flag.
+36363: Only the advertiser can remove the campaign and withdraw all funds.
+38795: Advertiser can only modify requiresApprovalForWithdrawlFlag if campaign is configured this way.
+39945: Advertiser can only modify affiliate accrued earnings if the campaign has requiresApprovalForWithdrawlFlag.
+40058: Campaign has no funds.
+40368: Contract stopped.
+40755: Only advertiser can send tokens to this contract.
+43100: Reached max number of affiliates for this campaign.
+44215: Invalid indices.
+44318: Only bot can deploy new campaign.
+48874: Insufficient contract funds to make payment.
+49469: Access denied.
+49782: Affiliate not on allowed list.
+50865: Owner must be deployer.
+52003: Campaign is expired.
+53205: Only the advertiser can replenish the contract.
+53296: Contract not stopped.
+53456: Affiliate does not exist.
+54206: Insufficient campaign balance to make payment.
+57013: Affiliate without requiresAdvertiserApprovalForWithdrawl flag.
+57313: Must be in state: STATE_CAMPAIGN_CREATED.
+58053: Operation codes for regular and premium users must match.
+59035: Only contract wallet allowed to invoke.
+60644: Advertiser can verify only operation codes over 2000.
+62634: Only bot can invoke user actions.
