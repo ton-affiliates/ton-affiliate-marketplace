@@ -175,43 +175,93 @@ yarn blueprint test
 
 ### **Campaign Contract APIs**
 
-#### Advertiser Functions
+### **Advertiser Functions**
+
 1. **AdvertiserSetCampaignDetails**  
-   Configures campaign settings.  
-   - **Access**: Advertiser  
+   - **Description**: Configures the campaign with its CPA rates, allowed affiliates, payment method, and other details.  
+   - **Access**: Advertiser only.  
+   - **Parameters**:  
+     - `campaignDetails` (CampaignDetails): Object containing:  
+       - `regularUsersCostPerAction` (map<Int, Int>): Mapping of operation codes to CPA for regular users.  
+       - `premiumUsersCostPerAction` (map<Int, Int>): Mapping of operation codes to CPA for premium users.  
+       - `allowedAffiliates` (map<Address, Bool>): Mapping of approved affiliates for closed campaigns.  
+       - `isOpenCampaign` (Bool): Whether the campaign is open for all affiliates.  
+       - `campaignValidForNumDays` (Int?): Optional expiration period in days.  
+       - `paymentMethod` (Int): Payment method (0 for TON, 1 for USDT).  
+       - `requiresAdvertiserApprovalForWithdrawl` (Bool): Whether advertiser approval is required for affiliate withdrawals.
 
 2. **AdvertiserReplenish**  
-   Adds funds to the campaign.  
-   - **Access**: Advertiser  
+   - **Description**: Adds funds to the campaign contract.  
+   - **Access**: Advertiser only.  
+   - **Parameters**:  
+     - **None** (Value transferred with the transaction is added to the campaign balance).
 
 3. **AdvertiserWithdrawFunds**  
-   Withdraws remaining campaign funds.  
-   - **Access**: Advertiser  
+   - **Description**: Withdraws remaining campaign funds back to the advertiser.  
+   - **Access**: Advertiser only.  
+   - **Parameters**:  
+     - **None** (Withdraws the full remaining balance from the campaign).
 
 4. **AdvertiserUserAction**  
-   Verifies custom actions.  
-   - **Access**: Advertiser  
+   - **Description**: Verifies user actions for the campaign.  
+   - **Access**: Advertiser only.  
+   - **Parameters**:  
+     - `userActionOpCode` (Int): Operation code for the user action.  
+     - `affiliateId` (Int): ID of the affiliate associated with the action.  
+     - `isPremiumUser` (Bool): Whether the action was performed by a premium user.
 
 5. **AdvertiserAddNewAffiliateToAllowedList**  
-   Approves affiliate requests for closed campaigns.  
-   - **Access**: Advertiser  
+   - **Description**: Approves a specific affiliate to join a closed campaign.  
+   - **Access**: Advertiser only.  
+   - **Parameters**:  
+     - `affiliate` (Address): Address of the affiliate to be added to the allowed list.
 
-6. **AdvertiserModifyAffiliateRequiresApprovalForWithdrawalFlag**  
-   Toggles withdrawal approval for affiliates.  
-   - **Access**: Advertiser  
+6. **AdvertiserRemoveExistingAffiliateFromAllowedList**  
+   - **Description**: Removes an affiliate from the allowed list of a closed campaign.  
+   - **Access**: Advertiser only.  
+   - **Parameters**:  
+     - `affiliate` (Address): Address of the affiliate to be removed from the allowed list.
 
-#### Affiliate Functions
+7. **AdvertiserModifyAffiliateRequiresApprovalForWithdrawlFlag**  
+   - **Description**: Toggles whether an affiliate requires advertiser approval for withdrawals.  
+   - **Access**: Advertiser only.  
+   - **Parameters**:  
+     - `affiliateId` (Int): ID of the affiliate.  
+     - `requiresApproval` (Bool): Whether the affiliate should require approval for withdrawals.
+
+8. **AdvertiserModifyAffiliateAccruedEarnings**  
+   - **Description**: Adjusts the accrued earnings of an affiliate.  
+   - **Access**: Advertiser only.  
+   - **Parameters**:  
+     - `affiliateId` (Int): ID of the affiliate.  
+     - `amount` (Int): Amount to adjust the accrued earnings by (negative to reduce, positive to add).
+
+---
+
+### **Affiliate Functions**
+
 1. **AffiliateCreateNewAffiliate**  
-   Registers an affiliate for open or closed campaigns.  
-   - **Access**: Open for public campaigns; approval required for closed campaigns.  
+   - **Description**: Registers an affiliate for a campaign.  
+   - **Access**: Public for open campaigns; approval required for closed campaigns.  
+   - **Parameters**:  
+     - **None** (the sender's address is automatically registered as an affiliate).
 
 2. **AffiliateAskToJoinAllowedList**  
-   Requests approval to join a closed campaign.  
-   - **Access**: Affiliate  
+   - **Description**: Requests approval to join a closed campaign.  
+   - **Access**: Affiliate only.  
+   - **Parameters**:  
+     - **None** (the sender's address is automatically sent for approval).
 
 3. **AffiliateWithdrawEarnings**  
-   Withdraws accrued earnings.  
-   - **Access**: Affiliate  
+   - **Description**: Withdraws accrued earnings for the affiliate.  
+   - **Access**: Affiliate only.  
+   - **Parameters**:  
+     - `affiliateId` (Int): ID of the affiliate making the withdrawal.  
+     - `withdrawalAmount` (Int): Amount the affiliate wants to withdraw.  
+
+--- 
+
+If there are additional parameters or functions you think might be missing, let me know!
 
 ---
 
@@ -305,48 +355,50 @@ yarn blueprint test
 
 The following are contract-specific errors defined within the Affiliate Marketplace and Campaign smart contracts. These errors provide precise feedback for debugging and managing operations.
 
+```yaml
 **Affiliate Marketplace and Campaign Contract Errors**
-1919: Insufficient USDT funds to make transfer.
-2509: Must have at least one wallet to withdraw to.
-4138: Only the advertiser can add a new affiliate.
-5136: Only TON or USDT supported as payment methods.
-7226: Only advertiser can approve withdrawal.
-11661: Only advertiser can verify these events.
-12969: Must be in state: STATE_CAMPAIGN_DETAILS_SET_BY_ADVERTISER.
-13965: Invalid destinationId.
-14486: Cannot find CPA for the given operation code.
-17062: Invalid amount.
-18026: Only advertiser can modify affiliate withdrawal flag.
-19587: Only the advertiser can remove an existing affiliate.
-26205: Only USDT campaigns can accept USDT.
-26924: Affiliate not approved yet.
-26953: Only affiliate can withdraw funds.
-27029: Cannot take from Affiliate more than their accrued earnings.
-33318: Insufficient funds to repay parent for deployment and keep buffer.
-33594: Cannot manually add affiliates to an open campaign.
-34905: Bot can verify only operation codes under 2000.
-35494: Affiliate has requiresAdvertiserApprovalForWithdrawl flag.
-36363: Only the advertiser can remove the campaign and withdraw all funds.
-38795: Advertiser can only modify requiresApprovalForWithdrawlFlag if campaign is configured this way.
-39945: Advertiser can only modify affiliate accrued earnings if the campaign has requiresApprovalForWithdrawlFlag.
-40058: Campaign has no funds.
-40368: Contract stopped.
-40755: Only advertiser can send tokens to this contract.
-43100: Reached max number of affiliates for this campaign.
-44215: Invalid indices.
-44318: Only bot can deploy new campaign.
-48874: Insufficient contract funds to make payment.
-49469: Access denied.
-49782: Affiliate not on allowed list.
-50865: Owner must be deployer.
-52003: Campaign is expired.
-53205: Only the advertiser can replenish the contract.
-53296: Contract not stopped.
-53456: Affiliate does not exist.
-54206: Insufficient campaign balance to make payment.
-57013: Affiliate without requiresAdvertiserApprovalForWithdrawl flag.
-57313: Must be in state: STATE_CAMPAIGN_CREATED.
-58053: Operation codes for regular and premium users must match.
-59035: Only contract wallet allowed to invoke.
-60644: Advertiser can verify only operation codes over 2000.
-62634: Only bot can invoke user actions.
+1919: Insufficient USDT funds to make transfer.  
+2509: Must have at least one wallet to withdraw to.  
+4138: Only the advertiser can add a new affiliate.  
+5136: Only TON or USDT supported as payment methods.  
+7226: Only advertiser can approve withdrawal.  
+11661: Only advertiser can verify these events.  
+12969: Must be in state: STATE_CAMPAIGN_DETAILS_SET_BY_ADVERTISER.  
+13965: Invalid destinationId.  
+14486: Cannot find CPA for the given operation code.  
+17062: Invalid amount.  
+18026: Only advertiser can modify affiliate withdrawal flag.  
+19587: Only the advertiser can remove an existing affiliate.  
+26205: Only USDT campaigns can accept USDT.  
+26924: Affiliate not approved yet.  
+26953: Only affiliate can withdraw funds.  
+27029: Cannot take from Affiliate more than their accrued earnings.  
+33318: Insufficient funds to repay parent for deployment and keep buffer.  
+33594: Cannot manually add affiliates to an open campaign.  
+34905: Bot can verify only operation codes under 2000.  
+35494: Affiliate has requiresAdvertiserApprovalForWithdrawl flag.  
+36363: Only the advertiser can remove the campaign and withdraw all funds.  
+38795: Advertiser can only modify requiresApprovalForWithdrawlFlag if campaign is configured this way.  
+39945: Advertiser can only modify affiliate accrued earnings if the campaign has requiresApprovalForWithdrawlFlag.  
+40058: Campaign has no funds.  
+40368: Contract stopped.  
+40755: Only advertiser can send tokens to this contract.  
+43100: Reached max number of affiliates for this campaign.  
+44215: Invalid indices.  
+44318: Only bot can deploy new campaign.  
+48874: Insufficient contract funds to make payment.  
+49469: Access denied.  
+49782: Affiliate not on allowed list.  
+50865: Owner must be deployer.  
+52003: Campaign is expired.  
+53205: Only the advertiser can replenish the contract.  
+53296: Contract not stopped.  
+53456: Affiliate does not exist.  
+54206: Insufficient campaign balance to make payment.  
+57013: Affiliate without requiresAdvertiserApprovalForWithdrawl flag.  
+57313: Must be in state: STATE_CAMPAIGN_CREATED.  
+58053: Operation codes for regular and premium users must match.  
+59035: Only contract wallet allowed to invoke.  
+60644: Advertiser can verify only operation codes over 2000.  
+62634: Only bot can invoke user actions.  
+```
