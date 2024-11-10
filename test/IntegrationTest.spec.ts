@@ -18,7 +18,7 @@ import {
 	  loadAdvertiserSignedCampaignDetailsEvent,
 	  loadAffiliateAskToJoinAllowedListEvent} from './events';
 	  
-import { hexToCell, USDT_MAINNET_ADDRESS, USDT_WALLET_BYTECODE } from './utils'
+import { hexToCell, USDT_MASTER_ADDRESS, USDT_WALLET_BYTECODE } from './utils'
 
 describe('AffiliateMarketplace Integration Test', () => {
     let blockchain: Blockchain;
@@ -46,7 +46,7 @@ describe('AffiliateMarketplace Integration Test', () => {
         affiliate2 = await blockchain.treasury('affiliate2');
 		
 
-		affiliateMarketplaceContract = blockchain.openContract(await AffiliateMarketplace.fromInit(bot.address, USDT_MAINNET_ADDRESS, hexToCell(USDT_WALLET_BYTECODE)));
+		affiliateMarketplaceContract = blockchain.openContract(await AffiliateMarketplace.fromInit(bot.address, USDT_MASTER_ADDRESS, hexToCell(USDT_WALLET_BYTECODE)));
 
         // Deploy the contract
         const deployResult = await affiliateMarketplaceContract.send(

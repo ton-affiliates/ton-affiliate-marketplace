@@ -205,7 +205,7 @@ contract Campaign with Resumable {
 
     fun transferJettonUSDT(to: Address, amount: Int, destintaionId: Int) {  
 	
-		require(self.contractUSDTBalance > amount, "Insufficient USDT funds to make transfer");
+		require(self.contractUSDTBalance >= amount, "Insufficient USDT funds to make transfer");
 		let queryId: Int = random(0, 4294967294); // Generate a new random number, which is an unsigned 32-bit integer;
         self.queryIdToDestintaionId.set(queryId, destintaionId);
         
@@ -511,12 +511,38 @@ contract Campaign with Resumable {
         // Ensure only the advertiser can invoke this function
         require(sender() == self.advertiser, "Only the advertiser can add a new affiliate");
         self.setAffiliateAllowedListStatus(msg.affiliate, true);
+		
+		//emit event so parent will notify affiliate
+        send(SendParameters{
+            to: self.owner,
+            body: ChildToParentAdvertiserModifiedAllowedList {
+                campaignId: self.campaignId,
+                advertiser: self.advertiser,
+                affiliate: msg.affiliate,
+				isAdded: true
+            }.toCell(),
+            value: GAS_FEE,
+            mode: SendPayGasSeparately
+        });
     }
 
     receive(msg: AdvertiserRemoveExistingAffiliateFromAllowedList) {
         // Ensure only the advertiser can invoke this function
         require(sender() == self.advertiser, "Only the advertiser can remove an existing affiliate");
         self.setAffiliateAllowedListStatus(msg.affiliate, null);
+		
+		//emit event so parent will notify affiliate
+        send(SendParameters{
+            to: self.owner,
+            body: ChildToParentAdvertiserModifiedAllowedList {
+                campaignId: self.campaignId,
+                advertiser: self.advertiser,
+                affiliate: msg.affiliate,
+				isAdded: false
+            }.toCell(),
+            value: GAS_FEE,
+            mode: SendPayGasSeparately
+        });
     }
 
     receive(msg: AffiliateAskToJoinAllowedList) {
@@ -942,7 +968,19 @@ contract AffiliateMarketplace with Deployable, Resumable  {
         let expectedAddress: Address = contractAddress(self.campaignContractStateInit(msg.campaignId));
         require(sender() == expectedAddress, "Access denied");
     }
+	
+	receive(msg: ChildToParentAdvertiserModifiedAllowedList) {
+		
+		let expectedAddress: Address = contractAddress(self.campaignContractStateInit(msg.campaignId));
+        require(sender() == expectedAddress, "Access denied");
 
+        emit(AdvertiserModifiedAllowedListEvent{
+            campaignId: msg.campaignId,
+            advertiser: msg.advertiser,
+            affiliate: msg.affiliate,
+			isAdded: msg.isAdded}.toCell());
+	}
+	
     receive(msg: ChildToParentAffiliateAskToJoinAllowedList) {
 
         let expectedAddress: Address = contractAddress(self.campaignContractStateInit(msg.campaignId));

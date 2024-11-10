@@ -92,6 +92,13 @@ message AffiliateAskToJoinAllowedListEvent {
 	affiliate: Address;
 }
 
+message AdvertiserModifiedAllowedListEvent {
+	campaignId: Int as uint32;
+    advertiser: Address;
+	affiliate: Address;
+	isAdded: Bool;
+}
+
 // Bot functions
 message BotDeployNewCampaign {}
 
@@ -237,6 +244,13 @@ message ChildToParentAffiliateAskToJoinAllowedList {
 	campaignId: Int as uint32;
     advertiser: Address;
 	affiliate: Address;
+}
+
+message ChildToParentAdvertiserModifiedAllowedList {
+	campaignId: Int as uint32;
+    advertiser: Address;
+	affiliate: Address;
+	isAdded: Bool;
 }
 
 
