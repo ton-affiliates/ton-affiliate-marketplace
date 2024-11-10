@@ -219,7 +219,7 @@ contract Campaign with Resumable {
                 responseDestination: myAddress(),  // Set the contract as the destination to receive any excess TON
                 customPayload: null,  // For simple transfers, this can be null
                 forwardTonAmount: ton("0.1"),  // The TON amount forwarded to cover the recipient's processing cost
-                forwardPayload: beginCell().storeUint(0xF, 4).endCell().asSlice()  // Simple forward payload for the transfer
+                forwardPayload: beginCell().storeUint(0,1).endCell().asSlice()  // Simple forward payload for the transfer
             }.toCell(),
             mode: SendPayGasSeparately
         }); 
@@ -239,7 +239,7 @@ contract Campaign with Resumable {
     receive(msg: JettonTransferNotification) {
         
         require(sender() == self.contractUsdtJettonWallet, "Only contract wallet allowed to invoke");
-        require(msg.sender == self.advertiser, "Only advertiser can send tokens to this contract");
+		require(msg.sender == self.advertiser, "Only advertiser can send tokens to this contract");
         require(self.campaignDetails.paymentMethod == PAYMENT_METHOD_USDT, "Only USDT Campaigns can accept USDT");
         // Update the USDT balance in the state
         self.contractUSDTBalance = self.contractUSDTBalance + msg.amount;
@@ -249,6 +249,7 @@ contract Campaign with Resumable {
     fun withdrawl(affiliateId: Int, withdrawalAmount: Int) {
         
         self.requireNotStopped();
+        require(withdrawalAmount > 0,"Must withdraw a positive amount");
         
         let affiliateDataOptional = self.affiliates.get(affiliateId);
         require(affiliateDataOptional != null, "Affiliate does not exist");

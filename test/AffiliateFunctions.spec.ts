@@ -302,7 +302,7 @@ describe('Affiliate Actions - Positive and Negative Tests for Affiliate Function
             from: affiliate1.address,
             to: campaignContract.address,
             success: false,
-            exitCode: 17062 // Invalid amount
+            exitCode: 10630 // Must withdraw a positive amount
         });
     });
 
