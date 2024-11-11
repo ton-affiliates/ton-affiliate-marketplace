@@ -16,9 +16,9 @@ import {
       loadInsufficientCampaignFundsEvent,
   	  loadAdvertiserWithdrawFundsEvent,
 	  loadAdvertiserSignedCampaignDetailsEvent,
-	  loadAffiliateAskToJoinAllowedListEvent} from './events';
+	  loadAffiliateAskToJoinAllowedListEvent} from '../scripts/events';
 	  
-import { hexToCell, USDT_MASTER_ADDRESS, USDT_WALLET_BYTECODE } from './utils'
+import { hexToCell, USDT_MASTER_ADDRESS, USDT_WALLET_BYTECODE } from '../scripts/utils'
 
 describe('AffiliateMarketplace Integration Test', () => {
     let blockchain: Blockchain;

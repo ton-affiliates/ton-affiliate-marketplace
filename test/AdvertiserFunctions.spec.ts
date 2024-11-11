@@ -104,8 +104,8 @@ import { toNano, fromNano, Address, Dictionary } from '@ton/core';
 import { AffiliateMarketplace } from '../build/AffiliateMarketplace/tact_AffiliateMarketplace';
 import { Campaign } from '../build/Campaign/tact_Campaign';
 import '@ton/test-utils';
-import { loadCampaignCreatedEvent } from './events'; // Ensure this utility is correctly set up for testing
-import { hexToCell, USDT_MASTER_ADDRESS, USDT_WALLET_BYTECODE } from './utils'
+import { loadCampaignCreatedEvent } from '../scripts/events'; // Ensure this utility is correctly set up for testing
+import { hexToCell, USDT_MASTER_ADDRESS, USDT_WALLET_BYTECODE } from '../scripts/utils'
 
 // Set up global variables and initial state
 let blockchain: Blockchain;
