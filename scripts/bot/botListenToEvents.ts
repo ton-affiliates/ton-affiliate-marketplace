@@ -2,10 +2,9 @@ import { getHttpEndpoint } from "@orbs-network/ton-access";
 import { TonClient } from "ton";
 import { Cell, Address } from "@ton/core";
 import * as Events from './events';
+import AFFILIATE_MARKETPLACE_ADDRESS from "./utils"
 
 // https://github.com/nikandr-surkov/Defi-on-Ton-Youtube-Lesson-11/blob/master/scripts/retrieveLogs.ts
-
-const AFFILIATE_MARKETPLACE_CONTRACT_ADDRESS = "EQDKekXYX8WwZLTzPktMv_9of_Xd3Ps5jn4wJqbKEwUAhVxy";
 
 // reads 10 events at a time
 export async function run() {
@@ -15,7 +14,7 @@ export async function run() {
     });
 
     const client = new TonClient({ endpoint });
-    const transactions = await client.getTransactions(Address.parse(AFFILIATE_MARKETPLACE_CONTRACT_ADDRESS), { limit: 10 });
+    const transactions = await client.getTransactions(Address.parse(AFFILIATE_MARKETPLACE_ADDRESS), { limit: 10 });
 
     const events: = [];
 

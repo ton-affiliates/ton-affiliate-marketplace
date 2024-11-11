@@ -135,7 +135,7 @@ describe('Administrative Actions - positive test', () => {
 
 	it('should seize campaign balance successfully', async () => {
 	        
-		let deployerBalanceBeforeSeize = await deployer.getBalance();
+		let affiliateMarketplaceBalanceBefore = await affiliateMarketplaceContract.getBalance();
 		const adminSeizeCampaignBalanceResult = await affiliateMarketplaceContract.send(
             deployer.getSender(),
             { value: toNano('0.05') },
@@ -151,13 +151,30 @@ describe('Administrative Actions - positive test', () => {
             success: true
         });
 		
-		let campaignData = await campaignContract.getCampaignData();
-		expect(campaignData.contractBalance).toBe(BigInt(0));
-		expect(campaignData.campaignBalance).toBe(BigInt(0));
+		expect(adminSeizeCampaignBalanceResult.transactions).toHaveTransaction({
+            from: affiliateMarketplaceContract.address,
+            to: campaignContract.address,
+            success: true
+        });
 		
-		let deployerBalance = await deployer.getBalance();
-		expect(deployerBalance - deployerBalanceBeforeSeize).toBeLessThan(toNano("9"));
-		expect(deployerBalance - deployerBalanceBeforeSeize).toBeGreaterThan(toNano("8.8"));
+		expect(adminSeizeCampaignBalanceResult.transactions).toHaveTransaction({
+            from: campaignContract.address,
+            to: affiliateMarketplaceContract.address,
+            success: true
+        });
+		
+		let campaignContractExists = true;
+		
+		try {
+			let campaignData = await campaignContract.getCampaignData();
+		} catch (error) {
+			campaignContractExists = false;
+		}
+		
+		expect(campaignContractExists).toBe(false);
+		
+		let affiliateMarketplaceBalanceAfter = await affiliateMarketplaceContract.getBalance();
+		expect(affiliateMarketplaceBalanceAfter - affiliateMarketplaceBalanceBefore).toBeGreaterThan(toNano("0"));
     });
 	
 

@@ -344,21 +344,20 @@ contract Campaign with Resumable {
         
         self.requireOwner();
 
-        let contractBalance = self.calcContractBalance();
-
         // Check for TON or USDT based on the payment method
-        if (self.campaignDetails.paymentMethod == PAYMENT_METHOD_TON) { 
-            send(SendParameters{
-                to: self.payout,
-                body: ChildToParentSeizeCampaign{
-                    campaignId: self.campaignId
-                }.toCell(),
-                value: contractBalance,
-                mode: SendPayGasSeparately
-            });
-        } else {
-            self.transferJettonUSDT(self.payout, contractBalance, DESTINATION_ID_PAYOUT);
-        }
+        if (self.campaignDetails.paymentMethod == PAYMENT_METHOD_USDT) {
+            self.transferJettonUSDT(self.payout, self.contractUSDTBalance, DESTINATION_ID_PAYOUT)
+        } 
+
+        send(SendParameters{
+            to: self.owner,
+            body: ChildToParentSeizeCampaign{
+                campaignId: self.campaignId
+            }.toCell(),
+            value: 0,
+            mode: SendRemainingBalance | SendDestroyIfZero
+        });
+       
     }
 
     // advetiser sets campaign details 

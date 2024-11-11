@@ -11,7 +11,7 @@ export async function run(provider: NetworkProvider) {
     await affiliateMarketplace.send(
         provider.sender(),
         {
-            value: toNano('0.05'),
+            value: toNano('3'),
         },
         {
             $$type: 'Deploy',

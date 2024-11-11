@@ -7,6 +7,9 @@ export const USDT_WALLET_BYTECODE = "b5ee9c7201020f010003d1000114ff00f4a413f4bcf
 export const BOT_ADDRESS = Address.parse("0QBO1TCk7uDT59a8d6js0pHqgNfS25tB7Y0WJDX9w-EncINQ");
 export const AFFILIATE_MARKETPLACE_ADDRESS = Address.parse("EQB5HmRQMjVw2X6H17LzY8ubIlPCVUb6PxWYyO7pxBj3tDR9");
 
+// OP CODES Bot
+export const BOT_OP_CODE_USER_CLICK = BigInt(0);
+
 interface AddressFormats {
     rawAddress: string;
     raw: string;
