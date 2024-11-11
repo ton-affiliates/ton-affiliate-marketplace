@@ -121,7 +121,6 @@ contract Campaign with Resumable {
 
     contractUSDTBalance: Int as coins;
     contractUsdtJettonWallet: Address;
-    queryIdToDestintaionId: map<Int, Int>;
 
     init(owner: Address, campaignId: Int, payout: Address, usdtMasterAddress: Address, usdtWalletBytecode: Cell) {
         
@@ -154,7 +153,6 @@ contract Campaign with Resumable {
         self.maxCpaValue = ton("0");
 
         // USDT details
-        self.queryIdToDestintaionId = emptyMap();
 		self.contractUSDTBalance = 0;
 		self.contractUsdtJettonWallet = calculateJettonWalletAddress(myAddress(), usdtMasterAddress, usdtWalletBytecode);
     }
@@ -207,7 +205,6 @@ contract Campaign with Resumable {
 	
 		require(self.contractUSDTBalance >= amount, "Insufficient USDT funds to make transfer");
 		let queryId: Int = random(0, 4294967294); // Generate a new random number, which is an unsigned 32-bit integer;
-        self.queryIdToDestintaionId.set(queryId, destintaionId);
         
 		send(SendParameters{
             to: self.contractUsdtJettonWallet,  // The Jetton wallet to send from
@@ -238,11 +235,11 @@ contract Campaign with Resumable {
     // Function to track received USDT Jettons and update balance
     receive(msg: JettonTransferNotification) {
         
-        require(sender() == self.contractUsdtJettonWallet, "Only contract wallet allowed to invoke");
-		require(msg.sender == self.advertiser, "Only advertiser can send tokens to this contract");
-        require(self.campaignDetails.paymentMethod == PAYMENT_METHOD_USDT, "Only USDT Campaigns can accept USDT");
-        // Update the USDT balance in the state
-        self.contractUSDTBalance = self.contractUSDTBalance + msg.amount;
+        //require(sender() == self.contractUsdtJettonWallet, "Only contract wallet allowed to invoke");
+        //require(msg.sender == self.advertiser, "Only advertiser can send tokens to this contract");
+        //require(self.campaignDetails.paymentMethod == PAYMENT_METHOD_USDT, "Only USDT Campaigns can accept USDT");
+        //// Update the USDT balance in the state
+        //self.contractUSDTBalance = self.contractUSDTBalance + msg.amount;
     }
 
     // Function to handle affiliate withdrawals (supports both TON and USDT)
@@ -786,9 +783,6 @@ contract Campaign with Resumable {
         return myBalance(); // in nano-tons (like cents, just with 9 decimals)
     }
 
-    get fun destinationId(queryId: Int): Int? {
-        return self.queryIdToDestintaionId.get(queryId);
-    }
 }
 
 
