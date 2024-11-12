@@ -102,10 +102,10 @@ function parseBOCAddress(bocHex: string): Address {
     return address;
 }
 
-// console.log('contractAddress: \n');
-// let contractAddress = 'kQBu9Ap6sgyLXe6xAIqhA4x9MMixz--H3gFALL2lx8uUxDI_';
-// let addressFormats = translateAddress(contractAddress);
-// console.log(addressFormats);
+ //console.log('contractAddress: \n');
+ //let contractAddress = 'EQBu9Ap6sgyLXe6xAIqhA4x9MMixz--H3gFALL2lx8uUxIm1';
+ //let addressFormats = translateAddress(contractAddress);
+ //console.log(addressFormats);
 
 
 // console.log('contractWalletAddressFromUsdT: \n');
@@ -114,7 +114,7 @@ function parseBOCAddress(bocHex: string): Address {
 // console.log(addressFormats);
 
 
-// console.log('contractWalletAddressFromTx: \n');
-// let contractWalletAddressStr = 'kQBv4W_jlFvz8lIUIjWAHjjICbwcehhBf1VqybtHSa_ta96X';
-// addressFormats = translateAddress(contractWalletAddressStr.toString());
-// console.log(addressFormats);
+//console.log('contractWalletAddressFromTx: \n');
+ //let contractWalletAddressStr = 'kQBu9Ap6sgyLXe6xAIqhA4x9MMixz--H3gFALL2lx8uUxDI_';
+ //addressFormats = translateAddress(contractWalletAddressStr.toString());
+ //console.log(addressFormats);
