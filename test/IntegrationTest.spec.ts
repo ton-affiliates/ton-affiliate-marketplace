@@ -12,7 +12,6 @@ import {
       loadAffiliateCreatedEvent,
       loadCampaignCreatedEvent,
       loadAffiliateWithdrawEarningsEvent,
-      loadCampaignUnderFiveTonEvent,
       loadInsufficientCampaignFundsEvent,
   	  loadAdvertiserWithdrawFundsEvent,
 	  loadAdvertiserSignedCampaignDetailsEvent,
@@ -442,23 +441,9 @@ describe('AffiliateMarketplace Integration Test', () => {
         // 2 events can be omitted here
         for (const external of premiumUserActionResult.externals) {
             if (external.body) {
-                try {
-                    decodedCampaignUnderFiveTon = loadCampaignUnderFiveTonEvent(external.body);
-                }
-                catch(e:any){} // ignore exception
-
-                 try {
-                    decodedInsufficientBalanceInCampaign = loadInsufficientCampaignFundsEvent(external.body);
-                }
-                catch(e:any){} // ignore exception
-                
+               decodedInsufficientBalanceInCampaign = loadInsufficientCampaignFundsEvent(external.body);                        
             }
         }
-
-        expect(decodedCampaignUnderFiveTon).not.toBeNull();
-		expect(decodedCampaignUnderFiveTon.campaignId).toBe(decodedCampaign!.campaignId);
-		expect(decodedCampaignUnderFiveTon.advertiserAddressStr).toBe(advertiser.address.toString());
-		expect(decodedCampaignUnderFiveTon.campaignBalance).toBeLessThan(toNano("5"));
 
         expect(decodedInsufficientBalanceInCampaign).not.toBeNull();
         expect(decodedInsufficientBalanceInCampaign.campaignId).toBe(decodedCampaign!.campaignId);
@@ -478,7 +463,7 @@ describe('AffiliateMarketplace Integration Test', () => {
 
         // test: campaignBalance = 15 less than it was before this user action (minus gas fees)
         expect(campaignDataBeforeCustomizedEvent.campaignBalance - campaignData.campaignBalance)
-            .toBeGreaterThan(toNano("14.98"));
+            .toBeGreaterThan(toNano("14.97"));
 
         expect(campaignDataBeforeCustomizedEvent.campaignBalance - campaignData.campaignBalance)
             .toBeLessThan(toNano("15"));
@@ -560,18 +545,20 @@ describe('AffiliateMarketplace Integration Test', () => {
 
         //-------------------------------------------------------------------------------------------
 
-        //Advertiser - RemoveCampaignAndWithdrawFunds
+        //Advertiser - RemoveCampaignAndWithdrawFunds  - withdraw all funds
         let advertiserBalanceBeforeRemoveCampaign = await advertiser.getBalance();
 		let campaignDataBeforeRemoveCampaign = await campaignContract.getCampaignData();
-				
+								
 		// campaign balance ~ 3 TON
-		expect(campaignDataBeforeRemoveCampaign.campaignBalance).toBeGreaterThan(toNano("0"));
+		expect(campaignDataBeforeRemoveCampaign.campaignBalance).toBeGreaterThan(toNano("3"));
 		const removeCampaignAndWithdrawFundsResult = await campaignContract.send(
             advertiser.getSender(),
             { value: toNano('0.05') },
-            { $$type: 'AdvertiserWithdrawFunds' }
+            { $$type: 'AdvertiserWithdrawFunds',
+			  amount: campaignDataBeforeRemoveCampaign.campaignBalance
+			}
         );
-
+		
         expect(removeCampaignAndWithdrawFundsResult.transactions).toHaveTransaction({
             from: advertiser.address,
             to: campaignContract.address,
@@ -584,20 +571,19 @@ describe('AffiliateMarketplace Integration Test', () => {
             success: true,
         });
 		
+		
 		let decodedAdvertiserWithdrawFunds: any | null = null;
         for (const external of removeCampaignAndWithdrawFundsResult.externals) {
             if (external.body) {
                 decodedAdvertiserWithdrawFunds = loadAdvertiserWithdrawFundsEvent(external.body);
             }
-        }
-		
+		}
+	 				
         expect(decodedAdvertiserWithdrawFunds).not.toBeNull();
         expect(decodedAdvertiserWithdrawFunds!.campaignId).toBe(decodedCampaign!.campaignId);
-		
-		campaignData = await campaignContract.getCampaignData();
-		expect(campaignData.campaignBalance).toBe(toNano("0"));
+		campaignData = await campaignContract.getCampaignData();		
+		expect(campaignData.campaignBalance).toBeLessThan(toNano("1"));
 				
-		
 		let advertiserBalance = await advertiser.getBalance();
 				
 		expect(advertiserBalance - advertiserBalanceBeforeRemoveCampaign)

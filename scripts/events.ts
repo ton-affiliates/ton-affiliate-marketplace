@@ -6,8 +6,7 @@ import { Cell } from '@ton/core';
 const EVENT_TYPE_CAMPAIGN_CREATED = 1630699180;
 const EVENT_TYPE_AFFILIATE_CREATED = 3273123323;
 const EVENT_TYPE_AFFILIATE_WITHDRAW_EARNINGS = 3696909830;
-const EVENT_TYPE_ADVERTISER_WITHDRAW_FUNDS = 2345188106;
-const EVENT_TYPE_CAMPAIGN_BALANCE_UNDER_FIVE_TON = 21630181;
+const EVENT_TYPE_ADVERTISER_WITHDRAW_FUNDS = 3552449590;
 const EVENT_TYPE_INSUFFICIENT_CAMPAIGN_FUNDS = 1852244882;
 const EVENT_TYPE_CAMPAIGN_SEIZED = 799343753;
 const EVENT_TYPE_ADVERTISER_SIGNED_CAMPAIGN_DETAILS = 1529127575;
@@ -28,14 +27,6 @@ export function loadCampaignSeized(cell: Cell) {
     const campaignId = slice.loadUint(32);
     const amountSeized = slice.loadCoins();
     return { $$type: 'CampaignSeizedEvent', campaignId, amountSeized };
-}
-
-export function loadCampaignUnderFiveTonEvent(cell: Cell) {
-    const slice = loadEvent(cell, EVENT_TYPE_CAMPAIGN_BALANCE_UNDER_FIVE_TON);
-    const campaignId = slice.loadUint(32);
-    const advertiserAddressStr = slice.loadAddress().toString();
-    const campaignBalance = slice.loadCoins();
-    return { $$type: 'CampaignBalanceUnderFiveTonEvent', campaignId, advertiserAddressStr, campaignBalance };
 }
 
 export function loadInsufficientCampaignFundsEvent(cell: Cell) {
@@ -78,8 +69,8 @@ export function loadAdvertiserWithdrawFundsEvent(cell: Cell) {
     const slice = loadEvent(cell, EVENT_TYPE_ADVERTISER_WITHDRAW_FUNDS);
     const campaignId = slice.loadUint(32);
     const advertiserAddressStr = slice.loadAddress().toString();
-    const campaignBalance = slice.loadCoins();
-    return { $$type: 'AdvertiserWithdrawFundsEvent', campaignId, advertiserAddressStr, campaignBalance };
+    const amount = slice.loadCoins();
+    return { $$type: 'AdvertiserWithdrawFundsEvent', campaignId, advertiserAddressStr, amount };
 }
 
 export function loadAdvertiserSignedCampaignDetailsEvent(cell: Cell) {

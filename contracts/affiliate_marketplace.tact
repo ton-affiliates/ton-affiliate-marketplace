@@ -159,9 +159,7 @@ contract Campaign with Resumable {
 
     // piggyback on this message for deployment
     receive(msg: ParentToChildDeployCampaign) {
-        
-        // dump(msg.campaignId);  // for debugging
-        
+                
          // notify parent that contract was successfully deployed
         send(SendParameters{
             to: self.owner,
@@ -207,7 +205,7 @@ contract Campaign with Resumable {
 		
 		send(SendParameters{
             to: self.contractUsdtJettonWallet,  // The Jetton wallet to send from
-            value: ton("0.05"),  // This TON is for paying for gas fees of the transfer
+            value: GAS_FEE,  // This TON is for paying for gas fees of the transfer
             body: JettonTransfer{
                 queryId: random(0, 18446744073709551614), // random uint64 must be unique - used against replay attacks
                 amount: amount,  // Jetton amount to transfer
@@ -217,7 +215,7 @@ contract Campaign with Resumable {
                 forwardTonAmount: ton("0.01"),  // The TON amount forwarded to cover the recipient's processing cost
 				forwardPayload: beginCell().storeUint(0, 32).storeSlice("USDT sent from Campaign contract".asSlice()).endCell().asSlice()           
 			}.toCell(),
-            mode: SendPayGasSeparately
+            mode: SendPayGasSeparately | SendIgnoreErrors
         }); 
 				
 		// Deduct amount from the contract's USDT balance
@@ -267,16 +265,17 @@ contract Campaign with Resumable {
         // Update campaign’s total accrued earnings
         self.totalAccruedEarnings = self.totalAccruedEarnings - withdrawalAmount;
 
-        // Transfer fee to payout address
-        send(SendParameters{
-            to: self.payout,
-            value: fee,
-            bounce: true,
-            mode: SendPayGasSeparately
-        });
-
         // Send the approved or full amount directly to the affiliate’s wallet
         if (self.campaignDetails.paymentMethod == PAYMENT_METHOD_TON) {
+
+            // Transfer fee to payout address
+            send(SendParameters{
+                to: self.payout,
+                value: fee,
+                bounce: true,
+                mode: SendPayGasSeparately | SendIgnoreErrors
+            });
+
             send(SendParameters{
                 to: affiliateData.affiliate,
                 value: netAmount,
@@ -365,7 +364,6 @@ contract Campaign with Resumable {
         require(self.state == STATE_CAMPAIGN_CREATED, "Must be in state: STATE_CAMPAIGN_CREATED");
         require(context().value > DEPLOY_NEW_CONTRACT_COST + GAS_FEE + CAMPAIGN_BUFFER, "Insufficient funds to repay parent for deployment and keep buffer");
         require(msg.campaignDetails.paymentMethod == PAYMENT_METHOD_TON || msg.campaignDetails.paymentMethod == PAYMENT_METHOD_USDT, "Only TON or USDT supported as payment methods");
-        // require(msg.campaignDetails.paymentMethod == PAYMENT_METHOD_TON, "Only TON supported as payment method");
         
         // verify keys are the same in both sets
         // get maxCpaValue
@@ -564,28 +562,28 @@ contract Campaign with Resumable {
         require(sender() == self.advertiser, "Only the advertiser can remove the campaign and withdraw all funds");
 
         let campaignBalance: Int = self.calcCampaignBalance();
-        require(campaignBalance > ton("0"), "Campaign has no funds");
+        require(campaignBalance >= msg.amount, "Campaign has no funds");
 
         send(SendParameters{
             to: self.owner,
             body: ChildToParentAdvertiserWithdrawFunds {
                 campaignId: self.campaignId,
-                campaignBalance: campaignBalance,
+                amount: msg.amount,
                 advertiser: self.advertiser
             }.toCell(),
             value: GAS_FEE,
-            mode: SendPayGasSeparately
+            mode: SendPayGasSeparately | SendIgnoreErrors
         });
 
         // Check for TON or USDT based on the payment method
         if (self.campaignDetails.paymentMethod == PAYMENT_METHOD_TON) { 
             send(SendParameters{
                 to: self.advertiser,
-                value: campaignBalance,
+                value: msg.amount,
                 mode: SendPayGasSeparately
             });
         } else {
-            self.transferJettonUSDT(self.advertiser, campaignBalance);
+            self.transferJettonUSDT(self.advertiser, msg.amount);
         }
     }
 
@@ -677,19 +675,6 @@ contract Campaign with Resumable {
                 mode: SendPayGasSeparately
             });
         } 
-        
-        if (newCampaignBalance < ton("5")) {
-            send(SendParameters{
-                to: self.owner,
-                body: ChildToParentCampaignBalanceUnderFiveTon {
-                    campaignId: self.campaignId,
-                    advertiser: self.advertiser,
-                    campaignBalance: newCampaignBalance
-                }.toCell(),
-                value: GAS_FEE,
-                mode: SendPayGasSeparately
-            });
-        }
 
         return true;
 
@@ -711,11 +696,6 @@ contract Campaign with Resumable {
 		affiliateData.accruedEarnings = affiliateData.accruedEarnings + amount;
 		self.affiliates.set(affiliateId, affiliateData);
 		self.totalAccruedEarnings = self.totalAccruedEarnings + amount;
-		
-        
-		if (self.campaignDetails.paymentMethod == PAYMENT_METHOD_USDT) {
-			self.contractUSDTBalance = self.contractUSDTBalance + amount;
-		}
     }
 
     // bounced USDT
@@ -991,7 +971,7 @@ contract AffiliateMarketplace with Deployable, Resumable  {
         emit(AdvertiserWithdrawFundsEvent{
             campaignId: msg.campaignId,
             advertiser: msg.advertiser,
-            campaignBalance: msg.campaignBalance}.toCell());
+            amount: msg.amount}.toCell());
 
     }
 
@@ -1005,18 +985,6 @@ contract AffiliateMarketplace with Deployable, Resumable  {
             advertiser: msg.advertiser,
             campaignBalance: msg.campaignBalance,
             maxCpaValue: msg.maxCpaValue
-        }.toCell());
-    }
-
-    receive(msg: ChildToParentCampaignBalanceUnderFiveTon) {
-
-        let expectedAddress: Address = contractAddress(self.campaignContractStateInit(msg.campaignId));
-        require(sender() == expectedAddress, "Access denied");
-
-        emit(CampaignBalanceUnderFiveTonEvent{
-            campaignId: msg.campaignId,
-            advertiser: msg.advertiser,
-            campaignBalance: msg.campaignBalance
         }.toCell());
     }
 

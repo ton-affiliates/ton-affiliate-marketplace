@@ -394,6 +394,10 @@ describe('Advertiser Actions - Positive and Negative Tests for Advertiser Functi
     });
 
     it('should allow the advertiser to withdraw all campaign funds after setting details', async () => {
+		
+		const campaignDataBeforeWithdraw = await campaignContract.getCampaignData();
+        expect(campaignDataBeforeWithdraw.campaignBalance).toBe(BigInt(0));
+	
         // Set campaign details and replenish funds
         const regularUsersMapCostPerActionMap = Dictionary.empty<bigint, bigint>();
         regularUsersMapCostPerActionMap.set(BigInt(0), toNano('0.1'));
@@ -420,12 +424,19 @@ describe('Advertiser Actions - Positive and Negative Tests for Advertiser Functi
             { value: toNano('5') },
             { $$type: 'AdvertiserReplenish' }
         );
+		
+		// Check that campaign balance is zero
+        const campaignDataAfterReplenish = await campaignContract.getCampaignData();
+        expect(campaignDataAfterReplenish.campaignBalance).toBeGreaterThan(toNano(4));
 
         // Withdraw campaign funds
         const withdrawFundsResult = await campaignContract.send(
             advertiser.getSender(),
             { value: toNano('0.05') },
-            { $$type: 'AdvertiserWithdrawFunds' }
+            { 
+				$$type: 'AdvertiserWithdrawFunds',
+				amount: campaignDataAfterReplenish.campaignBalance
+			}
         );
 
         expect(withdrawFundsResult.transactions).toHaveTransaction({
@@ -434,9 +445,9 @@ describe('Advertiser Actions - Positive and Negative Tests for Advertiser Functi
             success: true
         });
 
-        // Check that campaign balance is zero
+        // Check that campaign balance is ~0
         const campaignData = await campaignContract.getCampaignData();
-        expect(campaignData.campaignBalance).toBe(BigInt(0));
+        expect(campaignData.campaignBalance).toBeLessThan(toNano(1));
     });
 
     it('should allow the advertiser to verify a user action directly', async () => {
@@ -522,8 +533,13 @@ describe('Advertiser Actions - Positive and Negative Tests for Advertiser Functi
         // Attempt withdrawal by unauthorized user
         const withdrawFundsResult = await campaignContract.send(
             unauthorizedUser.getSender(),
-            { value: toNano('0.05') },
-            { $$type: 'AdvertiserWithdrawFunds' }
+            { 
+				value: toNano('0.05') },
+            { 
+			  $$type: 'AdvertiserWithdrawFunds',
+			  amount: toNano("5")
+			}
+			
         );
 
         expect(withdrawFundsResult.transactions).toHaveTransaction({

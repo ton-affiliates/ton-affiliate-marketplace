@@ -244,12 +244,14 @@ describe('Negative Tests for Campaign', () => {
     // Test: Unauthorized Campaign Removal
     it('should fail when a non-advertiser tries to remove the campaign and withdraw funds', async () => {
 		
-		
         // Attempt to remove the campaign by a non-advertiser user
         const removeCampaignResult = await campaignContract.send(
             unauthorizedUser.getSender(),
             { value: toNano('0.05') },
-            { $$type: 'AdvertiserWithdrawFunds' }
+            { 
+				$$type: 'AdvertiserWithdrawFunds',
+				amount: toNano('5')
+			}
         );
 
         expect(removeCampaignResult.transactions).toHaveTransaction({

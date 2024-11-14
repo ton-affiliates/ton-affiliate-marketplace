@@ -40,7 +40,7 @@ message AdminPayAffiliateUSDTBounced {
 message AdvertiserWithdrawFundsEvent{
     campaignId: Int as uint32;
     advertiser: Address;
-    campaignBalance: Int as coins;
+    amount: Int as coins;
 }
 
 message CampaignCreatedEvent {
@@ -56,12 +56,6 @@ message AdvertiserSignedCampaignDetailsEvent {
 message CampaignSeizedEvent{
     campaignId: Int as uint32;
     amountSeized: Int as coins;
-}
-
-message CampaignBalanceUnderFiveTonEvent {
-    campaignId: Int as uint32;
-    advertiser: Address;
-    campaignBalance: Int as coins;
 }
 
 message AffiliateCreatedEvent {
@@ -156,7 +150,9 @@ message AffiliateWithdrawEarnings {
 message AffiliateAskToJoinAllowedList{}
 
 // Advertiser API
-message AdvertiserWithdrawFunds{}
+message AdvertiserWithdrawFunds{
+	amount: Int as coins;
+}
 
 message AdvertiserSetCampaignDetails {
     campaignDetails: CampaignDetails;
@@ -220,13 +216,7 @@ message ChildToParentAdvertiserDeplyContractFee {
 message ChildToParentAdvertiserWithdrawFunds{
     campaignId: Int as uint32;
     advertiser: Address;
-    campaignBalance: Int as coins;
-}
-
-message ChildToParentCampaignBalanceUnderFiveTon {
-    campaignId: Int as uint32;
-    advertiser: Address;
-    campaignBalance: Int as coins;
+    amount: Int as coins;
 }
 
 message ChildToParentBotUserActionFee {
