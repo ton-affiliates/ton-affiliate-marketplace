@@ -201,23 +201,22 @@ contract Campaign with Resumable {
         return campaignBalance > self.maxCpaValue;
     }
 
-    fun transferJettonUSDT(to: Address, amount: Int, destintaionId: Int) {  
+    fun transferJettonUSDT(to: Address, amount: Int) {  
 	
 		require(self.contractUSDTBalance >= amount, "Insufficient USDT funds to make transfer");
-		let queryId: Int = random(0, 4294967294); // Generate a new random number, which is an unsigned 32-bit integer;
-        
+		
 		send(SendParameters{
             to: self.contractUsdtJettonWallet,  // The Jetton wallet to send from
             value: ton("0.05"),  // This TON is for paying for gas fees of the transfer
             body: JettonTransfer{
-                queryId: queryId,  // must be unique - used against replay attacks
+                queryId: random(0, 18446744073709551614), // random uint64 must be unique - used against replay attacks
                 amount: amount,  // Jetton amount to transfer
                 destination: to,  // The recipient of the Jettons (owner of the jetton wallet)
                 responseDestination: myAddress(),  // Set the contract as the destination to receive any excess TON
                 customPayload: null,  // For simple transfers, this can be null
-                forwardTonAmount: ton("0.1"),  // The TON amount forwarded to cover the recipient's processing cost
-                forwardPayload: beginCell().storeUint(0,1).endCell().asSlice()  // Simple forward payload for the transfer
-            }.toCell(),
+                forwardTonAmount: ton("0.01"),  // The TON amount forwarded to cover the recipient's processing cost
+				forwardPayload: beginCell().storeUint(0, 32).storeSlice("USDT sent from Campaign contract".asSlice()).endCell().asSlice()           
+			}.toCell(),
             mode: SendPayGasSeparately
         }); 
 				
@@ -287,8 +286,8 @@ contract Campaign with Resumable {
             });
         } else {
             // For USDT Jetton, transfer both fee and withdrawal amount
-            self.transferJettonUSDT(self.payout, fee, DESTINATION_ID_PAYOUT);
-            self.transferJettonUSDT(affiliateData.affiliate, netAmount, affiliateId);
+            self.transferJettonUSDT(self.payout, fee);
+            self.transferJettonUSDT(affiliateData.affiliate, netAmount);
         }
 
         // notify parent
@@ -345,11 +344,11 @@ contract Campaign with Resumable {
         self.requireOwner();
 
         // Check for TON or USDT based on the payment method
-        if (self.campaignDetails.paymentMethod == PAYMENT_METHOD_USDT) {
-            self.transferJettonUSDT(self.payout, self.contractUSDTBalance, DESTINATION_ID_PAYOUT)
-        } 
-
-        send(SendParameters{
+		if (self.contractUSDTBalance > 0) {
+			self.transferJettonUSDT(self.payout, self.contractUSDTBalance);
+		}
+		
+		send(SendParameters{
             to: self.owner,
             body: ChildToParentSeizeCampaign{
                 campaignId: self.campaignId
@@ -586,7 +585,7 @@ contract Campaign with Resumable {
                 mode: SendPayGasSeparately
             });
         } else {
-            self.transferJettonUSDT(self.advertiser, campaignBalance, DESTINATION_ID_ADVERTISER);
+            self.transferJettonUSDT(self.advertiser, campaignBalance);
         }
     }
 
@@ -635,7 +634,6 @@ contract Campaign with Resumable {
         }
 
         require(cpaOptional != null, "Cannot find cpa for the given op code");
-
         let costPerAction: Int = cpaOptional!!;
         let campaignBalance: Int = self.calcCampaignBalance();
 
@@ -704,18 +702,16 @@ contract Campaign with Resumable {
     } 
 
     // if payment bounces - adjust the affiliate's accruedEarnings and totalAccruedEarnings accordingly
-    fun bouncedPayment(destinationId: Int, amount: Int) {
+    fun bouncedPayment(affiliateId: Int, amount: Int) {
         
-        let affiliateDataOptional = self.affiliates.get(destinationId);
-		if (affiliateDataOptional != null) {
-            // pay affiliate
-			let affiliateData: AffiliateData = affiliateDataOptional!!;
-			affiliateData.accruedEarnings = affiliateData.accruedEarnings + amount;
-			self.affiliates.set(destinationId, affiliateData);
-			self.totalAccruedEarnings = self.totalAccruedEarnings + amount;
-		} else {
-            require(destinationId == DESTINATION_ID_PAYOUT || destinationId == DESTINATION_ID_ADVERTISER, "Invalid destinationId!");
-        }
+        let affiliateDataOptional = self.affiliates.get(affiliateId);
+		require(affiliateDataOptional != null, "Affiliate does not exist for this id");
+		// pay affiliate
+		let affiliateData: AffiliateData = affiliateDataOptional!!;
+		affiliateData.accruedEarnings = affiliateData.accruedEarnings + amount;
+		self.affiliates.set(affiliateId, affiliateData);
+		self.totalAccruedEarnings = self.totalAccruedEarnings + amount;
+		
         
 		if (self.campaignDetails.paymentMethod == PAYMENT_METHOD_USDT) {
 			self.contractUSDTBalance = self.contractUSDTBalance + amount;

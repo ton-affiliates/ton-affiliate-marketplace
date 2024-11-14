@@ -12,7 +12,7 @@ export async function run(provider: NetworkProvider, args: string[]) {
     
 	const ui = provider.ui();
 
-    const campaignAddress = Address.parse("EQDZj4jAQ4qQSScHYzmyJGRUhHWlKCzkSzat-bIWZ6Mi4wWB"); //  args.length > 0 ? args[0] : await ui.input('Campaign address'));
+    const campaignAddress = Address.parse(args.length > 0 ? args[0] : await ui.input('Campaign address'));
 
     if (!(await provider.isContractDeployed(campaignAddress))) {
         ui.write(`Error: Contract at address ${campaignAddress} is not deployed!`);
@@ -29,7 +29,10 @@ export async function run(provider: NetworkProvider, args: string[]) {
 	
 	console.log("Before:");
 	console.log(fromNano(campaignBalanceBefore));
-	console.log(campaignData.campaignDetails.paymentMethod);
+	if (campaignData.campaignDetails.paymentMethod != 1n) {
+		ui.write(`Error: Campaign at address ${campaignAddress} is not USDT!`);
+        return;
+	}
 	
 	const client = new TonClient({
         endpoint: 'https://testnet.toncenter.com/api/v2/jsonRPC',
@@ -61,7 +64,7 @@ export async function run(provider: NetworkProvider, args: string[]) {
         .storeUint(randomQueryId, 64) // Query ID
         .storeCoins(usdtAmount) // Amount of USDT to send
         .storeAddress(campaignAddress) // Recipient address
-        .storeAddress(userAddress) // Response address for excess gas
+        .storeAddress(campaignAddress) // Response address for excess gas
         .storeBit(0) // No custom payload
         .storeCoins(forwardTonAmount) // Forwarded TON amount
         .storeBit(1) // Forward payload is stored as a reference
