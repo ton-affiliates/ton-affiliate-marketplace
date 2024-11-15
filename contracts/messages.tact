@@ -30,6 +30,11 @@ message AdminJettonNotificationMessageFailure {
 	amount: Int as coins;
 }
 
+message AdminWithdrawUSDTToPayout {
+	campaignId: Int as uint32;
+	amount: Int as coins;
+}
+
 message AdminPayAffiliateUSDTBounced {
 	campaignId: Int as uint32;
 	affiliateId: Int as uint64;
@@ -122,6 +127,10 @@ message ParentToChildSeizeCampaign{}
 
 
 message ParentToChildJettonNotificationMessageFailure {
+	amount: Int as coins;
+}
+
+message ParentToChildWithdrawUSDTToPayout {
 	amount: Int as coins;
 }
 

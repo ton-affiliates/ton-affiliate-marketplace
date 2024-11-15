@@ -40,8 +40,6 @@ struct AffiliateData {
     userActionsStats: map<Int, UserActionStats>;
     premiumUserActionsStats: map<Int, UserActionStats>;
     accruedEarnings: Int as coins;
-    lastWithdrawlAmount: Int as coins;
-    lastWithdrawlTimestamp: Int as uint32;
 	requiresAdvertiserApprovalForWithdrawl: Bool;
 }
 
@@ -258,8 +256,6 @@ contract Campaign with Resumable {
 
         // Update affiliate’s accrued earnings
         affiliateData.accruedEarnings = affiliateAccruedEarnings - withdrawalAmount;
-        affiliateData.lastWithdrawlAmount = netAmount;
-        affiliateData.lastWithdrawlTimestamp = now();
         self.affiliates.set(affiliateId, affiliateData);
 
         // Update campaign’s total accrued earnings
@@ -281,7 +277,7 @@ contract Campaign with Resumable {
                 value: netAmount,
                 bounce: true,
                 body: PayAffiliate{affiliateId: affiliateId, amount: withdrawalAmount}.toCell(),
-                mode: SendPayGasSeparately
+                mode: SendPayGasSeparately | SendIgnoreErrors
             });
         } else {
             // For USDT Jetton, transfer both fee and withdrawal amount
@@ -300,7 +296,7 @@ contract Campaign with Resumable {
                 fee: fee
             }.toCell(),
             value: GAS_FEE,
-            mode: SendPayGasSeparately
+            mode: SendPayGasSeparately | SendIgnoreErrors
         });
     }
 
@@ -355,7 +351,6 @@ contract Campaign with Resumable {
             value: 0,
             mode: SendRemainingBalance | SendDestroyIfZero
         });
-       
     }
 
     // advetiser sets campaign details 
@@ -469,8 +464,6 @@ contract Campaign with Resumable {
             userActionsStats: userActionsStats, 
             premiumUserActionsStats: premiumUserActionsStats, 
             accruedEarnings: ton("0"),
-            lastWithdrawlAmount: ton("0"),
-            lastWithdrawlTimestamp: 0,
             requiresAdvertiserApprovalForWithdrawl: self.campaignDetails.requiresAdvertiserApprovalForWithdrawl
         });
 
@@ -484,7 +477,7 @@ contract Campaign with Resumable {
                 affiliate: sender()
             }.toCell(),
             value: GAS_FEE,
-            mode: SendPayGasSeparately
+            mode: SendPayGasSeparately 
         });
     }
 
@@ -516,7 +509,7 @@ contract Campaign with Resumable {
 				isAdded: true
             }.toCell(),
             value: GAS_FEE,
-            mode: SendPayGasSeparately
+            mode: SendPayGasSeparately 
         });
     }
 
@@ -535,7 +528,7 @@ contract Campaign with Resumable {
 				isAdded: false
             }.toCell(),
             value: GAS_FEE,
-            mode: SendPayGasSeparately
+            mode: SendPayGasSeparately 
         });
     }
 
@@ -601,7 +594,7 @@ contract Campaign with Resumable {
                 campaignId: self.campaignId
             }.toCell(),
             value: GAS_FEE*2,  // return gas fee paid by the owner contract
-            mode: SendPayGasSeparately
+            mode: SendPayGasSeparately | SendIgnoreErrors
         });
         
     }
@@ -672,7 +665,7 @@ contract Campaign with Resumable {
                     maxCpaValue: self.maxCpaValue
                 }.toCell(),
                 value: GAS_FEE,
-                mode: SendPayGasSeparately
+                mode: SendPayGasSeparately | SendIgnoreErrors
             });
         } 
 
@@ -684,6 +677,12 @@ contract Campaign with Resumable {
     receive(msg: ParentToChildJettonNotificationMessageFailure) {
         self.requireOwner();
         self.contractUSDTBalance = self.contractUSDTBalance + msg.amount;
+    } 
+
+    // Function to withdraw any amount of USDT stuck in the contract for any reason
+    receive(msg: ParentToChildWithdrawUSDTToPayout) {
+        self.requireOwner();
+        self.transferJettonUSDT(self.payout, msg.amount);
     } 
 
     // if payment bounces - adjust the affiliate's accruedEarnings and totalAccruedEarnings accordingly
@@ -746,9 +745,11 @@ contract Campaign with Resumable {
     get fun affiliatesDataInRange(fromIdx: Int, toIdx: Int): map<Int, AffiliateData> {
         require(toIdx > fromIdx, "Invalid indices");
         let result: map<Int, AffiliateData> = emptyMap();
-        let i: Int = fromIdx;
+        let i: Int = 0;
         repeat (toIdx - fromIdx) {  
-            result.set(fromIdx + i, self.affiliates.get(fromIdx + i));
+            if (self.affiliates.get(fromIdx + i) != null) {
+                result.set(fromIdx + i, self.affiliates.get(fromIdx + i));
+            }
             i = i + 1;
         }
         return result;
@@ -927,6 +928,23 @@ contract AffiliateMarketplace with Deployable, Resumable  {
         send(SendParameters{
             to: campaignContractAddress,
             body: ParentToChildJettonNotificationMessageFailure{
+                amount: msg.amount
+            }.toCell(),
+            value: GAS_FEE,
+            mode: SendPayGasSeparately
+        });
+    }
+
+    receive(msg: AdminWithdrawUSDTToPayout) {
+
+        self.requireOwner();
+
+        let init: StateInit = self.campaignContractStateInit(msg.campaignId);
+        let campaignContractAddress: Address = contractAddress(init);
+
+        send(SendParameters{
+            to: campaignContractAddress,
+            body: ParentToChildWithdrawUSDTToPayout{
                 amount: msg.amount
             }.toCell(),
             value: GAS_FEE,

@@ -283,8 +283,6 @@ describe('AffiliateMarketplace Integration Test', () => {
 		
 		expect(affiliateData1!.affiliate.toString()).toBe(affiliate1.address.toString());
         expect(affiliateData1!.accruedEarnings).toBe(toNano("0"));
-		expect(affiliateData1!.lastWithdrawlAmount).toBe(toNano("0"));
-		expect(affiliateData1!.lastWithdrawlTimestamp).toBe(toNano("0"));
 
          // expect stats to be 0
         const emptyUserActionStat: UserActionStats = {
@@ -531,8 +529,6 @@ describe('AffiliateMarketplace Integration Test', () => {
 		// total 0.98 TON - gas fees paied for 3 tx 	
 		expect(affiliateBalance - affiliateBalanceBeforeWithdraw).toBeLessThan(toNano("0.98"));
 		expect(affiliateBalance - affiliateBalanceBeforeWithdraw).toBeGreaterThan(toNano("0.9"));
-		expect(affiliateData1!.lastWithdrawlAmount).toBe(toNano("0.98"));
-		expect(affiliateData1!.lastWithdrawlTimestamp).toBeGreaterThan(BigInt(0));
 						
 		// to print a nice looking and correct timestamp we must multiply by 1000
 		let lastWithdrawlTimestamp = affiliateData1!.lastWithdrawlTimestamp;
