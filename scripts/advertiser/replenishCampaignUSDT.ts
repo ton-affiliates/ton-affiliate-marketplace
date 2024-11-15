@@ -5,7 +5,25 @@ import { NetworkProvider, sleep } from '@ton/blueprint';
 import { USDT_MASTER_ADDRESS, translateAddress } from '../utils'; 
 import {TonClient, internal}from 'ton';
 import { randomBytes } from 'crypto';
+import { TON_CLIENT_API_KEY, TON_CLIENT_ENDPOINT } from "../constants";
 
+
+
+function calculateBufferInNanoTON(usdtAmount: number): bigint {
+    if (usdtAmount <= 0) {
+        throw new Error('USDT amount must be a positive number!');
+    }
+
+    const bufferPercentage = 2.5; // Buffer is 2.5% of the USDT amount
+    const usdtBuffer = usdtAmount * (bufferPercentage / 100); // Calculate 2.5% of USDT
+    const usdtToTonRate = 5; // 1 TON = 5 USDT
+    const tonBuffer = usdtBuffer / usdtToTonRate; // Convert USDT buffer to TON
+
+    const nanoTONFactor = 10n ** 9n; // Convert TON to nanoTON
+    const bufferInNanoTON = BigInt(Math.ceil(tonBuffer * Number(nanoTONFactor))); // Ensure rounding up
+
+    return bufferInNanoTON;
+}
 
 
 export async function run(provider: NetworkProvider, args: string[]) {
@@ -18,25 +36,22 @@ export async function run(provider: NetworkProvider, args: string[]) {
         ui.write(`Error: Contract at address ${campaignAddress} is not deployed!`);
         return;
     }
-	
-	console.log(campaignAddress);
-	
+		
     const campaign = provider.open(Campaign.fromAddress(campaignAddress));
     let campaignData = await campaign.getCampaignData();
 	
 	const campaignBalanceBefore = campaignData.contractUSDTBalance;
-	console.log(campaignData);
 	
 	console.log("Before:");
 	console.log(fromNano(campaignBalanceBefore));
-	if (campaignData.campaignDetails.paymentMethod != 1n) {
+	if (campaignData.campaignDetails.paymentMethod !== 1n) {
 		ui.write(`Error: Campaign at address ${campaignAddress} is not USDT!`);
         return;
 	}
 	
 	const client = new TonClient({
-        endpoint: 'https://testnet.toncenter.com/api/v2/jsonRPC',
-        apiKey: 'dca02dcbbca33b7f5378edba40fdcf0b7c221d4b1ae65e6ff67d0acf5c5da3e6'
+        endpoint: TON_CLIENT_ENDPOINT,
+        apiKey: TON_CLIENT_API_KEY
     });
 	
 	// Calculate sender's Jetton Wallet Address (USDT Wallet)
@@ -48,6 +63,27 @@ export async function run(provider: NetworkProvider, args: string[]) {
 	
 	// ---------
 	
+	const userInputUSDT: string = await ui.input('Enter USDT amount to replenish as integer (e.g., 100, 250, 1000, etc...):');
+	const parsedUSDT: number = parseInt(userInputUSDT, 10); // Convert input to a number
+
+	ui.write(`USDT amount entered by user: ${parsedUSDT}`);
+
+	if (isNaN(parsedUSDT) || parsedUSDT <= 0) {
+		ui.write(`USDT amount must be a positive integer!`);
+		return;
+	}
+	
+	const bufferNanoTON = calculateBufferInNanoTON(parsedUSDT);
+	
+	ui.write(`Calculated buffer (TON): ${fromNano(bufferNanoTON)} TON`);
+	
+    // Minimum buffer in TON (e.g., 0.02 TON)
+    const minimumBufferNanoTON = toNano('0.02');
+    const finalBufferNanoTON = bufferNanoTON > minimumBufferNanoTON ? bufferNanoTON : minimumBufferNanoTON;
+
+    // Output final buffer in TON
+    ui.write(`Final Buffer (TON): ${fromNano(finalBufferNanoTON)} TON`);
+	
 	// Generate random query ID
     const randomQueryId = BigInt('0x' + randomBytes(8).toString('hex'));
 
@@ -57,12 +93,13 @@ export async function run(provider: NetworkProvider, args: string[]) {
         .storeStringTail('Replenish Campaign with USDT')
         .endCell();
 
-	const usdtAmount = 10n * 10n ** 6n; // Convert 10 USDT to 6 decimals
-    const forwardTonAmount = toNano('0.02'); // TON for forwarding
+    const forwardTonAmount = finalBufferNanoTON; // TON for forwarding to contract
+	const usdtAmountNano = BigInt(parsedUSDT) * (10n ** 6n); // Convert to 6 decimals (nano USDT)
+	
     const jettonTransferPayload: Cell = beginCell()
         .storeUint(0xf8a7ea5, 32) // OP code for Jetton transfer
         .storeUint(randomQueryId, 64) // Query ID
-        .storeCoins(usdtAmount) // Amount of USDT to send
+        .storeCoins(usdtAmountNano) // Amount of USDT to send
         .storeAddress(campaignAddress) // Recipient address
         .storeAddress(campaignAddress) // Response address for excess gas
         .storeBit(0) // No custom payload
@@ -70,10 +107,16 @@ export async function run(provider: NetworkProvider, args: string[]) {
         .storeBit(1) // Forward payload is stored as a reference
         .storeRef(forwardPayload)
         .endCell();
+		
+	// Fixed gas fee (e.g., 0.05 TON for the transaction)
+	const fixedGasFee = toNano('0.05');
+
+	// Calculate the total value to send (forwarded TON + gas fee)
+	const totalValueToSend = forwardTonAmount + fixedGasFee;
 	  
 	// Send the message using `provider.sender()`
     await provider.sender().send({
-        value: toNano('0.1'), // TON to cover gas fees
+        value: totalValueToSend, // TON to cover gas fees
         to: senderJettonWalletAddress, // Sender's Jetton Wallet Address
         body: jettonTransferPayload,
         bounce: true,
