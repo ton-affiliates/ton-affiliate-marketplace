@@ -1,8 +1,7 @@
 import { toNano, Address, fromNano, Dictionary, Cell, beginCell } from '@ton/core';
-import { getUSDTWalletAddress }  from "../usdtUtils";
 import { Campaign } from '../../wrappers/Campaign';
 import { NetworkProvider, sleep } from '@ton/blueprint';
-import { USDT_MASTER_ADDRESS, translateAddress } from '../utils'; 
+import { USDT_MASTER_ADDRESS, translateAddress, getUSDTWalletAddress } from '../utils'; 
 import {TonClient, internal}from 'ton';
 import { randomBytes } from 'crypto';
 import * as Constants from "../constants";

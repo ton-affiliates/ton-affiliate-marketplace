@@ -13,7 +13,7 @@ export async function run(provider: NetworkProvider) {
     await affiliateMarketplace.send(
         provider.sender(),
         {
-            value: toNano('3'),
+            value: toNano('1.5'),
         },
         {
             $$type: 'Deploy',
