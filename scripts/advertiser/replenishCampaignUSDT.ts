@@ -5,8 +5,7 @@ import { NetworkProvider, sleep } from '@ton/blueprint';
 import { USDT_MASTER_ADDRESS, translateAddress } from '../utils'; 
 import {TonClient, internal}from 'ton';
 import { randomBytes } from 'crypto';
-import { TON_CLIENT_API_KEY, TON_CLIENT_ENDPOINT } from "../constants";
-
+import * as Constants from "../constants";
 
 
 function calculateBufferInNanoTON(usdtAmount: number): bigint {
@@ -50,8 +49,8 @@ export async function run(provider: NetworkProvider, args: string[]) {
 	}
 	
 	const client = new TonClient({
-        endpoint: TON_CLIENT_ENDPOINT,
-        apiKey: TON_CLIENT_API_KEY
+        endpoint: Constants.TON_CLIENT_ENDPOINT,
+        apiKey: Constants.TON_CLIENT_API_KEY
     });
 	
 	// Calculate sender's Jetton Wallet Address (USDT Wallet)

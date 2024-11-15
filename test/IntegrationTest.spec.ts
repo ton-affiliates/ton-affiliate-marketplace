@@ -17,7 +17,8 @@ import {
 	  loadAdvertiserSignedCampaignDetailsEvent,
 	  loadAffiliateAskToJoinAllowedListEvent} from '../scripts/events';
 	  
-import { hexToCell, USDT_MASTER_ADDRESS, USDT_WALLET_BYTECODE } from '../scripts/utils'
+import { USDT_MASTER_ADDRESS, USDT_WALLET_BYTECODE } from '../scripts/constants'
+import { hexToCell } from '../scripts/utils';
 
 describe('AffiliateMarketplace Integration Test', () => {
     let blockchain: Blockchain;

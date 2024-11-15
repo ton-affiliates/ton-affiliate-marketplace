@@ -11,8 +11,8 @@ import { AffiliateMarketplace } from '../build/AffiliateMarketplace/tact_Affilia
 import { Campaign } from '../build/Campaign/tact_Campaign';
 import '@ton/test-utils';
 import { loadCampaignCreatedEvent } from '../scripts/events'; // Ensure this utility is correctly set up for testing
-import { hexToCell, USDT_MASTER_ADDRESS, USDT_WALLET_BYTECODE } from '../scripts/utils'
-
+import { USDT_MASTER_ADDRESS, USDT_WALLET_BYTECODE } from '../scripts/constants'
+import { hexToCell } from '../scripts/utils';
 
 // Set up global variables and initial state
 let blockchain: Blockchain;
