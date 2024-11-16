@@ -1,7 +1,7 @@
 import { toNano, Address, fromNano } from '@ton/core';
-import { AffiliateMarketplace } from '../wrappers/AffiliateMarketplace';
+import { AffiliateMarketplace } from '../../wrappers/AffiliateMarketplace';
 import { NetworkProvider, sleep } from '@ton/blueprint';
-import { AFFILIATE_MARKETPLACE_ADDRESS } from './constants'
+import { AFFILIATE_MARKETPLACE_ADDRESS } from '../constants'
 
 
 export async function run(provider: NetworkProvider, args: string[]) {
@@ -17,7 +17,7 @@ export async function run(provider: NetworkProvider, args: string[]) {
 	 await affiliateMarketplace.send(
         provider.sender(),
         {
-            value: toNano('1'),
+            value: toNano('0.05'),
         },
         {
            $$type: 'BotDeployNewCampaign'
@@ -26,7 +26,7 @@ export async function run(provider: NetworkProvider, args: string[]) {
 
     ui.write('Waiting for affiliateMarketplace to update numCampaigns...');
 
-    numCampaignsAfter = await affiliateMarketplace.getNumCampaigns();
+    let numCampaignsAfter = await affiliateMarketplace.getNumCampaigns();
     let attempt = 1;
     while (numCampaignsBefore === numCampaignsAfter) {
         ui.setActionPrompt(`Attempt ${attempt}`);

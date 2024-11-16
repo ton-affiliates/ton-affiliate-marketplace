@@ -94,15 +94,15 @@ function parseBOCAddress(bocHex: string): Address {
 }
 
  //console.log('contractAddress: \n');
- //let contractAddress = 'EQBu9Ap6sgyLXe6xAIqhA4x9MMixz--H3gFALL2lx8uUxIm1';
+ //let contractAddress = 'kQAbvOXqra3-pu4fXknkJv6B0xbDtS4IrFjTpjgEuSaMp__w';
  //let addressFormats = translateAddress(contractAddress);
  //console.log(addressFormats);
 
 
-// console.log('contractWalletAddressFromUsdT: \n');
-// let contractWalletAddress = parseBOCAddress("b5ee9c72010101010024000043800dfc2dfc728b7e7e4a428446b003c7190137838f43082feaad593768e935fdad70");
-// addressFormats = translateAddress(contractWalletAddress.toString());
-// console.log(addressFormats);
+//console.log('contractWalletAddressFromUsdT: \n');
+//let contractWalletAddress = parseBOCAddress("b5ee9c720101010100240000438003779cbd55b5bfd4ddc3ebc93c84dfd03a62d876a5c1158b1a74c7009724d194f0");
+//addressFormats = translateAddress(contractWalletAddress.toString());
+//console.log(addressFormats);
 
 
 //console.log('contractWalletAddressFromTx: \n');

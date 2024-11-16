@@ -3,17 +3,17 @@
 import { Cell } from '@ton/core';
 
 // Event types from the ABI
-const EVENT_TYPE_CAMPAIGN_CREATED = 1630699180;
-const EVENT_TYPE_AFFILIATE_CREATED = 3273123323;
-const EVENT_TYPE_AFFILIATE_WITHDRAW_EARNINGS = 3696909830;
-const EVENT_TYPE_ADVERTISER_WITHDRAW_FUNDS = 3552449590;
-const EVENT_TYPE_INSUFFICIENT_CAMPAIGN_FUNDS = 1852244882;
-const EVENT_TYPE_CAMPAIGN_SEIZED = 799343753;
-const EVENT_TYPE_ADVERTISER_SIGNED_CAMPAIGN_DETAILS = 1529127575;
-const EVENT_TYPE_AFFILIATE_ASK_TO_JOIN_ALLOWED_LIST = 851937543;
-const EVENT_TYPE_ADVERTISER_MODIFIED_ALLOWED_LIST = 2194773545;
+export const EVENT_TYPE_CAMPAIGN_CREATED = 1630699180;
+export const EVENT_TYPE_AFFILIATE_CREATED = 3273123323;
+export const EVENT_TYPE_AFFILIATE_WITHDRAW_EARNINGS = 3696909830;
+export const EVENT_TYPE_ADVERTISER_WITHDRAW_FUNDS = 3552449590;
+export const EVENT_TYPE_INSUFFICIENT_CAMPAIGN_FUNDS = 1852244882;
+export const EVENT_TYPE_CAMPAIGN_SEIZED = 799343753;
+export const EVENT_TYPE_ADVERTISER_SIGNED_CAMPAIGN_DETAILS = 1529127575;
+export const EVENT_TYPE_AFFILIATE_ASK_TO_JOIN_ALLOWED_LIST = 851937543;
+export const EVENT_TYPE_ADVERTISER_MODIFIED_ALLOWED_LIST = 2194773545;
 
-export function loadEvent(cell: Cell, expectedEventType: number) {
+export function verifyEventHeader(cell: Cell, expectedEventType: number) {
     const slice = cell.beginParse();
     const eventType = slice.loadUint(32);
     if (eventType !== expectedEventType) {
@@ -23,14 +23,14 @@ export function loadEvent(cell: Cell, expectedEventType: number) {
 }
 
 export function loadCampaignSeized(cell: Cell) {
-    const slice = loadEvent(cell, EVENT_TYPE_CAMPAIGN_SEIZED);
+    const slice = verifyEventHeader(cell, EVENT_TYPE_CAMPAIGN_SEIZED);
     const campaignId = slice.loadUint(32);
     const amountSeized = slice.loadCoins();
     return { $$type: 'CampaignSeizedEvent', campaignId, amountSeized };
 }
 
 export function loadInsufficientCampaignFundsEvent(cell: Cell) {
-    const slice = loadEvent(cell, EVENT_TYPE_INSUFFICIENT_CAMPAIGN_FUNDS);
+    const slice = verifyEventHeader(cell, EVENT_TYPE_INSUFFICIENT_CAMPAIGN_FUNDS);
     const campaignId = slice.loadUint(32);
     const advertiserAddressStr = slice.loadAddress().toString();
     const campaignBalance = slice.loadCoins();
@@ -40,14 +40,14 @@ export function loadInsufficientCampaignFundsEvent(cell: Cell) {
 
 
 export function loadCampaignCreatedEvent(cell: Cell) {
-    const slice = loadEvent(cell, EVENT_TYPE_CAMPAIGN_CREATED);
+    const slice = verifyEventHeader(cell, EVENT_TYPE_CAMPAIGN_CREATED);
     const campaignId = slice.loadUint(32);
     const campaignContractAddressStr = slice.loadAddress().toString();
     return { $$type: 'CampaignCreatedEvent', campaignId, campaignContractAddressStr };
 }
 
 export function loadAffiliateCreatedEvent(cell: Cell) {
-    const slice = loadEvent(cell, EVENT_TYPE_AFFILIATE_CREATED);
+    const slice = verifyEventHeader(cell, EVENT_TYPE_AFFILIATE_CREATED);
     const campaignId = slice.loadUint(32);
     const affiliateId = slice.loadUint(32);
     const advertiserAddressStr = slice.loadAddress().toString();
@@ -56,7 +56,7 @@ export function loadAffiliateCreatedEvent(cell: Cell) {
 }
 
 export function  loadAffiliateWithdrawEarningsEvent(cell: Cell) {
-    const slice = loadEvent(cell, EVENT_TYPE_AFFILIATE_WITHDRAW_EARNINGS);
+    const slice = verifyEventHeader(cell, EVENT_TYPE_AFFILIATE_WITHDRAW_EARNINGS);
     const campaignId = slice.loadUint(32);
     const advertiserAddressStr = slice.loadAddress().toString();
     const affiliateId = slice.loadUint(32);
@@ -66,7 +66,7 @@ export function  loadAffiliateWithdrawEarningsEvent(cell: Cell) {
 }
 
 export function loadAdvertiserWithdrawFundsEvent(cell: Cell) {
-    const slice = loadEvent(cell, EVENT_TYPE_ADVERTISER_WITHDRAW_FUNDS);
+    const slice = verifyEventHeader(cell, EVENT_TYPE_ADVERTISER_WITHDRAW_FUNDS);
     const campaignId = slice.loadUint(32);
     const advertiserAddressStr = slice.loadAddress().toString();
     const amount = slice.loadCoins();
@@ -74,14 +74,14 @@ export function loadAdvertiserWithdrawFundsEvent(cell: Cell) {
 }
 
 export function loadAdvertiserSignedCampaignDetailsEvent(cell: Cell) {
-    const slice = loadEvent(cell, EVENT_TYPE_ADVERTISER_SIGNED_CAMPAIGN_DETAILS);
+    const slice = verifyEventHeader(cell, EVENT_TYPE_ADVERTISER_SIGNED_CAMPAIGN_DETAILS);
     const campaignId = slice.loadUint(32);
     const advertiserAddressStr = slice.loadAddress().toString();
     return { $$type: 'AdvertiserSignedCampaignDetailsEvent', campaignId, advertiserAddressStr };
 }
 
 export function loadAffiliateAskToJoinAllowedListEvent(cell: Cell) {
-    const slice = loadEvent(cell, EVENT_TYPE_AFFILIATE_ASK_TO_JOIN_ALLOWED_LIST);
+    const slice = verifyEventHeader(cell, EVENT_TYPE_AFFILIATE_ASK_TO_JOIN_ALLOWED_LIST);
     const campaignId = slice.loadUint(32);
     const advertiserAddressStr = slice.loadAddress().toString();
 	const affiliateAddressStr = slice.loadAddress().toString();
@@ -89,7 +89,7 @@ export function loadAffiliateAskToJoinAllowedListEvent(cell: Cell) {
 }
 
 export function loadAdvertiserModifiedAllowedListEvent(cell: Cell) {
-    const slice = loadEvent(cell, EVENT_TYPE_ADVERTISER_MODIFIED_ALLOWED_LIST);
+    const slice = verifyEventHeader(cell, EVENT_TYPE_ADVERTISER_MODIFIED_ALLOWED_LIST);
     const campaignId = slice.loadUint(32);
     const advertiserAddressStr = slice.loadAddress().toString();
 	const affiliateAddressStr = slice.loadAddress().toString();
