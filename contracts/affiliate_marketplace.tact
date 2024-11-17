@@ -357,21 +357,29 @@ contract Campaign with Resumable {
     receive (msg: AdvertiserSetCampaignDetails) {
 
         require(self.state == STATE_CAMPAIGN_CREATED, "Must be in state: STATE_CAMPAIGN_CREATED");
-        require(context().value > DEPLOY_NEW_CONTRACT_COST + GAS_FEE + CAMPAIGN_BUFFER, "Insufficient funds to repay parent for deployment and keep buffer");
         require(msg.campaignDetails.paymentMethod == PAYMENT_METHOD_TON || msg.campaignDetails.paymentMethod == PAYMENT_METHOD_USDT, "Only TON or USDT supported as payment methods");
         
+		if (msg.campaignDetails.paymentMethod == PAYMENT_METHOD_TON) {
+			require(context().value > DEPLOY_NEW_CONTRACT_COST + GAS_FEE + CAMPAIGN_BUFFER, "Insufficient funds to repay parent for deployment and keep buffer");
+		} else {
+			// buffer will be taken when replenishing USDT
+			require(context().value > DEPLOY_NEW_CONTRACT_COST + GAS_FEE, "Insufficient funds to repay parent for deployment");		
+		}
+		
         // verify keys are the same in both sets
         // get maxCpaValue
         let maxCpaValue: Int = ton("0");
         foreach (key, val in msg.campaignDetails.regularUsersCostPerAction) {
-            require(msg.campaignDetails.premiumUsersCostPerAction.get(key) != null, "OP codes for regular and premium users must match");
+            require(val >= GAS_FEE*2, "Value of user action has to be a minimum of 0.02");
+			require(msg.campaignDetails.premiumUsersCostPerAction.get(key) != null, "OP codes for regular and premium users must match");
             if (val > maxCpaValue) {
                 maxCpaValue = val;
             }
         }
 
         foreach (key, val in msg.campaignDetails.premiumUsersCostPerAction) {
-            require(msg.campaignDetails.regularUsersCostPerAction.get(key) != null, "OP codes for regular and premium users must match");
+            require(val >= GAS_FEE*2, "Value of user action has to be a minimum of 0.02");
+			require(msg.campaignDetails.regularUsersCostPerAction.get(key) != null, "OP codes for regular and premium users must match");
             if (val > maxCpaValue) {
                 maxCpaValue = val;
             }

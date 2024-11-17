@@ -1,6 +1,6 @@
 // usdtUtils.ts
 import { toNano, Address, fromNano, Dictionary, Cell, beginCell } from 'ton-core';
-import { USDT_MASTER_ADDRESS } from './utils'; 
+import { USDT_MASTER_ADDRESS } from './constants'; 
 import {TonClient}from 'ton';
 
 

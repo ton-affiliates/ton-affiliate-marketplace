@@ -1,7 +1,9 @@
 import { toNano, Address, fromNano, Dictionary, Cell, beginCell } from '@ton/core';
 import { Campaign } from '../../wrappers/Campaign';
+import { AffiliateMarketplace } from '../../wrappers/AffiliateMarketplace';
 import { NetworkProvider, sleep } from '@ton/blueprint';
-import { USDT_MASTER_ADDRESS, translateAddress, getUSDTWalletAddress } from '../utils'; 
+import { translateAddress } from '../utils';
+import { getUSDTWalletAddress } from '../usdtUtils' 
 import {TonClient, internal}from 'ton';
 import { randomBytes } from 'crypto';
 import * as Constants from "../constants";
@@ -27,21 +29,21 @@ function calculateBufferInNanoTON(usdtAmount: number): bigint {
 export async function run(provider: NetworkProvider, args: string[]) {
     
 	const ui = provider.ui();
-
-    const campaignAddress = Address.parse(args.length > 0 ? args[0] : await ui.input('Campaign address'));
-
-    if (!(await provider.isContractDeployed(campaignAddress))) {
+	
+	const campaignId = BigInt(args.length > 0 ? args[0] : await ui.input('Campaign id'));	
+	const affiliateMarketplace = provider.open(await AffiliateMarketplace.fromAddress(Constants.AFFILIATE_MARKETPLACE_ADDRESS));
+	
+	let campaignAddress = await affiliateMarketplace.getCampaignContractAddress(campaignId);
+	if (!(await provider.isContractDeployed(campaignAddress))) {
         ui.write(`Error: Contract at address ${campaignAddress} is not deployed!`);
         return;
     }
-		
-    const campaign = provider.open(Campaign.fromAddress(campaignAddress));
+	
+	const campaign = provider.open(Campaign.fromAddress(campaignAddress));
     let campaignData = await campaign.getCampaignData();
 	
 	const campaignBalanceBefore = campaignData.contractUSDTBalance;
 	
-	console.log("Before:");
-	console.log(fromNano(campaignBalanceBefore));
 	if (campaignData.campaignDetails.paymentMethod !== 1n) {
 		ui.write(`Error: Campaign at address ${campaignAddress} is not USDT!`);
         return;
@@ -135,7 +137,7 @@ export async function run(provider: NetworkProvider, args: string[]) {
     }
 	
     ui.clearActionPrompt();
-    ui.write('Campaign updated successfully! New Balance: ' + campaignBalanceAfter);
+    ui.write('Campaign updated successfully!');
 
 };
 
