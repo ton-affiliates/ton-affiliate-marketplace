@@ -19,10 +19,8 @@ export async function run(provider: NetworkProvider, args: string[]) {
 	
 	const campaignContract = provider.open(Campaign.fromAddress(campaignAddress));
 	let feePercentageBefore = BigInt((await campaignContract.getCampaignData()).feePercentage);
-	console.log("feePercentageBefore");
-	console.log(feePercentageBefore);
-	
-	const newFeePercentageInput = args.length > 1 ? args[1] : await ui.input('New fee (e.g. 1, 1.5, 2, 2.3 etc...');
+
+	const newFeePercentageInput = args.length > 1 ? args[1] : await ui.input('New fee (e.g. 1, 1.5, 2.3 etc...)');
 	const newFeePercentage: number = parseFloat(newFeePercentageInput);
 	if (isNaN(newFeePercentage)) {
 		throw new Error("Invalid input! Please provide a valid decimal number.");
@@ -32,11 +30,6 @@ export async function run(provider: NetworkProvider, args: string[]) {
 		ui.write(`Error: Campaign already has this exact value!`);
         return;
 	}
-	
-	console.log("newFeePercentage");
-	console.log(newFeePercentage);
-	console.log(Math.round(newFeePercentage * 100));
-	
 		
     await affiliateMarketplace.send(
         provider.sender(),
