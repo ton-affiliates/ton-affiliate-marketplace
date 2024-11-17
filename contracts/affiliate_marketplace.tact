@@ -201,6 +201,10 @@ contract Campaign with Resumable {
 	
 		require(self.contractUSDTBalance >= amount, "Insufficient USDT funds to make transfer");
 		
+		// adjust amount to send back to 6 decimals
+		//self.amountToSend = self.amountToSend + (msg.amount * 1000);
+
+		
 		send(SendParameters{
             to: self.contractUsdtJettonWallet,  // The Jetton wallet to send from
             value: GAS_FEE,  // This TON is for paying for gas fees of the transfer
