@@ -19,8 +19,8 @@ export async function run(provider: NetworkProvider, args: string[]) {
 	
 	const campaignContract = provider.open(Campaign.fromAddress(campaignAddress));
 	let stoppedBefore = await campaignContract.getStopped();
-	if (stoppedBefore) {
-        ui.write(`Error: Contract at address ${campaignAddress} is already stopped!`);
+	if (!stoppedBefore) {
+        ui.write(`Error: Contract at address ${campaignAddress} is already resumed!`);
         return;
     }
 	
@@ -30,7 +30,7 @@ export async function run(provider: NetworkProvider, args: string[]) {
             value: toNano('0.05'),
         },
         {
-			$$type: 'AdminStopCampaign',
+			$$type: 'AdminResumeCampaign',
 			campaignId: campaignId
         }
     );

@@ -18,31 +18,46 @@ export async function run(provider: NetworkProvider, args: string[]) {
     }
 	
 	const campaignContract = provider.open(Campaign.fromAddress(campaignAddress));
-	let stoppedBefore = await campaignContract.getStopped();
-	if (stoppedBefore) {
-        ui.write(`Error: Contract at address ${campaignAddress} is already stopped!`);
-        return;
-    }
+	let feePercentageBefore = BigInt((await campaignContract.getCampaignData()).feePercentage);
+	console.log("feePercentageBefore");
+	console.log(feePercentageBefore);
 	
+	const newFeePercentageInput = args.length > 1 ? args[1] : await ui.input('New fee (e.g. 1, 1.5, 2, 2.3 etc...');
+	const newFeePercentage: number = parseFloat(newFeePercentageInput);
+	if (isNaN(newFeePercentage)) {
+		throw new Error("Invalid input! Please provide a valid decimal number.");
+	}	
+	
+	if (feePercentageBefore == BigInt(Math.round(newFeePercentage * 100))) {
+		ui.write(`Error: Campaign already has this exact value!`);
+        return;
+	}
+	
+	console.log("newFeePercentage");
+	console.log(newFeePercentage);
+	console.log(Math.round(newFeePercentage * 100));
+	
+		
     await affiliateMarketplace.send(
         provider.sender(),
         {
             value: toNano('0.05'),
         },
         {
-			$$type: 'AdminStopCampaign',
-			campaignId: campaignId
+			$$type: 'AdminModifyCampaignFeePercentage',
+			campaignId: campaignId,
+			feePercentage: BigInt(Math.round(newFeePercentage * 100))
         }
     );
 		
-    ui.write('Waiting for campaign to update stopped flag...');
+    ui.write('Waiting for campaign to update fee percentage...');
 
-    let stoppedAfter = await campaignContract.getStopped();
+    let feePercentageAfter = BigInt((await campaignContract.getCampaignData()).feePercentage);
     let attempt = 1;
-    while (stoppedBefore === stoppedAfter) {
+    while (feePercentageBefore === feePercentageAfter) {
         ui.setActionPrompt(`Attempt ${attempt}`);
         await sleep(2000);
-        stoppedAfter = await campaignContract.getStopped();
+        feePercentageAfter = BigInt((await campaignContract.getCampaignData()).feePercentage);
         attempt++;
     }
 	
