@@ -139,7 +139,7 @@ contract Campaign with Resumable {
             allowedAffiliates: emptyMap(),
             isOpenCampaign: false,
             campaignValidForNumDays: null,
-            paymentMethod: PAYMENT_METHOD_TON, // Default to TON
+            paymentMethod: PAYMENT_METHOD_USDT, // TMP Guy TODO Default to TON
             requiresAdvertiserApprovalForWithdrawl: false
         };
 
@@ -202,7 +202,7 @@ contract Campaign with Resumable {
 		require(self.contractUSDTBalance >= amount, "Insufficient USDT funds to make transfer");
 		
 		// adjust amount to send back to 6 decimals
-		let adjustedAmount = amount / (10^3);
+		let adjustedAmount = amount / 1000;
 		
 		send(SendParameters{
             to: self.contractUsdtJettonWallet,  // The Jetton wallet to send from
@@ -237,7 +237,7 @@ contract Campaign with Resumable {
         require(msg.sender == self.advertiser, "Only advertiser can send tokens to this contract");
         require(self.campaignDetails.paymentMethod == PAYMENT_METHOD_USDT, "Only USDT Campaigns can accept USDT");
         // Update the USDT balance in the state.  ADjust to 9 decimals (since we received 6 decimals)
-        self.contractUSDTBalance = self.contractUSDTBalance + (msg.amount * 10^3);
+        self.contractUSDTBalance = self.contractUSDTBalance + (msg.amount * 1000);
     }
 
     // Function to handle affiliate withdrawals (supports both TON and USDT)
