@@ -2,7 +2,8 @@ import { toNano, Address, fromNano } from '@ton/core';
 import { Campaign } from '../../wrappers/Campaign';
 import { AffiliateMarketplace } from '../../wrappers/AffiliateMarketplace';
 import { NetworkProvider, sleep } from '@ton/blueprint';
-import { AFFILIATE_MARKETPLACE_ADDRESS } from '../constants'
+import { AFFILIATE_MARKETPLACE_ADDRESS } from '../constants';
+import {toUSDT, fromUSDT} from '../utils';
 
 export async function run(provider: NetworkProvider, args: string[]) {
     
@@ -35,6 +36,7 @@ export async function run(provider: NetworkProvider, args: string[]) {
 	
 	let campaignBalanceBefore = (await campaign.getCampaignData()).contractUSDTBalance;
 	const userInputUSDT: string = await ui.input('Enter USDT amount to add (e.g. 100.3, 250, 1000.5, etc...):');
+	
 	const parsedUSDT: number = parseFloat(userInputUSDT); // Convert input to a number
 
 	ui.write(`USDT amount entered by admin user: ${parsedUSDT}`);

@@ -202,15 +202,14 @@ contract Campaign with Resumable {
 		require(self.contractUSDTBalance >= amount, "Insufficient USDT funds to make transfer");
 		
 		// adjust amount to send back to 6 decimals
-		//self.amountToSend = self.amountToSend + (msg.amount * 1000);
-
+		let adjustedAmount = amount / (10^3);
 		
 		send(SendParameters{
             to: self.contractUsdtJettonWallet,  // The Jetton wallet to send from
             value: GAS_FEE,  // This TON is for paying for gas fees of the transfer
             body: JettonTransfer{
                 queryId: random(0, 18446744073709551614), // random uint64 must be unique - used against replay attacks
-                amount: amount,  // Jetton amount to transfer
+                amount: adjustedAmount,  // Jetton amount to transfer
                 destination: to,  // The recipient of the Jettons (owner of the jetton wallet)
                 responseDestination: myAddress(),  // Set the contract as the destination to receive any excess TON
                 customPayload: null,  // For simple transfers, this can be null
@@ -237,8 +236,8 @@ contract Campaign with Resumable {
         require(sender() == self.contractUsdtJettonWallet, "Only contract wallet allowed to invoke");
         require(msg.sender == self.advertiser, "Only advertiser can send tokens to this contract");
         require(self.campaignDetails.paymentMethod == PAYMENT_METHOD_USDT, "Only USDT Campaigns can accept USDT");
-        // Update the USDT balance in the state
-        self.contractUSDTBalance = self.contractUSDTBalance + msg.amount;
+        // Update the USDT balance in the state.  ADjust to 9 decimals (since we received 6 decimals)
+        self.contractUSDTBalance = self.contractUSDTBalance + (msg.amount * 10^3);
     }
 
     // Function to handle affiliate withdrawals (supports both TON and USDT)
@@ -685,7 +684,7 @@ contract Campaign with Resumable {
 
     }
     
-    // Jetton notification did not arrive.  In this case the contract's wallet holds X USDT but it does not reflect here
+    // Jetton notification did not arrive.  
     receive(msg: ParentToChildJettonNotificationMessageFailure) {
         self.requireOwner();
         self.contractUSDTBalance = self.contractUSDTBalance + msg.amount;
@@ -713,6 +712,7 @@ contract Campaign with Resumable {
     receive(msg: ParentToChildPayAffiliateUSDTBounced) {
         self.requireOwner();
         self.bouncedPayment(msg.affiliateId, msg.amount);
+        self.contractUSDTBalance = self.contractUSDTBalance + msg.amount;
     }
 
     // bounced TON
@@ -737,7 +737,7 @@ contract Campaign with Resumable {
             contractBalance: self.calcContractBalance(),
             contractTonBalance: myBalance(),
             contractAddress: myAddress(),
-            contractUSDTBalance: self.contractUSDTBalance,
+            contractUSDTBalance: self.contractUSDTBalance,  // 9 decimals
             contractUsdtJettonWallet: self.contractUsdtJettonWallet,
             feePercentage: self.feePercentage,
             campaignHasSufficientFundsToPayMaxCpa: self.campaignHasSufficientFundsToPayMaxCpa(self.calcCampaignBalance()), // ha sufficient balance to pay max CPA

@@ -35,7 +35,7 @@ export async function run(provider: NetworkProvider, args: string[]) {
 	await campaignContract.send(
             provider.sender(),
             {
-                value: toNano('0.15'),  // TODO parameter - e.g. amount of TON to fund the contract with (must be at least 0.15 TON for USDT campaign)
+                value: toNano('1.5'),  // TODO parameter - e.g. amount of TON to fund the contract with (must be at least 0.15 TON for USDT campaign)
             },
             {
                 $$type: 'AdvertiserSetCampaignDetails',
@@ -44,7 +44,7 @@ export async function run(provider: NetworkProvider, args: string[]) {
                     regularUsersCostPerAction: regularUsersMapCostPerActionMap, // TODO parameter
                     premiumUsersCostPerAction: premiumUsersMapCostPerActionMap, // TODO parameter
                     allowedAffiliates: Dictionary.empty<Address, boolean>(), // TODO parameter
-                    isOpenCampaign: true,  // open campaign // TODO parameter
+                    isOpenCampaign: false,  // open campaign // TODO parameter
                     campaignValidForNumDays: null, // no end date // TODO parameter
 					paymentMethod: BigInt(1), // 0 - TON, 1 - USDT // TODO parameter
 					requiresAdvertiserApprovalForWithdrawl: false // TODO parameter
