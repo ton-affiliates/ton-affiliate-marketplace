@@ -93,6 +93,38 @@ function parseBOCAddress(bocHex: string): Address {
     return address;
 }
 
+/**
+ * Converts a user-entered USDT amount (e.g., "100.5" or 100.5) to 6-decimal representation.
+ * @param {string | number} amount - The user-entered amount in human-readable format (e.g., 100.5).
+ * @returns {bigint} - The amount converted to 6-decimal representation as a bigint.
+ */
+export function toUSDT(amount: string | number): bigint {
+    const factor = BigInt(10 ** 6);
+    const parsedAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
+    if (!Number.isFinite(parsedAmount)) {
+        throw new Error("Invalid amount: Must be a finite number.");
+    }
+    return BigInt(Math.round(parsedAmount * 10 ** 6));
+}
+
+/**
+ * Converts a USDT amount from 6-decimal representation to a human-readable format.
+ * @param {bigint} amount - The amount in 6-decimal representation.
+ * @returns {string} - The amount in human-readable format.
+ */
+export function fromUSDT(amount: bigint): string {
+    const factor = 10 ** 6;
+    return (Number(amount) / factor).toFixed(6); // Format with 6 decimals
+}
+
+// Example usage:
+//const usdtInNano = toUSDT("10.5"); // Converts "10.5" USDT to 10,500,000
+//console.log(usdtInNano); // Output: 10500000n
+
+//const usdtHumanReadable = fromUSDT(usdtInNano); // Converts back to "10.500000"
+//console.log(usdtHumanReadable); // Output: "10.500000"
+
+
  //console.log('contractAddress: \n');
  //let contractAddress = 'kQAbvOXqra3-pu4fXknkJv6B0xbDtS4IrFjTpjgEuSaMp__w';
  //let addressFormats = translateAddress(contractAddress);
@@ -101,7 +133,7 @@ function parseBOCAddress(bocHex: string): Address {
 
 //console.log('contractWalletAddressFromUsdT: \n');
 //let contractWalletAddress = parseBOCAddress("b5ee9c720101010100240000438003779cbd55b5bfd4ddc3ebc93c84dfd03a62d876a5c1158b1a74c7009724d194f0");
-//addressFormats = translateAddress(contractWalletAddress.toString());
+//let addressFormats = translateAddress(contractWalletAddress.toString());
 //console.log(addressFormats);
 
 

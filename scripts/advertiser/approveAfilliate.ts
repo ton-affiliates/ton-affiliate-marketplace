@@ -17,33 +17,43 @@ export async function run(provider: NetworkProvider, args: string[]) {
         return;
     }
 	
+	const affiliateToApprove = Address.parse(args.length > 0 ? args[0] : await ui.input('Affiliate address: '));
+	
 	const campaign = provider.open(Campaign.fromAddress(campaignAddress));
 	
-	const affiliateId = BigInt(args.length > 0 ? args[0] : await ui.input('Affiliate id'));		
-	let affiliateEarningsBefore = (await campaign.getAffiliateData(affiliateId))!.accruedEarnings;
-
+	let campaignData = await campaign.getCampaignData();
+	let isApproveBefore = campaignData.campaignDetails.allowedAffiliates.get(affiliateToApprove);
+	if (isApproveBefore) {
+		ui.write(`Error: Affiliate already approved at address ${campaignAddress}`);
+		return;
+	}
+			
 	await campaign.send(
         provider.sender(),
         { 
 			value: toNano('0.05') 
 		},
         { 
-			$$type: 'AffiliateWithdrawEarnings',
-			affiliateId: affiliateId
+			$$type: 'AdvertiserAddNewAffiliateToAllowedList',
+			affiliate: affiliateToApprove
 		}
 	);
 		
-    ui.write('Waiting for campaign to update earnings...');
-
-	let affiliateEarningsAfter = (await campaign.getAffiliateData(affiliateId))!.accruedEarnings;
+    ui.write('Waiting for campaign to update allowed affiliates...');
+	
+	campaignData = await campaign.getCampaignData();
+	let isApproveAfter = campaignData.campaignDetails.allowedAffiliates.get(affiliateToApprove);
     let attempt = 1;
-    while(affiliateEarningsBefore === affiliateEarningsAfter) {
+    while(isApproveBefore === isApproveAfter) {
         ui.setActionPrompt(`Attempt ${attempt}`);
         await sleep(2000);
-        affiliateEarningsAfter = (await campaign.getAffiliateData(affiliateId))!.accruedEarnings;
+		campaignData = await campaign.getCampaignData();
+		isApproveAfter = campaignData.campaignDetails.allowedAffiliates.get(affiliateToApprove);
         attempt++;
     }
 	
     ui.clearActionPrompt();
     ui.write('Campaign updated successfully!');
+
+	
 }

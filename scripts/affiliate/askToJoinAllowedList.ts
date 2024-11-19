@@ -20,10 +20,16 @@ export async function run(provider: NetworkProvider, args: string[]) {
 	const campaign = provider.open(Campaign.fromAddress(campaignAddress));
 	
 	let campaignData = await campaign.getCampaignData();
-	console.log(campaignData.campaignDetails.allowedAffiliates);
+	for (const [key, value] of campaignData.campaignDetails.allowedAffiliates) {
+		if (key.toString() == provider.sender().address!.toString()) {
+			ui.write(`Error: Affiliate already nominee for campaign at address ${campaignAddress}`);
+			return;
+		}
+	}
+	
+	
 	let allowedAffiliatesSizeBefore = campaignData.campaignDetails.allowedAffiliates.size;
-	console.log(allowedAffiliatesSizeBefore);
-
+	
 	await campaign.send(
         provider.sender(),
         { 
@@ -37,18 +43,18 @@ export async function run(provider: NetworkProvider, args: string[]) {
     ui.write('Waiting for campaign to update allowed affiliates...');
 	
 	campaignData = await campaign.getCampaignData();
-	console.log(campaignData.campaignDetails.allowedAffiliates);
 	let allowedAffiliatesSizeAfter = campaignData.campaignDetails.allowedAffiliates.size;
     let attempt = 1;
     while(allowedAffiliatesSizeBefore === allowedAffiliatesSizeAfter) {
         ui.setActionPrompt(`Attempt ${attempt}`);
         await sleep(2000);
 		campaignData = await campaign.getCampaignData();
-		console.log(campaignData.campaignDetails.allowedAffiliates);
 		allowedAffiliatesSizeAfter = campaignData.campaignDetails.allowedAffiliates.size;
         attempt++;
     }
 	
     ui.clearActionPrompt();
     ui.write('Campaign updated successfully!');
+
+	
 }

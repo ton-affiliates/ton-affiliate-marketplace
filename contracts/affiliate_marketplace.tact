@@ -137,9 +137,9 @@ contract Campaign with Resumable {
             regularUsersCostPerAction: emptyMap(),
             premiumUsersCostPerAction: emptyMap(),
             allowedAffiliates: emptyMap(),
-            isOpenCampaign: false,
+            isOpenCampaign: true,
             campaignValidForNumDays: null,
-            paymentMethod: PAYMENT_METHOD_USDT, // TMP Guy TODO Default to TON
+            paymentMethod: PAYMENT_METHOD_TON, // Default to TON
             requiresAdvertiserApprovalForWithdrawl: false
         };
 
@@ -204,20 +204,33 @@ contract Campaign with Resumable {
 		// adjust amount to send back to 6 decimals
 		let adjustedAmount = amount / 1000;
 		
-		send(SendParameters{
+		// Create forward payload (optional comment)
+        let forwardPayload = beginCell()
+            .storeUint(0, 32) // 0 opcode means we have a comment
+            .storeSlice("USDT from campaign".asSlice())
+            .endCell();
+
+        let forwardTonAmount = ton("0.01"); // TON for forwarding to contract
+		let randomQueryId = random(0, 18446744073709551614);
+        
+        let jettonTransferPayload: Cell = beginCell()
+            .storeUint(0xf8a7ea5, 32) // OP code for Jetton transfer
+            .storeUint(randomQueryId, 64) // Query ID
+            .storeCoins(adjustedAmount) // Amount of USDT to send
+            .storeAddress(to) // Recipient address
+            .storeAddress(myAddress()) // Response address for excess gas
+            .storeBit(false) // No custom payload
+            .storeCoins(forwardTonAmount) // Forwarded TON amount
+            .storeBit(true) // Forward payload is stored as a reference
+            .storeRef(forwardPayload)
+            .endCell();
+
+        send(SendParameters{
             to: self.contractUsdtJettonWallet,  // The Jetton wallet to send from
-            value: GAS_FEE,  // This TON is for paying for gas fees of the transfer
-            body: JettonTransfer{
-                queryId: random(0, 18446744073709551614), // random uint64 must be unique - used against replay attacks
-                amount: adjustedAmount,  // Jetton amount to transfer
-                destination: to,  // The recipient of the Jettons (owner of the jetton wallet)
-                responseDestination: myAddress(),  // Set the contract as the destination to receive any excess TON
-                customPayload: null,  // For simple transfers, this can be null
-                forwardTonAmount: ton("0.01"),  // The TON amount forwarded to cover the recipient's processing cost
-				forwardPayload: beginCell().storeUint(0, 32).storeSlice("USDT sent from Campaign contract".asSlice()).endCell().asSlice()           
-			}.toCell(),
+            value: ton("0.1"),  // This TON is for paying for gas fees of the transfer
+            body: jettonTransferPayload,
             mode: SendPayGasSeparately | SendIgnoreErrors
-        }); 
+        });
 				
 		// Deduct amount from the contract's USDT balance
         self.contractUSDTBalance = self.contractUSDTBalance - amount;
@@ -236,7 +249,7 @@ contract Campaign with Resumable {
         require(sender() == self.contractUsdtJettonWallet, "Only contract wallet allowed to invoke");
         require(msg.sender == self.advertiser, "Only advertiser can send tokens to this contract");
         require(self.campaignDetails.paymentMethod == PAYMENT_METHOD_USDT, "Only USDT Campaigns can accept USDT");
-        // Update the USDT balance in the state.  ADjust to 9 decimals (since we received 6 decimals)
+        // Update the USDT balance in the state.  Adjust to 9 decimals (since we received 6 decimals)
         self.contractUSDTBalance = self.contractUSDTBalance + (msg.amount * 1000);
     }
 
@@ -693,7 +706,7 @@ contract Campaign with Resumable {
     // Function to withdraw any amount of USDT stuck in the contract for any reason
     receive(msg: ParentToChildWithdrawUSDTToPayout) {
         self.requireOwner();
-        self.transferJettonUSDT(self.payout, msg.amount);
+        self.transferJettonUSDT(self.payout, msg.amount);		
     } 
 
     // if payment bounces - adjust the affiliate's accruedEarnings and totalAccruedEarnings accordingly

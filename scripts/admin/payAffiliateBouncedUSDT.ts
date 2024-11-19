@@ -35,16 +35,16 @@ export async function run(provider: NetworkProvider, args: string[]) {
 	let affiliateEarningsBefore = affiliateDataBefore!.accruedEarnings;
 	
 	let campaignBalanceBefore = (await campaign.getCampaignData()).contractUSDTBalance;
-	const userInputUSDT: string = await ui.input('Enter USDT amount to add (e.g. 100.3, 250, 1000.5, etc...):');
-	
+	const userInputUSDT: string = await ui.input('Enter USDT amount as float/integer (e.g. 0.1, 1, 100, 250, etc...):');
+	ui.write(`USDT amount entered by admin user: ${userInputUSDT}`);
+
 	const parsedUSDT: number = parseFloat(userInputUSDT); // Convert input to a number
-
-	ui.write(`USDT amount entered by admin user: ${parsedUSDT}`);
-
 	if (isNaN(parsedUSDT) || parsedUSDT <= 0) {
-		ui.write(`USDT amount must be a positive integer!`);
+		ui.write(`USDT amount must be a positive float!`);
 		return;
 	}
+	
+	console.log(toNano(userInputUSDT));
 	
 	await affiliateMarketplace.send(
 		provider.sender(),
@@ -69,6 +69,9 @@ export async function run(provider: NetworkProvider, args: string[]) {
         affiliateEarningsAfter = (await campaign.getAffiliateData(affiliateId))!.accruedEarnings;
         attempt++;
     }
+	
+	console.log(affiliateEarningsBefore);
+	console.log(affiliateEarningsAfter);
 	
 	
     ui.clearActionPrompt();

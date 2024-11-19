@@ -36,7 +36,6 @@ export async function run(provider: NetworkProvider, args: string[]) {
 		return;
 	}
 	
-	const usdtAmountNano = BigInt(parsedUSDT) * (10n ** 6n); // Convert to 6 decimals (nano USDT)
 	await affiliateMarketplace.send(
 		provider.sender(),
 		{ 
@@ -45,7 +44,7 @@ export async function run(provider: NetworkProvider, args: string[]) {
 		{
 			$$type: 'AdminWithdrawUSDTToPayout',
 			campaignId: campaignId,
-			amount: usdtAmountNano
+			amount: toNano(userInputUSDT)
 		}
 	);
 	

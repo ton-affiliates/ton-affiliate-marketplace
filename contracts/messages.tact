@@ -261,20 +261,9 @@ message(0x7362d09c) JettonTransferNotification {
     forwardPayload: Slice as remaining;
 }
 
-message(0xf8a7ea5) JettonTransfer {
-    queryId: Int as uint64;
-    amount: Int as coins;
-    destination: Address;
-    responseDestination: Address?;
-    customPayload: Cell? = null;
-    forwardTonAmount: Int as coins;
-    forwardPayload: Slice as remaining;
-}
-
 
 message(0xd53276db) TokenExcesses {
     query_id: Int as uint64;
 }
 
 // * ------ END Campaign API ------ *
-

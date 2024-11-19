@@ -2,7 +2,7 @@ import { toNano, Address, fromNano, Dictionary, Cell, beginCell } from '@ton/cor
 import { Campaign } from '../../wrappers/Campaign';
 import { AffiliateMarketplace } from '../../wrappers/AffiliateMarketplace';
 import { NetworkProvider, sleep } from '@ton/blueprint';
-import { translateAddress } from '../utils';
+import { translateAddress, fromUSDT, toUSDT } from '../utils';
 import { getUSDTWalletAddress } from '../usdtUtils' 
 import {TonClient, internal}from 'ton';
 import { randomBytes } from 'crypto';
@@ -14,7 +14,7 @@ function calculateBufferInNanoTON(usdtAmount: number): bigint {
         throw new Error('USDT amount must be a positive number!');
     }
 
-    const bufferPercentage = 2.5; // Buffer is 2.5% of the USDT amount
+    const bufferPercentage = 2; // Buffer is 2% of the USDT amount
     const usdtBuffer = usdtAmount * (bufferPercentage / 100); // Calculate 2.5% of USDT
     const usdtToTonRate = 5; // 1 TON = 5 USDT
     const tonBuffer = usdtBuffer / usdtToTonRate; // Convert USDT buffer to TON
@@ -43,6 +43,7 @@ export async function run(provider: NetworkProvider, args: string[]) {
     let campaignData = await campaign.getCampaignData();
 	
 	const campaignBalanceBefore = campaignData.contractUSDTBalance;
+	console.log("campaignBalanceBefore(fromNano): " + fromNano(campaignBalanceBefore));
 	
 	if (campaignData.campaignDetails.paymentMethod !== 1n) {
 		ui.write(`Error: Campaign at address ${campaignAddress} is not USDT!`);
@@ -94,7 +95,9 @@ export async function run(provider: NetworkProvider, args: string[]) {
         .endCell();
 
     const forwardTonAmount = finalBufferNanoTON; // TON for forwarding to contract
-	const usdtAmountNano = BigInt(parsedUSDT) * (10n ** 6n); // Convert to 6 decimals (nano USDT)
+	const usdtAmountNano = toUSDT(parsedUSDT); // Convert to 6 decimals (nano USDT)
+	
+	console.log('usdtAmountNano: ' + usdtAmountNano);
 	
     const jettonTransferPayload: Cell = beginCell()
         .storeUint(0xf8a7ea5, 32) // OP code for Jetton transfer
@@ -135,6 +138,9 @@ export async function run(provider: NetworkProvider, args: string[]) {
         campaignBalanceAfter = (await campaign.getCampaignData()).contractUSDTBalance;
         attempt++;
     }
+	
+	console.log("campaignBalanceAfter(fromNano): " + fromNano(campaignBalanceAfter));
+	// convert from 9 decials to string -> 6 decimals -> back to string
 	
     ui.clearActionPrompt();
     ui.write('Campaign updated successfully!');
