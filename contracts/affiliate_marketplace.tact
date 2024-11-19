@@ -365,7 +365,7 @@ contract Campaign with Resumable {
                 campaignId: self.campaignId
             }.toCell(),
             value: 0,
-            mode: SendRemainingBalance | SendDestroyIfZero
+            mode: SendRemainingBalance
         });
     }
 
@@ -386,7 +386,11 @@ contract Campaign with Resumable {
         // get maxCpaValue
         let maxCpaValue: Int = ton("0");
         foreach (key, val in msg.campaignDetails.regularUsersCostPerAction) {
-            require(val >= GAS_FEE*2, "Value of user action has to be a minimum of 0.02");
+            if (msg.campaignDetails.paymentMethod == PAYMENT_METHOD_TON) {
+                require(val >= ton("0.02"), "Value of user action has to be a minimum of 0.02 TON");
+            } else {
+                require(val >= ton("0.1"), "Value of user action has to be a minimum of 0.1 USDT");
+            }
 			require(msg.campaignDetails.premiumUsersCostPerAction.get(key) != null, "OP codes for regular and premium users must match");
             if (val > maxCpaValue) {
                 maxCpaValue = val;
@@ -394,7 +398,11 @@ contract Campaign with Resumable {
         }
 
         foreach (key, val in msg.campaignDetails.premiumUsersCostPerAction) {
-            require(val >= GAS_FEE*2, "Value of user action has to be a minimum of 0.02");
+            if (msg.campaignDetails.paymentMethod == PAYMENT_METHOD_TON) {
+                require(val >= ton("0.02"), "Value of user action has to be a minimum of 0.02 TON");
+            } else {
+                require(val >= ton("0.1"), "Value of user action has to be a minimum of 0.1 USDT");
+            }
 			require(msg.campaignDetails.regularUsersCostPerAction.get(key) != null, "OP codes for regular and premium users must match");
             if (val > maxCpaValue) {
                 maxCpaValue = val;

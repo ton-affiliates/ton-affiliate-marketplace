@@ -166,13 +166,8 @@ describe('Administrative Actions - positive test', () => {
 		
 		let campaignContractExists = true;
 		
-		try {
-			let campaignData = await campaignContract.getCampaignData();
-		} catch (error) {
-			campaignContractExists = false;
-		}
-		
-		expect(campaignContractExists).toBe(false);
+		let campaignData = await campaignContract.getCampaignData();		
+		expect(campaignData.contractTonBalance).toBe(toNano("0"));
 		
 		let affiliateMarketplaceBalanceAfter = await affiliateMarketplaceContract.getBalance();
 		expect(affiliateMarketplaceBalanceAfter - affiliateMarketplaceBalanceBefore).toBeGreaterThan(toNano("0"));
