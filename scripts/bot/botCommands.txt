@@ -1,0 +1,105 @@
+"Advertiser"
+	
+/createCampaign {@telegramHandle}
+	- @telegramHandle: The Telegram handle of the associated channel, group, or mini-app. This is required to identify the campaign’s source or target audience.
+	- Returns: A unique campaignId that you will use to manage the campaign in future commands.
+	
+/setCampaignDetails {campaignId}
+	- paymentMethod: {TON | USDT} 
+	- expirationDays: (optional, leave blank for no expiration)
+	- isPrivate: {true | false} (true = invite-only, false = anyone can join)
+	- requiresApproval: {true | false} (true = advertiser must approve withdrawals for affiliates)
+	- userClickCost: (amount per regular user click)
+	- premiumUserClickCost: (amount per premium user click)
+
+
+/replenishCampaign {campaignId} {amount}
+
+/approveAffiliate {affiliateAddress}
+	- Usage Context: This command is only applicable to private campaigns (isPrivateCampaign = true).
+/removeAffiliate {affiliateAddress}
+	- Usage Context: This command is only applicable to private campaigns (isPrivateCampaign = true).
+
+/withdrawFunds {campaignId} {amount}
+
+/withdrawEarningsForAffiliates {campaignId} {affiliateToAmountMap}
+	- Usage Context: This command is only applicable to campaigns where  (requiresApproval = true).
+	- Example: /withdrawEarningsForAffiliates 123456 {"kQD0GKBM8ZbryVk2aESmzfU6b9b_8era_IkvBSELujFZPsyy": 100, "0QBO1TCk7uDT59a8d6js0pHqgNfS25tB7Y0WJDX9w-EncINQ": 200}
+
+	
+
+/campaignData
+	
+	Campaign Data for ID: 123456
+	--------------------------------
+	- Campaign Contract: 0QBO1TCk7uDT59a8d6js0pHqgNfS25tB7Y0WJDX9w-EncINQ
+	- Advertiser: kQD0GKBM8ZbryVk2aESmzfU6b9b_8era_IkvBSELujFZPsyy
+	- Campaign USDT Jetton Wallet: 0QCSES0TZYqcVkgoguhIb8iMEo4cvaEwmIrU5qbQgnN8fo2A
+	- Campaign Start: 2024-11-01 10:00:00 UTC
+	- Last User Action: 2024-11-19 15:00:00 UTC
+	- Number of User Actions: 150
+
+	Affiliates & Earnings:
+	- Total Affiliates: 10
+	- Total Accrued Earnings: 2000 TON  // earnings that affiliates did not withdraw yet
+	- Fee Percentage: 2%  // affiliate fee for withdraw
+
+	Balances:
+	- Campaign Balance: 3000 TON
+	- Contract Balance: 10000 TON
+	- Contract TON Balance: 10005 TON
+	- Contract USDT Balance: 0 USDT
+
+	Status:
+	- Sufficient Funds for Max CPA: Yes  
+	- Campaign Expired: No
+	- Campaign Paused by Admin: No
+
+
+
+
+---------------------------------------------------------------------------------------------------------
+
+
+"Affiliate"
+
+/askToJoin {campaignId}
+	- Usage Context: This command is only applicable to private campaigns (isPrivateCampaign = true).
+
+/joinCampaign {campaignId}
+	- returns {affiliateId} and {affiliateLink}  // affiliate link is "tonaffiliates.com/{campaignId}/{affiliateId}"
+
+	example:
+	/joinCampaign 123456
+
+	Affiliate successfully created!
+	-----------------------------------
+	Affiliate ID: 5
+	Affiliate Link: https://tonaffiliates.com/123456/5
+
+
+	
+/withdrawEarnings {campaignId} {affiliateId}
+	- Usage Context: This command is only applicable to campaigns where affiliate can withdraw earnings (requiresApproval = false).
+	
+	
+
+/affiliateData {affiliateId}
+
+	example: 
+	/affiliateData 5
+	
+	Affiliate Data for Campaign ID: 123456
+	Affiliate Address: 1QBO1TCk7uDT59a8d6js0pHqgNfS25tB7Y0WJDX9w-EncINQ
+	---------------------------------------
+	- Accrued Earnings: 150 TON
+	- Requires Advertiser Approval for Withdrawal: Yes
+
+	User Actions Stats:
+	- Regular User Actions:
+	  - userClick: 50 actions
+
+	- Premium User Actions:
+	  - userClick: 12 actions
+	
+	
