@@ -5,8 +5,7 @@ import "./messages.tact";
 
 // constants
 const MAX_NUM_AFFILIATES: Int = 20000;
-const DESTINATION_ID_ADVERTISER: Int = 20001;
-const DESTINATION_ID_PAYOUT: Int = 20002;
+
 const STATE_CAMPAIGN_CREATED: Int = 0;
 const STATE_CAMPAIGN_DETAILS_SET_BY_ADVERTISER: Int = 1;
 
