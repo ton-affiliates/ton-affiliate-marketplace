@@ -212,6 +212,10 @@ describe('Affiliate Actions - Positive and Negative Tests for Affiliate Function
     it('should allow advertiser to withdraw for affiliate', async () => {
 		
 		let affiliateBalanceBeforeWithdrawl = await affiliate1.getBalance();
+		
+		let affiliateData = await campaignContract.getAffiliateData(BigInt(0));
+        expect(affiliateData!.accruedEarnings).toBe(BigInt(0));
+		expect(affiliateData!.totalEarnings).toBe(BigInt(0));
 	
         // Perform a user action that accrues earnings for affiliate1
         const userActionResult = await affiliateMarketplaceContract.send(
@@ -233,9 +237,9 @@ describe('Affiliate Actions - Positive and Negative Tests for Affiliate Function
         });
 		
         // Confirm that affiliate1 accrued earnings
-        let affiliateData = await campaignContract.getAffiliateData(BigInt(0));
-		const affiliateEarnings = affiliateData!.accruedEarnings;
-        expect(affiliateEarnings).toBeGreaterThan(0);
+        affiliateData = await campaignContract.getAffiliateData(BigInt(0));
+        expect(affiliateData!.accruedEarnings).toBeGreaterThan(BigInt(0));
+		expect(affiliateData!.totalEarnings).toBeGreaterThan(BigInt(0));
 				
 		// advertiser withdraw 
 		const advetiserWithdrawForAffiliateResult = await campaignContract.send(
@@ -243,7 +247,7 @@ describe('Affiliate Actions - Positive and Negative Tests for Affiliate Function
             { value: toNano('0.05') },
             {
                 $$type: 'AdvertiserWithdrawEarningsForAffiliates',
-                affiliatesEarnings: Dictionary.empty<bigint, bigint>().set(BigInt(0), affiliateEarnings) //map<Int, Int>; 
+                affiliatesEarnings: Dictionary.empty<bigint, bigint>().set(BigInt(0), affiliateData!.accruedEarnings) //map<Int, Int>; 
             }
         );
 		
@@ -255,6 +259,7 @@ describe('Affiliate Actions - Positive and Negative Tests for Affiliate Function
 				
 		affiliateData = await campaignContract.getAffiliateData(BigInt(0));
         expect(affiliateData!.accruedEarnings).toBe(BigInt(0));
+		expect(affiliateData!.totalEarnings).toBeGreaterThan(BigInt(0)); // total earnings do not change
 		
 		let affiliateBalance = await affiliate1.getBalance();
 		expect(affiliateBalance - affiliateBalanceBeforeWithdrawl).toBeGreaterThan(toNano("0"));

@@ -39,6 +39,7 @@ struct AffiliateData {
     userActionsStats: map<Int, UserActionStats>;
     premiumUserActionsStats: map<Int, UserActionStats>;
     accruedEarnings: Int as coins;
+    totalEarnings: Int as coins;
 	requiresAdvertiserApprovalForWithdrawl: Bool;
 }
 
@@ -461,6 +462,7 @@ contract Campaign with Resumable {
 		
         // Update affiliate’s accrued earnings
         affiliateData.accruedEarnings = affiliateData.accruedEarnings - msg.amount;
+        affiliateData.totalEarnings = affiliateData.totalEarnings - msg.amount;
         self.affiliates.set(msg.affiliateId, affiliateData);
 		
 		self.totalAccruedEarnings = self.totalAccruedEarnings - msg.amount; // return funds back to campaign 
@@ -495,6 +497,7 @@ contract Campaign with Resumable {
             userActionsStats: userActionsStats, 
             premiumUserActionsStats: premiumUserActionsStats, 
             accruedEarnings: ton("0"),
+            totalEarnings: ton("0"),
             requiresAdvertiserApprovalForWithdrawl: self.campaignDetails.requiresAdvertiserApprovalForWithdrawl
         });
 
@@ -679,6 +682,7 @@ contract Campaign with Resumable {
 
         // Accumulate the earnings for the affiliate
         affiliateData.accruedEarnings = affiliateData.accruedEarnings + costPerAction;
+        affiliateData.totalEarnings = affiliateData.totalEarnings + costPerAction;
         self.affiliates.set(affiliateId, affiliateData);  // update affiliate data
 
         self.lastUserActionTimestamp = currTime;
