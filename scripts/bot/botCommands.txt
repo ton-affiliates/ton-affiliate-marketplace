@@ -22,9 +22,9 @@
 
 /withdrawFunds {campaignId} {amount}
 
-/withdrawEarningsForAffiliates {campaignId} {affiliateToAmountMap}
+/withdrawEarningsForAffiliates {campaignId} {affiliateToAmountMap}  // affiliateId -> amount
 	- Usage Context: This command is only applicable to campaigns where  (requiresApproval = true).
-	- Example: /withdrawEarningsForAffiliates 123456 {"kQD0GKBM8ZbryVk2aESmzfU6b9b_8era_IkvBSELujFZPsyy": 100, "0QBO1TCk7uDT59a8d6js0pHqgNfS25tB7Y0WJDX9w-EncINQ": 200}
+	- Example: /withdrawEarningsForAffiliates 123456 {1: 100, 5: 200}
 
 	
 
