@@ -182,23 +182,35 @@ describe('Bot Actions - Positive and Negative Tests for Bot Functions', () => {
                 }
             }
         );
+		
+		// Register affiliate1 in the campaign by creating their affiliate link
+		const createAffiliateResult = await campaignContract.send(
+			affiliate1.getSender(),
+			{ value: toNano('0.05') },
+			{ $$type: 'AffiliateCreateNewAffiliate' }
+		);
+
+		expect(createAffiliateResult.transactions).toHaveTransaction({
+			from: affiliate1.address,
+			to: campaignContract.address,
+			success: true
+		});
 
         // Bot performs a user action on the campaign
-        const botUserActionResult = await affiliateMarketplaceContract.send(
+        const userActionResult = await campaignContract.send(
             bot.getSender(),
             { value: toNano('0.05') },
             {
                 $$type: 'BotUserAction',
-                campaignId: BigInt(decodedCampaign!.campaignId),
                 affiliateId: BigInt(0),
                 userActionOpCode: BigInt(BOT_OP_CODE_USER_CLICK),
-                isPremiumUser: false
+                isPremiumUser: false,
             }
         );
 
-        expect(botUserActionResult.transactions).toHaveTransaction({
+        expect(userActionResult.transactions).toHaveTransaction({
             from: bot.address,
-            to: affiliateMarketplaceContract.address,
+            to: campaignContract.address,
             success: true
         });
     });
@@ -219,12 +231,64 @@ describe('Bot Actions - Positive and Negative Tests for Bot Functions', () => {
     });
 
     it('should fail when a non-bot user tries to perform bot user action', async () => {
-        const botUserActionResult = await affiliateMarketplaceContract.send(
+        
+		const createCampaignResult = await affiliateMarketplaceContract.send(
+            unauthorizedUser.getSender(),
+            { value: toNano('0.05') },
+            { $$type: 'BotDeployNewCampaign' }
+        );
+		
+		let decodedCampaign: any | null = null;
+        for (const external of createCampaignResult.externals) {
+            if (external.body) {
+                decodedCampaign = loadCampaignCreatedEvent(external.body);
+            }
+        }
+
+        let campaignContractAddress: Address = Address.parse(decodedCampaign!.campaignContractAddressStr);
+        campaignContract = blockchain.openContract(await Campaign.fromAddress(campaignContractAddress));
+
+        const regularUsersMapCostPerActionMap = Dictionary.empty<bigint, bigint>();
+        regularUsersMapCostPerActionMap.set(BigInt(BOT_OP_CODE_USER_CLICK), toNano('0.1'));
+
+        await campaignContract.send(
+            advertiser.getSender(),
+            { value: toNano('10') },
+            {
+                $$type: 'AdvertiserSetCampaignDetails',
+                campaignDetails: {
+                    $$type: 'CampaignDetails',
+                    regularUsersCostPerAction: regularUsersMapCostPerActionMap,
+                    premiumUsersCostPerAction: regularUsersMapCostPerActionMap,
+                    allowedAffiliates: Dictionary.empty<Address, boolean>(),
+                    isOpenCampaign: false,
+                    campaignValidForNumDays: null,
+					paymentMethod: BigInt(0), // TON
+					requiresAdvertiserApprovalForWithdrawl: false
+                }
+            }
+        );
+		
+		// Register affiliate1 in the campaign by creating their affiliate link
+		const createAffiliateResult = await campaignContract.send(
+			affiliate1.getSender(),
+			{ value: toNano('0.05') },
+			{ $$type: 'AffiliateCreateNewAffiliate' }
+		);
+
+		expect(createAffiliateResult.transactions).toHaveTransaction({
+			from: affiliate1.address,
+			to: campaignContract.address,
+			success: true
+		});
+		
+		
+		
+		const botUserActionResult = await campaignContract.send(
             unauthorizedUser.getSender(),
             { value: toNano('0.05') },
             {
                 $$type: 'BotUserAction',
-                campaignId: BigInt(0),
                 affiliateId: BigInt(0),
                 userActionOpCode: BigInt(BOT_OP_CODE_USER_CLICK),
                 isPremiumUser: false
@@ -233,7 +297,7 @@ describe('Bot Actions - Positive and Negative Tests for Bot Functions', () => {
 
         expect(botUserActionResult.transactions).toHaveTransaction({
             from: unauthorizedUser.address,
-            to: affiliateMarketplaceContract.address,
+            to: campaignContract.address,
             success: false,
             exitCode: 62634 // Exit code for unauthorized bot action
         });
@@ -279,12 +343,11 @@ describe('Bot Actions - Positive and Negative Tests for Bot Functions', () => {
             }
         );
 		
-        const botUserActionResult = await affiliateMarketplaceContract.send(
+        const botUserActionResult = await campaignContract.send(
             bot.getSender(),
             { value: toNano('0.05') },
             {
                 $$type: 'BotUserAction',
-                campaignId: BigInt(decodedCampaign!.campaignId),
                 affiliateId: BigInt(0),
                 userActionOpCode: BigInt(2001), // Unauthorized op code for bots
                 isPremiumUser: false
@@ -292,7 +355,7 @@ describe('Bot Actions - Positive and Negative Tests for Bot Functions', () => {
         );
 
         expect(botUserActionResult.transactions).toHaveTransaction({
-            from: affiliateMarketplaceContract.address,
+            from: bot.address,
             to: campaignContract.address,
             success: false,
             exitCode: 34905 // Exit code for invalid op code for bots

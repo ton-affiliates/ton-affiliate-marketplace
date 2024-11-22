@@ -105,6 +105,7 @@ contract Campaign with Resumable {
     payout: Address;
     advertiser: Address;
     campaignDetails: CampaignDetails;
+    bot: Address;
 
     currAffiliateId: Int as uint32;
     affiliates: map<Int, AffiliateData>;
@@ -120,7 +121,7 @@ contract Campaign with Resumable {
     contractUSDTBalance: Int as coins;
     contractUsdtJettonWallet: Address;
 
-    init(owner: Address, campaignId: Int, payout: Address, usdtMasterAddress: Address, usdtWalletBytecode: Cell) {
+    init(owner: Address, campaignId: Int, payout: Address, bot: Address, usdtMasterAddress: Address, usdtWalletBytecode: Cell) {
         
         require(sender() == owner, "owner must be deployer");
 
@@ -129,6 +130,7 @@ contract Campaign with Resumable {
         self.stopped = false;
         self.campaignId = campaignId;
         self.advertiser = owner; // temporary until set
+        self.bot = bot;
 
         self.currAffiliateId = 0; 
         self.affiliates = emptyMap();
@@ -614,9 +616,9 @@ contract Campaign with Resumable {
         }
     }
 
-    receive(msg: ParentToChildBotUserAction) {
+    receive(msg: BotUserAction) {
 
-        self.requireOwner();
+        require(sender() == self.bot, "Only bot can invoke this function");
         require(msg.userActionOpCode <= USER_ACTION_OP_CODES_BOT, "Bot can verify only op codes under 2000");
 
         self.applyUserAction(msg.userActionOpCode, msg.affiliateId, msg.isPremiumUser);
@@ -837,7 +839,7 @@ contract AffiliateMarketplace with Deployable, Resumable  {
     }
 
     fun campaignContractStateInit(campaignId: Int): StateInit {
-        let initCode: StateInit = initOf Campaign(myAddress(), campaignId, self.owner, self.usdtMasterAddress, self.usdtWalletBytecode);
+        let initCode: StateInit = initOf Campaign(myAddress(), campaignId, self.owner, self.bot, self.usdtMasterAddress, self.usdtWalletBytecode);
         return initCode;
     }
 
@@ -1077,7 +1079,6 @@ contract AffiliateMarketplace with Deployable, Resumable  {
             advertiser: msg.advertiser,
             affiliate: msg.affiliate
         }.toCell());
-
     }
 
     // Function to create a new campaign
@@ -1124,27 +1125,6 @@ contract AffiliateMarketplace with Deployable, Resumable  {
             amountSeized: context().value
         }.toCell());
     } 
-
-    // Function to handle user click
-    receive(msg: BotUserAction) {
-
-        self.requireNotStopped();
-        require(sender() == self.bot, "Only bot can invoke User Actions");
-
-        let init: StateInit = self.campaignContractStateInit(msg.campaignId);
-        let campaignContractAddress: Address = contractAddress(init);
-
-        send(SendParameters{
-            to: campaignContractAddress,
-            body: ParentToChildBotUserAction{
-                affiliateId: msg.affiliateId,
-                userActionOpCode: msg.userActionOpCode,
-                isPremiumUser: msg.isPremiumUser
-            }.toCell(),
-            value: GAS_FEE*2,
-            mode: SendPayGasSeparately
-        });
-    }
 
     // receive any amount of incoming TON
     receive() {}

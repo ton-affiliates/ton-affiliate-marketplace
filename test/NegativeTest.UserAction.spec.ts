@@ -207,20 +207,19 @@ describe('Negative Tests for User Actions', () => {
      it('should fail to perform user action op codes from an unauthorized verifier', async () => {
 
         // Attempt by the bot to verify an action that should be verified by the advertiser
-        const botUnauthorizedUserAction = await affiliateMarketplaceContract.send(
+        const userActionResult = await campaignContract.send(
             bot.getSender(),
             { value: toNano('0.05') },
             {
                 $$type: 'BotUserAction',
-				campaignId: campaignId,
-                affiliateId: 0n,
-                userActionOpCode: BigInt(ADVERTISER_OP_CODE_CUSTOMIZED_EVENT), // Requires advertiser, not bot
+                affiliateId: BigInt(0),
+                userActionOpCode: BigInt(2001),
                 isPremiumUser: false,
             }
         );
 
-        expect(botUnauthorizedUserAction.transactions).toHaveTransaction({
-            from: affiliateMarketplaceContract.address,
+        expect(userActionResult.transactions).toHaveTransaction({
+            from: bot.address,
             to: campaignContract.address,
             success: false, // 34905: Bot can verify only op codes under 2000
 			exitCode: 34905

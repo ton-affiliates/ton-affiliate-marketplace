@@ -102,7 +102,6 @@ message AdvertiserModifiedAllowedListEvent {
 message BotDeployNewCampaign {}
 
 message BotUserAction {
-    campaignId: Int as uint32;
     affiliateId: Int as uint32;
     userActionOpCode: Int as uint32;
     isPremiumUser: Bool;

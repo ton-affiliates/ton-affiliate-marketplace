@@ -25,9 +25,9 @@ export async function run(provider: NetworkProvider, args: string[]) {
 	}
 	
 	let campaignBalanceBefore = (await campaign.getCampaignData()).contractUSDTBalance;
-	console.log("campaignBalanceBefore: " + campaignBalanceBefore);
-	const userInputUSDT: string = await ui.input('Enter USDT amount to add as integer (e.g., 100, 250, 1000, etc...):');
-	const parsedUSDT: number = parseInt(userInputUSDT, 10); // Convert input to a number
+	console.log("campaignBalanceBefore: " + fromNano(campaignBalanceBefore));
+	const userInputUSDT: string = await ui.input('Enter USDT amount to withdraw:');
+	const parsedUSDT: number = parseFloat(userInputUSDT); // Convert input to a number
 
 	ui.write(`USDT amount entered by admin user: ${parsedUSDT}`);
 
@@ -48,7 +48,7 @@ export async function run(provider: NetworkProvider, args: string[]) {
 		}
 	);
 	
-    ui.write('Waiting for campaign to update fee percentage...');
+    ui.write('Waiting for campaign to update contractUSDTBalance...');
 
 	let campaignBalanceAfter = (await campaign.getCampaignData()).contractUSDTBalance;
     let attempt = 1;

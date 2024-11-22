@@ -114,6 +114,7 @@ let affiliate1: SandboxContract<TreasuryContract>;
 let unauthorizedUser: SandboxContract<TreasuryContract>;
 
 let campaignId = BigInt(0);
+const BOT_OP_CODE_USER_CLICK = BigInt(0);
 
 beforeEach(async () => {
     // Initialize blockchain and deployer wallets
@@ -218,20 +219,19 @@ describe('Affiliate Actions - Positive and Negative Tests for Affiliate Function
 		expect(affiliateData!.totalEarnings).toBe(BigInt(0));
 	
         // Perform a user action that accrues earnings for affiliate1
-        const userActionResult = await affiliateMarketplaceContract.send(
+        const userActionResult = await campaignContract.send(
             bot.getSender(),
             { value: toNano('0.05') },
             {
                 $$type: 'BotUserAction',
-                campaignId: campaignId,
-                affiliateId: BigInt(0), // ID corresponding to affiliate1
-                userActionOpCode: BigInt(0), // Valid op code
-                isPremiumUser: false
+                affiliateId: BigInt(0),
+                userActionOpCode: BigInt(BOT_OP_CODE_USER_CLICK),
+                isPremiumUser: false,
             }
         );
 		
         expect(userActionResult.transactions).toHaveTransaction({
-            from: affiliateMarketplaceContract.address,
+            from: bot.address,
             to: campaignContract.address,
             success: true
         });
@@ -269,20 +269,19 @@ describe('Affiliate Actions - Positive and Negative Tests for Affiliate Function
     it('should fail if affiliate tries to withdraw funds', async () => {
 	        
 		// Perform a user action that accrues earnings for affiliate1
-        const userActionResult = await affiliateMarketplaceContract.send(
+        const userActionResult = await campaignContract.send(
             bot.getSender(),
             { value: toNano('0.05') },
             {
                 $$type: 'BotUserAction',
-                campaignId: campaignId,
-                affiliateId: BigInt(0), // ID corresponding to affiliate1
-                userActionOpCode: BigInt(0), // Valid op code
-                isPremiumUser: false
+                affiliateId: BigInt(0),
+                userActionOpCode: BigInt(BOT_OP_CODE_USER_CLICK),
+                isPremiumUser: false,
             }
         );
 		
         expect(userActionResult.transactions).toHaveTransaction({
-            from: affiliateMarketplaceContract.address,
+            from: bot.address,
             to: campaignContract.address,
             success: true
         });

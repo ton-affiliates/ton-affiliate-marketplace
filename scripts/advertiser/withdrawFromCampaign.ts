@@ -1,8 +1,10 @@
-import { toNano, Address, fromNano } from '@ton/core';
+import { toNano, Address, fromNano, Dictionary } from '@ton/core';
 import { Campaign } from '../../wrappers/Campaign';
 import { AffiliateMarketplace } from '../../wrappers/AffiliateMarketplace';
 import { NetworkProvider, sleep } from '@ton/blueprint';
 import { AFFILIATE_MARKETPLACE_ADDRESS } from '../constants'
+
+
 
 export async function run(provider: NetworkProvider, args: string[]) {
     
@@ -18,34 +20,44 @@ export async function run(provider: NetworkProvider, args: string[]) {
     }
 	
 	const campaign = provider.open(Campaign.fromAddress(campaignAddress));
+	let campaignBalanceBefore = (await campaign.getCampaignData()).campaignBalance;
 	
-	const affiliateId = BigInt(args.length > 0 ? args[0] : await ui.input('Affiliate id'));		
-	let affiliateEarningsBefore = (await campaign.getAffiliateData(affiliateId))!.accruedEarnings;
+	const userInputAsString: string = await ui.input(`Enter amount to withdraw.  Max amount to withdraw ${fromNano(campaignBalanceBefore)}:`);
+	const parsedInput: number = parseFloat(userInputAsString); // Convert input to a number
 	
-	console.log(`Affiliate's earnings: ${fromNano(affiliateEarningsBefore)}`);
+	ui.write(`amount entered by user: ${parsedInput}`);
 
+	if (isNaN(parsedInput) || parsedInput <= 0) {
+		ui.write(`amount must be a positive integer!`);
+		return;
+	}
+		
+	
+			
 	await campaign.send(
         provider.sender(),
         { 
 			value: toNano('0.05') 
 		},
         { 
-			$$type: 'AffiliateWithdrawEarnings',
-			affiliateId: affiliateId
+			$$type: 'AdvertiserWithdrawFunds',
+			amount: toNano(userInputAsString)
 		}
 	);
 		
-    ui.write('Waiting for campaign to update earnings...');
-
-	let affiliateEarningsAfter = (await campaign.getAffiliateData(affiliateId))!.accruedEarnings;
+    ui.write('Waiting for campaign to update allowed affiliates...');
+	
+	let campaignBalanceAfter = (await campaign.getCampaignData()).campaignBalance;
     let attempt = 1;
-    while(affiliateEarningsBefore === affiliateEarningsAfter) {
+    while(campaignBalanceBefore === campaignBalanceAfter) {
         ui.setActionPrompt(`Attempt ${attempt}`);
         await sleep(2000);
-        affiliateEarningsAfter = (await campaign.getAffiliateData(affiliateId))!.accruedEarnings;
+		campaignBalanceAfter = (await campaign.getCampaignData()).campaignBalance;
         attempt++;
     }
 	
     ui.clearActionPrompt();
-    ui.write('Campaign updated successfully!');
+    ui.write('Funds transffered from campaign successfully!');
+
+	
 }

@@ -339,13 +339,12 @@ describe('AffiliateMarketplace Integration Test', () => {
         let campaignDataBeforeUserAction = await campaignContract.getCampaignData();
 
         // User Action - Regular user (Affiliate1)
-        const userActionResult = await affiliateMarketplaceContract.send(
+        const userActionResult = await campaignContract.send(
             bot.getSender(),
             { value: toNano('0.05') },
             {
                 $$type: 'BotUserAction',
-                campaignId: decodedCampaign!.campaignId,
-                affiliateId: decodedAffiliate1!.affiliateId,
+                affiliateId: BigInt(0),
                 userActionOpCode: BigInt(BOT_OP_CODE_USER_CLICK),
                 isPremiumUser: false,
             }
@@ -353,16 +352,10 @@ describe('AffiliateMarketplace Integration Test', () => {
 
         expect(userActionResult.transactions).toHaveTransaction({
             from: bot.address,
-            to: affiliateMarketplaceContract.address,
-            success: true,
-        });
-
-        expect(userActionResult.transactions).toHaveTransaction({
-            from: affiliateMarketplaceContract.address,
             to: campaignContract.address,
             success: true,
         });
-
+		
         expect(userActionResult.transactions).toHaveTransaction({
             from: campaignContract.address,
             to: affiliateMarketplaceContract.address,

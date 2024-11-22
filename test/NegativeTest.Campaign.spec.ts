@@ -293,12 +293,11 @@ describe('Negative Tests for Campaign', () => {
         });
 		
 		// user Action
-		const userActionResult = await affiliateMarketplaceContract.send(
+		const userActionResult = await campaignContract.send(
             bot.getSender(),
             { value: toNano('0.05') },
             {
                 $$type: 'BotUserAction',
-                campaignId: campaignId,
                 affiliateId: BigInt(0),
                 userActionOpCode: BigInt(BOT_OP_CODE_USER_CLICK),
                 isPremiumUser: false,
@@ -306,7 +305,7 @@ describe('Negative Tests for Campaign', () => {
         );
 
         expect(userActionResult.transactions).toHaveTransaction({
-            from: affiliateMarketplaceContract.address,
+            from: bot.address,
             to: campaignContract.address,
             success: true,
         });
