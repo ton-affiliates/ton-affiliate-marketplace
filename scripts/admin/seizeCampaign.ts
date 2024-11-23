@@ -17,6 +17,9 @@ export async function run(provider: NetworkProvider, args: string[]) {
         ui.write(`Error: Contract at address ${campaignAddress} is not deployed!`);
         return;
     }
+	
+	const campaign = provider.open(Campaign.fromAddress(campaignAddress));
+	let campaignBalanceBefore = (await campaign.getCampaignData()).contractTonBalance;
 
 	 await affiliateMarketplace.send(
         provider.sender(),
@@ -29,6 +32,17 @@ export async function run(provider: NetworkProvider, args: string[]) {
         }
     );
 
-    ui.write('Campaign should be removed...');
+    ui.write('Waiting for campaign to update contractTonBalance...');
+	
+	let campaignBalanceAfter = (await campaign.getCampaignData()).contractTonBalance;
+    let attempt = 1;
+    while(campaignBalanceBefore === campaignBalanceAfter) {
+        ui.setActionPrompt(`Attempt ${attempt}`);
+        await sleep(2000);
+		campaignBalanceAfter = (await campaign.getCampaignData()).contractTonBalance;
+        attempt++;
+    }
+	
     ui.clearActionPrompt();
+    ui.write('Campaign updated successfully!');
 }

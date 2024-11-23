@@ -52,13 +52,30 @@ export async function run(provider: NetworkProvider, args: string[]) {
 	const affiliateIdToAmountMap: Dictionary<bigint, bigint> = await loadAffiliateIdToAmountMap(userInputAsString);
 	
 	const campaign = provider.open(Campaign.fromAddress(campaignAddress));
+
+	for (const [key, value] of affiliateIdToAmountMap) {
+		
+		let affiliateData = await campaign.getAffiliateData(key);
+		if (affiliateData == null) {
+			ui.write(`Error: Affiliate ${key.toString()} does not exist!`);
+			return;
+		}
+		
+		let affiliateMaxWithdraw = affiliateData!	.accruedEarnings;
+		console.log(`Affiliate ID: ${key.toString()}, Amount to withdraw: ${fromNano(value.toString())}, Max amount to withdraw: ${fromNano(affiliateMaxWithdraw)}`);
+		if (affiliateMaxWithdraw < toNano(value.toString())) {
+			ui.write(`Error: Affiliate does not have sufficient funds to withdraw!`);
+			return;
+		}
+	}
+	
 	
 	let totalAccruedEarningsBefore = (await campaign.getCampaignData()).totalAccruedEarnings;
 			
 	await campaign.send(
         provider.sender(),
         { 
-			value: toNano('0.05') // might need to take more ton to cover for all affiliates
+			value: toNano('0.1') // might need to take more ton to cover for all affiliates
 		},
         { 
 			$$type: 'AdvertiserWithdrawEarningsForAffiliates',
