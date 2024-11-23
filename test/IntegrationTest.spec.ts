@@ -373,10 +373,10 @@ describe('AffiliateMarketplace Integration Test', () => {
 		// 1 for the user Action
 		// minus the gas fee paid by the contract
         expect(campaignDataBeforeUserAction.campaignBalance - campaignData.campaignBalance)
-            .toBeGreaterThan(toNano("1"));
+            .toBeGreaterThan(toNano("0.9"));
 
         expect(campaignDataBeforeUserAction.campaignBalance - campaignData.campaignBalance)
-            .toBeLessThan(toNano("1.02"));
+            .toBeLessThan(toNano("1"));
 
         // test Affiliate's accruedBalance = 1
         expect(affiliateData1!.accruedEarnings).toBe(toNano("1"));

@@ -36,11 +36,23 @@ const BOT_OP_CODE_USER_CLICK = 0;
 // 8: Cell overflow
 // 9: Cell underflow
 // 10: Dictionary error
+// 11: 'Unknown' error
+// 12: Fatal error
 // 13: Out of gas error
-// 32: Method ID not found
+// 14: Virtualization error
+// 32: Action list is invalid
+// 33: Action list is too long
 // 34: Action is invalid or not supported
+// 35: Invalid source address in outbound message
+// 36: Invalid destination address in outbound message
 // 37: Not enough TON
 // 38: Not enough extra-currencies
+// 39: Outbound message does not fit into a cell after rewriting
+// 40: Cannot process a message
+// 41: Library reference is null
+// 42: Library change action error
+// 43: Exceeded maximum number of cells in the library or the maximum depth of the Merkle tree
+// 50: Account state size exceeded limits
 // 128: Null reference exception
 // 129: Invalid serialization prefix
 // 130: Invalid incoming message
@@ -51,21 +63,39 @@ const BOT_OP_CODE_USER_CLICK = 0;
 // 135: Code of a contract was not found
 // 136: Invalid address
 // 137: Masterchain support is not enabled for this contract
+// 1919: Insufficient USDT funds to make transfer
 // 2509: Must have at least one wallet to withdraw to
 // 4138: Only the advertiser can add a new affiliate
+// 5136: Only TON or USDT supported as payment methods
+// 7226: Only advertiser can approve withdrawal
+// 10630: Must withdraw a positive amount
 // 11661: Only advertiser can verify these events
 // 12969: Must be in state: STATE_CAMPAIGN_DETAILS_SET_BY_ADVERTISER
 // 14486: Cannot find cpa for the given op code
-// 32363: No earnings to withdraw
+// 17062: Invalid amount
+// 18026: Only advertiser can modify affiliates withdrawl flag
+// 19587: Only the advertiser can remove an existing affiliate
+// 26205: Only USDT Campaigns can accept USDT
+// 26924: affiliate not approved yet
+// 26953: Only affiliate can withdraw funds
+// 27029: Cannot take from Affiliate more than their accruedEarnings
+// 33318: Insufficient funds to repay parent for deployment and keep buffer
 // 33594: Cannot manually add affiliates to an open campaign
 // 34905: Bot can verify only op codes under 2000
+// 35494: Affiliate with requiresAdvertiserApprovalForWithdrawl flag
+// 36010: Value of user action has to be a minimum of 0.02 TON
 // 36363: Only the advertiser can remove the campaign and withdraw all funds
+// 38795: Advertiser can only modify requiresApprovalForWithdrawlFlag if campaign is setup this way
+// 39945: Advertiser can only modify affiliate accrued earnings only if campaign is setup this requiresApprovalForWithdrawlFlag
 // 40058: Campaign has no funds
 // 40368: Contract stopped
-// 41412: Only affiliate can withdraw earnings
+// 40755: Only advertiser can send tokens to this contract
+// 42372: Only bot can invoke this function
 // 43100: Reached max number of affiliates for this campagn
+// 44215: Invalid indices
 // 44318: Only bot can Deploy new Campaign
 // 47193: Insufficient funds to repay parent for deployment
+// 48069: Affiliate does not exist for this id
 // 48874: Insufficient contract funds to make payment
 // 49469: Access denied
 // 49782: affiliate not on allowed list
@@ -75,10 +105,12 @@ const BOT_OP_CODE_USER_CLICK = 0;
 // 53296: Contract not stopped
 // 53456: Affiliate does not exist
 // 54206: Insufficient campaign balance to make payment
+// 57013: Affiliate without requiresAdvertiserApprovalForWithdrawl flag
 // 57313: Must be in state: STATE_CAMPAIGN_CREATED
 // 58053: OP codes for regular and premium users must match
+// 59035: Only contract wallet allowed to invoke
 // 60644: Advertiser can verify only op codes over 2000
-// 62634: Only bot can invoke User Actions
+// 61090: Value of user action has to be a minimum of 0.1 USDT
 
 beforeEach(async () => {
     // Initialize blockchain and deployer wallets
@@ -175,7 +207,7 @@ describe('Bot Actions - Positive and Negative Tests for Bot Functions', () => {
                     regularUsersCostPerAction: regularUsersMapCostPerActionMap,
                     premiumUsersCostPerAction: regularUsersMapCostPerActionMap,
                     allowedAffiliates: Dictionary.empty<Address, boolean>(),
-                    isOpenCampaign: false,
+                    isOpenCampaign: true,
                     campaignValidForNumDays: null,
 					paymentMethod: BigInt(0), // TON
 					requiresAdvertiserApprovalForWithdrawl: false
@@ -233,7 +265,7 @@ describe('Bot Actions - Positive and Negative Tests for Bot Functions', () => {
     it('should fail when a non-bot user tries to perform bot user action', async () => {
         
 		const createCampaignResult = await affiliateMarketplaceContract.send(
-            unauthorizedUser.getSender(),
+            bot.getSender(),
             { value: toNano('0.05') },
             { $$type: 'BotDeployNewCampaign' }
         );
@@ -261,7 +293,7 @@ describe('Bot Actions - Positive and Negative Tests for Bot Functions', () => {
                     regularUsersCostPerAction: regularUsersMapCostPerActionMap,
                     premiumUsersCostPerAction: regularUsersMapCostPerActionMap,
                     allowedAffiliates: Dictionary.empty<Address, boolean>(),
-                    isOpenCampaign: false,
+                    isOpenCampaign: true,
                     campaignValidForNumDays: null,
 					paymentMethod: BigInt(0), // TON
 					requiresAdvertiserApprovalForWithdrawl: false
@@ -299,7 +331,7 @@ describe('Bot Actions - Positive and Negative Tests for Bot Functions', () => {
             from: unauthorizedUser.address,
             to: campaignContract.address,
             success: false,
-            exitCode: 62634 // Exit code for unauthorized bot action
+            exitCode: 42372 // Only bot can invoke this function
         });
     });
 
@@ -335,7 +367,7 @@ describe('Bot Actions - Positive and Negative Tests for Bot Functions', () => {
                     regularUsersCostPerAction: regularUsersMapCostPerActionMap,
                     premiumUsersCostPerAction: regularUsersMapCostPerActionMap,
                     allowedAffiliates: Dictionary.empty<Address, boolean>(),
-                    isOpenCampaign: false,
+                    isOpenCampaign: true,
                     campaignValidForNumDays: null,
 					paymentMethod: BigInt(0), // TON
 					requiresAdvertiserApprovalForWithdrawl: false
