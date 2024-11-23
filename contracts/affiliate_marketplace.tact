@@ -65,6 +65,7 @@ struct CampaignData {
     campaignHasSufficientFundsToPayMaxCpa: Bool;
     isCampaignExpired: Bool;
     isCampaignPausedByAdmin: Bool;
+    isCampaignActive: Bool;
 }
 
 struct JettonWalletData {
@@ -438,10 +439,8 @@ contract Campaign with Resumable {
 
     receive(msg: AdvertiserModifyAffiliateRequiresApprovalForWithdrawlFlag) {
         
-        require(sender() == self.advertiser, "Only advertiser can modify affiliates withdrawl flag");
-        require(self.state == STATE_CAMPAIGN_DETAILS_SET_BY_ADVERTISER, "Must be in state: STATE_CAMPAIGN_DETAILS_SET_BY_ADVERTISER");
-        require(self.campaignDetails.requiresAdvertiserApprovalForWithdrawl, "Advertiser can only modify requiresApprovalForWithdrawlFlag if campaign is setup this way");
-        
+        require(self.isCampaignActive(), "Campaign is not active");
+
         let affiliateDataOptional = self.affiliates.get(msg.affiliateId);
         require(affiliateDataOptional != null, "Affiliate does not exist");
         let affiliateData: AffiliateData = affiliateDataOptional!!;
@@ -472,9 +471,7 @@ contract Campaign with Resumable {
 
     receive(msg: AffiliateCreateNewAffiliate) {
 
-        self.requireNotStopped();
-        require(self.state == STATE_CAMPAIGN_DETAILS_SET_BY_ADVERTISER, "Must be in state: STATE_CAMPAIGN_DETAILS_SET_BY_ADVERTISER");
-        require(!self.isCampaignExpired(), "Campaign is expired");
+        require(self.isCampaignActive(), "Campaign is not active");
 
         let numAffiliates = self.currAffiliateId;
         require(numAffiliates <= MAX_NUM_AFFILIATES, "Reached max number of affiliates for this campagn");
@@ -519,9 +516,7 @@ contract Campaign with Resumable {
 
     fun setAffiliateAllowedListStatus(affiliate: Address, isAllowed: Bool?) {
 
-        self.requireNotStopped();
-        require(self.state == STATE_CAMPAIGN_DETAILS_SET_BY_ADVERTISER, "Must be in state: STATE_CAMPAIGN_DETAILS_SET_BY_ADVERTISER");
-        require(!self.isCampaignExpired(), "Campaign is expired");
+        require(self.isCampaignActive(), "Campaign is not active");
 
         // Check if the campaign is not open (closed campaign)
         require(!self.campaignDetails.isOpenCampaign, "Cannot manually add affiliates to an open campaign");
@@ -641,9 +636,7 @@ contract Campaign with Resumable {
 
     fun applyUserAction(userActionOpCode: Int, affiliateId: Int, isPremiumUser: Bool) {
 
-        self.requireNotStopped();
-        require(self.state == STATE_CAMPAIGN_DETAILS_SET_BY_ADVERTISER, "Must be in state: STATE_CAMPAIGN_DETAILS_SET_BY_ADVERTISER");
-        require(!self.isCampaignExpired(), "Campaign is expired");
+        require(self.isCampaignActive(), "Campaign is not active");
 
         let affiliateDataOptional = self.affiliates.get(affiliateId);
         require(affiliateDataOptional != null, "Affiliate does not exist");
@@ -739,6 +732,34 @@ contract Campaign with Resumable {
         self.bouncedPayment(msg.affiliateId, msg.amount);
     }
 
+    fun isCampaignActive(): Bool {
+        
+        // Check if the campaign details are set
+        if (self.state != STATE_CAMPAIGN_DETAILS_SET_BY_ADVERTISER) {
+            return false;
+        }
+
+        // Check if the contract is not stopped (paused by admin)
+        if (self.stopped) {
+            return false;
+        }
+
+        // Check if the campaign is not expired
+        if (self.isCampaignExpired()) {
+            return false;
+        }
+
+        // Check if the campaign has sufficient funds to pay the maximum CPA
+        let campaignBalance: Int = self.calcCampaignBalance();
+        if (!self.campaignHasSufficientFundsToPayMaxCpa(campaignBalance)) {
+            return false;
+        }
+
+        // If all checks pass, the campaign is active
+        return true;
+    }
+
+
     get fun campaignData(): CampaignData {
         return CampaignData {
             campaignId: self.campaignId,
@@ -761,7 +782,8 @@ contract Campaign with Resumable {
             feePercentage: self.feePercentage,
             campaignHasSufficientFundsToPayMaxCpa: self.campaignHasSufficientFundsToPayMaxCpa(self.calcCampaignBalance()), // ha sufficient balance to pay max CPA
             isCampaignExpired: self.isCampaignExpired(),
-            isCampaignPausedByAdmin: self.stopped
+            isCampaignPausedByAdmin: self.stopped,
+            isCampaignActive: self.isCampaignActive()
         }
     }
 
