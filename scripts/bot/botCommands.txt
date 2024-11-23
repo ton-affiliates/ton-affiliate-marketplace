@@ -51,6 +51,7 @@
 	- Contract USDT Balance: 0 USDT
 
 	Status:
+	- Active: Yes
 	- Sufficient Funds for Max CPA: Yes  
 	- Campaign Expired: No
 	- Campaign Paused by Admin: No
@@ -66,7 +67,7 @@
 /askToJoin {campaignId}
 	- Usage Context: This command is only applicable to private campaigns (isPrivateCampaign = true).
 
-/joinCampaign {campaignId}
+/createNewAffiliate {campaignId}
 	- returns {affiliateId} and {affiliateLink}  // affiliate link is "tonaffiliates.com/{campaignId}/{affiliateId}"
 
 	example:
