@@ -376,7 +376,7 @@ describe('AffiliateMarketplace Integration Test', () => {
             .toBeGreaterThan(toNano("0.9"));
 
         expect(campaignDataBeforeUserAction.campaignBalance - campaignData.campaignBalance)
-            .toBeLessThan(toNano("1"));
+            .toBeLessThan(toNano("1.1"));
 
         // test Affiliate's accruedBalance = 1
         expect(affiliateData1!.accruedEarnings).toBe(toNano("1"));

@@ -363,10 +363,7 @@ contract Campaign with Resumable {
 		}
 		
 		send(SendParameters{
-            to: self.owner,
-            body: ChildToParentSeizeCampaign{
-                campaignId: self.campaignId
-            }.toCell(),
+            to: self.payout,
             value: 0,
             mode: SendRemainingBalance
         });
@@ -621,7 +618,7 @@ contract Campaign with Resumable {
         // return gas fees to bot
         send(SendParameters{
             to: self.bot,
-            value: GAS_FEE,  // return gas fee paid by the bot
+            value: context().value,  // return gas fee paid by the bot
             mode: SendPayGasSeparately
         });
     }
@@ -903,8 +900,8 @@ contract AffiliateMarketplace with Deployable, Resumable  {
             body: ParentToChildUpdateFeePercentage{
                 feePercentage: msg.feePercentage
             }.toCell(),
-            value: GAS_FEE,
-            mode: SendPayGasSeparately
+            value: 0,
+            mode: SendRemainingValue
         });
     }
 
@@ -918,8 +915,8 @@ contract AffiliateMarketplace with Deployable, Resumable  {
         send(SendParameters{
             to: campaignContractAddress,
             body: "Stop".asComment(), 
-            value: GAS_FEE,
-            mode: SendPayGasSeparately
+            value: 0,
+            mode: SendRemainingValue
         });
     }
 
@@ -933,8 +930,8 @@ contract AffiliateMarketplace with Deployable, Resumable  {
         send(SendParameters{
             to: campaignContractAddress,
             body: "Resume".asComment(), 
-            value: GAS_FEE,
-            mode: SendPayGasSeparately
+            value: 0,
+            mode: SendRemainingValue
         });
     }
 
@@ -948,8 +945,8 @@ contract AffiliateMarketplace with Deployable, Resumable  {
         send(SendParameters{
             to: campaignContractAddress,
             body: ParentToChildSeizeCampaign{}.toCell(), 
-            value: GAS_FEE,
-            mode: SendPayGasSeparately
+            value: 0,
+            mode: SendRemainingValue
         });
     }
 
@@ -966,8 +963,8 @@ contract AffiliateMarketplace with Deployable, Resumable  {
                 affiliateId: msg.affiliateId,
                 amount: msg.amount
             }.toCell(),
-            value: GAS_FEE,
-            mode: SendPayGasSeparately
+            value: 0,
+            mode: SendRemainingValue
         });
     }
 
@@ -983,8 +980,8 @@ contract AffiliateMarketplace with Deployable, Resumable  {
             body: ParentToChildJettonNotificationMessageFailure{
                 amount: msg.amount
             }.toCell(),
-            value: GAS_FEE,
-            mode: SendPayGasSeparately
+            value: 0,
+            mode: SendRemainingValue
         });
     }
 
@@ -1000,8 +997,8 @@ contract AffiliateMarketplace with Deployable, Resumable  {
             body: ParentToChildWithdrawUSDTToPayout{
                 amount: msg.amount
             }.toCell(),
-            value: GAS_FEE,
-            mode: SendPayGasSeparately
+            value: 0,
+            mode: SendRemainingValue
         });
     }
 	
@@ -1124,17 +1121,6 @@ contract AffiliateMarketplace with Deployable, Resumable  {
             campaignContractAddress: expectedAddress
         }.toCell());
     }
-
-    receive(msg: ChildToParentSeizeCampaign) {
-
-        let expectedAddress: Address = contractAddress(self.campaignContractStateInit(msg.campaignId));
-        require(sender() == expectedAddress, "Access denied");
-
-        emit(CampaignSeizedEvent{
-            campaignId: msg.campaignId,
-            amountSeized: context().value
-        }.toCell());
-    } 
 
     // receive any amount of incoming TON
     receive() {}

@@ -58,11 +58,6 @@ message AdvertiserSignedCampaignDetailsEvent {
 	advertiser: Address;
 }
 
-message CampaignSeizedEvent{
-    campaignId: Int as uint32;
-    amountSeized: Int as coins;
-}
-
 message AffiliateCreatedEvent {
     campaignId: Int as uint32;
     affiliateId: Int as uint32;
@@ -195,10 +190,6 @@ message AdvertiserWithdrawEarningsForAffiliates {
 // Child to Parent - INTERNAL Messages
 message ChildToParentCampaignDeployedSuccessfully {
     campaignId: Int as uint32; 
-}
-
-message ChildToParentSeizeCampaign {
-    campaignId: Int as uint32;
 }
 
 message ChildToParentAffiliateCreated {

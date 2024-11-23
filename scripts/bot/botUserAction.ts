@@ -32,7 +32,6 @@ export async function run(provider: NetworkProvider, args: string[]) {
         },
         {
            $$type: 'BotUserAction',
-		   campaignId: campaignId,
 		   affiliateId: affiliateId,
            userActionOpCode: userActionOpCode,
            isPremiumUser: isPremiumUser
