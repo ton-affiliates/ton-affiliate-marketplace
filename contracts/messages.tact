@@ -227,10 +227,6 @@ message ChildToParentAdvertiserWithdrawFunds{
     amount: Int as coins;
 }
 
-message ChildToParentBotUserActionFee {
-    campaignId: Int as uint32;
-}
-
 message ChildToParentInsufficientCampaignFunds {
     campaignId: Int as uint32;
     advertiser: Address;

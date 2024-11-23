@@ -356,9 +356,9 @@ describe('AffiliateMarketplace Integration Test', () => {
             success: true,
         });
 		
-        expect(userActionResult.transactions).toHaveTransaction({
+		expect(userActionResult.transactions).toHaveTransaction({
             from: campaignContract.address,
-            to: affiliateMarketplaceContract.address,
+            to: bot.address,
             success: true,
         });
 

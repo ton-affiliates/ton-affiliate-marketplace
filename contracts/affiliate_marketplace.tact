@@ -623,16 +623,12 @@ contract Campaign with Resumable {
 
         self.applyUserAction(msg.userActionOpCode, msg.affiliateId, msg.isPremiumUser);
 
-        // return gas fees to owner
+        // return gas fees to bot
         send(SendParameters{
-            to: self.owner,
-            body: ChildToParentBotUserActionFee{
-                campaignId: self.campaignId
-            }.toCell(),
-            value: GAS_FEE*2,  // return gas fee paid by the owner contract
-            mode: SendPayGasSeparately | SendIgnoreErrors
+            to: self.bot,
+            value: GAS_FEE,  // return gas fee paid by the bot
+            mode: SendPayGasSeparately
         });
-        
     }
 
     receive(msg: AdvertiserUserAction) {
@@ -643,7 +639,7 @@ contract Campaign with Resumable {
         self.applyUserAction(msg.userActionOpCode, msg.affiliateId, msg.isPremiumUser);
     }
 
-    fun applyUserAction(userActionOpCode: Int, affiliateId: Int, isPremiumUser: Bool): Bool {
+    fun applyUserAction(userActionOpCode: Int, affiliateId: Int, isPremiumUser: Bool) {
 
         self.requireNotStopped();
         require(self.state == STATE_CAMPAIGN_DETAILS_SET_BY_ADVERTISER, "Must be in state: STATE_CAMPAIGN_DETAILS_SET_BY_ADVERTISER");
@@ -705,9 +701,6 @@ contract Campaign with Resumable {
                 mode: SendPayGasSeparately | SendIgnoreErrors
             });
         } 
-
-        return true;
-
     }
     
     // Jetton notification did not arrive.  
@@ -988,11 +981,6 @@ contract AffiliateMarketplace with Deployable, Resumable  {
             value: GAS_FEE,
             mode: SendPayGasSeparately
         });
-    }
-
-    receive(msg: ChildToParentBotUserActionFee) {
-        let expectedAddress: Address = contractAddress(self.campaignContractStateInit(msg.campaignId));
-        require(sender() == expectedAddress, "Access denied");
     }
 	
 	receive(msg: ChildToParentAdvertiserModifiedAllowedList) {
