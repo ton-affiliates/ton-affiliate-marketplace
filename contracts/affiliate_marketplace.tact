@@ -39,8 +39,8 @@ struct AffiliateData {
     userActionsStats: map<Int, UserActionStats>;
     premiumUserActionsStats: map<Int, UserActionStats>;
     accruedEarnings: Int as coins;
-    totalEarnings: Int as coins;
-	requiresAdvertiserApprovalForWithdrawl: Bool;
+    totalEarnings: Int as coins; // over time
+	withdrawEarnings: Int as coins; // earnings ready to withdraw now
 }
 
 struct CampaignData {
@@ -257,25 +257,33 @@ contract Campaign with Resumable {
     }
 
     // Function to handle affiliate withdrawals (supports both TON and USDT)
-    fun withdrawl(affiliateId: Int, withdrawalAmount: Int) {
-        
+    receive(msg: AffiliateWithdrawEarnings) {
+
         self.requireNotStopped();
-        require(withdrawalAmount > 0,"Must withdraw a positive amount");
+
+        require(context().value >= GAS_FEE*3, "Insufficient gas fees to withdraw earnings");
         
-        let affiliateDataOptional = self.affiliates.get(affiliateId);
+        let affiliateDataOptional = self.affiliates.get(msg.affiliateId);
         require(affiliateDataOptional != null, "Affiliate does not exist");
         let affiliateData: AffiliateData = affiliateDataOptional!!;
 
-        let affiliateAccruedEarnings = affiliateData.accruedEarnings;
-        require(affiliateAccruedEarnings > 0 && withdrawalAmount <= affiliateAccruedEarnings, "Invalid amount");
+        require(sender() == affiliateData.affiliate, "Only affiliate can withdraw funds");
+        
+        if (!self.campaignDetails.requiresAdvertiserApprovalForWithdrawl) {
+            affiliateData.withdrawEarnings = affiliateData.accruedEarnings;
+            affiliateData.accruedEarnings = ton("0");
+        }
+
+        let withdrawalAmount = affiliateData.withdrawEarnings;
+        require(withdrawalAmount > 0,"Must withdraw a positive amount");
+
+        // update state
+        affiliateData.withdrawEarnings = ton("0");
+        self.affiliates.set(msg.affiliateId, affiliateData);
 
         // Calculate the net amount after fees
         let fee: Int = (withdrawalAmount * self.feePercentage + 9999) / 10000;  // e.g., fee=200 = 2%
         let netAmount: Int = withdrawalAmount - fee;
-
-        // Update affiliate’s accrued earnings
-        affiliateData.accruedEarnings = affiliateAccruedEarnings - withdrawalAmount;
-        self.affiliates.set(affiliateId, affiliateData);
 
         // Update campaign’s total accrued earnings
         self.totalAccruedEarnings = self.totalAccruedEarnings - withdrawalAmount;
@@ -295,7 +303,7 @@ contract Campaign with Resumable {
                 to: affiliateData.affiliate,
                 value: netAmount,
                 bounce: true,
-                body: PayAffiliate{affiliateId: affiliateId, amount: withdrawalAmount}.toCell(),
+                body: PayAffiliate{affiliateId: msg.affiliateId, amount: withdrawalAmount}.toCell(),
                 mode: SendPayGasSeparately | SendIgnoreErrors
             });
         } else {
@@ -310,7 +318,7 @@ contract Campaign with Resumable {
             body: ChildToParentAffiliateWithdrawEarningsFee{
                 campaignId: self.campaignId,
                 advertiser: self.advertiser,
-                affiliateId: affiliateId,
+                affiliateId: msg.affiliateId,
                 earnings: netAmount,
                 fee: fee
             }.toCell(),
@@ -319,32 +327,32 @@ contract Campaign with Resumable {
         });
     }
 
-    // Function to handle affiliate withdrawals (supports both TON and USDT)
-    receive(msg: AffiliateWithdrawEarnings) {
-        
-        let affiliateDataOptional = self.affiliates.get(msg.affiliateId);
-        require(affiliateDataOptional != null, "Affiliate does not exist");
-        let affiliateData: AffiliateData = affiliateDataOptional!!;
+    // advertiser sends ONLY affiliates that need a modification in earnings (sends their updated earnings)
+    // at the end of the month the advertiser signs off all affiliates to withdraw their earnings
+    receive(msg: AdvertiserSignOffWithdraw) {
 
-        require(!affiliateData.requiresAdvertiserApprovalForWithdrawl, "Affiliate with requiresAdvertiserApprovalForWithdrawl flag");
-        require(sender() == affiliateData.affiliate, "Only affiliate can withdraw funds");
-
-        self.withdrawl(msg.affiliateId, affiliateData.accruedEarnings);
-    }
-
-    // Function to handle affiliate withdrawals (supports both TON and USDT)
-    receive(msg: AdvertiserWithdrawEarningsForAffiliates) {
-        
         require(sender() == self.advertiser, "Only advertiser can approve withdrawal");
+        require(self.state == STATE_CAMPAIGN_DETAILS_SET_BY_ADVERTISER, "Must be in state: STATE_CAMPAIGN_DETAILS_SET_BY_ADVERTISER");
+        require(self.campaignDetails.requiresAdvertiserApprovalForWithdrawl, "Advertiser can only modify affiliate accrued earnings only if campaign is setup this requiresApprovalForWithdrawlFlag");
 
-        foreach(affiliateId, withdrawalAmount in msg.affiliatesEarnings) {
+        foreach(affiliateId, affiliateData in self.affiliates) {
             
-			let affiliateDataOptional = self.affiliates.get(affiliateId);
-			require(affiliateDataOptional != null, "Affiliate does not exist");
-			let affiliateData: AffiliateData = affiliateDataOptional!!;
-			require(affiliateData.requiresAdvertiserApprovalForWithdrawl, "Affiliate without requiresAdvertiserApprovalForWithdrawl flag");
-            
-			self.withdrawl(affiliateId, withdrawalAmount);
+            if (msg.setAffiliatesWithdrawEarnings.get(affiliateId) != null) {
+                
+                let amountToWithdraw: Int = msg.setAffiliatesWithdrawEarnings.get(affiliateId)!!;
+                require(amountToWithdraw < affiliateData.accruedEarnings, "Cannot give this affiliate more than accrued earnings");
+                
+                affiliateData.withdrawEarnings = amountToWithdraw;
+                let diff = affiliateData.accruedEarnings - amountToWithdraw;
+                
+                affiliateData.totalEarnings -= diff; // update also total earnings
+                self.totalAccruedEarnings -= diff; // return diff to campaign
+            } else {
+                affiliateData.withdrawEarnings = affiliateData.accruedEarnings;
+            }
+
+            affiliateData.accruedEarnings = ton("0");
+            self.affiliates.set(affiliateId, affiliateData);
         }
     }
 
@@ -429,46 +437,14 @@ contract Campaign with Resumable {
 
     // Function to handle advertiser replenishment
     receive(msg: AdvertiserReplenish) {
-        self.requireNotStopped();
         require(self.state == STATE_CAMPAIGN_DETAILS_SET_BY_ADVERTISER, "Must be in state: STATE_CAMPAIGN_DETAILS_SET_BY_ADVERTISER");
         require(sender() == self.advertiser, "Only the advertiser can replenish the contract");
-    }
-
-    receive(msg: AdvertiserModifyAffiliateRequiresApprovalForWithdrawlFlag) {
-        
-        require(self.isCampaignActive(), "Campaign is not active");
-
-        let affiliateDataOptional = self.affiliates.get(msg.affiliateId);
-        require(affiliateDataOptional != null, "Affiliate does not exist");
-        let affiliateData: AffiliateData = affiliateDataOptional!!;
-
-        affiliateData.requiresAdvertiserApprovalForWithdrawl = msg.requiresAdvertiserApprovalForWithdrawl;
-        self.affiliates.set(msg.affiliateId, affiliateData);
-    }
-	
-	receive(msg: AdvertiserModifyAffiliateAccruedEarnings) {
-        
-        require(sender() == self.advertiser, "Only advertiser can modify affiliates withdrawl flag");
-        require(self.state == STATE_CAMPAIGN_DETAILS_SET_BY_ADVERTISER, "Must be in state: STATE_CAMPAIGN_DETAILS_SET_BY_ADVERTISER");
-        require(self.campaignDetails.requiresAdvertiserApprovalForWithdrawl, "Advertiser can only modify affiliate accrued earnings only if campaign is setup this requiresApprovalForWithdrawlFlag");
-        
-        let affiliateDataOptional = self.affiliates.get(msg.affiliateId);
-        require(affiliateDataOptional != null, "Affiliate does not exist");
-        let affiliateData: AffiliateData = affiliateDataOptional!!;
-		
-		require(msg.amount <= affiliateData.accruedEarnings, "Cannot take from Affiliate more than their accruedEarnings");
-		
-        // Update affiliate’s accrued earnings
-        affiliateData.accruedEarnings = affiliateData.accruedEarnings - msg.amount;
-        affiliateData.totalEarnings = affiliateData.totalEarnings - msg.amount;
-        self.affiliates.set(msg.affiliateId, affiliateData);
-		
-		self.totalAccruedEarnings = self.totalAccruedEarnings - msg.amount; // return funds back to campaign 
     }
 
     receive(msg: AffiliateCreateNewAffiliate) {
 
         require(self.isCampaignActive(), "Campaign is not active");
+		require(context().value >= GAS_FEE*2, "Insufficient gas fees to create affiliate");
 
         let numAffiliates = self.currAffiliateId;
         require(numAffiliates <= MAX_NUM_AFFILIATES, "Reached max number of affiliates for this campagn");
@@ -494,7 +470,7 @@ contract Campaign with Resumable {
             premiumUserActionsStats: premiumUserActionsStats, 
             accruedEarnings: ton("0"),
             totalEarnings: ton("0"),
-            requiresAdvertiserApprovalForWithdrawl: self.campaignDetails.requiresAdvertiserApprovalForWithdrawl
+			withdrawEarnings: ton("0")
         });
 
         // notify parent
@@ -612,6 +588,7 @@ contract Campaign with Resumable {
 
         require(sender() == self.bot, "Only bot can invoke this function");
         require(msg.userActionOpCode <= USER_ACTION_OP_CODES_BOT, "Bot can verify only op codes under 2000");
+        require(myBalance() >= context().value, "Insufficient contract funds to repay bot");
 
         self.applyUserAction(msg.userActionOpCode, msg.affiliateId, msg.isPremiumUser);
 
@@ -712,7 +689,7 @@ contract Campaign with Resumable {
 		require(affiliateDataOptional != null, "Affiliate does not exist for this id");
 		// pay affiliate
 		let affiliateData: AffiliateData = affiliateDataOptional!!;
-		affiliateData.accruedEarnings = affiliateData.accruedEarnings + amount;
+		affiliateData.withdrawEarnings = affiliateData.withdrawEarnings + amount;
 		self.affiliates.set(affiliateId, affiliateData);
 		self.totalAccruedEarnings = self.totalAccruedEarnings + amount;
     }

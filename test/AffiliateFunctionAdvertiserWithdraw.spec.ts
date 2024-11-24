@@ -39,63 +39,58 @@
 // 136: Invalid address
 // 137: Masterchain support is not enabled for this contract
 // 1919: Insufficient USDT funds to make transfer
-// 2432: Only contract wallet can invoke
 // 2509: Must have at least one wallet to withdraw to
-// 3688: Not mintable
 // 4138: Only the advertiser can add a new affiliate
-// 4429: Invalid sender
+// 5136: Only TON or USDT supported as payment methods
 // 7226: Only advertiser can approve withdrawal
+// 10630: Must withdraw a positive amount
 // 11661: Only advertiser can verify these events
-// 12241: Max supply exceeded
 // 12969: Must be in state: STATE_CAMPAIGN_DETAILS_SET_BY_ADVERTISER
-// 13965: Invalid destinationId!
 // 14486: Cannot find cpa for the given op code
-// 14534: Not owner
-// 16059: Invalid value
-// 17062: Invalid amount
-// 18026: Only advertiser can modify affiliates withdrawl flag
-// 18668: Can't Mint Anymore
-// 23951: Insufficient gas
+// 19587: Only the advertiser can remove an existing affiliate
+// 20411: Insufficient contract funds to repay bot
+// 24142: Campaign is not active
 // 26205: Only USDT Campaigns can accept USDT
+// 26924: affiliate not approved yet
 // 26953: Only affiliate can withdraw funds
-// 30892: Only owner can deploy
+// 29677: Cannot give this affiliate more than accrued earnings
 // 33318: Insufficient funds to repay parent for deployment and keep buffer
 // 33594: Cannot manually add affiliates to an open campaign
-// 34085: Only TON supported as payment method
 // 34905: Bot can verify only op codes under 2000
-// 35494: Affiliate with requiresAdvertiserApprovalForWithdrawl flag
+// 36010: Value of user action has to be a minimum of 0.02 TON
 // 36363: Only the advertiser can remove the campaign and withdraw all funds
+// 39945: Advertiser can only modify affiliate accrued earnings only if campaign is setup this requiresApprovalForWithdrawlFlag
 // 40058: Campaign has no funds
 // 40368: Contract stopped
 // 40755: Only advertiser can send tokens to this contract
-// 42708: Invalid sender!
+// 42372: Only bot can invoke this function
 // 43100: Reached max number of affiliates for this campagn
-// 43422: Invalid value - Burn
+// 44215: Invalid indices
 // 44318: Only bot can Deploy new Campaign
+// 45028: Insufficient gas fees to withdraw earnings
+// 47193: Insufficient funds to repay parent for deployment
+// 48069: Affiliate does not exist for this id
 // 48874: Insufficient contract funds to make payment
 // 49469: Access denied
 // 49782: affiliate not on allowed list
 // 50865: owner must be deployer
-// 52003: Campaign is expired
 // 53205: Only the advertiser can replenish the contract
 // 53296: Contract not stopped
 // 53456: Affiliate does not exist
 // 54206: Insufficient campaign balance to make payment
-// 57013: Affiliate without requiresAdvertiserApprovalForWithdrawl flag
+// 56536: Insufficient gas fees to create affiliate
 // 57313: Must be in state: STATE_CAMPAIGN_CREATED
 // 58053: OP codes for regular and premium users must match
 // 59035: Only contract wallet allowed to invoke
 // 60644: Advertiser can verify only op codes over 2000
-// 62634: Only bot can invoke User Actions
-// 62972: Invalid balance
-
+// 61090: Value of user action has to be a minimum of 0.1 USDT
 // Import necessary modules and utilities from @ton/sandbox, @ton/core, and other dependencies
 import {
     Blockchain,
     SandboxContract,
     TreasuryContract
 } from '@ton/sandbox';
-import { toNano, Address, Dictionary } from '@ton/core';
+import { toNano, Address, fromNano, Dictionary } from '@ton/core';
 import { AffiliateMarketplace } from '../build/AffiliateMarketplace/tact_AffiliateMarketplace';
 import { Campaign } from '../build/Campaign/tact_Campaign';
 import '@ton/test-utils';
@@ -174,7 +169,7 @@ beforeEach(async () => {
 
     // Advertiser sets campaign details and funds the campaign, allowing only affiliate1
     const regularUsersMapCostPerActionMap = Dictionary.empty<bigint, bigint>();
-    regularUsersMapCostPerActionMap.set(BigInt(0), toNano('0.1')); // Sample op code
+    regularUsersMapCostPerActionMap.set(BOT_OP_CODE_USER_CLICK, toNano('0.1')); // Sample op code
 
     await campaignContract.send(
         advertiser.getSender(),
@@ -211,13 +206,12 @@ beforeEach(async () => {
 describe('Affiliate Actions - Positive and Negative Tests for Affiliate Functions', () => {
 
     it('should allow advertiser to withdraw for affiliate', async () => {
-		
-		let affiliateBalanceBeforeWithdrawl = await affiliate1.getBalance();
-		
+				
 		let affiliateData = await campaignContract.getAffiliateData(BigInt(0));
         expect(affiliateData!.accruedEarnings).toBe(BigInt(0));
 		expect(affiliateData!.totalEarnings).toBe(BigInt(0));
-	
+		expect(affiliateData!.withdrawEarnings).toBe(BigInt(0));
+		
         // Perform a user action that accrues earnings for affiliate1
         const userActionResult = await campaignContract.send(
             bot.getSender(),
@@ -236,33 +230,65 @@ describe('Affiliate Actions - Positive and Negative Tests for Affiliate Function
             success: true
         });
 		
-        // Confirm that affiliate1 accrued earnings
+		expect(userActionResult.transactions).toHaveTransaction({
+            from: campaignContract.address,
+            to: bot.address,
+            success: true
+        });
+		
         affiliateData = await campaignContract.getAffiliateData(BigInt(0));
         expect(affiliateData!.accruedEarnings).toBeGreaterThan(BigInt(0));
 		expect(affiliateData!.totalEarnings).toBeGreaterThan(BigInt(0));
+		expect(affiliateData!.withdrawEarnings).toBe(BigInt(0));
+		
+		let campaignBalanceBefore = (await campaignContract.getCampaignData()).campaignBalance;
 				
-		// advertiser withdraw 
-		const advetiserWithdrawForAffiliateResult = await campaignContract.send(
+		// advertiser set 0.05 less
+		const advetiserModifyAffiliatesEarningsResult = await campaignContract.send(
             advertiser.getSender(),
             { value: toNano('0.05') },
             {
-                $$type: 'AdvertiserWithdrawEarningsForAffiliates',
-                affiliatesEarnings: Dictionary.empty<bigint, bigint>().set(BigInt(0), affiliateData!.accruedEarnings) //map<Int, Int>; 
+                $$type: 'AdvertiserSignOffWithdraw',
+                setAffiliatesWithdrawEarnings: Dictionary.empty<bigint, bigint>().set(BigInt(0), toNano("0.05")) //map<Int, Int>; 
             }
         );
 		
-		expect(advetiserWithdrawForAffiliateResult.transactions).toHaveTransaction({
+		expect(advetiserModifyAffiliatesEarningsResult.transactions).toHaveTransaction({
             from: advertiser.address,
             to: campaignContract.address,
             success: true
         });
+		
+		let campaignBalanceAfter = (await campaignContract.getCampaignData()).campaignBalance;
+		
+		console.log(fromNano(campaignBalanceAfter - campaignBalanceBefore));
+		expect(campaignBalanceAfter - campaignBalanceBefore).toBeGreaterThan(BigInt(0));
+		
+		affiliateData = await campaignContract.getAffiliateData(BigInt(0));
+        expect(affiliateData!.accruedEarnings).toBe(BigInt(0));
+		expect(affiliateData!.totalEarnings).toBeGreaterThan(BigInt(0));
+		expect(affiliateData!.withdrawEarnings).toBeGreaterThan(BigInt(0));
+		
+		// finally affiliate to withdraw
+		const affiliateWithdrawResult = await campaignContract.send(
+            affiliate1.getSender(),
+            { value: toNano('0.05') },
+            { $$type: 'AffiliateWithdrawEarnings', affiliateId: BigInt(0) }
+        );
+
+        expect(affiliateWithdrawResult.transactions).toHaveTransaction({
+            from: affiliate1.address,
+            to: campaignContract.address,
+            success: true,
+        });
+		
+		
 				
 		affiliateData = await campaignContract.getAffiliateData(BigInt(0));
         expect(affiliateData!.accruedEarnings).toBe(BigInt(0));
 		expect(affiliateData!.totalEarnings).toBeGreaterThan(BigInt(0)); // total earnings do not change
+		expect(affiliateData!.withdrawEarnings).toBe(BigInt(0));
 		
-		let affiliateBalance = await affiliate1.getBalance();
-		expect(affiliateBalance - affiliateBalanceBeforeWithdrawl).toBeGreaterThan(toNano("0"));
 		
     });
 
@@ -287,25 +313,20 @@ describe('Affiliate Actions - Positive and Negative Tests for Affiliate Function
         });
 		
 		let affiliateData = await campaignContract.getAffiliateData(BigInt(0));
-		const affiliateEarnings = affiliateData!.accruedEarnings;
-        expect(affiliateEarnings).toBeGreaterThan(0);
+        expect(affiliateData!.accruedEarnings).toBeGreaterThan(BigInt(0));
+		expect(affiliateData!.withdrawEarnings).toBe(BigInt(0));
 		
-		// affiliate tries to withdraw and fails
-		const advetiserWithdrawForAffiliateResult = await campaignContract.send(
+		const affiliateWithdrawResult = await campaignContract.send(
             affiliate1.getSender(),
             { value: toNano('0.05') },
-            {
-                $$type: 'AdvertiserWithdrawEarningsForAffiliates',
-                affiliatesEarnings: Dictionary.empty<bigint, bigint>().set(BigInt(0), affiliateEarnings) //map<Int, Int>; 
-            }
+            { $$type: 'AffiliateWithdrawEarnings', affiliateId: BigInt(0) }
         );
-				
-		expect(advetiserWithdrawForAffiliateResult.transactions).toHaveTransaction({
+
+        expect(affiliateWithdrawResult.transactions).toHaveTransaction({
             from: affiliate1.address,
             to: campaignContract.address,
             success: false,
-			exitCode: 7226 //Only advertiser can approve withdrawal
-			
+			exitCode: 10630 //: Must withdraw a positive amount
         });
     });
 });

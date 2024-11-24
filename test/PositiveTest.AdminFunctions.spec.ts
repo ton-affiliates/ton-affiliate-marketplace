@@ -397,7 +397,7 @@ describe('Administrative Actions - positive test', () => {
         });
 		
 		affiliateData = await campaignContract.getAffiliateData(BigInt(0));
-		expect(affiliateData!.accruedEarnings).toBe(toNano('10'));
+		expect(affiliateData!.withdrawEarnings).toBe(toNano('10'));
     });
  
 });

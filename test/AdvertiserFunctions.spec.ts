@@ -552,90 +552,6 @@ describe('Advertiser Actions - Positive and Negative Tests for Advertiser Functi
     });
 	
 	
-	it('should allow the advertiser to modify affiliate earnings', async () => {
-        // Set campaign details so advertiser becomes registered
-        const regularUsersMapCostPerActionMap = Dictionary.empty<bigint, bigint>();
-        regularUsersMapCostPerActionMap.set(BigInt(2001), toNano('0.2')); // Custom op code for advertiser action
-
-        await campaignContract.send(
-            advertiser.getSender(),
-            { value: toNano('10') },
-            {
-                $$type: 'AdvertiserSetCampaignDetails',
-                campaignDetails: {
-                    $$type: 'CampaignDetails',
-                    regularUsersCostPerAction: regularUsersMapCostPerActionMap,
-                    premiumUsersCostPerAction: regularUsersMapCostPerActionMap,
-                    allowedAffiliates: Dictionary.empty<Address, boolean>().set(affiliate1.address, true),
-                    isOpenCampaign: false,
-                    campaignValidForNumDays: null,
-					paymentMethod: BigInt(0), // TON
-					requiresAdvertiserApprovalForWithdrawl: true
-                }
-            }
-        );
-		
-		const createAffiliateResult = await campaignContract.send(
-			affiliate1.getSender(),
-			{ value: toNano('0.05') },
-			{ $$type: 'AffiliateCreateNewAffiliate' }
-		);
-
-		expect(createAffiliateResult.transactions).toHaveTransaction({
-			from: affiliate1.address,
-			to: campaignContract.address,
-			success: true
-		});
-
-        // Verify a custom user action by the advertiser
-        const userActionResult = await campaignContract.send(
-            advertiser.getSender(),
-            { value: toNano('0.05') },
-            {
-                $$type: 'AdvertiserUserAction',
-                affiliateId: BigInt(0), // Matching affiliate1's ID
-                userActionOpCode: BigInt(2001), // Custom op code set by advertiser
-                isPremiumUser: false
-            }
-        );
-
-        expect(userActionResult.transactions).toHaveTransaction({
-            from: advertiser.address,
-            to: campaignContract.address,
-            success: true
-        });
-
-        // Confirm earnings accrued for affiliate1 from advertiser's action
-        let affiliateData = await campaignContract.getAffiliateData(BigInt(0));
-		let accruedEarningsBeforeModify = affiliateData!.accruedEarnings;
-        expect(accruedEarningsBeforeModify).toBeGreaterThan(0);
-		
-		let campaignDataBeforeModification = await campaignContract.getCampaignData();
-		
-		const advetiserModifyAffilateEarningsResult = await campaignContract.send(
-			advertiser.getSender(),
-			{ value: toNano('0.05') },
-			{ $$type: 'AdvertiserModifyAffiliateAccruedEarnings',
-			  affiliateId: BigInt(0),
-			  amount: accruedEarningsBeforeModify  // remove all earnings
-			}
-		);
-
-		expect(advetiserModifyAffilateEarningsResult.transactions).toHaveTransaction({
-			from: advertiser.address,
-			to: campaignContract.address,
-			success: true
-		});
-		
-		affiliateData = await campaignContract.getAffiliateData(BigInt(0n));
-        expect(affiliateData!.accruedEarnings).toBe(0n);
-		
-		let campaignData = await campaignContract.getCampaignData();
-		
-		expect(campaignData.campaignBalance - campaignDataBeforeModification.campaignBalance).toBeGreaterThan(0n);
-		//expect(campaignData.campaignBalance - campaignDataBeforeModification.campaignBalance).toBeLessThan(accruedEarningsBeforeModify);
-    });
-	
 	
 	it('should not allow the advertiser to modify affiliate earnings if requiresAdvertiserApprovalForWithdrawl is false', async () => {
         // Set campaign details so advertiser becomes registered
@@ -698,9 +614,8 @@ describe('Advertiser Actions - Positive and Negative Tests for Advertiser Functi
 		const advetiserModifyAffilateEarningsResult = await campaignContract.send(
 			advertiser.getSender(),
 			{ value: toNano('0.05') },
-			{ $$type: 'AdvertiserModifyAffiliateAccruedEarnings',
-			  affiliateId: BigInt(0),
-			  amount: toNano("0")
+			{ $$type: 'AdvertiserSignOffWithdraw',
+			  setAffiliatesWithdrawEarnings: Dictionary.empty<bigint, bigint>().set(BigInt(0), toNano("0")) 
 			}
 		);
 
@@ -716,7 +631,7 @@ describe('Advertiser Actions - Positive and Negative Tests for Advertiser Functi
     });
 	
 	
-	it('should fail if advertiser modifies with amount  > affiliate earnings', async () => {
+	it('should fail if advertiser modifies with amount  >= affiliate earnings', async () => {
         // Set campaign details so advertiser becomes registered
         const regularUsersMapCostPerActionMap = Dictionary.empty<bigint, bigint>();
         regularUsersMapCostPerActionMap.set(BigInt(2001), toNano('0.2')); // Custom op code for advertiser action
@@ -778,17 +693,17 @@ describe('Advertiser Actions - Positive and Negative Tests for Advertiser Functi
 		const advetiserModifyAffilateEarningsResult = await campaignContract.send(
 			advertiser.getSender(),
 			{ value: toNano('0.05') },
-			{ $$type: 'AdvertiserModifyAffiliateAccruedEarnings',
-			  affiliateId: BigInt(0),
-			  amount: affiliateData!.accruedEarnings + BigInt(1)  // remove amount > all earnings
-			}
+			{ 
+			  $$type: 'AdvertiserSignOffWithdraw',
+               setAffiliatesWithdrawEarnings: Dictionary.empty<bigint, bigint>().set(BigInt(0), toNano("50")) //map<Int, Int>; 
+            }
 		);
 
 		expect(advetiserModifyAffilateEarningsResult.transactions).toHaveTransaction({
 			from: advertiser.address,
 			to: campaignContract.address,
 			success: false,
-			exitCode: 27029 //: Cannot take from Affiliate more than their accruedEarnings
+			exitCode: 29677  //: Cannot give this affiliate more than accrued earnings
 		});
 		
 	});
