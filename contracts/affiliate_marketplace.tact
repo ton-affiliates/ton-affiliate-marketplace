@@ -268,12 +268,7 @@ contract Campaign with Resumable {
         let affiliateData: AffiliateData = affiliateDataOptional!!;
 
         require(sender() == affiliateData.affiliate, "Only affiliate can withdraw funds");
-        
-        if (!self.campaignDetails.requiresAdvertiserApprovalForWithdrawl) {
-            affiliateData.withdrawEarnings = affiliateData.accruedEarnings;
-            affiliateData.accruedEarnings = ton("0");
-        }
-
+    
         let withdrawalAmount = affiliateData.withdrawEarnings;
         require(withdrawalAmount > 0,"Must withdraw a positive amount");
 
@@ -303,7 +298,7 @@ contract Campaign with Resumable {
                 to: affiliateData.affiliate,
                 value: netAmount,
                 bounce: true,
-                body: PayAffiliate{affiliateId: msg.affiliateId, amount: withdrawalAmount}.toCell(),
+                body: PayAffiliate{affiliateId: msg.affiliateId, amount: netAmount}.toCell(),
                 mode: SendPayGasSeparately | SendIgnoreErrors
             });
         } else {
@@ -635,24 +630,28 @@ contract Campaign with Resumable {
         let currTime: Int = now();
         if (isPremiumUser) {
             let userActionStats: UserActionStats = affiliateData.premiumUserActionsStats.get(userActionOpCode)!!;
-            userActionStats.numActions = userActionStats.numActions + 1;
+            userActionStats.numActions += 1;
             userActionStats.lastUserActionTimestamp = currTime; 
             affiliateData.premiumUserActionsStats.set(userActionOpCode, userActionStats);
         } else {
             let userActionStats: UserActionStats = affiliateData.userActionsStats.get(userActionOpCode)!!;
-            userActionStats.numActions = userActionStats.numActions + 1;
+            userActionStats.numActions += 1;
             userActionStats.lastUserActionTimestamp = currTime; 
             affiliateData.userActionsStats.set(userActionOpCode, userActionStats);
         }
 
         // Accumulate the earnings for the affiliate
-        affiliateData.accruedEarnings = affiliateData.accruedEarnings + costPerAction;
-        affiliateData.totalEarnings = affiliateData.totalEarnings + costPerAction;
+        if (self.campaignDetails.requiresAdvertiserApprovalForWithdrawl) {
+            affiliateData.accruedEarnings += costPerAction;
+        } else {
+            affiliateData.withdrawEarnings += costPerAction;
+        }
+        affiliateData.totalEarnings += costPerAction;
         self.affiliates.set(affiliateId, affiliateData);  // update affiliate data
 
         self.lastUserActionTimestamp = currTime;
-        self.numUserActions = self.numUserActions + 1;
-        self.totalAccruedEarnings = self.totalAccruedEarnings + costPerAction;
+        self.numUserActions += 1;
+        self.totalAccruedEarnings += costPerAction;
 
         // messages
         if (!self.campaignHasSufficientFundsToPayMaxCpa(newCampaignBalance)) {
@@ -689,7 +688,7 @@ contract Campaign with Resumable {
 		require(affiliateDataOptional != null, "Affiliate does not exist for this id");
 		// pay affiliate
 		let affiliateData: AffiliateData = affiliateDataOptional!!;
-		affiliateData.withdrawEarnings = affiliateData.withdrawEarnings + amount;
+		affiliateData.withdrawEarnings += amount;
 		self.affiliates.set(affiliateId, affiliateData);
 		self.totalAccruedEarnings = self.totalAccruedEarnings + amount;
     }

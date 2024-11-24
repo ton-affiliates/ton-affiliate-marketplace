@@ -237,7 +237,7 @@ describe('Affiliate Actions - Positive and Negative Tests for Affiliate Function
 
         // Confirm that affiliate1 accrued earnings
         const affiliateData = await campaignContract.getAffiliateData(BigInt(0));
-        expect(affiliateData!.accruedEarnings).toBeGreaterThan(0);
+        expect(affiliateData!.withdrawEarnings).toBeGreaterThan(0);
     });
 
     it('should allow an authorized affiliate to withdraw accrued earnings', async () => {

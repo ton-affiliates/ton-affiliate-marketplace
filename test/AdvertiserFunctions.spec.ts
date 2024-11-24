@@ -506,7 +506,7 @@ describe('Advertiser Actions - Positive and Negative Tests for Advertiser Functi
 
         // Confirm earnings accrued for affiliate1 from advertiser's action
         const affiliateData = await campaignContract.getAffiliateData(BigInt(0));
-        expect(affiliateData!.accruedEarnings).toBeGreaterThan(0);
+        expect(affiliateData!.withdrawEarnings).toBeGreaterThan(0);
     });
 
     it('should fail when a non-advertiser tries to withdraw campaign funds after setting details', async () => {
@@ -608,7 +608,7 @@ describe('Advertiser Actions - Positive and Negative Tests for Advertiser Functi
 
         // Confirm earnings accrued for affiliate1 from advertiser's action
         let affiliateData = await campaignContract.getAffiliateData(BigInt(0));
-        expect(affiliateData!.accruedEarnings).toBeGreaterThan(0);
+        expect(affiliateData!.withdrawEarnings).toBeGreaterThan(0);
 		
 		
 		const advetiserModifyAffilateEarningsResult = await campaignContract.send(
@@ -627,7 +627,7 @@ describe('Advertiser Actions - Positive and Negative Tests for Advertiser Functi
 		});
 		
 		affiliateData = await campaignContract.getAffiliateData(BigInt(0));
-        expect(affiliateData!.accruedEarnings).toBeGreaterThan(0);
+        expect(affiliateData!.withdrawEarnings).toBeGreaterThan(0);
     });
 	
 	

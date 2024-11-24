@@ -283,7 +283,7 @@ describe('AffiliateMarketplace Integration Test', () => {
         let affiliateData1 : any | null = await campaignContract.getAffiliateData(decodedAffiliate1!.affiliateId);
 		
 		expect(affiliateData1!.affiliate.toString()).toBe(affiliate1.address.toString());
-        expect(affiliateData1!.accruedEarnings).toBe(toNano("0"));
+        expect(affiliateData1!.withdrawEarnings).toBe(toNano("0"));
 
          // expect stats to be 0
         const emptyUserActionStat: UserActionStats = {
@@ -332,7 +332,7 @@ describe('AffiliateMarketplace Integration Test', () => {
         let affiliateData2 : any | null = await campaignContract.getAffiliateData(decodedAffiliate2!.affiliateId);
 
          // test: affiliate1's accrued balance is 0 (no user actions yet)
-         expect(affiliateData2!.accruedEarnings).toBe(toNano("0"));
+         expect(affiliateData2!.withdrawEarnings).toBe(toNano("0"));
 
         // ------------------------------------------------------------------------------------------
 
@@ -379,7 +379,7 @@ describe('AffiliateMarketplace Integration Test', () => {
             .toBeLessThan(toNano("1.1"));
 
         // test Affiliate's accruedBalance = 1
-        expect(affiliateData1!.accruedEarnings).toBe(toNano("1"));
+        expect(affiliateData1!.withdrawEarnings).toBe(toNano("1"));
 		
 		expect(affiliateData1!.userActionsStats.get(BigInt(BOT_OP_CODE_USER_CLICK)).numActions).toBe(BigInt(1));
 		expect(affiliateData1!.userActionsStats.get(BigInt(BOT_OP_CODE_USER_CLICK)).lastUserActionTimestamp).toBeGreaterThan(BigInt(0));
@@ -466,7 +466,7 @@ describe('AffiliateMarketplace Integration Test', () => {
         expect(affiliateData2!.premiumUserActionsStats.get(BigInt(ADVERTISER_OP_CODE_CUSTOMIZED_EVENT)).numActions).toBe(BigInt(1));
 
         // test: Affiliate's accrued earnings is now 15
-        expect(affiliateData2!.accruedEarnings).toBe(toNano("15"));
+        expect(affiliateData2!.withdrawEarnings).toBe(toNano("15"));
 
         //-------------------------------------------------------------------------------------------
         let affiliateBalanceBeforeWithdraw = await affiliate1.getBalance();
@@ -512,7 +512,7 @@ describe('AffiliateMarketplace Integration Test', () => {
         affiliateData1 = await campaignContract.getAffiliateData(decodedAffiliate1!.affiliateId);
 		
         // test: Affiliate's accrued earnings is now 0
-        expect(affiliateData1!.accruedEarnings).toBe(toNano("0"));
+        expect(affiliateData1!.withdrawEarnings).toBe(toNano("0"));
 				
         let affiliateBalance = await affiliate1.getBalance();
 		let deployerBalance = await deployer.getBalance();
@@ -621,7 +621,7 @@ describe('AffiliateMarketplace Integration Test', () => {
         affiliateData2 = await campaignContract.getAffiliateData(decodedAffiliate2!.affiliateId);
 
         // test: Affiliate's accrued earnings is now 0
-        expect(affiliateData2!.accruedEarnings).toBe(toNano("0"));
+        expect(affiliateData2!.withdrawEarnings).toBe(toNano("0"));
 
 
       
