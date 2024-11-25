@@ -14,6 +14,7 @@
 
 
 /replenishCampaign {campaignId} {amount}
+	- if paymentMethod == 'USDT': run(replenishUSDT) else: run(replenishCampaign)
 
 /approveAffiliate {affiliateAddress}
 	- Usage Context: This command is only applicable to private campaigns (isPrivateCampaign = true).
@@ -22,10 +23,22 @@
 
 /withdrawFunds {campaignId} {amount}
 
-/withdrawEarningsForAffiliates {campaignId} {affiliateIdToAmountMap}  
+/signOff {campaignId} {affiliateIdToWithdrawAmountMap}  
 	- Usage Context: This command is only applicable to campaigns where  (requiresApproval = true).
-	- Example: /withdrawEarningsForAffiliates 123456 {1: 100, 5: 200}
-
+	- Advertiser should pass in ONLY affiliates that their accrued earnings should be reduced.
+	- After this command comp
+	- Example:
+	- State Before:
+		accruedEarnings:
+			0: 5
+			1: 20
+			2: 100
+	- advertiser: /signOff 123456 {0: 3, 2: 25}
+	- State After:
+		withdrawEarnings:
+			0: 3
+			1: 20
+			2: 25
 	
 
 /campaignData
@@ -71,7 +84,7 @@
 	- returns {affiliateId} and {affiliateLink}  // affiliate link is "tonaffiliates.com/{campaignId}/{affiliateId}"
 
 	example:
-	/joinCampaign 123456
+	/createNewAffiliate 123456
 
 	Affiliate successfully created!
 	-----------------------------------
@@ -93,8 +106,9 @@
 	Affiliate Data for Campaign ID: 123456
 	Affiliate Address: 1QBO1TCk7uDT59a8d6js0pHqgNfS25tB7Y0WJDX9w-EncINQ
 	---------------------------------------
-	- Accrued Earnings: 150 TON
-	- Requires Advertiser Approval for Withdrawal: Yes
+	- Total Earnings: 70 TON // all earnings over time for this affiliate
+	- Accrued Earnings: 15 TON // accrued earnings yet to be approved by the advertiser for campaigns with 'requiresApproval' flag
+	- Withdrawable Earnings: 25 TON 
 
 	User Actions Stats:
 	- Regular User Actions:
