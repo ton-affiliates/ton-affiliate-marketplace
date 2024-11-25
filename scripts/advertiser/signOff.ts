@@ -48,12 +48,12 @@ export async function run(provider: NetworkProvider, args: string[]) {
         return;
     }
 	
-	const userInputAsString: string = args.length > 1 ? args[1] : await ui.input('affiliateIdToAmountMap: i.e. {1: 100, 2: 200}');
-	const affiliateIdToAmountMap: Dictionary<bigint, bigint> = await loadAffiliateIdToAmountMap(userInputAsString);
+	const userInputAsString: string = args.length > 1 ? args[1] : await ui.input('affiliateIdToAccruedEarningsMap: i.e. {1: 100, 2: 200}');
+	const affiliateIdToAccruedEarningsMap: Dictionary<bigint, bigint> = await loadAffiliateIdToAmountMap(userInputAsString);
 	
 	const campaign = provider.open(Campaign.fromAddress(campaignAddress));
 
-	for (const [key, value] of affiliateIdToAmountMap) {
+	for (const [key, value] of affiliateIdToAccruedEarningsMap) {
 		
 		let affiliateData = await campaign.getAffiliateData(key);
 		if (affiliateData == null) {
@@ -61,12 +61,18 @@ export async function run(provider: NetworkProvider, args: string[]) {
 			return;
 		}
 		
-		let affiliateMaxWithdraw = affiliateData!	.accruedEarnings;
-		console.log(`Affiliate ID: ${key.toString()}, Amount to withdraw: ${fromNano(value.toString())}, Max amount to withdraw: ${fromNano(affiliateMaxWithdraw)}`);
-		if (affiliateMaxWithdraw < toNano(value.toString())) {
+		let affiliateMaxWithdraw = affiliateData!.accruedEarnings;
+		console.log(`Affiliate ID: ${key.toString()}, valueSetByAdvertiser: ${fromNano(value.toString())}, accruedEarnings: ${fromNano(affiliateMaxWithdraw)}`);
+		
+		if (affiliateMaxWithdraw < value) {
 			ui.write(`Error: Affiliate does not have sufficient funds to withdraw!`);
 			return;
 		}
+		
+		console.log(`AffiliateData after update for affiliate: ${key} - 
+			accruedEarnings: ${fromNano(affiliateData!.accruedEarnings)}
+			withdrawEarnings: ${fromNano(affiliateData!.withdrawEarnings)}
+			totalEarnings: ${fromNano(affiliateData!.totalEarnings)}`);
 	}
 	
 	
@@ -75,15 +81,15 @@ export async function run(provider: NetworkProvider, args: string[]) {
 	await campaign.send(
         provider.sender(),
         { 
-			value: toNano('0.1') // might need to take more ton to cover for all affiliates
+			value: toNano('1') // will get diff back from contract
 		},
         { 
-			$$type: 'AdvertiserWithdrawEarningsForAffiliates',
-			affiliatesEarnings: affiliateIdToAmountMap
+			$$type: 'AdvertiserSignOffWithdraw',
+			setAffiliatesWithdrawEarnings: affiliateIdToAccruedEarningsMap
 		}
 	);
 		
-    ui.write('Waiting for campaign to update allowed affiliates...');
+    ui.write('Waiting for campaign to update...');
 	
 	let totalAccruedEarningsAfter = (await campaign.getCampaignData()).totalAccruedEarnings;
     let attempt = 1;
@@ -96,6 +102,16 @@ export async function run(provider: NetworkProvider, args: string[]) {
 	
     ui.clearActionPrompt();
     ui.write('Campaign updated successfully!');
+	
+	
+	for (const [key, value] of affiliateIdToAccruedEarningsMap) {
+		
+		let affiliateDataAfter = await campaign.getAffiliateData(key);
+		console.log(`AffiliateData after update for affiliate: ${key} - 
+			accruedEarnings: ${fromNano(affiliateDataAfter!.accruedEarnings)}
+			withdrawEarnings: ${fromNano(affiliateDataAfter!.withdrawEarnings)}
+			totalEarnings: ${fromNano(affiliateDataAfter!.totalEarnings)}`);
+	}
 
 	
 }

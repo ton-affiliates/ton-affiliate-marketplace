@@ -4,7 +4,7 @@ import "@stdlib/deploy";
 import "./messages.tact";
 
 // constants
-const MAX_NUM_AFFILIATES: Int = 20000;
+const MAX_NUM_AFFILIATES: Int = 10000;
 
 const STATE_CAMPAIGN_CREATED: Int = 0;
 const STATE_CAMPAIGN_DETAILS_SET_BY_ADVERTISER: Int = 1;
@@ -329,7 +329,7 @@ contract Campaign with Resumable {
         require(sender() == self.advertiser, "Only advertiser can approve withdrawal");
         require(self.state == STATE_CAMPAIGN_DETAILS_SET_BY_ADVERTISER, "Must be in state: STATE_CAMPAIGN_DETAILS_SET_BY_ADVERTISER");
         require(self.campaignDetails.requiresAdvertiserApprovalForWithdrawl, "Advertiser can only modify affiliate accrued earnings only if campaign is setup this requiresApprovalForWithdrawlFlag");
-
+        
         foreach(affiliateId, affiliateData in self.affiliates) {
             
             if (msg.setAffiliatesWithdrawEarnings.get(affiliateId) != null) {
@@ -337,18 +337,25 @@ contract Campaign with Resumable {
                 let amountToWithdraw: Int = msg.setAffiliatesWithdrawEarnings.get(affiliateId)!!;
                 require(amountToWithdraw < affiliateData.accruedEarnings, "Cannot give this affiliate more than accrued earnings");
                 
-                affiliateData.withdrawEarnings = amountToWithdraw;
-                let diff = affiliateData.accruedEarnings - amountToWithdraw;
+                affiliateData.withdrawEarnings = affiliateData.withdrawEarnings + amountToWithdraw;
+                let diff: Int = affiliateData.accruedEarnings - amountToWithdraw;
                 
-                affiliateData.totalEarnings -= diff; // update also total earnings
-                self.totalAccruedEarnings -= diff; // return diff to campaign
+                affiliateData.totalEarnings = affiliateData.totalEarnings - diff; // update also total earnings
+                self.totalAccruedEarnings = self.totalAccruedEarnings - diff; // return diff to campaign
             } else {
-                affiliateData.withdrawEarnings = affiliateData.accruedEarnings;
+                affiliateData.withdrawEarnings += affiliateData.accruedEarnings;
             }
 
             affiliateData.accruedEarnings = ton("0");
             self.affiliates.set(affiliateId, affiliateData);
         }
+		
+		// send remaining value back to advertiser
+		send(SendParameters{
+            to: self.advertiser,
+            value: 0,
+            mode: SendRemainingValue 
+        });
     }
 
     receive(msg: ParentToChildUpdateFeePercentage) {
@@ -583,7 +590,7 @@ contract Campaign with Resumable {
 
         require(sender() == self.bot, "Only bot can invoke this function");
         require(msg.userActionOpCode <= USER_ACTION_OP_CODES_BOT, "Bot can verify only op codes under 2000");
-        require(myBalance() >= context().value, "Insufficient contract funds to repay bot");
+        require(myBalance() > context().value, "Insufficient contract funds to repay bot");
 
         self.applyUserAction(msg.userActionOpCode, msg.affiliateId, msg.isPremiumUser);
 
@@ -672,7 +679,7 @@ contract Campaign with Resumable {
     // Jetton notification did not arrive.  
     receive(msg: ParentToChildJettonNotificationMessageFailure) {
         self.requireOwner();
-        self.contractUSDTBalance = self.contractUSDTBalance + msg.amount;
+        self.contractUSDTBalance += msg.amount;
     } 
 
     // Function to withdraw any amount of USDT stuck in the contract for any reason

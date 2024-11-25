@@ -20,7 +20,7 @@ export async function run(provider: NetworkProvider, args: string[]) {
 	const campaign = provider.open(Campaign.fromAddress(campaignAddress));
 	
 	const affiliateId = BigInt(args.length > 0 ? args[0] : await ui.input('Affiliate id'));		
-	let affiliateEarningsBefore = (await campaign.getAffiliateData(affiliateId))!.accruedEarnings;
+	let affiliateEarningsBefore = (await campaign.getAffiliateData(affiliateId))!.withdrawEarnings;
 	
 	console.log(`Affiliate's earnings: ${fromNano(affiliateEarningsBefore)}`);
 
@@ -37,12 +37,12 @@ export async function run(provider: NetworkProvider, args: string[]) {
 		
     ui.write('Waiting for campaign to update earnings...');
 
-	let affiliateEarningsAfter = (await campaign.getAffiliateData(affiliateId))!.accruedEarnings;
+	let affiliateEarningsAfter = (await campaign.getAffiliateData(affiliateId))!.withdrawEarnings;
     let attempt = 1;
     while(affiliateEarningsBefore === affiliateEarningsAfter) {
         ui.setActionPrompt(`Attempt ${attempt}`);
         await sleep(2000);
-        affiliateEarningsAfter = (await campaign.getAffiliateData(affiliateId))!.accruedEarnings;
+        affiliateEarningsAfter = (await campaign.getAffiliateData(affiliateId))!.withdrawEarnings;
         attempt++;
     }
 	
