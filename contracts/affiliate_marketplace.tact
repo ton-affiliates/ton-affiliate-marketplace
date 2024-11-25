@@ -11,7 +11,7 @@ const STATE_CAMPAIGN_DETAILS_SET_BY_ADVERTISER: Int = 1;
 
 const DEPLOY_NEW_CONTRACT_COST: Int = ton("0.1");
 const GAS_FEE: Int = ton("0.01");
-const CAMPAIGN_BUFFER: Int = ton("1");
+const CAMPAIGN_BUFFER: Int = ton("0.5");
 
 const USER_ACTION_OP_CODES_BOT: Int = 2000;
 
@@ -327,7 +327,6 @@ contract Campaign with Resumable {
     receive(msg: AdvertiserSignOffWithdraw) {
 
         require(sender() == self.advertiser, "Only advertiser can approve withdrawal");
-        require(self.state == STATE_CAMPAIGN_DETAILS_SET_BY_ADVERTISER, "Must be in state: STATE_CAMPAIGN_DETAILS_SET_BY_ADVERTISER");
         require(self.campaignDetails.requiresAdvertiserApprovalForWithdrawl, "Advertiser can only modify affiliate accrued earnings only if campaign is setup this requiresApprovalForWithdrawlFlag");
         
         foreach(affiliateId, affiliateData in self.affiliates) {
@@ -734,6 +733,11 @@ contract Campaign with Resumable {
         if (!self.campaignHasSufficientFundsToPayMaxCpa(campaignBalance)) {
             return false;
         }
+		
+		// Check if there are sufficient TON funds for gas fees
+		if (myBalance() < CAMPAIGN_BUFFER) {
+			return false;
+		}
 
         // If all checks pass, the campaign is active
         return true;

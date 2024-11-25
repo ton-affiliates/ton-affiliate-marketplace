@@ -78,8 +78,10 @@ export async function run(provider: NetworkProvider, args: string[]) {
 	
 	ui.write(`Calculated buffer (TON): ${fromNano(bufferNanoTON)} TON`);
 	
-    // Minimum buffer in TON (e.g., 0.02 TON)
-    const minimumBufferNanoTON = toNano('0.02');
+    // Minimum buffer in TON (e.g., 1 TON)
+	let contractTonBalance = campaignData.contractTonBalance;
+    let minimumBufferNanoTON = contractTonBalance >= Constants.MIN_BUFFER_GAS_FEES ? toNano("0") : (Constants.MIN_BUFFER_GAS_FEES - contractTonBalance);
+	minimumBufferNanoTON = minimumBufferNanoTON + toNano("0.02");
     const finalBufferNanoTON = bufferNanoTON > minimumBufferNanoTON ? bufferNanoTON : minimumBufferNanoTON;
 
     // Output final buffer in TON
@@ -139,7 +141,7 @@ export async function run(provider: NetworkProvider, args: string[]) {
         attempt++;
     }
 	
-	console.log("campaignBalanceAfter(fromNano): " + fromNano(campaignBalanceAfter));
+	console.log("\n campaignBalanceAfter(fromNano): " + fromNano(campaignBalanceAfter));
 	// convert from 9 decials to string -> 6 decimals -> back to string
 	
     ui.clearActionPrompt();
