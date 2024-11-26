@@ -56,8 +56,8 @@ struct CampaignData {
     lastUserActionTimestamp: Int as uint32;
     numUserActions: Int as uint32;
     campaignBalance: Int as coins;
-    contractBalance: Int as coins;  // balance 
-    contractTonBalance: Int as coins;
+    maxCpaValue: Int as coins;
+    contractTonBalance: Int as coins;  // myBalance
     contractAddress: Address;
     contractUSDTBalance: Int as coins;
     contractUsdtJettonWallet: Address;
@@ -175,15 +175,9 @@ contract Campaign with Resumable {
 
     // Function to calculate campaign balance (supports TON and USDT)
     fun calcCampaignBalance(): Int {
-        let campaignBalance: Int = self.calcContractBalance() - self.totalAccruedEarnings;
-        return max(campaignBalance, ton("0"));
-    }
-
-    // Helper function to calculate contract balance (TON case)
-    fun calcContractBalance(): Int {
         if (self.campaignDetails.paymentMethod == PAYMENT_METHOD_TON) {
-            let contractBalance: Int = myBalance() - CAMPAIGN_BUFFER;
-            return max(contractBalance, ton("0"));
+            let campaignBalance: Int = myBalance() - CAMPAIGN_BUFFER - self.totalAccruedEarnings;
+            return max(campaignBalance, ton("0"));
         } else {
             return self.contractUSDTBalance;
         }
@@ -742,7 +736,7 @@ contract Campaign with Resumable {
             numUserActions: self.numUserActions,
             state: self.state,
             campaignBalance: self.calcCampaignBalance(),
-            contractBalance: self.calcContractBalance(),
+            maxCpaValue: self.maxCpaValue,
             contractTonBalance: myBalance(),
             contractAddress: myAddress(),
             contractUSDTBalance: self.contractUSDTBalance,  // 9 decimals

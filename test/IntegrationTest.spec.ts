@@ -124,7 +124,6 @@ describe('AffiliateMarketplace Integration Test', () => {
 
         expect(campaignData.owner.toString()).toBe(affiliateMarketplaceContract.address.toString());
         expect(campaignData.state).toBe(BigInt(0)); // state: CAMPAIGN_CREATED
-        expect(campaignData.contractBalance).toBe(toNano("0")); 
         expect(campaignData.campaignBalance).toBe(toNano("0"));
 		
 
@@ -209,7 +208,6 @@ describe('AffiliateMarketplace Integration Test', () => {
 		
 		let expectedContractBalance = 10 - CAMPAIGN_BUFFER -0.1 - 0.1 - GAS;  // 0.1 - deploy contract fee which is taken twice (one for deploying the campaign contract and one for the wallet)
 		let expectedCampaignBalance = expectedContractBalance;  // still the same since no user actions occured yet
-        expect(campaignData.contractBalance).toBeGreaterThan(toNano(expectedContractBalance.toString())); // 10 - Buffer - gas spent 
         expect(campaignData.campaignBalance).toBeGreaterThan(toNano(expectedCampaignBalance.toString())); // minus another 1 TON buffer
         
         let affiliateMarketplaceBalanceAfterAdvertiserSetDetails = await affiliateMarketplaceContract.getBalance();
@@ -243,7 +241,7 @@ describe('AffiliateMarketplace Integration Test', () => {
         });
 
         campaignData = await campaignContract.getCampaignData();
-        expect(campaignData.contractBalance).toBeGreaterThan(campaignDataBeforeReplenish.contractBalance); 
+        expect(campaignData.contractTonBalance).toBeGreaterThan(campaignDataBeforeReplenish.contractTonBalance); 
         expect(campaignData.campaignBalance).toBeGreaterThan(campaignDataBeforeReplenish.campaignBalance); 
 
 
@@ -364,7 +362,7 @@ describe('AffiliateMarketplace Integration Test', () => {
         affiliateData1 = await campaignContract.getAffiliateData(decodedAffiliate1!.affiliateId);
 
 		// contract balance - should only remove gas fees (for this function it is around ~0.03 TON)
-        expect(campaignDataBeforeUserAction.contractBalance - campaignData.contractBalance)
+        expect(campaignDataBeforeUserAction.contractTonBalance - campaignData.contractTonBalance)
             .toBeLessThan(toNano("0.04"));
 			
         // campaignBalance ~ 1 less than it was before this user action
@@ -424,7 +422,7 @@ describe('AffiliateMarketplace Integration Test', () => {
 		expect(campaignData.totalAccruedEarnings - campaignDataBeforeCustomizedEvent.totalAccruedEarnings)
             .toBe(toNano("15"));
         
-		expect(campaignDataBeforeCustomizedEvent.contractBalance - campaignData.contractBalance)
+		expect(campaignDataBeforeCustomizedEvent.contractTonBalance - campaignData.contractTonBalance)
             .toBeLessThan(toNano("0.03"));		
 
         // test: campaignBalance = 15 less than it was before this user action (minus gas fees)
