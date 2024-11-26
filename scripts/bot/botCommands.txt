@@ -58,10 +58,8 @@
 	- Fee Percentage: 2%  // affiliate fee for withdraw
 
 	Balances:
-	- Campaign Balance: 3000 TON
-	- Contract Balance: 10000 TON
-	- Contract TON Balance: 10005 TON
-	- Contract USDT Balance: 0 USDT
+	- Campaign Balance: 100 USDT  // can be shown as TON or USDT
+	- Contract TON Balance: 3 TON
 
 	Status:
 	- Active: Yes
