@@ -3,14 +3,21 @@
 /createCampaign {@telegramHandle}
 	- @telegramHandle: The Telegram handle of the associated channel, group, or mini-app. This is required to identify the campaign’s source or target audience.
 	- Returns: A unique campaignId that you will use to manage the campaign in future commands.
-	
+
+/botVerifiableEvents
+Returns all verifiable events supported by the bot:
+	- 0: User Click (with captcha)
+	- 1: User is still a memeber after one month
+	- 2: User Comment
+	- 3: User Like
+
 /setCampaignDetails {campaignId}
 	- paymentMethod: {TON | USDT} 
 	- expirationDays: (optional, leave blank for no expiration)
 	- isPrivate: {true | false} (true = invite-only, false = anyone can join)
 	- requiresApproval: {true | false} (true = advertiser must approve withdrawals for affiliates)
-	- userClickCost: (amount per regular user click)
-	- premiumUserClickCost: (amount per premium user click)
+	- pricingRegularUsers: {0: 0.1, 2: 0.2}  // User Click - 0.1, User Comment - 0.2
+	- pricingPremiumUsers: {0: 1, 2: 2}  // Premium User Click - 0.1, Premium User Comment - 0.2
 
 
 /replenishCampaign {campaignId} {amount}
