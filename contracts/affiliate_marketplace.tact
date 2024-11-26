@@ -65,6 +65,7 @@ struct CampaignData {
     campaignHasSufficientFundsToPayMaxCpa: Bool;
     isCampaignExpired: Bool;
     isCampaignPausedByAdmin: Bool;
+    campaignHasSufficientTonToPayGasFees: Bool;
     isCampaignActive: Bool;
 }
 
@@ -196,8 +197,8 @@ contract Campaign with Resumable {
         }
     }
 
-    fun campaignHasSufficientFundsToPayMaxCpa(campaignBalance: Int): Bool {
-        return campaignBalance > self.maxCpaValue;
+    fun campaignHasSufficientFundsToPayMaxCpa(): Bool {
+        return self.calcCampaignBalance() > self.maxCpaValue;
     }
 
     fun transferJettonUSDT(to: Address, amount: Int) {  
@@ -427,7 +428,7 @@ contract Campaign with Resumable {
         // return deploy costs to parent
         send(SendParameters{
             to: self.owner,
-            body: ChildToParentAdvertiserDeplyContractFee{
+            body: ChildToParentAdvertiserSignedCampaignDetails{
                 campaignId: self.campaignId,
                 advertiser: sender()
             }.toCell(),
@@ -626,11 +627,6 @@ contract Campaign with Resumable {
 
         require(cpaOptional != null, "Cannot find cpa for the given op code");
         let costPerAction: Int = cpaOptional!!;
-        let campaignBalance: Int = self.calcCampaignBalance();
-
-        require(campaignBalance >= costPerAction, "Insufficient campaign balance to make payment");
-
-        let newCampaignBalance: Int = campaignBalance - costPerAction;
         
         // process user action - no need to check optional because we set it when advertiser setup the campaign
         let currTime: Int = now();
@@ -658,21 +654,6 @@ contract Campaign with Resumable {
         self.lastUserActionTimestamp = currTime;
         self.numUserActions += 1;
         self.totalAccruedEarnings += costPerAction;
-
-        // messages
-        if (!self.campaignHasSufficientFundsToPayMaxCpa(newCampaignBalance)) {
-            send(SendParameters{
-                to: self.owner,
-                body: ChildToParentInsufficientCampaignFunds {
-                    campaignId: self.campaignId,
-                    advertiser: self.advertiser,
-                    campaignBalance: newCampaignBalance,
-                    maxCpaValue: self.maxCpaValue
-                }.toCell(),
-                value: GAS_FEE,
-                mode: SendPayGasSeparately | SendIgnoreErrors
-            });
-        } 
     }
     
     // Jetton notification did not arrive.  
@@ -729,18 +710,21 @@ contract Campaign with Resumable {
         }
 
         // Check if the campaign has sufficient funds to pay the maximum CPA
-        let campaignBalance: Int = self.calcCampaignBalance();
-        if (!self.campaignHasSufficientFundsToPayMaxCpa(campaignBalance)) {
+        if (!self.campaignHasSufficientFundsToPayMaxCpa()) {
             return false;
         }
 		
 		// Check if there are sufficient TON funds for gas fees
-		if (myBalance() < CAMPAIGN_BUFFER) {
-			return false;
-		}
+        if (!self.campaignHasSufficientTonToPayGasFees()) {
+            return false;
+        }
 
         // If all checks pass, the campaign is active
         return true;
+    }
+
+    fun campaignHasSufficientTonToPayGasFees(): Bool {
+        return (myBalance() >= CAMPAIGN_BUFFER);
     }
 
 
@@ -764,9 +748,10 @@ contract Campaign with Resumable {
             contractUSDTBalance: self.contractUSDTBalance,  // 9 decimals
             contractUsdtJettonWallet: self.contractUsdtJettonWallet,
             feePercentage: self.feePercentage,
-            campaignHasSufficientFundsToPayMaxCpa: self.campaignHasSufficientFundsToPayMaxCpa(self.calcCampaignBalance()), // ha sufficient balance to pay max CPA
+            campaignHasSufficientFundsToPayMaxCpa: self.campaignHasSufficientFundsToPayMaxCpa(), 
             isCampaignExpired: self.isCampaignExpired(),
             isCampaignPausedByAdmin: self.stopped,
+            campaignHasSufficientTonToPayGasFees: self.campaignHasSufficientTonToPayGasFees(),
             isCampaignActive: self.isCampaignActive()
         }
     }
@@ -1025,19 +1010,6 @@ contract AffiliateMarketplace with Deployable, Resumable  {
 
     }
 
-    receive(msg: ChildToParentInsufficientCampaignFunds) {
-
-        let expectedAddress: Address = contractAddress(self.campaignContractStateInit(msg.campaignId));
-        require(sender() == expectedAddress, "Access denied");
-
-        emit(InsufficientCampaignFundsEvent{
-            campaignId: msg.campaignId,
-            advertiser: msg.advertiser,
-            campaignBalance: msg.campaignBalance,
-            maxCpaValue: msg.maxCpaValue
-        }.toCell());
-    }
-
     receive(msg: ChildToParentAffiliateWithdrawEarningsFee) {
 
         let expectedAddress: Address = contractAddress(self.campaignContractStateInit(msg.campaignId));
@@ -1052,7 +1024,8 @@ contract AffiliateMarketplace with Deployable, Resumable  {
         }.toCell());
     }
 
-    receive(msg: ChildToParentAdvertiserDeplyContractFee) {
+    receive(msg: ChildToParentAdvertiserSignedCampaignDetails) {
+        
         let expectedAddress: Address = contractAddress(self.campaignContractStateInit(msg.campaignId));
         require(sender() == expectedAddress, "Access denied");
 

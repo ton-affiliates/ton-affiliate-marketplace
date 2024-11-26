@@ -65,13 +65,6 @@ message AffiliateCreatedEvent {
     affiliate: Address;
 }
 
-message InsufficientCampaignFundsEvent {
-    campaignId: Int as uint32;
-    advertiser: Address;
-    campaignBalance: Int as coins;
-    maxCpaValue: Int as coins;
-}
-
 message AffiliateWithdrawEarningsEvent {
     campaignId: Int as uint32;
     advertiser: Address;
@@ -201,7 +194,7 @@ message ChildToParentAffiliateWithdrawEarningsFee {
 	fee: Int as coins;
 }
 
-message ChildToParentAdvertiserDeplyContractFee {
+message ChildToParentAdvertiserSignedCampaignDetails {
     campaignId: Int as uint32;
     advertiser: Address;
 }
@@ -210,13 +203,6 @@ message ChildToParentAdvertiserWithdrawFunds{
     campaignId: Int as uint32;
     advertiser: Address;
     amount: Int as coins;
-}
-
-message ChildToParentInsufficientCampaignFunds {
-    campaignId: Int as uint32;
-    advertiser: Address;
-    campaignBalance: Int as coins;
-    maxCpaValue: Int as coins;
 }
 
 message ChildToParentAffiliateAskToJoinAllowedList {

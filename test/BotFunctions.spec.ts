@@ -24,8 +24,6 @@ let unauthorizedUser: SandboxContract<TreasuryContract>;
 
 const BOT_OP_CODE_USER_CLICK = 0;
 
-
-
 // # Error Codes
 // 2: Stack underflow
 // 3: Stack overflow
@@ -72,20 +70,18 @@ const BOT_OP_CODE_USER_CLICK = 0;
 // 11661: Only advertiser can verify these events
 // 12969: Must be in state: STATE_CAMPAIGN_DETAILS_SET_BY_ADVERTISER
 // 14486: Cannot find cpa for the given op code
-// 17062: Invalid amount
-// 18026: Only advertiser can modify affiliates withdrawl flag
 // 19587: Only the advertiser can remove an existing affiliate
+// 20411: Insufficient contract funds to repay bot
+// 24142: Campaign is not active
 // 26205: Only USDT Campaigns can accept USDT
 // 26924: affiliate not approved yet
 // 26953: Only affiliate can withdraw funds
-// 27029: Cannot take from Affiliate more than their accruedEarnings
+// 29677: Cannot give this affiliate more than accrued earnings
 // 33318: Insufficient funds to repay parent for deployment and keep buffer
 // 33594: Cannot manually add affiliates to an open campaign
 // 34905: Bot can verify only op codes under 2000
-// 35494: Affiliate with requiresAdvertiserApprovalForWithdrawl flag
 // 36010: Value of user action has to be a minimum of 0.02 TON
 // 36363: Only the advertiser can remove the campaign and withdraw all funds
-// 38795: Advertiser can only modify requiresApprovalForWithdrawlFlag if campaign is setup this way
 // 39945: Advertiser can only modify affiliate accrued earnings only if campaign is setup this requiresApprovalForWithdrawlFlag
 // 40058: Campaign has no funds
 // 40368: Contract stopped
@@ -94,18 +90,17 @@ const BOT_OP_CODE_USER_CLICK = 0;
 // 43100: Reached max number of affiliates for this campagn
 // 44215: Invalid indices
 // 44318: Only bot can Deploy new Campaign
+// 45028: Insufficient gas fees to withdraw earnings
 // 47193: Insufficient funds to repay parent for deployment
 // 48069: Affiliate does not exist for this id
 // 48874: Insufficient contract funds to make payment
 // 49469: Access denied
 // 49782: affiliate not on allowed list
 // 50865: owner must be deployer
-// 52003: Campaign is expired
 // 53205: Only the advertiser can replenish the contract
 // 53296: Contract not stopped
 // 53456: Affiliate does not exist
-// 54206: Insufficient campaign balance to make payment
-// 57013: Affiliate without requiresAdvertiserApprovalForWithdrawl flag
+// 56536: Insufficient gas fees to create affiliate
 // 57313: Must be in state: STATE_CAMPAIGN_CREATED
 // 58053: OP codes for regular and premium users must match
 // 59035: Only contract wallet allowed to invoke
@@ -332,6 +327,128 @@ describe('Bot Actions - Positive and Negative Tests for Bot Functions', () => {
             to: campaignContract.address,
             success: false,
             exitCode: 42372 // Only bot can invoke this function
+        });
+    });
+
+    it('should fail when bot tries to use an op code not allowed for bots', async () => {
+	
+		// Deploy a campaign and set campaign details
+        const createCampaignResult = await affiliateMarketplaceContract.send(
+            bot.getSender(),
+            { value: toNano('0.05') },
+            { $$type: 'BotDeployNewCampaign' }
+        );
+
+        let decodedCampaign: any | null = null;
+        for (const external of createCampaignResult.externals) {
+            if (external.body) {
+                decodedCampaign = loadCampaignCreatedEvent(external.body);
+            }
+        }
+
+        let campaignContractAddress: Address = Address.parse(decodedCampaign!.campaignContractAddressStr);
+        campaignContract = blockchain.openContract(await Campaign.fromAddress(campaignContractAddress));
+
+        const regularUsersMapCostPerActionMap = Dictionary.empty<bigint, bigint>();
+        regularUsersMapCostPerActionMap.set(BigInt(BOT_OP_CODE_USER_CLICK), toNano('0.1'));
+
+        await campaignContract.send(
+            advertiser.getSender(),
+            { value: toNano('10') },
+            {
+                $$type: 'AdvertiserSetCampaignDetails',
+                campaignDetails: {
+                    $$type: 'CampaignDetails',
+                    regularUsersCostPerAction: regularUsersMapCostPerActionMap,
+                    premiumUsersCostPerAction: regularUsersMapCostPerActionMap,
+                    allowedAffiliates: Dictionary.empty<Address, boolean>(),
+                    isOpenCampaign: true,
+                    campaignValidForNumDays: null,
+					paymentMethod: BigInt(0), // TON
+					requiresAdvertiserApprovalForWithdrawl: false
+                }
+            }
+        );
+		
+        const botUserActionResult = await campaignContract.send(
+            bot.getSender(),
+            { value: toNano('0.05') },
+            {
+                $$type: 'BotUserAction',
+                affiliateId: BigInt(0),
+                userActionOpCode: BigInt(2001), // Unauthorized op code for bots
+                isPremiumUser: false
+            }
+        );
+
+        expect(botUserActionResult.transactions).toHaveTransaction({
+            from: bot.address,
+            to: campaignContract.address,
+            success: false,
+            exitCode: 34905 // Exit code for invalid op code for bots
+        });
+    });
+
+
+    it('should fail when a bot tries to perform bot user action on inactive campaign', async () => {
+        
+		const createCampaignResult = await affiliateMarketplaceContract.send(
+            bot.getSender(),
+            { value: toNano('0.05') },
+            { $$type: 'BotDeployNewCampaign' }
+        );
+		
+		let decodedCampaign: any | null = null;
+        for (const external of createCampaignResult.externals) {
+            if (external.body) {
+                decodedCampaign = loadCampaignCreatedEvent(external.body);
+            }
+        }
+
+        let campaignContractAddress: Address = Address.parse(decodedCampaign!.campaignContractAddressStr);
+        campaignContract = blockchain.openContract(await Campaign.fromAddress(campaignContractAddress));
+
+        const regularUsersMapCostPerActionMap = Dictionary.empty<bigint, bigint>();
+        regularUsersMapCostPerActionMap.set(BigInt(BOT_OP_CODE_USER_CLICK), toNano('10')); 
+		
+		let campaignData = await campaignContract.getCampaignData();
+		console.log(campaignData);
+
+        await campaignContract.send(
+            advertiser.getSender(),
+            { value: toNano('10') },
+            {
+                $$type: 'AdvertiserSetCampaignDetails',
+                campaignDetails: {
+                    $$type: 'CampaignDetails',
+                    regularUsersCostPerAction: regularUsersMapCostPerActionMap,
+                    premiumUsersCostPerAction: regularUsersMapCostPerActionMap,
+                    allowedAffiliates: Dictionary.empty<Address, boolean>(),
+                    isOpenCampaign: true,
+                    campaignValidForNumDays: null,
+					paymentMethod: BigInt(0), // TON
+					requiresAdvertiserApprovalForWithdrawl: false
+                }
+            }
+        );
+			
+		const botUserActionResult = await campaignContract.send(
+            bot.getSender(),
+            { value: toNano('0.05') },
+            {
+                $$type: 'BotUserAction',
+                affiliateId: BigInt(0),
+                userActionOpCode: BigInt(BOT_OP_CODE_USER_CLICK),
+                isPremiumUser: false
+            }
+        );
+
+        expect(botUserActionResult.transactions).toHaveTransaction({
+            from: bot.address,
+            to: campaignContract.address,
+            success: false,
+            exitCode: 24142//24142: Campaign is not active
+
         });
     });
 

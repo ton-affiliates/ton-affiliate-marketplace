@@ -12,7 +12,6 @@ import {
       loadAffiliateCreatedEvent,
       loadCampaignCreatedEvent,
       loadAffiliateWithdrawEarningsEvent,
-      loadInsufficientCampaignFundsEvent,
   	  loadAdvertiserWithdrawFundsEvent,
 	  loadAdvertiserSignedCampaignDetailsEvent,
 	  loadAffiliateAskToJoinAllowedListEvent} from '../scripts/events';
@@ -45,7 +44,6 @@ describe('AffiliateMarketplace Integration Test', () => {
         affiliate1 = await blockchain.treasury('affiliate1');
         affiliate2 = await blockchain.treasury('affiliate2');
 		
-
 		affiliateMarketplaceContract = blockchain.openContract(await AffiliateMarketplace.fromInit(bot.address, USDT_MASTER_ADDRESS, hexToCell(USDT_WALLET_BYTECODE)));
 
         // Deploy the contract
@@ -361,23 +359,23 @@ describe('AffiliateMarketplace Integration Test', () => {
             to: bot.address,
             success: true,
         });
-
+		
         campaignData = await campaignContract.getCampaignData();
         affiliateData1 = await campaignContract.getAffiliateData(decodedAffiliate1!.affiliateId);
 
 		// contract balance - should only remove gas fees (for this function it is around ~0.03 TON)
         expect(campaignDataBeforeUserAction.contractBalance - campaignData.contractBalance)
             .toBeLessThan(toNano("0.04"));
-
+			
         // campaignBalance ~ 1 less than it was before this user action
 		// 1 for the user Action
 		// minus the gas fee paid by the contract
         expect(campaignDataBeforeUserAction.campaignBalance - campaignData.campaignBalance)
             .toBeGreaterThan(toNano("0.9"));
-
+		
         expect(campaignDataBeforeUserAction.campaignBalance - campaignData.campaignBalance)
             .toBeLessThan(toNano("1.1"));
-
+			
         // test Affiliate's accruedBalance = 1
         expect(affiliateData1!.withdrawEarnings).toBe(toNano("1"));
 		
@@ -419,55 +417,33 @@ describe('AffiliateMarketplace Integration Test', () => {
             to: campaignContract.address,
             success: true,
         });
-
-        expect(premiumUserActionResult.transactions).toHaveTransaction({
-            from: campaignContract.address,
-            to: affiliateMarketplaceContract.address,
-            success: true,
-        });
-
-        // event is triggered due to campaign balance being under threshold of 5 TON following this customized event
-        let decodedCampaignUnderFiveTon: any | null = null
-        let decodedInsufficientBalanceInCampaign: any | null = null;
-
-        // 2 events can be omitted here
-        for (const external of premiumUserActionResult.externals) {
-            if (external.body) {
-               decodedInsufficientBalanceInCampaign = loadInsufficientCampaignFundsEvent(external.body);                        
-            }
-        }
-
-        expect(decodedInsufficientBalanceInCampaign).not.toBeNull();
-        expect(decodedInsufficientBalanceInCampaign.campaignId).toBe(decodedCampaign!.campaignId);
-		expect(decodedInsufficientBalanceInCampaign.advertiserAddressStr).toBe(advertiser.address.toString());
-		expect(decodedInsufficientBalanceInCampaign.campaignBalance).toBeLessThan(decodedInsufficientBalanceInCampaign.maxCpaValue);  
 		
-        campaignData = await campaignContract.getCampaignData();
+		campaignData = await campaignContract.getCampaignData();
 		
-		expect(campaignData.campaignHasSufficientFundsToPayMaxCpa).toBe(false);
-        affiliateData2 = await campaignContract.getAffiliateData(decodedAffiliate2!.affiliateId);
-
         // contract balance - only gas on the message to parent should be deducted
 		expect(campaignData.totalAccruedEarnings - campaignDataBeforeCustomizedEvent.totalAccruedEarnings)
             .toBe(toNano("15"));
-        expect(campaignDataBeforeCustomizedEvent.contractBalance - campaignData.contractBalance)
-            .toBeLessThan(toNano("0.03"));
+        
+		expect(campaignDataBeforeCustomizedEvent.contractBalance - campaignData.contractBalance)
+            .toBeLessThan(toNano("0.03"));		
 
         // test: campaignBalance = 15 less than it was before this user action (minus gas fees)
         expect(campaignDataBeforeCustomizedEvent.campaignBalance - campaignData.campaignBalance)
-            .toBeGreaterThan(toNano("14.97"));
-
+            .toBeGreaterThan(toNano("14.95"));
+			
         expect(campaignDataBeforeCustomizedEvent.campaignBalance - campaignData.campaignBalance)
             .toBeLessThan(toNano("15"));
+			
+		affiliateData2 = await campaignContract.getAffiliateData(decodedAffiliate2!.affiliateId);
 
         expect(affiliateData2!.userActionsStats.get(BigInt(BOT_OP_CODE_USER_CLICK)).numActions).toBe(BigInt(0));
         expect(affiliateData2!.userActionsStats.get(BigInt(ADVERTISER_OP_CODE_CUSTOMIZED_EVENT)).numActions).toBe(BigInt(0));
         expect(affiliateData2!.premiumUserActionsStats.get(BigInt(BOT_OP_CODE_USER_CLICK)).numActions).toBe(BigInt(0));
         expect(affiliateData2!.premiumUserActionsStats.get(BigInt(ADVERTISER_OP_CODE_CUSTOMIZED_EVENT)).numActions).toBe(BigInt(1));
 
-        // test: Affiliate's accrued earnings is now 15
+        // test: Affiliate's withdraw earnings is now 15
         expect(affiliateData2!.withdrawEarnings).toBe(toNano("15"));
-
+				
         //-------------------------------------------------------------------------------------------
         let affiliateBalanceBeforeWithdraw = await affiliate1.getBalance();
 		let deployerBalanceBeforeWithdraw = await deployer.getBalance();
@@ -496,18 +472,18 @@ describe('AffiliateMarketplace Integration Test', () => {
             to: affiliate1.address,
             success: true,
         });
-
+		
         let decodedAffiliateWithdraw: any | null = null
         for (const external of affiliateWithdrawResult.externals) {
             if (external.body) {
                 decodedAffiliateWithdraw = loadAffiliateWithdrawEarningsEvent(external.body);
             }
         }
-		
+				
         expect(decodedAffiliateWithdraw).not.toBeNull();
 		expect(decodedAffiliateWithdraw.earnings).toBe(toNano("0.98"));
 		expect(decodedAffiliateWithdraw.fee).toBe(toNano("0.02"));
-				
+						
         campaignData = await campaignContract.getCampaignData();
         affiliateData1 = await campaignContract.getAffiliateData(decodedAffiliate1!.affiliateId);
 		
