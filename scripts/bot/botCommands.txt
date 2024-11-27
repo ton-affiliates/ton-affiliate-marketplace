@@ -4,12 +4,32 @@
 	- @telegramHandle: The Telegram handle of the associated channel, group, or mini-app. This is required to identify the campaign’s source or target audience.
 	- Returns: A unique campaignId that you will use to manage the campaign in future commands.
 
-/botVerifiableEvents
-Returns all verifiable events supported by the bot:
-	- 0: User Click (with captcha)
-	- 1: User is still a memeber after one month
-	- 2: User Comment
-	- 3: User Like
+/listBotVerifiableEvents
+returns:
+	- opCode: 0,
+	  name: userClick,
+          description: User joined a group/channel/mini-app after verifying as a human. 
+	- opCode: 1,
+	  name: userStayedForTwoWeeks,
+	  description: User is still a member after two weeks
+	- opCode: 2,
+	  name: userComment,
+	  description: user made a comment.
+	- opCode: 3,
+	  name: userLike,
+	  description: user liked (or any other emoji) a post/comment 
+
+
+
+/createNewVerifiableEvent {eventName} {eventDescription}   // advertiser can also create custom events to be verified by them
+returns:
+
+New Event Created
+---------------------------------------
+opCode: 2000,
+name: {eventName},
+description:  {eventDescription}
+
 
 /setCampaignDetails {campaignId}
 	- paymentMethod: {TON | USDT} 
