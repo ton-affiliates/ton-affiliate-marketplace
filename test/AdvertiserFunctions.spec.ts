@@ -212,41 +212,6 @@ describe('Advertiser Actions - Positive and Negative Tests for Advertiser Functi
         });
     });
 
-    it('should fail when setting campaign details with non-matching op codes for regular and premium users', async () => {
-        const regularUsersMapCostPerActionMap = Dictionary.empty<bigint, bigint>();
-        const premiumUsersMapCostPerActionMap = Dictionary.empty<bigint, bigint>();
-
-        // Adding a different op code for premium users to simulate mismatch
-        regularUsersMapCostPerActionMap.set(BigInt(0), toNano('0.1'));
-        premiumUsersMapCostPerActionMap.set(BigInt(1), toNano('0.15'));
-
-        const setCampaignDetailsResult = await campaignContract.send(
-            advertiser.getSender(),
-            { value: toNano('10') },
-            {
-                $$type: 'AdvertiserSetCampaignDetails',
-                campaignDetails: {
-                    $$type: 'CampaignDetails',
-                    regularUsersCostPerAction: regularUsersMapCostPerActionMap,
-                    premiumUsersCostPerAction: premiumUsersMapCostPerActionMap,
-                    allowedAffiliates: Dictionary.empty<Address, boolean>(),
-                    isOpenCampaign: false,
-                    campaignValidForNumDays: null,
-					paymentMethod: BigInt(0), // TON
-					requiresAdvertiserApprovalForWithdrawl: false
-                }
-            }
-        );
-		
-		 expect(setCampaignDetailsResult.transactions).toHaveTransaction({
-            from: advertiser.address,
-            to: campaignContract.address,
-            success: false,
-            exitCode: 58053 // Exit code for non-matching op codes between regular and premium users
-        });
-    });
-
-
 
     it('should allow the advertiser to set campaign details', async () => {
         const regularUsersMapCostPerActionMap = Dictionary.empty<bigint, bigint>();

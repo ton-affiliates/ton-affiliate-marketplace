@@ -281,24 +281,7 @@ describe('AffiliateMarketplace Integration Test', () => {
 		expect(affiliateData1!.affiliate.toString()).toBe(affiliate1.address.toString());
         expect(affiliateData1!.withdrawEarnings).toBe(toNano("0"));
 
-         // expect stats to be 0
-        const emptyUserActionStat: UserActionStats = {
-            $$type: 'UserActionStats', // The required type identifier
-            numActions: BigInt(0), // Initialize with 0 actions
-            lastUserActionTimestamp: BigInt(0) // Initialize with a default timestamp (e.g., 0)
-        };
-		
-        expect(affiliateData1!.userActionsStats.get(BigInt(BOT_OP_CODE_USER_CLICK)).numActions).toBe(emptyUserActionStat.numActions);
-		expect(affiliateData1!.userActionsStats.get(BigInt(BOT_OP_CODE_USER_CLICK)).lastUserActionTimestamp).toBe(emptyUserActionStat.lastUserActionTimestamp);
-        expect(affiliateData1!.userActionsStats.get(BigInt(ADVERTISER_OP_CODE_CUSTOMIZED_EVENT)).numActions).toBe(emptyUserActionStat.numActions);
-        expect(affiliateData1!.userActionsStats.get(BigInt(ADVERTISER_OP_CODE_CUSTOMIZED_EVENT)).lastUserActionTimestamp).toBe(emptyUserActionStat.lastUserActionTimestamp);
-
-
-        expect(affiliateData1!.premiumUserActionsStats.get(BigInt(BOT_OP_CODE_USER_CLICK)).numActions).toBe(emptyUserActionStat.numActions);
-		expect(affiliateData1!.premiumUserActionsStats.get(BigInt(BOT_OP_CODE_USER_CLICK)).lastUserActionTimestamp).toBe(emptyUserActionStat.lastUserActionTimestamp);
-		expect(affiliateData1!.premiumUserActionsStats.get(BigInt(ADVERTISER_OP_CODE_CUSTOMIZED_EVENT)).numActions).toBe(emptyUserActionStat.numActions);
-        expect(affiliateData1!.premiumUserActionsStats.get(BigInt(ADVERTISER_OP_CODE_CUSTOMIZED_EVENT)).lastUserActionTimestamp).toBe(emptyUserActionStat.lastUserActionTimestamp);
-
+  
 
         //------------------------------------------------------------------------------------------------------
 
@@ -380,15 +363,6 @@ describe('AffiliateMarketplace Integration Test', () => {
 		expect(affiliateData1!.userActionsStats.get(BigInt(BOT_OP_CODE_USER_CLICK)).numActions).toBe(BigInt(1));
 		expect(affiliateData1!.userActionsStats.get(BigInt(BOT_OP_CODE_USER_CLICK)).lastUserActionTimestamp).toBeGreaterThan(BigInt(0));
        
-		expect(affiliateData1!.userActionsStats.get(BigInt(ADVERTISER_OP_CODE_CUSTOMIZED_EVENT)).numActions).toBe(BigInt(0));
-		expect(affiliateData1!.userActionsStats.get(BigInt(ADVERTISER_OP_CODE_CUSTOMIZED_EVENT)).lastUserActionTimestamp).toBe(BigInt(0));
-		
-		expect(affiliateData1!.premiumUserActionsStats.get(BigInt(BOT_OP_CODE_USER_CLICK)).numActions).toBe(BigInt(0));
-		expect(affiliateData1!.premiumUserActionsStats.get(BigInt(BOT_OP_CODE_USER_CLICK)).lastUserActionTimestamp).toBe(BigInt(0));
-		
-		expect(affiliateData1!.premiumUserActionsStats.get(BigInt(ADVERTISER_OP_CODE_CUSTOMIZED_EVENT)).numActions).toBe(BigInt(0));
-		expect(affiliateData1!.premiumUserActionsStats.get(BigInt(ADVERTISER_OP_CODE_CUSTOMIZED_EVENT)).lastUserActionTimestamp).toBe(BigInt(0));
-		
 		// to print a nice looking and correct timestamp we must multiply by 1000
 		let lastUserActionTimestamp = affiliateData1!.userActionsStats.get(BigInt(BOT_OP_CODE_USER_CLICK)).lastUserActionTimestamp;
 		console.log(new Date(Number(lastUserActionTimestamp) * 1000).toLocaleString());
@@ -419,7 +393,7 @@ describe('AffiliateMarketplace Integration Test', () => {
 		campaignData = await campaignContract.getCampaignData();
 		
         // contract balance - only gas on the message to parent should be deducted
-		expect(campaignData.totalAccruedEarnings - campaignDataBeforeCustomizedEvent.totalAccruedEarnings)
+		expect(campaignData.totalAffiliateEarnings - campaignDataBeforeCustomizedEvent.totalAffiliateEarnings)
             .toBe(toNano("15"));
         
 		expect(campaignDataBeforeCustomizedEvent.contractTonBalance - campaignData.contractTonBalance)
@@ -434,9 +408,6 @@ describe('AffiliateMarketplace Integration Test', () => {
 			
 		affiliateData2 = await campaignContract.getAffiliateData(decodedAffiliate2!.affiliateId);
 
-        expect(affiliateData2!.userActionsStats.get(BigInt(BOT_OP_CODE_USER_CLICK)).numActions).toBe(BigInt(0));
-        expect(affiliateData2!.userActionsStats.get(BigInt(ADVERTISER_OP_CODE_CUSTOMIZED_EVENT)).numActions).toBe(BigInt(0));
-        expect(affiliateData2!.premiumUserActionsStats.get(BigInt(BOT_OP_CODE_USER_CLICK)).numActions).toBe(BigInt(0));
         expect(affiliateData2!.premiumUserActionsStats.get(BigInt(ADVERTISER_OP_CODE_CUSTOMIZED_EVENT)).numActions).toBe(BigInt(1));
 
         // test: Affiliate's withdraw earnings is now 15

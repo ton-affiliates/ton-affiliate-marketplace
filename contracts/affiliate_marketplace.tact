@@ -50,7 +50,7 @@ struct CampaignData {
     payout: Address;
     campaignDetails: CampaignDetails;
     numAffiliates: Int as uint32;
-    totalAccruedEarnings: Int as coins;
+    totalAffiliateEarnings: Int as coins;
     state: Int as uint32;
     campaignStartTimestamp: Int as uint32;
     lastUserActionTimestamp: Int as uint32;
@@ -116,7 +116,7 @@ contract Campaign with Resumable {
     campaignStartTimestamp: Int as uint32;
     lastUserActionTimestamp: Int as uint32;
     numUserActions: Int as uint32;
-    totalAccruedEarnings: Int as coins;
+    totalAffiliateEarnings: Int as coins;
     maxCpaValue: Int as coins;
     feePercentage: Int as uint32 = 200;
 
@@ -151,7 +151,7 @@ contract Campaign with Resumable {
         self.lastUserActionTimestamp = 0;
         self.campaignStartTimestamp = 0;
         self.numUserActions = 0;
-        self.totalAccruedEarnings = 0;
+        self.totalAffiliateEarnings = 0;
         self.maxCpaValue = ton("0");
 
         // USDT details
@@ -176,7 +176,7 @@ contract Campaign with Resumable {
     // Function to calculate campaign balance (supports TON and USDT)
     fun calcCampaignBalance(): Int {
         if (self.campaignDetails.paymentMethod == PAYMENT_METHOD_TON) {
-            let campaignBalance: Int = myBalance() - CAMPAIGN_BUFFER - self.totalAccruedEarnings;
+            let campaignBalance: Int = myBalance() - CAMPAIGN_BUFFER - self.totalAffiliateEarnings;
             return max(campaignBalance, ton("0"));
         } else {
             return self.contractUSDTBalance;
@@ -276,7 +276,7 @@ contract Campaign with Resumable {
         let netAmount: Int = withdrawalAmount - fee;
 
         // Update campaign’s total accrued earnings
-        self.totalAccruedEarnings = self.totalAccruedEarnings - withdrawalAmount;
+        self.totalAffiliateEarnings = self.totalAffiliateEarnings - withdrawalAmount;
 
         // Send the approved or full amount directly to the affiliate’s wallet
         if (self.campaignDetails.paymentMethod == PAYMENT_METHOD_TON) {
@@ -335,7 +335,7 @@ contract Campaign with Resumable {
                 let diff: Int = affiliateData.accruedEarnings - amountToWithdraw;
                 
                 affiliateData.totalEarnings = affiliateData.totalEarnings - diff; // update also total earnings
-                self.totalAccruedEarnings = self.totalAccruedEarnings - diff; // return diff to campaign
+                self.totalAffiliateEarnings = self.totalAffiliateEarnings - diff; // return diff to campaign
             } else {
                 affiliateData.withdrawEarnings += affiliateData.accruedEarnings;
             }
@@ -395,7 +395,7 @@ contract Campaign with Resumable {
             } else {
                 require(val >= ton("0.1"), "Value of user action has to be a minimum of 0.1 USDT");
             }
-			require(msg.campaignDetails.premiumUsersCostPerAction.get(key) != null, "OP codes for regular and premium users must match");
+			
             if (val > maxCpaValue) {
                 maxCpaValue = val;
             }
@@ -407,7 +407,7 @@ contract Campaign with Resumable {
             } else {
                 require(val >= ton("0.1"), "Value of user action has to be a minimum of 0.1 USDT");
             }
-			require(msg.campaignDetails.regularUsersCostPerAction.get(key) != null, "OP codes for regular and premium users must match");
+
             if (val > maxCpaValue) {
                 maxCpaValue = val;
             }
@@ -453,17 +453,10 @@ contract Campaign with Resumable {
         let affiliateId = self.currAffiliateId;
         self.currAffiliateId = self.currAffiliateId + 1;
 
-        let userActionsStats: map<Int, UserActionStats> = emptyMap();
-        let premiumUserActionsStats: map<Int, UserActionStats> = emptyMap();
-        foreach (userActionOpCode, cpa in self.campaignDetails.regularUsersCostPerAction) {
-            userActionsStats.set(userActionOpCode, UserActionStats{numActions: 0, lastUserActionTimestamp: 0});
-            premiumUserActionsStats.set(userActionOpCode, UserActionStats{numActions: 0, lastUserActionTimestamp: 0});
-        }
-
         self.affiliates.set(affiliateId, AffiliateData{
             affiliate: sender(), 
-            userActionsStats: userActionsStats, 
-            premiumUserActionsStats: premiumUserActionsStats, 
+            userActionsStats: emptyMap(), 
+            premiumUserActionsStats: emptyMap(), 
             accruedEarnings: ton("0"),
             totalEarnings: ton("0"),
 			withdrawEarnings: ton("0")
@@ -604,6 +597,17 @@ contract Campaign with Resumable {
         self.applyUserAction(msg.userActionOpCode, msg.affiliateId, msg.isPremiumUser);
     }
 
+    fun updateUserStat(userActionStatsOptional: UserActionStats?, currTime: Int): UserActionStats {
+
+        let result = UserActionStats{lastUserActionTimestamp: 0, numActions: 0};
+        if (userActionStatsOptional != null) {
+            result = userActionStatsOptional!!;
+        }
+        result.numActions += 1;
+        result.lastUserActionTimestamp = currTime; 
+        return result;
+    }
+
     fun applyUserAction(userActionOpCode: Int, affiliateId: Int, isPremiumUser: Bool) {
 
         require(self.isCampaignActive(), "Campaign is not active");
@@ -621,18 +625,16 @@ contract Campaign with Resumable {
 
         require(cpaOptional != null, "Cannot find cpa for the given op code");
         let costPerAction: Int = cpaOptional!!;
-        
+		        
         // process user action - no need to check optional because we set it when advertiser setup the campaign
         let currTime: Int = now();
         if (isPremiumUser) {
-            let userActionStats: UserActionStats = affiliateData.premiumUserActionsStats.get(userActionOpCode)!!;
-            userActionStats.numActions += 1;
-            userActionStats.lastUserActionTimestamp = currTime; 
+            let userActionStatsOptional: UserActionStats? = affiliateData.premiumUserActionsStats.get(userActionOpCode);
+            let userActionStats = self.updateUserStat(userActionStatsOptional, currTime);
             affiliateData.premiumUserActionsStats.set(userActionOpCode, userActionStats);
         } else {
-            let userActionStats: UserActionStats = affiliateData.userActionsStats.get(userActionOpCode)!!;
-            userActionStats.numActions += 1;
-            userActionStats.lastUserActionTimestamp = currTime; 
+            let userActionStatsOptional: UserActionStats? = affiliateData.userActionsStats.get(userActionOpCode);
+            let userActionStats = self.updateUserStat(userActionStatsOptional, currTime);
             affiliateData.userActionsStats.set(userActionOpCode, userActionStats);
         }
 
@@ -647,7 +649,7 @@ contract Campaign with Resumable {
 
         self.lastUserActionTimestamp = currTime;
         self.numUserActions += 1;
-        self.totalAccruedEarnings += costPerAction;
+        self.totalAffiliateEarnings += costPerAction;
     }
     
     // Jetton notification did not arrive.  
@@ -662,7 +664,7 @@ contract Campaign with Resumable {
         self.transferJettonUSDT(self.payout, msg.amount);		
     } 
 
-    // if payment bounces - adjust the affiliate's accruedEarnings and totalAccruedEarnings accordingly
+    // if payment bounces - adjust the affiliate's accruedEarnings and totalAffiliateEarnings accordingly
     fun bouncedPayment(affiliateId: Int, amount: Int) {
         
         let affiliateDataOptional = self.affiliates.get(affiliateId);
@@ -671,7 +673,7 @@ contract Campaign with Resumable {
 		let affiliateData: AffiliateData = affiliateDataOptional!!;
 		affiliateData.withdrawEarnings += amount;
 		self.affiliates.set(affiliateId, affiliateData);
-		self.totalAccruedEarnings = self.totalAccruedEarnings + amount;
+		self.totalAffiliateEarnings = self.totalAffiliateEarnings + amount;
     }
 
     // bounced USDT
@@ -730,7 +732,7 @@ contract Campaign with Resumable {
             payout: self.payout,
             campaignDetails: self.campaignDetails,
             numAffiliates: self.currAffiliateId,
-            totalAccruedEarnings: self.totalAccruedEarnings,
+            totalAffiliateEarnings: self.totalAffiliateEarnings,
             campaignStartTimestamp: self.campaignStartTimestamp,
             lastUserActionTimestamp: self.lastUserActionTimestamp,
             numUserActions: self.numUserActions,
