@@ -21,8 +21,11 @@ returns:
 
 
 
-/createNewVerifiableEvent {eventName} {eventDescription}   // advertiser can also create custom events to be verified by them
-returns:
+/createNewVerifiableEvent {eventName} {eventDescription}   
+
+- Usage Context: Advertisers can also create custom events to be verified by them.  These verifications can be placed inside their code using this Javascript library https://github.com/guyt-ds/affiliate-ton-library
+
+-returns:
 
 New Event Created
 ---------------------------------------
