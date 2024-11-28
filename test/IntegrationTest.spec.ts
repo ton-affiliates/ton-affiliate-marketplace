@@ -408,6 +408,9 @@ describe('AffiliateMarketplace Integration Test', () => {
 			
 		affiliateData2 = await campaignContract.getAffiliateData(decodedAffiliate2!.affiliateId);
 
+        expect(affiliateData2!.userActionsStats.get(BigInt(BOT_OP_CODE_USER_CLICK))).toBe(undefined);
+        expect(affiliateData2!.userActionsStats.get(BigInt(ADVERTISER_OP_CODE_CUSTOMIZED_EVENT))).toBe(undefined);
+        expect(affiliateData2!.premiumUserActionsStats.get(BigInt(BOT_OP_CODE_USER_CLICK))).toBe(undefined);
         expect(affiliateData2!.premiumUserActionsStats.get(BigInt(ADVERTISER_OP_CODE_CUSTOMIZED_EVENT)).numActions).toBe(BigInt(1));
 
         // test: Affiliate's withdraw earnings is now 15
