@@ -312,6 +312,9 @@ contract Campaign with Resumable {
         require(self.campaignDetails.requiresAdvertiserApprovalForWithdrawl, "Advertiser can only modify affiliate accrued earnings only if campaign is setup this requiresApprovalForWithdrawlFlag");
         
         foreach(affiliateId, affiliateData in self.affiliates) {
+		
+			let affiliateDataOptional = self.affiliates.get(affiliateId);
+			require(affiliateDataOptional != null, "Affiliate does not exist");
             
             if (msg.setAffiliatesWithdrawEarnings.get(affiliateId) != null) {
                 
