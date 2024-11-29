@@ -8,10 +8,11 @@ export async function run(provider: NetworkProvider, args: string[]) {
     
 	const ui = provider.ui();
 
-    const campaignId = BigInt(args.length > 0 ? args[0] : await ui.input('Campaign id'));	
-	const affiliateMarketplace = provider.open(await AffiliateMarketplace.fromAddress(AFFILIATE_MARKETPLACE_ADDRESS));
+    const affiliateMarketplace = provider.open(await AffiliateMarketplace.fromAddress(AFFILIATE_MARKETPLACE_ADDRESS));
+    const campaignId = BigInt(args.length > 0 ? args[0] : await ui.input('Campaign id'));
+	const advertiser = Address.parse(args.length > 1 ? args[1] : await ui.input('Advertiser address'));	
 	
-	let campaignAddress = await affiliateMarketplace.getCampaignContractAddress(campaignId);
+	let campaignAddress = await affiliateMarketplace.getCampaignContractAddress(campaignId, advertiser);
 	if (!(await provider.isContractDeployed(campaignAddress))) {
         ui.write(`Error: Contract at address ${campaignAddress} is not deployed!`);
         return;
@@ -20,7 +21,7 @@ export async function run(provider: NetworkProvider, args: string[]) {
 	const campaignContract = provider.open(Campaign.fromAddress(campaignAddress));
 	let feePercentageBefore = BigInt((await campaignContract.getCampaignData()).feePercentage);
 
-	const newFeePercentageInput = args.length > 1 ? args[1] : await ui.input('New fee (e.g. 1, 1.5, 2.3 etc...)');
+	const newFeePercentageInput = args.length > 2 ? args[2] : await ui.input('New fee (e.g. 1, 1.5, 2.3 etc...)');
 	const newFeePercentage: number = parseFloat(newFeePercentageInput);
 	if (isNaN(newFeePercentage)) {
 		throw new Error("Invalid input! Please provide a valid decimal number.");

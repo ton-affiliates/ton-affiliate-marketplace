@@ -39,20 +39,49 @@ export async function run(provider: NetworkProvider, args: string[]) {
     
 	const ui = provider.ui();
 
-    const campaignId = BigInt(args.length > 0 ? args[0] : await ui.input('Campaign id'));	
-	const affiliateMarketplace = provider.open(await AffiliateMarketplace.fromAddress(AFFILIATE_MARKETPLACE_ADDRESS));
+    const affiliateMarketplace = provider.open(await AffiliateMarketplace.fromAddress(AFFILIATE_MARKETPLACE_ADDRESS));
+    const campaignId = BigInt(args.length > 0 ? args[0] : await ui.input('Campaign id'));
+	const advertiser = Address.parse(args.length > 1 ? args[1] : await ui.input('Advertiser address'));	
 	
-	let campaignAddress = await affiliateMarketplace.getCampaignContractAddress(campaignId);
+	let campaignAddress = await affiliateMarketplace.getCampaignContractAddress(campaignId, advertiser);
 	if (!(await provider.isContractDeployed(campaignAddress))) {
         ui.write(`Error: Contract at address ${campaignAddress} is not deployed!`);
         return;
     }
 	
-	const userInputAsString: string = args.length > 1 ? args[1] : await ui.input('affiliateIdToAccruedEarningsMap: i.e. {1: 100, 2: 200}');
+	const userInputAsString: string = args.length > 2 ? args[2] : await ui.input('affiliateIdToAccruedEarningsMap: i.e. {1: 100, 2: 200}');
 	const affiliateIdToAccruedEarningsMap: Dictionary<bigint, bigint> = await loadAffiliateIdToAmountMap(userInputAsString);
 	
 	const campaign = provider.open(Campaign.fromAddress(campaignAddress));
-
+	let campaignData = await campaign.getCampaignData();
+	if (campaignData.totalAffiliateEarnings == toNano("0")) {
+		ui.write(`Error: No earnings to sign off at ${campaignAddress}!`);
+        return;
+	}
+	
+	// search for first affiliate with earnings
+	let affiliateIdWithAccruedEarnings: bigint = BigInt(-1);
+	for (let i = 0; i < campaignData.numAffiliates; i++) {
+		
+		let affiliateData = await campaign.getAffiliateData(BigInt(i));
+		if (affiliateData == null) {
+			ui.write(`Error: Affiliate ${i.toString()} does not exist!`);
+			return;
+		}
+		
+		if (affiliateData.accruedEarnings > toNano("0")) {
+			affiliateIdWithAccruedEarnings = BigInt(i);
+			break;
+		}
+	}
+	
+	if (affiliateIdWithAccruedEarnings == BigInt(-1)) {
+		ui.write(`Error: No accrued earnings to all affiliates at ${campaignAddress}!`);
+        return;
+	}
+	
+	let affiliateDataAccruedEarningsBefore = (await campaign.getAffiliateData(affiliateIdWithAccruedEarnings))!.accruedEarnings;
+	
 	for (const [key, value] of affiliateIdToAccruedEarningsMap) {
 		
 		let affiliateData = await campaign.getAffiliateData(key);
@@ -76,7 +105,6 @@ export async function run(provider: NetworkProvider, args: string[]) {
 	}
 	
 	
-	let totalAccruedEarningsBefore = (await campaign.getCampaignData()).totalAccruedEarnings;
 			
 	await campaign.send(
         provider.sender(),
@@ -91,12 +119,12 @@ export async function run(provider: NetworkProvider, args: string[]) {
 		
     ui.write('Waiting for campaign to update...');
 	
-	let totalAccruedEarningsAfter = (await campaign.getCampaignData()).totalAccruedEarnings;
+	let affiliateDataAccruedEarningsAfter = (await campaign.getAffiliateData(affiliateIdWithAccruedEarnings))!.accruedEarnings;
     let attempt = 1;
-    while(totalAccruedEarningsBefore === totalAccruedEarningsAfter) {
+    while(affiliateDataAccruedEarningsBefore === affiliateDataAccruedEarningsAfter) {
         ui.setActionPrompt(`Attempt ${attempt}`);
         await sleep(2000);
-		totalAccruedEarningsAfter = (await campaign.getCampaignData()).totalAccruedEarnings;
+		affiliateDataAccruedEarningsAfter = (await campaign.getAffiliateData(affiliateIdWithAccruedEarnings))!.accruedEarnings;
         attempt++;
     }
 	

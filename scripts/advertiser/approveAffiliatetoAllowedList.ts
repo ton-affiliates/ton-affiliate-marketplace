@@ -7,21 +7,21 @@ import { AFFILIATE_MARKETPLACE_ADDRESS } from '../constants'
 export async function run(provider: NetworkProvider, args: string[]) {
     
 	const ui = provider.ui();
-
-    const campaignId = BigInt(args.length > 0 ? args[0] : await ui.input('Campaign id'));	
-	const affiliateMarketplace = provider.open(await AffiliateMarketplace.fromAddress(AFFILIATE_MARKETPLACE_ADDRESS));
 	
-	let campaignAddress = await affiliateMarketplace.getCampaignContractAddress(campaignId);
+	const affiliateMarketplace = provider.open(await AffiliateMarketplace.fromAddress(AFFILIATE_MARKETPLACE_ADDRESS));
+    const campaignId = BigInt(args.length > 0 ? args[0] : await ui.input('Campaign id'));
+	const advertiser = Address.parse(args.length > 1 ? args[1] : await ui.input('Advertiser address'));	
+	
+	let campaignAddress = await affiliateMarketplace.getCampaignContractAddress(campaignId, advertiser);
 	if (!(await provider.isContractDeployed(campaignAddress))) {
         ui.write(`Error: Contract at address ${campaignAddress} is not deployed!`);
         return;
     }
-	
-	const affiliateToApprove = Address.parse(args.length > 0 ? args[0] : await ui.input('Affiliate address: '));
-	
+		
 	const campaign = provider.open(Campaign.fromAddress(campaignAddress));
-	
 	let campaignData = await campaign.getCampaignData();
+	
+	const affiliateToApprove = Address.parse(args.length > 2 ? args[2] : await ui.input('Affiliate address: '));
 	let isApproveBefore = campaignData.campaignDetails.allowedAffiliates.get(affiliateToApprove);
 	if (isApproveBefore) {
 		ui.write(`Error: Affiliate already approved at address ${campaignAddress}`);
