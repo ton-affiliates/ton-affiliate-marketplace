@@ -125,15 +125,15 @@ beforeEach(async () => {
 		success: true,
 	});
 
-	// 1. Bot deploys empty campaign
+	// Advertiser deploys a new campaign
 	const createCampaignResult = await affiliateMarketplaceContract.send(
-		bot.getSender(),
-		{ value: toNano('0.05') },
-		{ $$type: 'BotDeployNewCampaign' }
+		advertiser.getSender(),
+		{ value: toNano('1') },
+		{ $$type: 'AdvertiserDeployNewCampaign' }
 	);
 
 	expect(createCampaignResult.transactions).toHaveTransaction({
-		from: bot.address,
+		from: advertiser.address,
 		to: affiliateMarketplaceContract.address,
 		success: true,
 	});
@@ -196,7 +196,8 @@ describe('Administrative Actions - Negative Tests for AffiliateMarketplace Contr
             { value: toNano('0.05') },
             {
                 $$type: 'AdminSeizeCampaignBalance',
-                campaignId: campaignId 
+                campaignId: campaignId,
+				advertiser: advertiser.address				
             }
         );
 
@@ -215,6 +216,7 @@ describe('Administrative Actions - Negative Tests for AffiliateMarketplace Contr
             {
                 $$type: 'AdminModifyCampaignFeePercentage',
                 campaignId: campaignId, 
+				advertiser: advertiser.address,
                 feePercentage: BigInt(150), // 1.5%
             }
         );
@@ -310,6 +312,7 @@ describe('Administrative Actions - Negative Tests for AffiliateMarketplace Contr
             { value: toNano('10') },
             { $$type: 'AdminPayAffiliateUSDTBounced',
 			  campaignId: BigInt(campaignId),
+			  advertiser: advertiser.address,
 			  affiliateId: BigInt(0),
 			  amount: toNano('10')
 			}
@@ -329,6 +332,7 @@ describe('Administrative Actions - Negative Tests for AffiliateMarketplace Contr
             { value: toNano('10') },
             { $$type: 'AdminJettonNotificationMessageFailure',
 			  campaignId: BigInt(campaignId),
+			  advertiser: advertiser.address,
 			  amount: toNano('10')
 			}
         );
@@ -396,7 +400,8 @@ describe('Administrative Actions - Negative Tests for AffiliateMarketplace Contr
             { value: toNano('0.05') },
             {
                 $$type: 'AdminStopCampaign',
-                campaignId: campaignId
+                campaignId: campaignId,
+				advertiser: advertiser.address
             }
         );
 		
@@ -415,7 +420,8 @@ describe('Administrative Actions - Negative Tests for AffiliateMarketplace Contr
             { value: toNano('0.05') },
             {
                 $$type: 'AdminResumeCampaign',
-                campaignId: campaignId
+                campaignId: campaignId,
+				advertiser: advertiser.address
             }
         );
 		

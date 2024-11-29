@@ -160,13 +160,13 @@ beforeEach(async () => {
 
 	// 1. Bot deploys empty campaign
 	const createCampaignResult = await affiliateMarketplaceContract.send(
-		bot.getSender(),
-		{ value: toNano('0.05') },
-		{ $$type: 'BotDeployNewCampaign' }
+		advertiser.getSender(),
+		{ value: toNano('1') },
+		{ $$type: 'AdvertiserDeployNewCampaign' }
 	);
 
 	expect(createCampaignResult.transactions).toHaveTransaction({
-		from: bot.address,
+		from: advertiser.address,
 		to: affiliateMarketplaceContract.address,
 		success: true,
 	});

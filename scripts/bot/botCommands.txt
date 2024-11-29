@@ -1,6 +1,6 @@
 "Advertiser"
 	
-/createCampaign {@telegramHandle}
+/createCampaign {@telegramHandle} {amount} // 0.05 TON
 	- @telegramHandle: The Telegram handle of the associated channel, group, or mini-app. This is required to identify the campaign’s source or target audience.
 	- Returns: A unique campaignId that you will use to manage the campaign in future commands.
 
@@ -8,7 +8,7 @@
 returns:
 	- opCode: 0,
 	  name: userClick,
-          description: User joined a group/channel/mini-app after verifying as a human. 
+      description: User joined a group/channel/mini-app after verifying as a human. 
 	- opCode: 1,
 	  name: userStayedForTwoWeeks,
 	  description: User is still a member after two weeks
@@ -34,16 +34,16 @@ name: {eventName},
 description:  {eventDescription}
 
 
-/setCampaignDetails {campaignId}
+/setCampaignDetails {campaignId} // 0.05 TON
 	- paymentMethod: {TON | USDT} 
 	- expirationDays: (optional, leave blank for no expiration)
 	- isPrivate: {true | false} (true = invite-only, false = anyone can join)
 	- requiresApproval: {true | false} (true = advertiser must approve withdrawals for affiliates)
-	- pricingRegularUsers: {0: 0.1, 2: 0.2}  // User Click - 0.1, User Comment - 0.2
+	- pricingRegularUsers: {0: 0.1}  // User Click - 0.1, User Comment - 0.2
 	- pricingPremiumUsers: {0: 1, 2: 2}  // Premium User Click - 0.1, Premium User Comment - 0.2
 
 
-/replenishCampaign {campaignId} {amount}
+/replenishCampaign {campaignId} {amount} // 100 USDT
 	- if paymentMethod == 'USDT': run(replenishUSDT) else: run(replenishCampaign)
 
 /approveAffiliate {affiliateAddress}
@@ -71,7 +71,7 @@ description:  {eventDescription}
 			2: 25
 	
 
-/campaignData
+/campaignData  [READ]
 	
 	Campaign Data for ID: 123456
 	--------------------------------
@@ -96,6 +96,7 @@ description:  {eventDescription}
 	- Sufficient Funds for Max CPA: Yes  
 	- Campaign Expired: No
 	- Campaign Paused by Admin: No
+	- Has sufficient TON to pay gas fees: Yes
 
 
 
@@ -125,7 +126,7 @@ description:  {eventDescription}
 	- Usage Context: This command is only applicable to campaigns where affiliate can withdraw earnings (requiresApproval = false).
 	
 	
-
+READ:
 /affiliateData {affiliateId}
 
 	example: 

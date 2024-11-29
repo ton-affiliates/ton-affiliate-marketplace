@@ -83,19 +83,19 @@ describe('AffiliateMarketplace Integration Test', () => {
 		let botAddress = await affiliateMarketplaceContract.getBot();
 		expect(botAddress.toString()).toBe(bot.address.toString());
 
-        // 1. Bot deploys empty campaign
+        // Advertiser deploys a new campaign
         const createCampaignResult = await affiliateMarketplaceContract.send(
-            bot.getSender(),
-            { value: toNano('0.05') },
-            { $$type: 'BotDeployNewCampaign' }
+            advertiser.getSender(),
+            { value: toNano('1') },
+            { $$type: 'AdvertiserDeployNewCampaign' }
         );
 
         expect(createCampaignResult.transactions).toHaveTransaction({
-            from: bot.address,
+            from: advertiser.address,
             to: affiliateMarketplaceContract.address,
             success: true,
         });
-		
+
 		numCampaigns = await affiliateMarketplaceContract.getNumCampaigns();
 		expect(numCampaigns).toBe(BigInt(1));
 
@@ -109,7 +109,7 @@ describe('AffiliateMarketplace Integration Test', () => {
         expect(decodedCampaign).not.toBeNull();
         let campaignContractAddress: Address = Address.parse(decodedCampaign!.campaignContractAddressStr);
 		
-		let campaignContractAddressFromMarketplace = await affiliateMarketplaceContract.getCampaignContractAddress(decodedCampaign!.campaignId);
+		let campaignContractAddressFromMarketplace = await affiliateMarketplaceContract.getCampaignContractAddress(decodedCampaign!.campaignId, advertiser.address);
 		expect(campaignContractAddressFromMarketplace.toString()).toBe(campaignContractAddress.toString());
 
         expect(createCampaignResult.transactions).toHaveTransaction({
@@ -126,10 +126,10 @@ describe('AffiliateMarketplace Integration Test', () => {
         expect(campaignData.state).toBe(BigInt(0)); // state: CAMPAIGN_CREATED
         expect(campaignData.campaignBalance).toBe(toNano("0"));
 		
-
+		// 5 + deploy money
         let affiliateMarketplaceContractBalanceAfterDeployment = await affiliateMarketplaceContract.getBalance();
-        expect(affiliateMarketplaceContractBalanceAfterDeployment).toBeLessThan(toNano("5"));
-		expect(affiliateMarketplaceContractBalanceAfterDeployment).toBeGreaterThan(toNano("4"));
+        expect(affiliateMarketplaceContractBalanceAfterDeployment).toBeLessThan(toNano("6"));
+		expect(affiliateMarketplaceContractBalanceAfterDeployment).toBeGreaterThan(toNano("5"));
 		
         // ---------------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -145,8 +145,6 @@ describe('AffiliateMarketplace Integration Test', () => {
 
         premiumUsersMapCostPerActionMap.set(BigInt(BOT_OP_CODE_USER_CLICK), toNano('15'));
         premiumUsersMapCostPerActionMap.set(BigInt(ADVERTISER_OP_CODE_CUSTOMIZED_EVENT), toNano('15'));
-
-        let affiliateMarketplaceBalanceBeforeAdvertiserSetDetails = await affiliateMarketplaceContract.getBalance();
 
         const advertiserSetCampaignDetailsResult = await campaignContract.send(
             advertiser.getSender(),
@@ -210,16 +208,6 @@ describe('AffiliateMarketplace Integration Test', () => {
 		let expectedCampaignBalance = expectedContractBalance;  // still the same since no user actions occured yet
         expect(campaignData.campaignBalance).toBeGreaterThan(toNano(expectedCampaignBalance.toString())); // minus another 1 TON buffer
         
-        let affiliateMarketplaceBalanceAfterAdvertiserSetDetails = await affiliateMarketplaceContract.getBalance();
-
-        // verify deploy costs returned to parent (0.1 + 0.1 + 0.02 GAS FEE minus the actual gas fee of tx)
-		expect(affiliateMarketplaceBalanceBeforeAdvertiserSetDetails).toBeLessThan(affiliateMarketplaceBalanceAfterAdvertiserSetDetails);
-        expect(affiliateMarketplaceBalanceAfterAdvertiserSetDetails - affiliateMarketplaceBalanceBeforeAdvertiserSetDetails)
-            .toBeGreaterThan(toNano("0.1"));
-		
-        expect(affiliateMarketplaceBalanceAfterAdvertiserSetDetails - affiliateMarketplaceBalanceBeforeAdvertiserSetDetails)
-            .toBeLessThan(toNano("0.11"));
-
         // --------------------------------------------------------------------------------------------------------
 
         // Advertiser Replenishes contract with another 10 TON

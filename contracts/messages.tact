@@ -10,33 +10,40 @@ message AdminReplenish {}
 
 message AdminModifyCampaignFeePercentage {
     campaignId: Int as uint32;
+	advertiser: Address;
     feePercentage: Int as uint32;
 }
 
 message AdminStopCampaign {
 	campaignId: Int as uint32;
+	advertiser: Address;
 }
 
 message AdminResumeCampaign {
 	campaignId: Int as uint32;
+	advertiser: Address;
 }
 
 message AdminSeizeCampaignBalance {
     campaignId: Int as uint32;
+	advertiser: Address;
 }
 
 message AdminJettonNotificationMessageFailure {
 	campaignId: Int as uint32;
+	advertiser: Address;
 	amount: Int as coins;
 }
 
 message AdminWithdrawUSDTToPayout {
 	campaignId: Int as uint32;
+	advertiser: Address;
 	amount: Int as coins;
 }
 
 message AdminPayAffiliateUSDTBounced {
 	campaignId: Int as uint32;
+	advertiser: Address;
 	affiliateId: Int as uint64;
 	amount: Int as coins;
 }
@@ -50,6 +57,7 @@ message AdvertiserWithdrawFundsEvent{
 
 message CampaignCreatedEvent {
     campaignId: Int as uint32;
+	advertiser: Address;
     campaignContractAddress: Address;
 }
 
@@ -60,8 +68,8 @@ message AdvertiserSignedCampaignDetailsEvent {
 
 message AffiliateCreatedEvent {
     campaignId: Int as uint32;
+	advertiser: Address;
     affiliateId: Int as uint32;
-    advertiser: Address;
     affiliate: Address;
 }
 
@@ -86,9 +94,10 @@ message AdvertiserModifiedAllowedListEvent {
 	isAdded: Bool;
 }
 
-// Bot functions
-message BotDeployNewCampaign {}
+message AdvertiserDeployNewCampaign {}
 
+
+// Bot functions
 message BotUserAction {
     affiliateId: Int as uint32;
     userActionOpCode: Int as uint32;
@@ -98,17 +107,13 @@ message BotUserAction {
 // parent to child INTERNAL messages
 message ParentToChildDeployCampaign {
     campaignId: Int as uint32;
+	advertiser: Address;
 }
 
 message ParentToChildUpdateFeePercentage{
     feePercentage: Int as uint32
 }
 
-message ParentToChildBotUserAction{
-    affiliateId: Int as uint32;
-    userActionOpCode: Int as uint32;
-    isPremiumUser: Bool;
-}
 
 message ParentToChildSeizeCampaign{}
 
@@ -177,6 +182,7 @@ message AdvertiserSignOffWithdraw {
 // Child to Parent - INTERNAL Messages
 message ChildToParentCampaignDeployedSuccessfully {
     campaignId: Int as uint32; 
+	advertiser: Address;
 }
 
 message ChildToParentAffiliateCreated {

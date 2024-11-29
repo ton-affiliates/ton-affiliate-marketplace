@@ -123,15 +123,15 @@ contract Campaign with Resumable {
     contractUSDTBalance: Int as coins;
     contractUsdtJettonWallet: Address;
 
-    init(owner: Address, campaignId: Int, payout: Address, bot: Address, usdtMasterAddress: Address, usdtWalletBytecode: Cell) {
+    init(owner: Address, campaignId: Int, advertiser: Address, payout: Address, bot: Address, usdtMasterAddress: Address, usdtWalletBytecode: Cell) {
         
         require(sender() == owner, "owner must be deployer");
 
-        self.owner = owner;
+        self.owner = owner;  // parent contract
         self.payout = payout;
         self.stopped = false;
         self.campaignId = campaignId;
-        self.advertiser = owner; // temporary until set
+        self.advertiser = advertiser; 
         self.bot = bot;
 
         self.currAffiliateId = 0; 
@@ -166,7 +166,8 @@ contract Campaign with Resumable {
         send(SendParameters{
             to: self.owner,
             body: ChildToParentCampaignDeployedSuccessfully{
-                campaignId: self.campaignId
+                campaignId: msg.campaignId,
+                advertiser: msg.advertiser
             }.toCell(),
             value: GAS_FEE,
             mode: SendPayGasSeparately
@@ -271,12 +272,12 @@ contract Campaign with Resumable {
         affiliateData.withdrawEarnings = ton("0");
         self.affiliates.set(msg.affiliateId, affiliateData);
 
+         // Update campaign’s total accrued earnings
+        self.totalAffiliateEarnings = self.totalAffiliateEarnings - withdrawalAmount;
+
         // Calculate the net amount after fees
         let fee: Int = (withdrawalAmount * self.feePercentage + 9999) / 10000;  // e.g., fee=200 = 2%
         let netAmount: Int = withdrawalAmount - fee;
-
-        // Update campaign’s total accrued earnings
-        self.totalAffiliateEarnings = self.totalAffiliateEarnings - withdrawalAmount;
 
         // Send the approved or full amount directly to the affiliate’s wallet
         if (self.campaignDetails.paymentMethod == PAYMENT_METHOD_TON) {
@@ -373,48 +374,38 @@ contract Campaign with Resumable {
         });
     }
 
+    fun updateMaxCpaValue(val: Int) {
+        self.maxCpaValue = max(self.maxCpaValue, val);
+    }
+
+    fun validateUserActionOpCodeValue(val: Int, campaignDetails: CampaignDetails) {
+        if (campaignDetails.paymentMethod == PAYMENT_METHOD_TON) {
+            require(val >= ton("0.02"), "Value of user action has to be a minimum of 0.02 TON");
+        } else {
+            require(val >= ton("0.1"), "Value of user action has to be a minimum of 0.1 USDT");
+        }
+    }
+
     // advetiser sets campaign details 
     receive (msg: AdvertiserSetCampaignDetails) {
 
-        require(self.state == STATE_CAMPAIGN_CREATED, "Must be in state: STATE_CAMPAIGN_CREATED");
+        require(sender() == self.advertiser, "Only advertiser can set campaign details");
+        require((self.state == STATE_CAMPAIGN_CREATED) || (self.currAffiliateId == 0), "Must be in state: STATE_CAMPAIGN_CREATED or have zero affiliates");
         require(msg.campaignDetails.paymentMethod == PAYMENT_METHOD_TON || msg.campaignDetails.paymentMethod == PAYMENT_METHOD_USDT, "Only TON or USDT supported as payment methods");
-        
-		if (msg.campaignDetails.paymentMethod == PAYMENT_METHOD_TON) {
-			require(context().value > DEPLOY_NEW_CONTRACT_COST + GAS_FEE + CAMPAIGN_BUFFER, "Insufficient funds to repay parent for deployment and keep buffer");
-		} else {
-			// buffer will be taken when replenishing USDT
-			require(context().value > DEPLOY_NEW_CONTRACT_COST + GAS_FEE, "Insufficient funds to repay parent for deployment");		
-		}
-		
+        		
         // verify keys are the same in both sets
         // get maxCpaValue
         let maxCpaValue: Int = ton("0");
         foreach (key, val in msg.campaignDetails.regularUsersCostPerAction) {
-            if (msg.campaignDetails.paymentMethod == PAYMENT_METHOD_TON) {
-                require(val >= ton("0.02"), "Value of user action has to be a minimum of 0.02 TON");
-            } else {
-                require(val >= ton("0.1"), "Value of user action has to be a minimum of 0.1 USDT");
-            }
-			
-            if (val > maxCpaValue) {
-                maxCpaValue = val;
-            }
+            self.validateUserActionOpCodeValue(val, msg.campaignDetails);
+            self.updateMaxCpaValue(val);
         }
 
         foreach (key, val in msg.campaignDetails.premiumUsersCostPerAction) {
-            if (msg.campaignDetails.paymentMethod == PAYMENT_METHOD_TON) {
-                require(val >= ton("0.02"), "Value of user action has to be a minimum of 0.02 TON");
-            } else {
-                require(val >= ton("0.1"), "Value of user action has to be a minimum of 0.1 USDT");
-            }
-
-            if (val > maxCpaValue) {
-                maxCpaValue = val;
-            }
+            self.validateUserActionOpCodeValue(val, msg.campaignDetails);
+            self.updateMaxCpaValue(val);
         }
 
-        self.advertiser = sender();
-        self.maxCpaValue = maxCpaValue;
         self.campaignDetails = msg.campaignDetails;
         self.campaignStartTimestamp = now();
         self.state = STATE_CAMPAIGN_DETAILS_SET_BY_ADVERTISER;
@@ -424,9 +415,9 @@ contract Campaign with Resumable {
             to: self.owner,
             body: ChildToParentAdvertiserSignedCampaignDetails{
                 campaignId: self.campaignId,
-                advertiser: sender()
+                advertiser: self.advertiser
             }.toCell(),
-            value: DEPLOY_NEW_CONTRACT_COST + GAS_FEE,
+            value: GAS_FEE,
             mode: SendPayGasSeparately
         });
     }
@@ -443,7 +434,7 @@ contract Campaign with Resumable {
 		require(context().value >= GAS_FEE*2, "Insufficient gas fees to create affiliate");
 
         let numAffiliates = self.currAffiliateId;
-        require(numAffiliates <= MAX_NUM_AFFILIATES, "Reached max number of affiliates for this campagn");
+        require(numAffiliates <= MAX_NUM_AFFILIATES, "Reached max number of affiliates for this campaign");
 
         if (!self.campaignDetails.isOpenCampaign) {
             require(self.campaignDetails.allowedAffiliates.get(sender()) != null, "affiliate not on allowed list");
@@ -467,8 +458,8 @@ contract Campaign with Resumable {
             to: self.owner,
             body: ChildToParentAffiliateCreated{
                 campaignId: self.campaignId,
-                affiliateId: affiliateId,
                 advertiser: self.advertiser,
+                affiliateId: affiliateId,
                 affiliate: sender()
             }.toCell(),
             value: GAS_FEE,
@@ -554,8 +545,8 @@ contract Campaign with Resumable {
             to: self.owner,
             body: ChildToParentAdvertiserWithdrawFunds {
                 campaignId: self.campaignId,
-                amount: msg.amount,
-                advertiser: self.advertiser
+                advertiser: self.advertiser,
+                amount: msg.amount
             }.toCell(),
             value: GAS_FEE,
             mode: SendPayGasSeparately | SendIgnoreErrors
@@ -577,7 +568,7 @@ contract Campaign with Resumable {
 
         require(sender() == self.bot, "Only bot can invoke this function");
         require(msg.userActionOpCode <= USER_ACTION_OP_CODES_BOT, "Bot can verify only op codes under 2000");
-        require(myBalance() > context().value, "Insufficient contract funds to repay bot");
+        require(myBalance() >= context().value + GAS_FEE, "Insufficient contract funds to repay bot");
 
         self.applyUserAction(msg.userActionOpCode, msg.affiliateId, msg.isPremiumUser);
 
@@ -814,12 +805,12 @@ contract AffiliateMarketplace with Deployable, Resumable  {
         return self.numCampaigns; 
     }
 
-    get fun campaignContractAddress(campaignId: Int): Address {
-        return contractAddress(self.campaignContractStateInit(campaignId));
+    get fun campaignContractAddress(campaignId: Int, advertiser: Address): Address {
+        return contractAddress(self.campaignContractStateInit(campaignId, advertiser));
     }
 
-    fun campaignContractStateInit(campaignId: Int): StateInit {
-        let initCode: StateInit = initOf Campaign(myAddress(), campaignId, self.owner, self.bot, self.usdtMasterAddress, self.usdtWalletBytecode);
+    fun campaignContractStateInit(campaignId: Int, advertiser: Address): StateInit {
+        let initCode: StateInit = initOf Campaign(myAddress(), campaignId, advertiser, self.owner, self.bot, self.usdtMasterAddress, self.usdtWalletBytecode);
         return initCode;
     }
 
@@ -860,7 +851,7 @@ contract AffiliateMarketplace with Deployable, Resumable  {
 
         self.requireOwner();
 
-        let init: StateInit = self.campaignContractStateInit(msg.campaignId);
+        let init: StateInit = self.campaignContractStateInit(msg.campaignId, msg.advertiser);
         let campaignContractAddress: Address = contractAddress(init);
 
         send(SendParameters{
@@ -877,7 +868,7 @@ contract AffiliateMarketplace with Deployable, Resumable  {
 
         self.requireOwner();
 
-        let init: StateInit = self.campaignContractStateInit(msg.campaignId);
+        let init: StateInit = self.campaignContractStateInit(msg.campaignId, msg.advertiser);
         let campaignContractAddress: Address = contractAddress(init);
 
         send(SendParameters{
@@ -892,7 +883,7 @@ contract AffiliateMarketplace with Deployable, Resumable  {
 
         self.requireOwner();
 
-        let init: StateInit = self.campaignContractStateInit(msg.campaignId);
+        let init: StateInit = self.campaignContractStateInit(msg.campaignId, msg.advertiser);
         let campaignContractAddress: Address = contractAddress(init);
 
         send(SendParameters{
@@ -907,7 +898,7 @@ contract AffiliateMarketplace with Deployable, Resumable  {
 
         self.requireOwner();
 
-        let init: StateInit = self.campaignContractStateInit(msg.campaignId);
+        let init: StateInit = self.campaignContractStateInit(msg.campaignId, msg.advertiser);
         let campaignContractAddress: Address = contractAddress(init);
 
         send(SendParameters{
@@ -922,7 +913,7 @@ contract AffiliateMarketplace with Deployable, Resumable  {
 
         self.requireOwner();
 
-        let init: StateInit = self.campaignContractStateInit(msg.campaignId);
+        let init: StateInit = self.campaignContractStateInit(msg.campaignId, msg.advertiser);
         let campaignContractAddress: Address = contractAddress(init);
 
         send(SendParameters{
@@ -940,7 +931,7 @@ contract AffiliateMarketplace with Deployable, Resumable  {
 
         self.requireOwner();
 
-        let init: StateInit = self.campaignContractStateInit(msg.campaignId);
+        let init: StateInit = self.campaignContractStateInit(msg.campaignId, msg.advertiser);
         let campaignContractAddress: Address = contractAddress(init);
 
         send(SendParameters{
@@ -957,7 +948,7 @@ contract AffiliateMarketplace with Deployable, Resumable  {
 
         self.requireOwner();
 
-        let init: StateInit = self.campaignContractStateInit(msg.campaignId);
+        let init: StateInit = self.campaignContractStateInit(msg.campaignId, msg.advertiser);
         let campaignContractAddress: Address = contractAddress(init);
 
         send(SendParameters{
@@ -972,7 +963,7 @@ contract AffiliateMarketplace with Deployable, Resumable  {
 	
 	receive(msg: ChildToParentAdvertiserModifiedAllowedList) {
 		
-		let expectedAddress: Address = contractAddress(self.campaignContractStateInit(msg.campaignId));
+		let expectedAddress: Address = contractAddress(self.campaignContractStateInit(msg.campaignId, msg.advertiser));
         require(sender() == expectedAddress, "Access denied");
 
         emit(AdvertiserModifiedAllowedListEvent{
@@ -984,7 +975,7 @@ contract AffiliateMarketplace with Deployable, Resumable  {
 	
     receive(msg: ChildToParentAffiliateAskToJoinAllowedList) {
 
-        let expectedAddress: Address = contractAddress(self.campaignContractStateInit(msg.campaignId));
+        let expectedAddress: Address = contractAddress(self.campaignContractStateInit(msg.campaignId, msg.advertiser));
         require(sender() == expectedAddress, "Access denied");
 
         emit(AffiliateAskToJoinAllowedListEvent{
@@ -996,7 +987,7 @@ contract AffiliateMarketplace with Deployable, Resumable  {
 
     receive(msg: ChildToParentAdvertiserWithdrawFunds) {
 
-        let expectedAddress: Address = contractAddress(self.campaignContractStateInit(msg.campaignId));
+        let expectedAddress: Address = contractAddress(self.campaignContractStateInit(msg.campaignId, msg.advertiser));
         require(sender() == expectedAddress, "Access denied");
 
         emit(AdvertiserWithdrawFundsEvent{
@@ -1008,7 +999,7 @@ contract AffiliateMarketplace with Deployable, Resumable  {
 
     receive(msg: ChildToParentAffiliateWithdrawEarningsFee) {
 
-        let expectedAddress: Address = contractAddress(self.campaignContractStateInit(msg.campaignId));
+        let expectedAddress: Address = contractAddress(self.campaignContractStateInit(msg.campaignId, msg.advertiser));
         require(sender() == expectedAddress, "Access denied");
 
         emit(AffiliateWithdrawEarningsEvent{
@@ -1022,7 +1013,7 @@ contract AffiliateMarketplace with Deployable, Resumable  {
 
     receive(msg: ChildToParentAdvertiserSignedCampaignDetails) {
         
-        let expectedAddress: Address = contractAddress(self.campaignContractStateInit(msg.campaignId));
+        let expectedAddress: Address = contractAddress(self.campaignContractStateInit(msg.campaignId, msg.advertiser));
         require(sender() == expectedAddress, "Access denied");
 
         emit(AdvertiserSignedCampaignDetailsEvent{
@@ -1033,7 +1024,7 @@ contract AffiliateMarketplace with Deployable, Resumable  {
 
     receive(msg: ChildToParentAffiliateCreated) {
 
-        let expectedAddress: Address = contractAddress(self.campaignContractStateInit(msg.campaignId));
+        let expectedAddress: Address = contractAddress(self.campaignContractStateInit(msg.campaignId, msg.advertiser));
         require(sender() == expectedAddress, "Access denied");
 
         emit(AffiliateCreatedEvent{
@@ -1045,15 +1036,15 @@ contract AffiliateMarketplace with Deployable, Resumable  {
     }
 
     // Function to create a new campaign
-    receive(msg: BotDeployNewCampaign) {
-		
+    receive(msg: AdvertiserDeployNewCampaign) {
+        
 		self.requireNotStopped();
-        require(sender() == self.bot, "Only bot can Deploy new Campaign");
+        require(context().value > DEPLOY_NEW_CONTRACT_COST + GAS_FEE, "Insufficient funds to deploy new campaign");
 
         let campaignId: Int = random(0, 4294967294); // Generate a new random number, which is an unsigned 32-bit integer
         self.numCampaigns = self.numCampaigns + 1;
 
-        let init: StateInit = self.campaignContractStateInit(campaignId);
+        let init: StateInit = self.campaignContractStateInit(campaignId, sender());
         let campaignContractAddress: Address = contractAddress(init);
 
         // deploy contract
@@ -1062,18 +1053,19 @@ contract AffiliateMarketplace with Deployable, Resumable  {
             value: DEPLOY_NEW_CONTRACT_COST,
             code: init.code,
             data: init.data,
-            body: ParentToChildDeployCampaign{campaignId: campaignId}.toCell(),
+            body: ParentToChildDeployCampaign{campaignId: campaignId, advertiser: sender()}.toCell(),
             mode: SendPayGasSeparately
         });
     }
 
     receive(msg: ChildToParentCampaignDeployedSuccessfully) {
 
-        let expectedAddress: Address = contractAddress(self.campaignContractStateInit(msg.campaignId));
+        let expectedAddress: Address = contractAddress(self.campaignContractStateInit(msg.campaignId, msg.advertiser));
         require(sender() == expectedAddress, "Access denied");
 
         emit(CampaignCreatedEvent{
             campaignId: msg.campaignId,
+            advertiser: msg.advertiser,
             campaignContractAddress: expectedAddress
         }.toCell());
     }

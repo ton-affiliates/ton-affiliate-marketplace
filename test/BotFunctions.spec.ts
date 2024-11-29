@@ -148,15 +148,15 @@ beforeEach(async () => {
 describe('Bot Actions - Positive and Negative Tests for Bot Functions', () => {
 
     it('should allow bot to deploy a new campaign', async () => {
-        // Bot deploys a new campaign
+        // Advertiser deploys a new campaign
         const createCampaignResult = await affiliateMarketplaceContract.send(
-            bot.getSender(),
-            { value: toNano('0.05') },
-            { $$type: 'BotDeployNewCampaign' }
+            advertiser.getSender(),
+            { value: toNano('1') },
+            { $$type: 'AdvertiserDeployNewCampaign' }
         );
 
         expect(createCampaignResult.transactions).toHaveTransaction({
-            from: bot.address,
+            from: advertiser.address,
             to: affiliateMarketplaceContract.address,
             success: true,
         });
@@ -172,13 +172,18 @@ describe('Bot Actions - Positive and Negative Tests for Bot Functions', () => {
     });
 
     it('should allow bot to perform user actions within permitted op codes', async () => {
-        // Deploy a campaign and set campaign details
+        // Advertiser deploys a new campaign
         const createCampaignResult = await affiliateMarketplaceContract.send(
-            bot.getSender(),
-            { value: toNano('0.05') },
-            { $$type: 'BotDeployNewCampaign' }
+            advertiser.getSender(),
+            { value: toNano('1') },
+            { $$type: 'AdvertiserDeployNewCampaign' }
         );
 
+        expect(createCampaignResult.transactions).toHaveTransaction({
+            from: advertiser.address,
+            to: affiliateMarketplaceContract.address,
+            success: true,
+        });
         let decodedCampaign: any | null = null;
         for (const external of createCampaignResult.externals) {
             if (external.body) {
@@ -242,28 +247,21 @@ describe('Bot Actions - Positive and Negative Tests for Bot Functions', () => {
         });
     });
 
-    it('should fail when a non-bot user tries to deploy a campaign', async () => {
+    
+    it('should fail when a non-bot user tries to perform bot user action', async () => {
+        
+		// Advertiser deploys a new campaign
         const createCampaignResult = await affiliateMarketplaceContract.send(
-            unauthorizedUser.getSender(),
-            { value: toNano('0.05') },
-            { $$type: 'BotDeployNewCampaign' }
+            advertiser.getSender(),
+            { value: toNano('1') },
+            { $$type: 'AdvertiserDeployNewCampaign' }
         );
 
         expect(createCampaignResult.transactions).toHaveTransaction({
-            from: unauthorizedUser.address,
+            from: advertiser.address,
             to: affiliateMarketplaceContract.address,
-            success: false,
-            exitCode: 44318 // Exit code for unauthorized bot action
+            success: true,
         });
-    });
-
-    it('should fail when a non-bot user tries to perform bot user action', async () => {
-        
-		const createCampaignResult = await affiliateMarketplaceContract.send(
-            bot.getSender(),
-            { value: toNano('0.05') },
-            { $$type: 'BotDeployNewCampaign' }
-        );
 		
 		let decodedCampaign: any | null = null;
         for (const external of createCampaignResult.externals) {
@@ -332,12 +330,18 @@ describe('Bot Actions - Positive and Negative Tests for Bot Functions', () => {
 
     it('should fail when bot tries to use an op code not allowed for bots', async () => {
 	
-		// Deploy a campaign and set campaign details
+        // Advertiser deploys a new campaign
         const createCampaignResult = await affiliateMarketplaceContract.send(
-            bot.getSender(),
-            { value: toNano('0.05') },
-            { $$type: 'BotDeployNewCampaign' }
+            advertiser.getSender(),
+            { value: toNano('1') },
+            { $$type: 'AdvertiserDeployNewCampaign' }
         );
+
+        expect(createCampaignResult.transactions).toHaveTransaction({
+            from: advertiser.address,
+            to: affiliateMarketplaceContract.address,
+            success: true,
+        });
 
         let decodedCampaign: any | null = null;
         for (const external of createCampaignResult.externals) {
@@ -392,11 +396,18 @@ describe('Bot Actions - Positive and Negative Tests for Bot Functions', () => {
 
     it('should fail when a bot tries to perform bot user action on inactive campaign', async () => {
         
-		const createCampaignResult = await affiliateMarketplaceContract.send(
-            bot.getSender(),
-            { value: toNano('0.05') },
-            { $$type: 'BotDeployNewCampaign' }
+		// Advertiser deploys a new campaign
+        const createCampaignResult = await affiliateMarketplaceContract.send(
+            advertiser.getSender(),
+            { value: toNano('1') },
+            { $$type: 'AdvertiserDeployNewCampaign' }
         );
+
+        expect(createCampaignResult.transactions).toHaveTransaction({
+            from: advertiser.address,
+            to: affiliateMarketplaceContract.address,
+            success: true,
+        });
 		
 		let decodedCampaign: any | null = null;
         for (const external of createCampaignResult.externals) {
@@ -454,12 +465,18 @@ describe('Bot Actions - Positive and Negative Tests for Bot Functions', () => {
 
     it('should fail when bot tries to use an op code not allowed for bots', async () => {
 	
-		// Deploy a campaign and set campaign details
+		// Advertiser deploys a new campaign
         const createCampaignResult = await affiliateMarketplaceContract.send(
-            bot.getSender(),
-            { value: toNano('0.05') },
-            { $$type: 'BotDeployNewCampaign' }
+            advertiser.getSender(),
+            { value: toNano('1') },
+            { $$type: 'AdvertiserDeployNewCampaign' }
         );
+
+        expect(createCampaignResult.transactions).toHaveTransaction({
+            from: advertiser.address,
+            to: affiliateMarketplaceContract.address,
+            success: true,
+        });
 
         let decodedCampaign: any | null = null;
         for (const external of createCampaignResult.externals) {
