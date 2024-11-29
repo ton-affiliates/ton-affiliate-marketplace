@@ -180,7 +180,7 @@ contract Campaign with Resumable {
             let campaignBalance: Int = myBalance() - CAMPAIGN_BUFFER - self.totalAffiliateEarnings;
             return max(campaignBalance, ton("0"));
         } else {
-            return self.contractUSDTBalance;
+            return self.contractUSDTBalance - self.totalAffiliateEarnings;
         }
     }
 
@@ -257,7 +257,7 @@ contract Campaign with Resumable {
 
         self.requireNotStopped();
 
-        require(context().value >= GAS_FEE*3, "Insufficient gas fees to withdraw earnings");
+        require(context().value >= GAS_FEE*2, "Insufficient gas fees to withdraw earnings");
         
         let affiliateDataOptional = self.affiliates.get(msg.affiliateId);
         require(affiliateDataOptional != null, "Affiliate does not exist");
@@ -272,7 +272,7 @@ contract Campaign with Resumable {
         affiliateData.withdrawEarnings = ton("0");
         self.affiliates.set(msg.affiliateId, affiliateData);
 
-         // Update campaign’s total accrued earnings
+         // Update campaign’s total affiliate earnings
         self.totalAffiliateEarnings = self.totalAffiliateEarnings - withdrawalAmount;
 
         // Calculate the net amount after fees
@@ -302,20 +302,6 @@ contract Campaign with Resumable {
             self.transferJettonUSDT(self.payout, fee);
             self.transferJettonUSDT(affiliateData.affiliate, netAmount);
         }
-
-        // notify parent
-        send(SendParameters{
-            to: self.owner,
-            body: ChildToParentAffiliateWithdrawEarningsFee{
-                campaignId: self.campaignId,
-                advertiser: self.advertiser,
-                affiliateId: msg.affiliateId,
-                earnings: netAmount,
-                fee: fee
-            }.toCell(),
-            value: GAS_FEE,
-            mode: SendPayGasSeparately | SendIgnoreErrors
-        });
     }
 
     // advertiser sends ONLY affiliates that need a modification in earnings (sends their updated earnings)
@@ -578,6 +564,28 @@ contract Campaign with Resumable {
             value: context().value,  // return gas fee paid by the bot
             mode: SendPayGasSeparately
         });
+    }
+
+    receive(msg: AdvertiserAddNewUserOpCode) {
+
+        require(sender() == self.advertiser, "Only advertiser can add user op codes");
+        require(self.isCampaignActive(), "Campaign is not active");
+
+        let newUserOpCode: Int = msg.userOpCode;
+        let isPremiumUserOpCode: Bool = msg.isPremiumUserOpCode;
+        let cpa: Int = msg.costPerAction;
+
+        if (isPremiumUserOpCode) {
+            require(self.campaignDetails.premiumUsersCostPerAction.get(newUserOpCode) != null, "Can only add op codes");
+            self.validateUserActionOpCodeValue(cpa, self.campaignDetails);
+            self.updateMaxCpaValue(cpa);
+            self.campaignDetails.premiumUsersCostPerAction.set(newUserOpCode, cpa);
+        } else {
+            require(self.campaignDetails.regularUsersCostPerAction.get(newUserOpCode) != null, "Can only add op codes");
+            self.validateUserActionOpCodeValue(cpa, self.campaignDetails);
+            self.updateMaxCpaValue(cpa);
+            self.campaignDetails.regularUsersCostPerAction.set(newUserOpCode, cpa);
+        }
     }
 
     receive(msg: AdvertiserUserAction) {
@@ -995,20 +1003,6 @@ contract AffiliateMarketplace with Deployable, Resumable  {
             advertiser: msg.advertiser,
             amount: msg.amount}.toCell());
 
-    }
-
-    receive(msg: ChildToParentAffiliateWithdrawEarningsFee) {
-
-        let expectedAddress: Address = contractAddress(self.campaignContractStateInit(msg.campaignId, msg.advertiser));
-        require(sender() == expectedAddress, "Access denied");
-
-        emit(AffiliateWithdrawEarningsEvent{
-            campaignId: msg.campaignId,
-            advertiser: msg.advertiser,
-            affiliateId: msg.affiliateId,
-            earnings: msg.earnings,
-            fee: msg.fee
-        }.toCell());
     }
 
     receive(msg: ChildToParentAdvertiserSignedCampaignDetails) {

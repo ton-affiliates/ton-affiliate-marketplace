@@ -11,7 +11,6 @@ import '@ton/test-utils';
 import {
       loadAffiliateCreatedEvent,
       loadCampaignCreatedEvent,
-      loadAffiliateWithdrawEarningsEvent,
   	  loadAdvertiserWithdrawFundsEvent,
 	  loadAdvertiserSignedCampaignDetailsEvent,
 	  loadAffiliateAskToJoinAllowedListEvent} from '../scripts/events';
@@ -423,27 +422,10 @@ describe('AffiliateMarketplace Integration Test', () => {
 
         expect(affiliateWithdrawResult.transactions).toHaveTransaction({
             from: campaignContract.address,
-            to: affiliateMarketplaceContract.address,
-            success: true,
-        });
-
-        expect(affiliateWithdrawResult.transactions).toHaveTransaction({
-            from: campaignContract.address,
             to: affiliate1.address,
             success: true,
         });
-		
-        let decodedAffiliateWithdraw: any | null = null
-        for (const external of affiliateWithdrawResult.externals) {
-            if (external.body) {
-                decodedAffiliateWithdraw = loadAffiliateWithdrawEarningsEvent(external.body);
-            }
-        }
-				
-        expect(decodedAffiliateWithdraw).not.toBeNull();
-		expect(decodedAffiliateWithdraw.earnings).toBe(toNano("0.98"));
-		expect(decodedAffiliateWithdraw.fee).toBe(toNano("0.02"));
-						
+								
         campaignData = await campaignContract.getCampaignData();
         affiliateData1 = await campaignContract.getAffiliateData(decodedAffiliate1!.affiliateId);
 		
@@ -535,24 +517,9 @@ describe('AffiliateMarketplace Integration Test', () => {
 
         expect(affiliate2WithdrawResult.transactions).toHaveTransaction({
             from: campaignContract.address,
-            to: affiliateMarketplaceContract.address,
-            success: true,
-        });
-
-        expect(affiliate2WithdrawResult.transactions).toHaveTransaction({
-            from: campaignContract.address,
             to: affiliate2.address,
             success: true,
         });
-
-        let decodedAffiliate2Withdraw: any | null = null
-        for (const external of affiliate2WithdrawResult.externals) {
-            if (external.body) {
-                decodedAffiliate2Withdraw = loadAffiliateWithdrawEarningsEvent(external.body);
-            }
-        }
-
-        expect(decodedAffiliate2Withdraw).not.toBeNull();
 
         affiliateData2 = await campaignContract.getAffiliateData(decodedAffiliate2!.affiliateId);
 

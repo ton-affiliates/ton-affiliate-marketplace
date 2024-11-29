@@ -73,14 +73,6 @@ message AffiliateCreatedEvent {
     affiliate: Address;
 }
 
-message AffiliateWithdrawEarningsEvent {
-    campaignId: Int as uint32;
-    advertiser: Address;
-    affiliateId: Int as uint32;
-    earnings: Int as coins;
-	fee: Int as coins;
-}
-
 message AffiliateAskToJoinAllowedListEvent {
 	campaignId: Int as uint32;
     advertiser: Address;
@@ -155,6 +147,12 @@ message AdvertiserWithdrawFunds{
 	amount: Int as coins;
 }
 
+message AdvertiserAddNewUserOpCode {
+	userOpCode: Int as uint32;
+    isPremiumUserOpCode: Bool;
+    costPerAction: Int as coins;
+}
+
 message AdvertiserSetCampaignDetails {
     campaignDetails: CampaignDetails;
 }
@@ -190,14 +188,6 @@ message ChildToParentAffiliateCreated {
     affiliateId: Int as uint32;
     advertiser: Address;
     affiliate: Address;
-}
-
-message ChildToParentAffiliateWithdrawEarningsFee {
-    campaignId: Int as uint32;
-    advertiser: Address;
-    affiliateId: Int as uint32;
-    earnings: Int as coins;
-	fee: Int as coins;
 }
 
 message ChildToParentAdvertiserSignedCampaignDetails {

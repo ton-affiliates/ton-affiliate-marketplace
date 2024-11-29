@@ -5,7 +5,6 @@ import { Cell } from '@ton/core';
 // Event types from the ABI
 export const EVENT_TYPE_CAMPAIGN_CREATED = 2452245169;
 export const EVENT_TYPE_AFFILIATE_CREATED = 157562025;
-export const EVENT_TYPE_AFFILIATE_WITHDRAW_EARNINGS = 3696909830;
 export const EVENT_TYPE_ADVERTISER_WITHDRAW_FUNDS = 3552449590;
 export const EVENT_TYPE_ADVERTISER_SIGNED_CAMPAIGN_DETAILS = 1529127575;
 export const EVENT_TYPE_AFFILIATE_ASK_TO_JOIN_ALLOWED_LIST = 851937543;
@@ -35,16 +34,6 @@ export function loadAffiliateCreatedEvent(cell: Cell) {
     const affiliateId = slice.loadUint(32);
     const affiliateAddressStr = slice.loadAddress().toString();
     return { $$type: 'AffiliateCreatedEvent', campaignId, affiliateId, advertiserAddressStr, affiliateAddressStr };
-}
-
-export function  loadAffiliateWithdrawEarningsEvent(cell: Cell) {
-    const slice = verifyEventHeader(cell, EVENT_TYPE_AFFILIATE_WITHDRAW_EARNINGS);
-    const campaignId = slice.loadUint(32);
-    const advertiserAddressStr = slice.loadAddress().toString();
-    const affiliateId = slice.loadUint(32);
-    const earnings = slice.loadCoins();
-	const fee = slice.loadCoins();
-    return { $$type: 'AffiliateWithdrawEarningsEvent', campaignId, affiliateId, advertiserAddressStr, earnings, fee };
 }
 
 export function loadAdvertiserWithdrawFundsEvent(cell: Cell) {
