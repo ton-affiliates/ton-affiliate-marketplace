@@ -59,7 +59,7 @@
 // 26205: Only USDT Campaigns can accept USDT
 // 26924: affiliate not approved yet
 // 26953: Only affiliate can withdraw funds
-// 27029: Cannot take from Affiliate more than their accruedEarnings
+// 27029: Cannot take from Affiliate more than their pendingApprovalEarnings
 // 30892: Only owner can deploy
 // 33318: Insufficient funds to repay parent for deployment and keep buffer
 // 33594: Cannot manually add affiliates to an open campaign
@@ -651,7 +651,7 @@ describe('Advertiser Actions - Positive and Negative Tests for Advertiser Functi
 
         // Confirm earnings accrued for affiliate1 from advertiser's action
         let affiliateData = await campaignContract.getAffiliateData(BigInt(0));
-        expect(affiliateData!.accruedEarnings).toBeGreaterThan(0);
+        expect(affiliateData!.pendingApprovalEarnings).toBeGreaterThan(0);
 		
 		let campaignDataBeforeModification = await campaignContract.getCampaignData();
 		
@@ -668,7 +668,8 @@ describe('Advertiser Actions - Positive and Negative Tests for Advertiser Functi
 			from: advertiser.address,
 			to: campaignContract.address,
 			success: false,
-			exitCode: 29677  //: Cannot give this affiliate more than accrued earnings
+			exitCode: 9125 //: withdrawableAmount must be <= pendingApprovalEarnings
+
 		});
 		
 	});

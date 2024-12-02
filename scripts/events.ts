@@ -8,7 +8,8 @@ export const EVENT_TYPE_AFFILIATE_CREATED = 157562025;
 export const EVENT_TYPE_ADVERTISER_WITHDRAW_FUNDS = 3552449590;
 export const EVENT_TYPE_ADVERTISER_SIGNED_CAMPAIGN_DETAILS = 1529127575;
 export const EVENT_TYPE_AFFILIATE_ASK_TO_JOIN_ALLOWED_LIST = 851937543;
-export const EVENT_TYPE_ADVERTISER_MODIFIED_ALLOWED_LIST = 2194773545;
+export const EVENT_TYPE_ADVERTISER_APPROVED_AFFILIATE_TO_JOIN_ALLOWED_LIST = 3495604191;
+export const EVENT_TYPE_ADVERTISER_REMOVED_AFFILIATE_FROM_ALLOWED_LIST = 3639428509;
 
 export function verifyEventHeader(cell: Cell, expectedEventType: number) {
     const slice = cell.beginParse();
@@ -59,11 +60,18 @@ export function loadAffiliateAskToJoinAllowedListEvent(cell: Cell) {
     return { $$type: 'AffiliateAskToJoinAllowedListEvent', campaignId, advertiserAddressStr, affiliateAddressStr };
 }
 
-export function loadAdvertiserModifiedAllowedListEvent(cell: Cell) {
-    const slice = verifyEventHeader(cell, EVENT_TYPE_ADVERTISER_MODIFIED_ALLOWED_LIST);
+export function loadAdvertiserRemovedAffiliateFromAllowedListEvent(cell: Cell) {
+    const slice = verifyEventHeader(cell, EVENT_TYPE_ADVERTISER_REMOVED_AFFILIATE_FROM_ALLOWED_LIST);
     const campaignId = slice.loadUint(32);
     const advertiserAddressStr = slice.loadAddress().toString();
 	const affiliateAddressStr = slice.loadAddress().toString();
-	const isAdded = slice.loadBoolean();
-    return { $$type: 'AdvertiserModifiedAllowedListEvent', campaignId, advertiserAddressStr, affiliateAddressStr, isAdded };
+    return { $$type: 'AdvertiserRemovedAffiliateFromAllowedListEvent', campaignId, advertiserAddressStr, affiliateAddressStr };
+}
+
+export function loadAdvertiserApprovedAffiliateToJoinAllowedListEvent(cell: Cell) {
+    const slice = verifyEventHeader(cell, EVENT_TYPE_ADVERTISER_APPROVED_AFFILIATE_TO_JOIN_ALLOWED_LIST);
+    const campaignId = slice.loadUint(32);
+    const advertiserAddressStr = slice.loadAddress().toString();
+	const affiliateAddressStr = slice.loadAddress().toString();
+    return { $$type: 'AdvertiserApprovedAffiliateToJoinAllowedListEvent', campaignId, advertiserAddressStr, affiliateAddressStr };
 }

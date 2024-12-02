@@ -38,7 +38,7 @@ struct AffiliateData {
     affiliate: Address;
     userActionsStats: map<Int, UserActionStats>;
     premiumUserActionsStats: map<Int, UserActionStats>;
-    accruedEarnings: Int as coins;
+    pendingApprovalEarnings: Int as coins;
     totalEarnings: Int as coins; // over time
 	withdrawEarnings: Int as coins; // earnings ready to withdraw now
 }
@@ -122,6 +122,7 @@ contract Campaign with Resumable {
 
     contractUSDTBalance: Int as coins;
     contractUsdtJettonWallet: Address;
+    processedJettonTransfers: map<Int, Bool>;
 
     init(owner: Address, campaignId: Int, advertiser: Address, payout: Address, bot: Address, usdtMasterAddress: Address, usdtWalletBytecode: Cell) {
         
@@ -157,6 +158,9 @@ contract Campaign with Resumable {
         // USDT details
 		self.contractUSDTBalance = 0;
 		self.contractUsdtJettonWallet = calculateJettonWalletAddress(myAddress(), usdtMasterAddress, usdtWalletBytecode);
+
+        // replay attack protection
+        self.processedJettonTransfers = emptyMap();
     }
 
     // piggyback on this message for deployment
@@ -248,6 +252,11 @@ contract Campaign with Resumable {
         require(sender() == self.contractUsdtJettonWallet, "Only contract wallet allowed to invoke");
         require(msg.sender == self.advertiser, "Only advertiser can send tokens to this contract");
         require(self.campaignDetails.paymentMethod == PAYMENT_METHOD_USDT, "Only USDT Campaigns can accept USDT");
+        
+        // replay
+        require(self.processedJettonTransfers.get(msg.queryId) != null, "Cannot replay message");
+        self.processedJettonTransfers.set(msg.queryId, true);
+
         // Update the USDT balance in the state.  Adjust to 9 decimals (since we received 6 decimals)
         self.contractUSDTBalance = self.contractUSDTBalance + (msg.amount * 1000);
     }
@@ -264,7 +273,7 @@ contract Campaign with Resumable {
         let affiliateData: AffiliateData = affiliateDataOptional!!;
 
         require(sender() == affiliateData.affiliate, "Only affiliate can withdraw funds");
-    
+
         let withdrawalAmount = affiliateData.withdrawEarnings;
         require(withdrawalAmount > 0,"Must withdraw a positive amount");
 
@@ -304,33 +313,28 @@ contract Campaign with Resumable {
         }
     }
 
-    // advertiser sends ONLY affiliates that need a modification in earnings (sends their updated earnings)
     // at the end of the month the advertiser signs off all affiliates to withdraw their earnings
     receive(msg: AdvertiserSignOffWithdraw) {
 
         require(sender() == self.advertiser, "Only advertiser can approve withdrawal");
         require(self.campaignDetails.requiresAdvertiserApprovalForWithdrawl, "Advertiser can only modify affiliate accrued earnings only if campaign is setup this requiresApprovalForWithdrawlFlag");
         
-        foreach(affiliateId, affiliateData in self.affiliates) {
+        foreach(affiliateId, amountToWithdraw in msg.setAffiliatesWithdrawEarnings) {
 		
 			let affiliateDataOptional = self.affiliates.get(affiliateId);
 			require(affiliateDataOptional != null, "Affiliate does not exist");
+            let affiliateData: AffiliateData = affiliateDataOptional!!;
             
-            if (msg.setAffiliatesWithdrawEarnings.get(affiliateId) != null) {
-                
-                let amountToWithdraw: Int = msg.setAffiliatesWithdrawEarnings.get(affiliateId)!!;
-                require(amountToWithdraw < affiliateData.accruedEarnings, "Cannot give this affiliate more than accrued earnings");
-                
-                affiliateData.withdrawEarnings = affiliateData.withdrawEarnings + amountToWithdraw;
-                let diff: Int = affiliateData.accruedEarnings - amountToWithdraw;
-                
-                affiliateData.totalEarnings = affiliateData.totalEarnings - diff; // update also total earnings
-                self.totalAffiliateEarnings = self.totalAffiliateEarnings - diff; // return diff to campaign
-            } else {
-                affiliateData.withdrawEarnings += affiliateData.accruedEarnings;
-            }
+            require(amountToWithdraw <= affiliateData.pendingApprovalEarnings, "withdrawableAmount must be <= pendingApprovalEarnings");
+            
+            affiliateData.withdrawEarnings += amountToWithdraw;
 
-            affiliateData.accruedEarnings = ton("0");
+            // update diff (diff can be zero)
+            let diff: Int = affiliateData.pendingApprovalEarnings - amountToWithdraw;
+            affiliateData.totalEarnings -= diff; // update affiliate's earnings
+            self.totalAffiliateEarnings -= diff; // return diff to campaign
+             
+            affiliateData.pendingApprovalEarnings = ton("0");  // finally set pendingApprovalEarnings as zero
             self.affiliates.set(affiliateId, affiliateData);
         }
 		
@@ -437,7 +441,7 @@ contract Campaign with Resumable {
             affiliate: sender(), 
             userActionsStats: emptyMap(), 
             premiumUserActionsStats: emptyMap(), 
-            accruedEarnings: ton("0"),
+            pendingApprovalEarnings: ton("0"),
             totalEarnings: ton("0"),
 			withdrawEarnings: ton("0")
         });
@@ -463,11 +467,16 @@ contract Campaign with Resumable {
         // Check if the campaign is not open (closed campaign)
         require(!self.campaignDetails.isOpenCampaign, "Cannot manually add affiliates to an open campaign");
 
+        // verify isAllowed is always a different value
+        require(self.campaignDetails.allowedAffiliates.get(affiliate) != isAllowed, "Invalid value for isAllowed");
+
         // Add the new affiliate to the allowed affiliates list
         self.campaignDetails.allowedAffiliates.set(affiliate, isAllowed);
     }
 
+
     receive(msg: AdvertiserAddNewAffiliateToAllowedList) {
+        
         // Ensure only the advertiser can invoke this function
         require(sender() == self.advertiser, "Only the advertiser can add a new affiliate");
         self.setAffiliateAllowedListStatus(msg.affiliate, true);
@@ -479,7 +488,7 @@ contract Campaign with Resumable {
                 campaignId: self.campaignId,
                 advertiser: self.advertiser,
                 affiliate: msg.affiliate,
-				isAdded: true
+				allowedListStatus: true
             }.toCell(),
             value: GAS_FEE,
             mode: SendPayGasSeparately 
@@ -487,6 +496,7 @@ contract Campaign with Resumable {
     }
 
     receive(msg: AdvertiserRemoveExistingAffiliateFromAllowedList) {
+        
         // Ensure only the advertiser can invoke this function
         require(sender() == self.advertiser, "Only the advertiser can remove an existing affiliate");
         self.setAffiliateAllowedListStatus(msg.affiliate, null);
@@ -498,7 +508,7 @@ contract Campaign with Resumable {
                 campaignId: self.campaignId,
                 advertiser: self.advertiser,
                 affiliate: msg.affiliate,
-				isAdded: false
+				allowedListStatus: null
             }.toCell(),
             value: GAS_FEE,
             mode: SendPayGasSeparately 
@@ -506,18 +516,21 @@ contract Campaign with Resumable {
     }
 
     receive(msg: AffiliateAskToJoinAllowedList) {
+        
+        require(context().value >= GAS_FEE, "Insufficient funds!");
         self.setAffiliateAllowedListStatus(sender(), false);
 
         //emit event so parent will notify advertiser
         send(SendParameters{
             to: self.owner,
-            body: ChildToParentAffiliateAskToJoinAllowedList {
+            body: ChildToParentAdvertiserModifiedAllowedList {
                 campaignId: self.campaignId,
                 advertiser: self.advertiser,
-                affiliate: sender()
+                affiliate: sender(),
+				allowedListStatus: false
             }.toCell(),
-            value: 0,
-            mode: SendRemainingValue
+            value: GAS_FEE,
+            mode: SendPayGasSeparately 
         });
     }
 
@@ -642,13 +655,15 @@ contract Campaign with Resumable {
 
         // Accumulate the earnings for the affiliate
         if (self.campaignDetails.requiresAdvertiserApprovalForWithdrawl) {
-            affiliateData.accruedEarnings += costPerAction;
+            affiliateData.pendingApprovalEarnings += costPerAction;
         } else {
             affiliateData.withdrawEarnings += costPerAction;
         }
+
         affiliateData.totalEarnings += costPerAction;
         self.affiliates.set(affiliateId, affiliateData);  // update affiliate data
 
+        // update campaign state
         self.lastUserActionTimestamp = currTime;
         self.numUserActions += 1;
         self.totalAffiliateEarnings += costPerAction;
@@ -666,20 +681,21 @@ contract Campaign with Resumable {
         self.transferJettonUSDT(self.payout, msg.amount);		
     } 
 
-    // if payment bounces - adjust the affiliate's accruedEarnings and totalAffiliateEarnings accordingly
+    // if payment bounces - adjust the affiliate's pendingApprovalEarnings and totalAffiliateEarnings accordingly
     fun bouncedPayment(affiliateId: Int, amount: Int) {
         
         let affiliateDataOptional = self.affiliates.get(affiliateId);
 		require(affiliateDataOptional != null, "Affiliate does not exist for this id");
-		// pay affiliate
+		
 		let affiliateData: AffiliateData = affiliateDataOptional!!;
 		affiliateData.withdrawEarnings += amount;
 		self.affiliates.set(affiliateId, affiliateData);
-		self.totalAffiliateEarnings = self.totalAffiliateEarnings + amount;
+
+		self.totalAffiliateEarnings += amount;
     }
 
-    // bounced USDT
-    receive(msg: ParentToChildPayAffiliateUSDTBounced) {
+    // bounced USDT - amount in 9 decials already!
+    receive(msg: ParentToChildPayAffiliateUSDTBounced) {     
         self.requireOwner();
         self.bouncedPayment(msg.affiliateId, msg.amount);
         self.contractUSDTBalance = self.contractUSDTBalance + msg.amount;
@@ -977,25 +993,25 @@ contract AffiliateMarketplace with Deployable, Resumable  {
 		let expectedAddress: Address = contractAddress(self.campaignContractStateInit(msg.campaignId, msg.advertiser));
         require(sender() == expectedAddress, "Access denied");
 
-        emit(AdvertiserModifiedAllowedListEvent{
-            campaignId: msg.campaignId,
-            advertiser: msg.advertiser,
-            affiliate: msg.affiliate,
-			isAdded: msg.isAdded}.toCell());
+        if (msg.allowedListStatus == null) {
+            emit(AdvertiserRemovedAffiliateFromAllowedListEvent{
+                campaignId: msg.campaignId,
+                advertiser: msg.advertiser,
+                affiliate: msg.affiliate}.toCell());
+
+        } else if (msg.allowedListStatus!! == false) {
+            emit(AffiliateAskToJoinAllowedListEvent{
+                campaignId: msg.campaignId,
+                advertiser: msg.advertiser,
+                affiliate: msg.affiliate}.toCell());
+        } else {
+            emit(AdvertiserApprovedAffiliateToAllowedListEvent{
+                campaignId: msg.campaignId,
+                advertiser: msg.advertiser,
+                affiliate: msg.affiliate}.toCell());
+        }
 	}
 	
-    receive(msg: ChildToParentAffiliateAskToJoinAllowedList) {
-
-        let expectedAddress: Address = contractAddress(self.campaignContractStateInit(msg.campaignId, msg.advertiser));
-        require(sender() == expectedAddress, "Access denied");
-
-        emit(AffiliateAskToJoinAllowedListEvent{
-            campaignId: msg.campaignId,
-            advertiser: msg.advertiser,
-            affiliate: msg.affiliate}.toCell());
-
-    }
-
     receive(msg: ChildToParentAdvertiserWithdrawFunds) {
 
         let expectedAddress: Address = contractAddress(self.campaignContractStateInit(msg.campaignId, msg.advertiser));

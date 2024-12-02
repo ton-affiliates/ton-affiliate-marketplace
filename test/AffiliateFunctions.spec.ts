@@ -60,7 +60,7 @@
 // 26205: Only USDT Campaigns can accept USDT
 // 26924: affiliate not approved yet
 // 26953: Only affiliate can withdraw funds
-// 27029: Cannot take from Affiliate more than their accruedEarnings
+// 27029: Cannot take from Affiliate more than their pendingApprovalEarnings
 // 30892: Only owner can deploy
 // 33318: Insufficient funds to repay parent for deployment and keep buffer
 // 33594: Cannot manually add affiliates to an open campaign

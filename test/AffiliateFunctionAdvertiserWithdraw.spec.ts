@@ -208,7 +208,7 @@ describe('Affiliate Actions - Positive and Negative Tests for Affiliate Function
     it('should allow advertiser to withdraw for affiliate', async () => {
 				
 		let affiliateData = await campaignContract.getAffiliateData(BigInt(0));
-        expect(affiliateData!.accruedEarnings).toBe(BigInt(0));
+        expect(affiliateData!.pendingApprovalEarnings).toBe(BigInt(0));
 		expect(affiliateData!.totalEarnings).toBe(BigInt(0));
 		expect(affiliateData!.withdrawEarnings).toBe(BigInt(0));
 		
@@ -237,7 +237,7 @@ describe('Affiliate Actions - Positive and Negative Tests for Affiliate Function
         });
 		
         affiliateData = await campaignContract.getAffiliateData(BigInt(0));
-        expect(affiliateData!.accruedEarnings).toBeGreaterThan(BigInt(0));
+        expect(affiliateData!.pendingApprovalEarnings).toBeGreaterThan(BigInt(0));
 		expect(affiliateData!.totalEarnings).toBeGreaterThan(BigInt(0));
 		expect(affiliateData!.withdrawEarnings).toBe(BigInt(0));
 		
@@ -265,7 +265,7 @@ describe('Affiliate Actions - Positive and Negative Tests for Affiliate Function
 		expect(campaignBalanceAfter - campaignBalanceBefore).toBeGreaterThan(BigInt(0));
 		
 		affiliateData = await campaignContract.getAffiliateData(BigInt(0));
-        expect(affiliateData!.accruedEarnings).toBe(BigInt(0));
+        expect(affiliateData!.pendingApprovalEarnings).toBe(BigInt(0));
 		expect(affiliateData!.totalEarnings).toBeGreaterThan(BigInt(0));
 		expect(affiliateData!.withdrawEarnings).toBeGreaterThan(BigInt(0));
 		
@@ -285,7 +285,7 @@ describe('Affiliate Actions - Positive and Negative Tests for Affiliate Function
 		
 				
 		affiliateData = await campaignContract.getAffiliateData(BigInt(0));
-        expect(affiliateData!.accruedEarnings).toBe(BigInt(0));
+        expect(affiliateData!.pendingApprovalEarnings).toBe(BigInt(0));
 		expect(affiliateData!.totalEarnings).toBeGreaterThan(BigInt(0)); // total earnings do not change
 		expect(affiliateData!.withdrawEarnings).toBe(BigInt(0));
 		
@@ -313,7 +313,7 @@ describe('Affiliate Actions - Positive and Negative Tests for Affiliate Function
         });
 		
 		let affiliateData = await campaignContract.getAffiliateData(BigInt(0));
-        expect(affiliateData!.accruedEarnings).toBeGreaterThan(BigInt(0));
+        expect(affiliateData!.pendingApprovalEarnings).toBeGreaterThan(BigInt(0));
 		expect(affiliateData!.withdrawEarnings).toBe(BigInt(0));
 		
 		const affiliateWithdrawResult = await campaignContract.send(

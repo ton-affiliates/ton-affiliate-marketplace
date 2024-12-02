@@ -377,7 +377,7 @@ describe('Administrative Actions - positive test', () => {
 		});
 	
 		let affiliateData = await campaignContract.getAffiliateData(BigInt(0));
-		expect(affiliateData!.accruedEarnings).toBe(toNano('0'));
+		expect(affiliateData!.pendingApprovalEarnings).toBe(toNano('0'));
         	
 		const adminUpdateAffiliateBalance = await affiliateMarketplaceContract.send(
             deployer.getSender(),

@@ -13,7 +13,9 @@ import {
       loadCampaignCreatedEvent,
   	  loadAdvertiserWithdrawFundsEvent,
 	  loadAdvertiserSignedCampaignDetailsEvent,
-	  loadAffiliateAskToJoinAllowedListEvent} from '../scripts/events';
+	  loadAffiliateAskToJoinAllowedListEvent,
+	  loadAdvertiserApprovedAffiliateToJoinAllowedListEvent,
+	  loadAdvertiserRemovedAffiliateFromAllowedListEvent} from '../scripts/events';
 	  
 import { USDT_MASTER_ADDRESS, USDT_WALLET_BYTECODE } from '../scripts/constants'
 import { hexToCell } from '../scripts/utils';

@@ -79,22 +79,19 @@ message AffiliateAskToJoinAllowedListEvent {
 	affiliate: Address;
 }
 
-message AdvertiserModifiedAllowedListEvent {
+message AdvertiserRemovedAffiliateFromAllowedListEvent {
 	campaignId: Int as uint32;
     advertiser: Address;
 	affiliate: Address;
-	isAdded: Bool;
+}
+
+message AdvertiserApprovedAffiliateToAllowedListEvent {
+	campaignId: Int as uint32;
+    advertiser: Address;
+	affiliate: Address;
 }
 
 message AdvertiserDeployNewCampaign {}
-
-
-// Bot functions
-message BotUserAction {
-    affiliateId: Int as uint32;
-    userActionOpCode: Int as uint32;
-    isPremiumUser: Bool;
-}
 
 // parent to child INTERNAL messages
 message ParentToChildDeployCampaign {
@@ -129,12 +126,19 @@ message ParentToChildPayAffiliateUSDTBounced {
 
 // * ------ Campaign API ------ *
 
+// Bot functions
+message BotUserAction {
+    affiliateId: Int as uint32;
+    userActionOpCode: Int as uint32;
+    isPremiumUser: Bool;
+}
+
+// Affiliate API
 message PayAffiliate{
     affiliateId: Int as uint32;
     amount: Int as coins;
 }
 
-// Affiliate API
 message AffiliateCreateNewAffiliate{}
 message AffiliateWithdrawEarnings {
     affiliateId: Int as uint32;
@@ -167,11 +171,6 @@ message AdvertiserAddNewAffiliateToAllowedList{affiliate: Address}
 message AdvertiserRemoveExistingAffiliateFromAllowedList{affiliate: Address}
 
 message AdvertiserReplenish {}
-
-message AdvertiserModifyAffiliateRequiresApprovalForWithdrawlFlag{
-	affiliateId: Int as uint32;
-	requiresAdvertiserApprovalForWithdrawl: Bool;
-}
 
 message AdvertiserSignOffWithdraw {
 	setAffiliatesWithdrawEarnings: map<Int, Int>;  // affiliateId -> withdrawalAmount
@@ -211,7 +210,7 @@ message ChildToParentAdvertiserModifiedAllowedList {
 	campaignId: Int as uint32;
     advertiser: Address;
 	affiliate: Address;
-	isAdded: Bool;
+	allowedListStatus: Bool?;
 }
 
 
