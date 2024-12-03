@@ -67,6 +67,7 @@ struct CampaignData {
     isCampaignPausedByAdmin: Bool;
     campaignHasSufficientTonToPayGasFees: Bool;
     isCampaignActive: Bool;
+    topAffiliates: map<Int, Int>;
 }
 
 struct JettonWalletData {
@@ -120,6 +121,8 @@ contract Campaign with Resumable {
     maxCpaValue: Int as coins;
     feePercentage: Int as uint32 = 200;
 
+    topAffiliates: map<Int, Int>; // Affiliate ID -> Earnings
+
     contractUSDTBalance: Int as coins;
     contractUsdtJettonWallet: Address;
     processedJettonTransfers: map<Int, Bool>;
@@ -154,6 +157,9 @@ contract Campaign with Resumable {
         self.numUserActions = 0;
         self.totalAffiliateEarnings = 0;
         self.maxCpaValue = ton("0");
+
+        // top 3 affiliates in campaign
+        self.topAffiliates = emptyMap();
 
         // USDT details
 		self.contractUSDTBalance = 0;
@@ -667,7 +673,44 @@ contract Campaign with Resumable {
         self.lastUserActionTimestamp = currTime;
         self.numUserActions += 1;
         self.totalAffiliateEarnings += costPerAction;
+		self.updateTopAffiliates(affiliateId, affiliateData.totalEarnings);
     }
+
+    // Function to update the "Top 3 Affiliates" dynamically
+    fun updateTopAffiliates(affiliateId: Int, earnings: Int) {
+
+        // If the affiliate is already in the top 3, update their earnings
+        if (self.topAffiliates.get(affiliateId) != null) {
+            self.topAffiliates.set(affiliateId, earnings);
+            return;
+        }
+
+        // Find the lowest earner in the current top 3 and count the number of affiliates in the list
+        let minEarnings: Int? = null;
+        let minId: Int = 0;
+        let numAffiliates = 0;
+
+        foreach (id, earning in self.topAffiliates) {
+            numAffiliates += 1;
+            if (minEarnings == null || earning < minEarnings!!) {
+                minEarnings = earning;
+                minId = id;
+            }
+        }
+
+        // If there are fewer than 3 affiliates, simply add the new one
+        if (numAffiliates < 3) {
+            self.topAffiliates.set(affiliateId, earnings);
+            return;
+        }
+
+        // If the new affiliate's earnings are higher than the current minimum, replace the lowest
+        if (minEarnings != null && earnings > minEarnings!!) {
+            self.topAffiliates.del(minId);
+            self.topAffiliates.set(affiliateId, earnings);
+        }
+    }
+
     
     // Jetton notification did not arrive.  
     receive(msg: ParentToChildJettonNotificationMessageFailure) {
@@ -766,7 +809,8 @@ contract Campaign with Resumable {
             isCampaignExpired: self.isCampaignExpired(),
             isCampaignPausedByAdmin: self.stopped,
             campaignHasSufficientTonToPayGasFees: self.campaignHasSufficientTonToPayGasFees(),
-            isCampaignActive: self.isCampaignActive()
+            isCampaignActive: self.isCampaignActive(),
+            topAffiliates: self.topAffiliates
         }
     }
 
