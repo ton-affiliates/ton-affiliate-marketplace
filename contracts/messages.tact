@@ -176,6 +176,8 @@ message AdvertiserSignOffWithdraw {
 	setAffiliatesWithdrawEarnings: map<Int, Int>;  // affiliateId -> withdrawalAmount
 }
 
+message AdvertiserSignOffAllAffilliates{}
+
 // Child to Parent - INTERNAL Messages
 message ChildToParentCampaignDeployedSuccessfully {
     campaignId: Int as uint32; 

@@ -319,11 +319,31 @@ contract Campaign with Resumable {
         }
     }
 
+    receive(msg: AdvertiserSignOffAllAffilliates) {
+
+        require(sender() == self.advertiser, "Only advertiser can approve withdrawal");
+        require(self.campaignDetails.requiresAdvertiserApprovalForWithdrawl, "Advertiser can sin off affiliate earnings only if campaign is setup this requiresApprovalForWithdrawlFlag");
+
+        foreach(affiliateId, affiliateData in self.affiliates) {            
+            affiliateData.withdrawEarnings += affiliateData.pendingApprovalEarnings;
+            affiliateData.pendingApprovalEarnings = ton("0");  
+            self.affiliates.set(affiliateId, affiliateData);
+        }
+
+        // send remaining value back to advertiser
+		send(SendParameters{
+            to: self.advertiser,
+            value: 0,
+            mode: SendRemainingValue 
+        });
+
+    }
+
     // at the end of the month the advertiser signs off all affiliates to withdraw their earnings
     receive(msg: AdvertiserSignOffWithdraw) {
 
         require(sender() == self.advertiser, "Only advertiser can approve withdrawal");
-        require(self.campaignDetails.requiresAdvertiserApprovalForWithdrawl, "Advertiser can only modify affiliate accrued earnings only if campaign is setup this requiresApprovalForWithdrawlFlag");
+        require(self.campaignDetails.requiresAdvertiserApprovalForWithdrawl, "Advertiser can only modify affiliate earnings only if campaign is setup this requiresApprovalForWithdrawlFlag");
         
         foreach(affiliateId, amountToWithdraw in msg.setAffiliatesWithdrawEarnings) {
 		
@@ -333,13 +353,12 @@ contract Campaign with Resumable {
             
             require(amountToWithdraw <= affiliateData.pendingApprovalEarnings, "withdrawableAmount must be <= pendingApprovalEarnings");
             
-            affiliateData.withdrawEarnings += amountToWithdraw;
-
             // update diff (diff can be zero)
             let diff: Int = affiliateData.pendingApprovalEarnings - amountToWithdraw;
             affiliateData.totalEarnings -= diff; // update affiliate's earnings
             self.totalAffiliateEarnings -= diff; // return diff to campaign
-             
+            
+            affiliateData.withdrawEarnings += amountToWithdraw;
             affiliateData.pendingApprovalEarnings = ton("0");  // finally set pendingApprovalEarnings as zero
             self.affiliates.set(affiliateId, affiliateData);
         }

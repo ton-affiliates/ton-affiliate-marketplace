@@ -588,7 +588,7 @@ describe('Advertiser Actions - Positive and Negative Tests for Advertiser Functi
 			from: advertiser.address,
 			to: campaignContract.address,
 			success: false,
-			exitCode: 39945 //: Advertiser can only modify affiliate accrued earnings only if campaign is setup this requiresApprovalForWithdrawlFlag
+			exitCode: 28586 //: Advertiser can only modify affiliate earnings only if campaign is setup this requiresApprovalForWithdrawlFlag
 		});
 		
 		affiliateData = await campaignContract.getAffiliateData(BigInt(0));
