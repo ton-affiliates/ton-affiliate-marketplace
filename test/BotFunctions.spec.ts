@@ -207,7 +207,7 @@ describe('Bot Actions - Positive and Negative Tests for Bot Functions', () => {
                     regularUsersCostPerAction: regularUsersMapCostPerActionMap,
                     premiumUsersCostPerAction: regularUsersMapCostPerActionMap,
                     allowedAffiliates: Dictionary.empty<Address, boolean>(),
-                    isOpenCampaign: true,
+                    isPublicCampaign: true,
                     campaignValidForNumDays: null,
 					paymentMethod: BigInt(0), // TON
 					requiresAdvertiserApprovalForWithdrawl: false
@@ -286,7 +286,7 @@ describe('Bot Actions - Positive and Negative Tests for Bot Functions', () => {
                     regularUsersCostPerAction: regularUsersMapCostPerActionMap,
                     premiumUsersCostPerAction: regularUsersMapCostPerActionMap,
                     allowedAffiliates: Dictionary.empty<Address, boolean>(),
-                    isOpenCampaign: true,
+                    isPublicCampaign: true,
                     campaignValidForNumDays: null,
 					paymentMethod: BigInt(0), // TON
 					requiresAdvertiserApprovalForWithdrawl: false
@@ -366,7 +366,7 @@ describe('Bot Actions - Positive and Negative Tests for Bot Functions', () => {
                     regularUsersCostPerAction: regularUsersMapCostPerActionMap,
                     premiumUsersCostPerAction: regularUsersMapCostPerActionMap,
                     allowedAffiliates: Dictionary.empty<Address, boolean>(),
-                    isOpenCampaign: true,
+                    isPublicCampaign: true,
                     campaignValidForNumDays: null,
 					paymentMethod: BigInt(0), // TON
 					requiresAdvertiserApprovalForWithdrawl: false
@@ -435,7 +435,7 @@ describe('Bot Actions - Positive and Negative Tests for Bot Functions', () => {
                     regularUsersCostPerAction: regularUsersMapCostPerActionMap,
                     premiumUsersCostPerAction: regularUsersMapCostPerActionMap,
                     allowedAffiliates: Dictionary.empty<Address, boolean>(),
-                    isOpenCampaign: true,
+                    isPublicCampaign: true,
                     campaignValidForNumDays: null,
 					paymentMethod: BigInt(0), // TON
 					requiresAdvertiserApprovalForWithdrawl: false
@@ -501,7 +501,7 @@ describe('Bot Actions - Positive and Negative Tests for Bot Functions', () => {
                     regularUsersCostPerAction: regularUsersMapCostPerActionMap,
                     premiumUsersCostPerAction: regularUsersMapCostPerActionMap,
                     allowedAffiliates: Dictionary.empty<Address, boolean>(),
-                    isOpenCampaign: true,
+                    isPublicCampaign: true,
                     campaignValidForNumDays: null,
 					paymentMethod: BigInt(0), // TON
 					requiresAdvertiserApprovalForWithdrawl: false

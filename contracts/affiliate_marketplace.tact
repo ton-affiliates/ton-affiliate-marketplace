@@ -12,6 +12,7 @@ const STATE_CAMPAIGN_DETAILS_SET_BY_ADVERTISER: Int = 1;
 const DEPLOY_NEW_CONTRACT_COST: Int = ton("0.1");
 const GAS_FEE: Int = ton("0.01");
 const CAMPAIGN_BUFFER: Int = ton("0.5");
+const FIXED_FEE_CREATE_AFFILIATE: Int = ton("0.04");
 
 const USER_ACTION_OP_CODES_BOT: Int = 2000;
 
@@ -23,7 +24,7 @@ struct CampaignDetails {
     regularUsersCostPerAction: map<Int, Int>; // op code -> cpa
     premiumUsersCostPerAction: map<Int, Int>; // op code -> cpa
     allowedAffiliates: map<Address, Bool>;  // closed campaign affiliates list
-    isOpenCampaign: Bool; // anyone can be an affiliate
+    isPublicCampaign: Bool; // anyone can be an affiliate
     campaignValidForNumDays: Int? as uint32; // optional - campaign expiry period
     paymentMethod: Int as uint32; // TON (0) or USDT (1)
     requiresAdvertiserApprovalForWithdrawl: Bool;  // Flag indicating if advertiser withdraws earnings for affiliates by default or not
@@ -145,7 +146,7 @@ contract Campaign with Resumable {
             regularUsersCostPerAction: emptyMap(),
             premiumUsersCostPerAction: emptyMap(),
             allowedAffiliates: emptyMap(),
-            isOpenCampaign: true,
+            isPublicCampaign: true,
             campaignValidForNumDays: null,
             paymentMethod: PAYMENT_METHOD_TON, // Default to TON
             requiresAdvertiserApprovalForWithdrawl: false
@@ -236,7 +237,7 @@ contract Campaign with Resumable {
 
         send(SendParameters{
             to: self.contractUsdtJettonWallet,  // The Jetton wallet to send from
-            value: ton("0.1"),  // This TON is for paying for gas fees of the transfer
+            value: GAS_FEE*3,  // This TON is for paying for gas fees of the transfer
             body: jettonTransferPayload,
             mode: SendPayGasSeparately | SendIgnoreErrors
         });
@@ -410,7 +411,8 @@ contract Campaign with Resumable {
         require(sender() == self.advertiser, "Only advertiser can set campaign details");
         require((self.state == STATE_CAMPAIGN_CREATED) || (self.currAffiliateId == 0), "Must be in state: STATE_CAMPAIGN_CREATED or have zero affiliates");
         require(msg.campaignDetails.paymentMethod == PAYMENT_METHOD_TON || msg.campaignDetails.paymentMethod == PAYMENT_METHOD_USDT, "Only TON or USDT supported as payment methods");
-        		
+        require((msg.campaignDetails.campaignValidForNumDays == null) || msg.campaignDetails.campaignValidForNumDays!! > 0, "Invalid campaignValidForNumDays param");
+		
         // verify keys are the same in both sets
         // get maxCpaValue
         let maxCpaValue: Int = ton("0");
@@ -449,12 +451,12 @@ contract Campaign with Resumable {
     receive(msg: AffiliateCreateNewAffiliate) {
 
         require(self.isCampaignActive(), "Campaign is not active");
-		require(context().value >= GAS_FEE*2, "Insufficient gas fees to create affiliate");
+		require(context().value >= FIXED_FEE_CREATE_AFFILIATE, "Insufficient funds to create affiliate");
 
         let numAffiliates = self.currAffiliateId;
         require(numAffiliates <= MAX_NUM_AFFILIATES, "Reached max number of affiliates for this campaign");
 
-        if (!self.campaignDetails.isOpenCampaign) {
+        if (!self.campaignDetails.isPublicCampaign) {
             require(self.campaignDetails.allowedAffiliates.get(sender()) != null, "affiliate not on allowed list");
             require(self.campaignDetails.allowedAffiliates.get(sender())!! == true, "affiliate not approved yet");
         }
@@ -480,8 +482,8 @@ contract Campaign with Resumable {
                 affiliateId: affiliateId,
                 affiliate: sender()
             }.toCell(),
-            value: GAS_FEE,
-            mode: SendPayGasSeparately 
+            value: 0,
+            mode: SendRemainingValue 
         });
     }
 
@@ -489,8 +491,8 @@ contract Campaign with Resumable {
 
         require(self.isCampaignActive(), "Campaign is not active");
 
-        // Check if the campaign is not open (closed campaign)
-        require(!self.campaignDetails.isOpenCampaign, "Cannot manually add affiliates to an open campaign");
+        // Check if the campaign is not public (closed campaign)
+        require(!self.campaignDetails.isPublicCampaign, "Cannot manually add affiliates to an public campaign");
 
         // verify isAllowed is always a different value
         require(self.campaignDetails.allowedAffiliates.get(affiliate) != isAllowed, "Invalid value for isAllowed");
@@ -554,8 +556,8 @@ contract Campaign with Resumable {
                 affiliate: sender(),
 				allowedListStatus: false
             }.toCell(),
-            value: GAS_FEE,
-            mode: SendPayGasSeparately 
+            value: 0,
+            mode: SendRemainingValue 
         });
     }
 
@@ -760,7 +762,7 @@ contract Campaign with Resumable {
     receive(msg: ParentToChildPayAffiliateUSDTBounced) {     
         self.requireOwner();
         self.bouncedPayment(msg.affiliateId, msg.amount);
-        self.contractUSDTBalance = self.contractUSDTBalance + msg.amount;
+        self.contractUSDTBalance += msg.amount;
     }
 
     // bounced TON
@@ -1118,7 +1120,7 @@ contract AffiliateMarketplace with Deployable, Resumable  {
         require(context().value > DEPLOY_NEW_CONTRACT_COST + GAS_FEE, "Insufficient funds to deploy new campaign");
 
         let campaignId: Int = random(0, 4294967294); // Generate a new random number, which is an unsigned 32-bit integer
-        self.numCampaigns = self.numCampaigns + 1;
+        self.numCampaigns += 1;
 
         let init: StateInit = self.campaignContractStateInit(campaignId, sender());
         let campaignContractAddress: Address = contractAddress(init);
