@@ -23,6 +23,7 @@ export async function run(provider: NetworkProvider, args: string[]) {
 	const campaign = provider.open(Campaign.fromAddress(campaignAddress));
 	let campaignBalanceBefore = (await campaign.getCampaignData()).campaignBalance;
 	
+	
 	const userInputAsString: string = await ui.input(`Enter amount to withdraw.  Max amount to withdraw ${fromNano(campaignBalanceBefore)}:`);
 	const parsedInput: number = parseFloat(userInputAsString); // Convert input to a number
 	
