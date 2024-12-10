@@ -2,7 +2,7 @@ import { toNano, Address, fromNano, Dictionary } from '@ton/core';
 import { Campaign } from '../../wrappers/Campaign';
 import { AffiliateMarketplace } from '../../wrappers/AffiliateMarketplace';
 import { NetworkProvider, sleep } from '@ton/blueprint';
-import { AFFILIATE_MARKETPLACE_ADDRESS } from '../constants'
+import { AFFILIATE_MARKETPLACE_ADDRESS, GAS_FEE } from '../constants'
 
 export async function run(provider: NetworkProvider, args: string[]) {
     
@@ -26,7 +26,7 @@ export async function run(provider: NetworkProvider, args: string[]) {
     await affiliateMarketplace.send(
         provider.sender(),
         {
-            value: toNano('0.05'),
+            value: toNano(GAS_FEE),
         },
         {
 			$$type: 'AdminWithdraw',

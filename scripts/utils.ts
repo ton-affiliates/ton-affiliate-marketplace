@@ -117,6 +117,52 @@ export function fromUSDT(amount: bigint): string {
     return (Number(amount) / factor).toFixed(6); // Format with 6 decimals
 }
 
+export function parseBigIntToPriceMap(input: string): Dictionary<bigint, bigint> {
+    const map = Dictionary.empty<bigint, bigint>();
+    if (input) {
+        const pairs = input.split(','); // Format: "1:100,2:200"
+        for (const pair of pairs) {
+            const [key, value] = pair.split(':');
+            if (key && value) {
+                map.set(BigInt(key), toNano(value));
+            }
+        }
+    }
+    return map;
+}
+
+
+
+// /**
+//  * Loads a dictionary of affiliateId to amountToWithdraw from user input or a provided argument.
+//  * @param input Optional input string in the format "{0: 100, 1: 0.1}".
+//  * @returns A Dictionary<BigInt, BigInt> mapping affiliateId to amountToWithdraw.
+//  */
+// async function loadAffiliateIdToAmountMap(userInput: string): Promise<Dictionary<bigint, bigint>> {
+//     const affiliateIdToAmountMap = Dictionary.empty<bigint, bigint>();
+
+//     try {
+//         // Parse JSON-like input (e.g., "{1: 100, 2: 200}")
+//         const parsedInput: Record<string, number> = JSON.parse(
+//             userInput.replace(/(\w+):/g, '"$1":') // Convert to valid JSON format
+//         );
+
+//         // Populate the dictionary
+//         for (const [key, value] of Object.entries(parsedInput)) {
+//             const affiliateId = BigInt(key);
+//             const amountToWithdraw = value;
+// 			console.log(`Withdraw ${amountToWithdraw} for affiliate ${affiliateId}`);
+// 			affiliateIdToAmountMap.set(affiliateId, toNano(amountToWithdraw.toString()));
+//         }
+//     } catch (error) {
+//         console.error("Invalid input format. Please provide input as {1: 100, 2: 200}.");
+//         throw error;
+//     }
+
+//     return affiliateIdToAmountMap;
+// }
+
+
 // Example usage:
 //const usdtInNano = toUSDT("10.5"); // Converts "10.5" USDT to 10,500,000
 //console.log(usdtInNano); // Output: 10500000n

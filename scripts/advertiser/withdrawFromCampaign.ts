@@ -24,7 +24,7 @@ export async function run(provider: NetworkProvider, args: string[]) {
 	let campaignBalanceBefore = (await campaign.getCampaignData()).campaignBalance;
 	
 	
-	const userInputAsString: string = await ui.input(`Enter amount to withdraw.  Max amount to withdraw ${fromNano(campaignBalanceBefore)}:`);
+	const userInputAsString = args.length > 2 ? args[2] : await ui.input(`Enter amount to withdraw.  Max amount to withdraw ${fromNano(campaignBalanceBefore)}:`);
 	const parsedInput: number = parseFloat(userInputAsString); // Convert input to a number
 	
 	ui.write(`amount entered by user: ${parsedInput}`);
@@ -39,7 +39,7 @@ export async function run(provider: NetworkProvider, args: string[]) {
 	await campaign.send(
         provider.sender(),
         { 
-			value: toNano('0.05') 
+			value: GAS_FEE 
 		},
         { 
 			$$type: 'AdvertiserWithdrawFunds',

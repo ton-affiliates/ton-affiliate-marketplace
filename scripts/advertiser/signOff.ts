@@ -3,36 +3,7 @@ import { Campaign } from '../../wrappers/Campaign';
 import { AffiliateMarketplace } from '../../wrappers/AffiliateMarketplace';
 import { NetworkProvider, sleep } from '@ton/blueprint';
 import { AFFILIATE_MARKETPLACE_ADDRESS } from '../constants'
-
-
-/**
- * Loads a dictionary of affiliateId to amountToWithdraw from user input or a provided argument.
- * @param input Optional input string in the format "{0: 100, 1: 0.1}".
- * @returns A Dictionary<BigInt, BigInt> mapping affiliateId to amountToWithdraw.
- */
-async function loadAffiliateIdToAmountMap(userInput: string): Promise<Dictionary<bigint, bigint>> {
-    const affiliateIdToAmountMap = Dictionary.empty<bigint, bigint>();
-
-    try {
-        // Parse JSON-like input (e.g., "{1: 100, 2: 200}")
-        const parsedInput: Record<string, number> = JSON.parse(
-            userInput.replace(/(\w+):/g, '"$1":') // Convert to valid JSON format
-        );
-
-        // Populate the dictionary
-        for (const [key, value] of Object.entries(parsedInput)) {
-            const affiliateId = BigInt(key);
-            const amountToWithdraw = value;
-			console.log(`Withdraw ${amountToWithdraw} for affiliate ${affiliateId}`);
-			affiliateIdToAmountMap.set(affiliateId, toNano(amountToWithdraw.toString()));
-        }
-    } catch (error) {
-        console.error("Invalid input format. Please provide input as {1: 100, 2: 200}.");
-        throw error;
-    }
-
-    return affiliateIdToAmountMap;
-}
+import { parseBigIntToPriceMap } from '../utils'
 
 
 export async function run(provider: NetworkProvider, args: string[]) {
@@ -49,8 +20,8 @@ export async function run(provider: NetworkProvider, args: string[]) {
         return;
     }
 	
-	const userInputAsString: string = args.length > 2 ? args[2] : await ui.input('affiliateIdToAccruedEarningsMap: i.e. {1: 100, 2: 200}');
-	const affiliateIdToAccruedEarningsMap: Dictionary<bigint, bigint> = await loadAffiliateIdToAmountMap(userInputAsString);
+	const userInputAsString: string = args.length > 2 ? args[2] : await ui.input('affiliateIdToWithdrawEarningsMap: i.e. {1: 100, 2: 200}');
+	const affiliateIdToWithdrawEarningsMap: Dictionary<bigint, bigint> = await parseBigIntToPriceMap(userInputAsString);
 	
 	const campaign = provider.open(Campaign.fromAddress(campaignAddress));
 	let campaignData = await campaign.getCampaignData();
@@ -82,7 +53,7 @@ export async function run(provider: NetworkProvider, args: string[]) {
 	
 	let affiliateDataAccruedEarningsBefore = (await campaign.getAffiliateData(affiliateIdWithAccruedEarnings))!.accruedEarnings;
 	
-	for (const [key, value] of affiliateIdToAccruedEarningsMap) {
+	for (const [key, value] of affiliateIdToWithdrawEarningsMap) {
 		
 		let affiliateData = await campaign.getAffiliateData(key);
 		if (affiliateData == null) {
@@ -109,11 +80,11 @@ export async function run(provider: NetworkProvider, args: string[]) {
 	await campaign.send(
         provider.sender(),
         { 
-			value: toNano('1') // will get diff back from contract
+			value: toNano('0.2') // will get diff back from contract
 		},
         { 
 			$$type: 'AdvertiserSignOffWithdraw',
-			setAffiliatesWithdrawEarnings: affiliateIdToAccruedEarningsMap
+			setAffiliatesWithdrawEarnings: affiliateIdToWithdrawEarningsMap
 		}
 	);
 		
@@ -132,7 +103,7 @@ export async function run(provider: NetworkProvider, args: string[]) {
     ui.write('Campaign updated successfully!');
 	
 	
-	for (const [key, value] of affiliateIdToAccruedEarningsMap) {
+	for (const [key, value] of affiliateIdToWithdrawEarningsMap) {
 		
 		let affiliateDataAfter = await campaign.getAffiliateData(key);
 		console.log(`AffiliateData after update for affiliate: ${key} - 

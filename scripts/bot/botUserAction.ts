@@ -26,7 +26,7 @@ export async function run(provider: NetworkProvider, args: string[]) {
 	const campaign = provider.open(Campaign.fromAddress(campaignAddress));
 	let campaignBalanceBefore = (await campaign.getCampaignData()).campaignBalance;
 	
-	 await campaign.send(
+	await campaign.send(
         provider.sender(),
         {
             value: toNano('0.05'),

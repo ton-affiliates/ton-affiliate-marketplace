@@ -10,6 +10,7 @@ export const TON_CLIENT_ENDPOINT = 'https://testnet.toncenter.com/api/v2/jsonRPC
 export const TON_CLIENT_API_KEY = 'dca02dcbbca33b7f5378edba40fdcf0b7c221d4b1ae65e6ff67d0acf5c5da3e6'
 export const HTTP_ENDPOINT_NETWORK = "testnet";
 export const MIN_BUFFER_GAS_FEES = toNano("0.5");
+export const GAS_FEE = toNano('0.05');
 
 // OP CODES Bot
 export const BOT_OP_CODE_USER_CLICK = BigInt(0);
