@@ -36,7 +36,8 @@ type EmitLogEvent = {
     type: 'AdvertiserWithdrawFundsEvent' | 'CampaignCreatedEvent' | 'AffiliateCreatedEvent' |
 	'AffiliateAskToJoinAllowedListEvent' | 'AdvertiserRemovedAffiliateFromAllowedListEvent' |
 	'AdvertiserApprovedAffiliateToAllowedListEvent' | 'AdvertiserSignedCampaignDetailsEvent';
-    data: any;
+    createdAt: number;
+	data: any;
 };
 
 function decodeAdvertiserSignedCampaignDetailsEvent(cell: Cell): AdvertiserSignedCampaignDetailsEvent  {
@@ -117,32 +118,34 @@ export async function run() {
                 const message = tx.outMessages.get(key); // Access message using `get`				
 				if (message) {
 					if (message?.info.type == 'external-out') {
-
+					
+						const createdAt = message?.info.createdAt;
+					
 						const bodyBuffer = Buffer.from(message.body.toBoc());
 						const bodyCell = Cell.fromBoc(bodyBuffer)[0];
 						const eventType = getEventType(bodyCell);
 
 						if (eventType === 'AdvertiserWithdrawFundsEvent') {
 							const decodedEvent = decodeAdvertiserWithdrawFundsEvent(bodyCell);
-							logs.push({ type: 'AdvertiserWithdrawFundsEvent', data: decodedEvent });
+							logs.push({ type: 'AdvertiserWithdrawFundsEvent', createdAt: createdAt, data: decodedEvent });
 						} else if (eventType === 'CampaignCreatedEvent') {
 							const decodedEvent = decodeCampaignCreatedEvent(bodyCell);
-							logs.push({ type: 'CampaignCreatedEvent', data: decodedEvent });
+							logs.push({ type: 'CampaignCreatedEvent', createdAt: createdAt, data: decodedEvent });
 						} else if (eventType === 'AffiliateCreatedEvent') {
 							const decodedEvent = decodeAffiliateCreatedEvent(bodyCell);
-							logs.push({ type: 'AffiliateCreatedEvent', data: decodedEvent });
+							logs.push({ type: 'AffiliateCreatedEvent', createdAt: createdAt, data: decodedEvent });
 						} else if (eventType === 'AffiliateAskToJoinAllowedListEvent') {
 							const decodedEvent = decodeAffiliateAskToJoinAllowedListEvent(bodyCell);
-							logs.push({ type: 'AffiliateAskToJoinAllowedListEvent', data: decodedEvent });
+							logs.push({ type: 'AffiliateAskToJoinAllowedListEvent', createdAt: createdAt, data: decodedEvent });
 						} else if (eventType === 'AdvertiserRemovedAffiliateFromAllowedListEvent') {
 							const decodedEvent = decodeAdvertiserRemovedAffiliateFromAllowedListEvent(bodyCell);
-							logs.push({ type: 'AdvertiserRemovedAffiliateFromAllowedListEvent', data: decodedEvent });
+							logs.push({ type: 'AdvertiserRemovedAffiliateFromAllowedListEvent', createdAt: createdAt, data: decodedEvent });
 						} else if (eventType === 'AdvertiserApprovedAffiliateToAllowedListEvent') {
 							const decodedEvent = decodeAdvertiserApprovedAffiliateToAllowedListEvent(bodyCell);
-							logs.push({ type: 'AdvertiserApprovedAffiliateToAllowedListEvent', data: decodedEvent });
+							logs.push({ type: 'AdvertiserApprovedAffiliateToAllowedListEvent', createdAt: createdAt, data: decodedEvent });
 						} else if (eventType === 'AdvertiserSignedCampaignDetailsEvent') {
 							const decodedEvent = decodeAdvertiserSignedCampaignDetailsEvent(bodyCell);
-							logs.push({ type: 'AdvertiserSignedCampaignDetailsEvent', data: decodedEvent });
+							logs.push({ type: 'AdvertiserSignedCampaignDetailsEvent', createdAt: createdAt, data: decodedEvent });
 						} else {
 							console.log("Unknown Event!");
 						}
