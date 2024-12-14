@@ -4,6 +4,10 @@ import { Campaign } from '../../wrappers/Campaign';
 import { NetworkProvider, sleep } from '@ton/blueprint';
 import { AFFILIATE_MARKETPLACE_ADDRESS } from '../constants'
 
+//$env:WALLET_MNEMONIC="24 words here"
+//echo $env:WALLET_MNEMONIC
+//$env:WALLET_VERSION="v4"
+//echo $env:WALLET_VERSION
 
 export async function run(provider: NetworkProvider, args: string[]) {
     
@@ -19,9 +23,9 @@ export async function run(provider: NetworkProvider, args: string[]) {
         return;
     }
 	
-	const affiliateId = BigInt(args.length > 0 ? args[0] : await ui.input('AffiliateId: '));
-	const userActionOpCode = BigInt(args.length > 0 ? args[0] : await ui.input('user Action OP Code: '));
-	const isPremiumUser = Boolean(args.length > 0 ? args[0] : await ui.input('isPremiumUser: '));
+	const affiliateId = BigInt(args.length > 2 ? args[2] : await ui.input('AffiliateId: '));
+	const userActionOpCode = BigInt(args.length > 3 ? args[3] : await ui.input('user Action OP Code: '));
+	const isPremiumUser = Boolean(args.length > 4 ? args[4] : await ui.input('isPremiumUser: '));
 	
 	const campaign = provider.open(Campaign.fromAddress(campaignAddress));
 	let campaignBalanceBefore = (await campaign.getCampaignData()).campaignBalance;
@@ -39,7 +43,7 @@ export async function run(provider: NetworkProvider, args: string[]) {
         }
     );
 
-    ui.write('Waiting for affiliateMarketplace to update campaignBalance...');
+    ui.write('Waiting for Campaign to update campaignBalance...');
 
     let campaignBalanceAfter = (await campaign.getCampaignData()).campaignBalance;
     let attempt = 1;

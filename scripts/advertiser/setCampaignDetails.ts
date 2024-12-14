@@ -45,9 +45,9 @@ export async function run(provider: NetworkProvider, args: string[]) {
                     regularUsersCostPerAction: regularUsersMapCostPerActionMap, // TODO parameter
                     premiumUsersCostPerAction: premiumUsersMapCostPerActionMap, // TODO parameter
                     allowedAffiliates: Dictionary.empty<Address, boolean>(), // TODO parameter
-                    isOpenCampaign: true,  // open campaign // TODO parameter
+                    isPublicCampaign: true,  // public campaign // TODO parameter
                     campaignValidForNumDays: null, // no end date // TODO parameter
-					paymentMethod: BigInt(1), // 0 - TON, 1 - USDT // TODO parameter
+					paymentMethod: BigInt(0), // 0 - TON, 1 - USDT // TODO parameter
 					requiresAdvertiserApprovalForWithdrawl: true // TODO parameter
                 }
             }
