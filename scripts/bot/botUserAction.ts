@@ -2,7 +2,7 @@ import { toNano, Address, fromNano } from '@ton/core';
 import { AffiliateMarketplace } from '../../wrappers/AffiliateMarketplace';
 import { Campaign } from '../../wrappers/Campaign';
 import { NetworkProvider, sleep } from '@ton/blueprint';
-import { AFFILIATE_MARKETPLACE_ADDRESS } from '../constants'
+import { AFFILIATE_MARKETPLACE_ADDRESS, MAX_ATTEMPTS } from '../constants'
 
 //$env:WALLET_MNEMONIC="24 words here"
 //echo $env:WALLET_MNEMONIC
@@ -28,7 +28,7 @@ export async function run(provider: NetworkProvider, args: string[]) {
 	const isPremiumUser = Boolean(args.length > 4 ? args[4] : await ui.input('isPremiumUser: '));
 	
 	const campaign = provider.open(Campaign.fromAddress(campaignAddress));
-	let campaignBalanceBefore = (await campaign.getCampaignData()).campaignBalance;
+	let affiliateBalanceBefore = (await campaign.getAffiliateData(affiliateId))!.totalEarnings;
 	
 	await campaign.send(
         provider.sender(),
@@ -43,14 +43,22 @@ export async function run(provider: NetworkProvider, args: string[]) {
         }
     );
 
-    ui.write('Waiting for Campaign to update campaignBalance...');
-
-    let campaignBalanceAfter = (await campaign.getCampaignData()).campaignBalance;
+    ui.write('Waiting for Campaign to update affiliateBalance...');
+	
+	// change this to affiliate balance
+    let affiliateBalanceAfter = (await campaign.getAffiliateData(affiliateId))!.totalEarnings;
     let attempt = 1;
-    while (campaignBalanceBefore === campaignBalanceAfter) {
+    while (affiliateBalanceBefore === affiliateBalanceAfter) {
+		
+		if (attempt == MAX_ATTEMPTS) {
+			// tx failed
+			ui.write(`Error: TX failed or timedout!`);
+			return;
+		}
+	
         ui.setActionPrompt(`Attempt ${attempt}`);
         await sleep(2000);
-        campaignBalanceAfter = (await campaign.getCampaignData()).campaignBalance;
+        affiliateBalanceAfter = (await campaign.getAffiliateData(affiliateId))!.totalEarnings;
         attempt++;
     }
 

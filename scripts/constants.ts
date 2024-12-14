@@ -11,6 +11,7 @@ export const TON_CLIENT_API_KEY = 'dca02dcbbca33b7f5378edba40fdcf0b7c221d4b1ae65
 export const HTTP_ENDPOINT_NETWORK = "testnet";
 export const MIN_BUFFER_GAS_FEES = toNano("0.5");
 export const GAS_FEE = toNano('0.05');
+export const MAX_ATTEMPTS = 20;
 
 // OP CODES Bot
 export const BOT_OP_CODE_USER_CLICK = BigInt(0);
