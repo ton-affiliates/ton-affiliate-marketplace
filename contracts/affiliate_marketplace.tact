@@ -56,6 +56,7 @@ struct CampaignData {
     campaignStartTimestamp: Int as uint32;
     lastUserActionTimestamp: Int as uint32;
     numAdvertiserWithdrawls: Int as uint32;
+    numAdvertiserSignOffs: Int as uint32;
     numUserActions: Int as uint32;
     campaignBalance: Int as coins;
     maxCpaValue: Int as coins;
@@ -119,6 +120,7 @@ contract Campaign with Resumable {
     campaignStartTimestamp: Int as uint32;
     lastUserActionTimestamp: Int as uint32;
     numAdvertiserWithdrawls: Int as uint32;
+    numAdvertiserSignOffs: Int as uint32;
     numUserActions: Int as uint32;
     totalAffiliateEarnings: Int as coins;
     maxCpaValue: Int as coins;
@@ -158,6 +160,7 @@ contract Campaign with Resumable {
         self.lastUserActionTimestamp = 0;
         self.campaignStartTimestamp = 0;
         self.numAdvertiserWithdrawls = 0;
+        self.numAdvertiserSignOffs = 0;
         self.numUserActions = 0;
         self.totalAffiliateEarnings = 0;
         self.maxCpaValue = ton("0");
@@ -246,7 +249,7 @@ contract Campaign with Resumable {
         });
 				
 		// Deduct amount from the contract's USDT balance
-        self.contractUSDTBalance = self.contractUSDTBalance - amount;
+        self.contractUSDTBalance -=  amount;
     }
 
     // receive any amount of incoming TON
@@ -322,10 +325,11 @@ contract Campaign with Resumable {
         }
     }
 
+    // at the end of the month the advertiser signs off all affiliates to withdraw their earnings
     receive(msg: AdvertiserSignOffAllAffilliates) {
 
+        self.requireNotStopped();
         require(sender() == self.advertiser, "Only advertiser can approve withdrawal");
-        require(self.isCampaignActive(), "Campaign is not active");
         require(self.campaignDetails.requiresAdvertiserApprovalForWithdrawl, "Advertiser can sin off affiliate earnings only if campaign is setup this requiresApprovalForWithdrawlFlag");
 
         foreach(affiliateId, affiliateData in self.affiliates) {            
@@ -333,6 +337,8 @@ contract Campaign with Resumable {
             affiliateData.pendingApprovalEarnings = ton("0");  
             self.affiliates.set(affiliateId, affiliateData);
         }
+
+        self.numAdvertiserSignOffs += 1;
 
         // send remaining value back to advertiser
 		send(SendParameters{
@@ -343,10 +349,10 @@ contract Campaign with Resumable {
 
     }
 
-    // at the end of the month the advertiser signs off all affiliates to withdraw their earnings
+    // function to decrease earnings for some affiliates due to poor execution
     receive(msg: AdvertiserSignOffWithdraw) {
 
-        require(sender() == self.advertiser, "Only advertiser can approve withdrawal");
+        self.requireNotStopped();
         require(self.isCampaignActive(), "Campaign is not active");
         require(self.campaignDetails.requiresAdvertiserApprovalForWithdrawl, "Advertiser can only modify affiliate earnings only if campaign is setup this requiresApprovalForWithdrawlFlag");
         
@@ -466,7 +472,7 @@ contract Campaign with Resumable {
         }
 
         let affiliateId = self.currAffiliateId;
-        self.currAffiliateId = self.currAffiliateId + 1;
+        self.currAffiliateId += 1;
 
         self.affiliates.set(affiliateId, AffiliateData{
             affiliate: sender(), 
@@ -570,7 +576,7 @@ contract Campaign with Resumable {
         self.requireNotStopped();
         require(self.state == STATE_CAMPAIGN_DETAILS_SET_BY_ADVERTISER, "Must be in state: STATE_CAMPAIGN_DETAILS_SET_BY_ADVERTISER");
         require(sender() == self.advertiser, "Only the advertiser can remove the campaign and withdraw all funds");
-
+        
         let campaignBalance: Int = self.calcCampaignBalance();
         require(campaignBalance >= msg.amount, "Insufficient campaign funds");
 
@@ -825,6 +831,7 @@ contract Campaign with Resumable {
             lastUserActionTimestamp: self.lastUserActionTimestamp,
             numAdvertiserWithdrawls: self.numAdvertiserWithdrawls,
             numUserActions: self.numUserActions,
+            numAdvertiserSignOffs: self.numAdvertiserSignOffs,
             state: self.state,
             campaignBalance: self.calcCampaignBalance(),
             maxCpaValue: self.maxCpaValue,
