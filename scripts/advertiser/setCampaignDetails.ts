@@ -35,16 +35,20 @@ export async function run(provider: NetworkProvider, args: string[]) {
 	const premiumUsersMapCostPerActionMap: Dictionary<bigint, bigint> = await parseBigIntToPriceMap(premiumUsersMapCostPerActionMapAsString);
 	
 	const isPublicCampaign = Boolean(args.length > 4 ? args[4] : await ui.input('isPublicCampaign '));
-	console.log(isPublicCampaign);
 	
 	const campaignValidForNumDays = BigInt(args.length > 5 ? args[5] : await ui.input('campaignValidForNumDays (0 = no expiration) '));
 	const paymentMethod = BigInt(args.length > 6 ? args[6] : await ui.input('Payment Method: (0 = TON, 1=USDT) '));
 	const requiresAdvertiserApprovalForWithdrawl = Boolean(args.length > 7 ? args[7] : await ui.input('requiresAdvertiserApprovalForWithdrawl '));
-
+	
+	let tonToSend = toNano('0.15'); // default for USDT
+	if (paymentMethod == BigInt(0)) {
+		const tonToSend = toNano(args.length > 8 ? args[8] : await ui.input('Amount of TON to start with: (e.g. 100) '));
+	}
+	
 	await campaignContract.send(
             provider.sender(),
             {
-                value: toNano('0.15'),  // TODO parameter - e.g. amount of TON to fund the contract with (must be at least 0.15 TON for USDT campaign)
+                value: tonToSend,  
             },
             {
                 $$type: 'AdvertiserSetCampaignDetails',
@@ -54,9 +58,9 @@ export async function run(provider: NetworkProvider, args: string[]) {
                     premiumUsersCostPerAction: premiumUsersMapCostPerActionMap, 
                     allowedAffiliates: Dictionary.empty<Address, boolean>(), // always empty at first stage
                     isPublicCampaign: isPublicCampaign,  // public campaign 
-                    campaignValidForNumDays: campaignValidForNumDays == BigInt(0) ? null: campaignValidForNumDays, // no end date // TODO parameter
+                    campaignValidForNumDays: campaignValidForNumDays == BigInt(0) ? null: campaignValidForNumDays, // null = no end date 
 					paymentMethod: paymentMethod, // 0 - TON, 1 - USDT 
-					requiresAdvertiserApprovalForWithdrawl: true // TODO parameter
+					requiresAdvertiserApprovalForWithdrawl: requiresAdvertiserApprovalForWithdrawl 
                 }
             }
         );
