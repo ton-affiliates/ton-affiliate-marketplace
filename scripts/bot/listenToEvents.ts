@@ -3,6 +3,7 @@
 import { AFFILIATE_MARKETPLACE_ADDRESS, HTTP_ENDPOINT_NETWORK } from "../constants"
 import { getHttpEndpoint } from "@orbs-network/ton-access";
 import { Address } from '@ton/core';
+import { NetworkProvider } from '@ton/blueprint';
 
 import { TonClient } from "ton";
 import { 
@@ -102,63 +103,76 @@ function getEventType(cell: Cell): 'AdvertiserWithdrawFundsEvent' | 'CampaignCre
     }
 }
 
-export async function run() {
-    
+export async function run(provider: NetworkProvider, args: string[]) {
+	
+	const ui = provider.ui();
+
+	const lastProcessedEventLT = BigInt(args.length > 0 ? args[0] : await ui.input('lastProcessedEventLT'));
 	const endpoint = await getHttpEndpoint({
         network: HTTP_ENDPOINT_NETWORK,
     });
 
     const client = new TonClient({ endpoint });
-    const transactions = await client.getTransactions(AFFILIATE_MARKETPLACE_ADDRESS, { limit: 10 });
+	const transactions = await client.getTransactions(AFFILIATE_MARKETPLACE_ADDRESS, { limit: 10 }); // last 10 events
 
     const logs: EmitLogEvent[] = [];
-
-    for (const tx of transactions) {
 	
+	let currProcessedEventLT = lastProcessedEventLT;
+	
+    for (const tx of transactions) {
+		
 		if (tx?.outMessages) {
             for (const key of tx.outMessages.keys()) { // Iterate over message keys
                 const message = tx.outMessages.get(key); // Access message using `get`				
-				console.log(message?.info);
+				
 				if (message) {
 					if (message?.info.type == 'external-out') {
 					
 						const createdAt = message?.info.createdAt;
 						const createdLt = message?.info.createdLt; 
+						
+						// process event if > lastProcessedEventLT 
+						if (createdLt > lastProcessedEventLT) {
+						
+							if (createdLt > currProcessedEventLT) {
+								currProcessedEventLT = createdLt; 
+							}
 					
-						const bodyBuffer = Buffer.from(message.body.toBoc());
-						const bodyCell = Cell.fromBoc(bodyBuffer)[0];
-						const eventType = getEventType(bodyCell);
+							const bodyBuffer = Buffer.from(message.body.toBoc());
+							const bodyCell = Cell.fromBoc(bodyBuffer)[0];
+							const eventType = getEventType(bodyCell);
 
-						if (eventType === 'AdvertiserWithdrawFundsEvent') {
-							const decodedEvent = decodeAdvertiserWithdrawFundsEvent(bodyCell);
-							logs.push({ type: 'AdvertiserWithdrawFundsEvent', createdAt: createdAt, createdLt: createdLt, data: decodedEvent });
-						} else if (eventType === 'CampaignCreatedEvent') {
-							const decodedEvent = decodeCampaignCreatedEvent(bodyCell);
-							logs.push({ type: 'CampaignCreatedEvent', createdAt: createdAt, createdLt: createdLt, data: decodedEvent });
-						} else if (eventType === 'AffiliateCreatedEvent') {
-							const decodedEvent = decodeAffiliateCreatedEvent(bodyCell);
-							logs.push({ type: 'AffiliateCreatedEvent', createdAt: createdAt, createdLt: createdLt, data: decodedEvent });
-						} else if (eventType === 'AffiliateAskToJoinAllowedListEvent') {
-							const decodedEvent = decodeAffiliateAskToJoinAllowedListEvent(bodyCell);
-							logs.push({ type: 'AffiliateAskToJoinAllowedListEvent', createdAt: createdAt, createdLt: createdLt, data: decodedEvent });
-						} else if (eventType === 'AdvertiserRemovedAffiliateFromAllowedListEvent') {
-							const decodedEvent = decodeAdvertiserRemovedAffiliateFromAllowedListEvent(bodyCell);
-							logs.push({ type: 'AdvertiserRemovedAffiliateFromAllowedListEvent', createdAt: createdAt, createdLt: createdLt, data: decodedEvent });
-						} else if (eventType === 'AdvertiserApprovedAffiliateToAllowedListEvent') {
-							const decodedEvent = decodeAdvertiserApprovedAffiliateToAllowedListEvent(bodyCell);
-							logs.push({ type: 'AdvertiserApprovedAffiliateToAllowedListEvent', createdAt: createdAt, createdLt: createdLt, data: decodedEvent });
-						} else if (eventType === 'AdvertiserSignedCampaignDetailsEvent') {
-							const decodedEvent = decodeAdvertiserSignedCampaignDetailsEvent(bodyCell);
-							logs.push({ type: 'AdvertiserSignedCampaignDetailsEvent', createdAt: createdAt, createdLt: createdLt, data: decodedEvent });
-						} else {
-							console.log("Unknown Event!");
+							if (eventType === 'AdvertiserWithdrawFundsEvent') {
+								const decodedEvent = decodeAdvertiserWithdrawFundsEvent(bodyCell);
+								logs.push({ type: 'AdvertiserWithdrawFundsEvent', createdAt: createdAt, createdLt: createdLt, data: decodedEvent });
+							} else if (eventType === 'CampaignCreatedEvent') {
+								const decodedEvent = decodeCampaignCreatedEvent(bodyCell);
+								logs.push({ type: 'CampaignCreatedEvent', createdAt: createdAt, createdLt: createdLt, data: decodedEvent });
+							} else if (eventType === 'AffiliateCreatedEvent') {
+								const decodedEvent = decodeAffiliateCreatedEvent(bodyCell);
+								logs.push({ type: 'AffiliateCreatedEvent', createdAt: createdAt, createdLt: createdLt, data: decodedEvent });
+							} else if (eventType === 'AffiliateAskToJoinAllowedListEvent') {
+								const decodedEvent = decodeAffiliateAskToJoinAllowedListEvent(bodyCell);
+								logs.push({ type: 'AffiliateAskToJoinAllowedListEvent', createdAt: createdAt, createdLt: createdLt, data: decodedEvent });
+							} else if (eventType === 'AdvertiserRemovedAffiliateFromAllowedListEvent') {
+								const decodedEvent = decodeAdvertiserRemovedAffiliateFromAllowedListEvent(bodyCell);
+								logs.push({ type: 'AdvertiserRemovedAffiliateFromAllowedListEvent', createdAt: createdAt, createdLt: createdLt, data: decodedEvent });
+							} else if (eventType === 'AdvertiserApprovedAffiliateToAllowedListEvent') {
+								const decodedEvent = decodeAdvertiserApprovedAffiliateToAllowedListEvent(bodyCell);
+								logs.push({ type: 'AdvertiserApprovedAffiliateToAllowedListEvent', createdAt: createdAt, createdLt: createdLt, data: decodedEvent });
+							} else if (eventType === 'AdvertiserSignedCampaignDetailsEvent') {
+								const decodedEvent = decodeAdvertiserSignedCampaignDetailsEvent(bodyCell);
+								logs.push({ type: 'AdvertiserSignedCampaignDetailsEvent', createdAt: createdAt, createdLt: createdLt, data: decodedEvent });
+							} else {
+								console.log("Unknown Event!");
+							}
 						}
 					}
 				}
             }
 		}
-      
     }
 
     console.log('Logs data', logs);
+	return { currProcessedEventLT, logs };  // or save in DB directly
 }
