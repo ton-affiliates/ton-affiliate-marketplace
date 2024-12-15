@@ -2,7 +2,7 @@ import { toNano, Address, fromNano } from '@ton/core';
 import { Campaign } from '../../wrappers/Campaign';
 import { AffiliateMarketplace } from '../../wrappers/AffiliateMarketplace';
 import { NetworkProvider, sleep } from '@ton/blueprint';
-import { AFFILIATE_MARKETPLACE_ADDRESS } from '../constants'
+import { AFFILIATE_MARKETPLACE_ADDRESS, MAX_ATTEMPTS, GAS_FEE } from '../constants'
 
 export async function run(provider: NetworkProvider, args: string[]) {
     
@@ -32,7 +32,7 @@ export async function run(provider: NetworkProvider, args: string[]) {
 	await campaign.send(
         provider.sender(),
         { 
-			value: toNano('0.05') 
+			value: GAS_FEE 
 		},
         { 
 			$$type: 'AdvertiserRemoveExistingAffiliateFromAllowedList',
@@ -46,7 +46,14 @@ export async function run(provider: NetworkProvider, args: string[]) {
 	let isApproveAfter = campaignData.campaignDetails.allowedAffiliates.get(affiliateToApprove);
     let attempt = 1;
     while(isApproveBefore === isApproveAfter) {
-        ui.setActionPrompt(`Attempt ${attempt}`);
+        
+		if (attempt == MAX_ATTEMPTS) {
+			// tx failed
+			ui.write(`Error: TX failed or timedout!`);
+			return;
+		}
+		
+		ui.setActionPrompt(`Attempt ${attempt}`);
         await sleep(2000);
 		campaignData = await campaign.getCampaignData();
 		isApproveAfter = campaignData.campaignDetails.allowedAffiliates.get(affiliateToApprove);

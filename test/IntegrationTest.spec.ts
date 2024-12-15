@@ -458,9 +458,11 @@ describe('AffiliateMarketplace Integration Test', () => {
         //Advertiser - RemoveCampaignAndWithdrawFunds  - withdraw all funds
         let advertiserBalanceBeforeRemoveCampaign = await advertiser.getBalance();
 		let campaignDataBeforeRemoveCampaign = await campaignContract.getCampaignData();
-								
+										
+		console.log(campaignDataBeforeRemoveCampaign.campaignBalance);
 		// campaign balance ~ 3 TON
 		expect(campaignDataBeforeRemoveCampaign.campaignBalance).toBeGreaterThan(toNano("3"));
+		expect(campaignDataBeforeRemoveCampaign.numAdvertiserWithdrawls).toBe(BigInt(0));
 		const removeCampaignAndWithdrawFundsResult = await campaignContract.send(
             advertiser.getSender(),
             { value: toNano('0.05') },
@@ -501,6 +503,8 @@ describe('AffiliateMarketplace Integration Test', () => {
 			
         expect(advertiserBalance - advertiserBalanceBeforeRemoveCampaign)
             .toBeLessThan(campaignDataBeforeRemoveCampaign.campaignBalance);
+			
+		expect(campaignData.numAdvertiserWithdrawls).toBe(BigInt(1));
 
         //------------------------------------------------------------------------------------------------------------------------
 

@@ -55,6 +55,7 @@ struct CampaignData {
     state: Int as uint32;
     campaignStartTimestamp: Int as uint32;
     lastUserActionTimestamp: Int as uint32;
+    numAdvertiserWithdrawls: Int as uint32;
     numUserActions: Int as uint32;
     campaignBalance: Int as coins;
     maxCpaValue: Int as coins;
@@ -117,6 +118,7 @@ contract Campaign with Resumable {
     state: Int as uint32;
     campaignStartTimestamp: Int as uint32;
     lastUserActionTimestamp: Int as uint32;
+    numAdvertiserWithdrawls: Int as uint32;
     numUserActions: Int as uint32;
     totalAffiliateEarnings: Int as coins;
     maxCpaValue: Int as coins;
@@ -155,6 +157,7 @@ contract Campaign with Resumable {
         self.state = STATE_CAMPAIGN_CREATED;
         self.lastUserActionTimestamp = 0;
         self.campaignStartTimestamp = 0;
+        self.numAdvertiserWithdrawls = 0;
         self.numUserActions = 0;
         self.totalAffiliateEarnings = 0;
         self.maxCpaValue = ton("0");
@@ -272,7 +275,6 @@ contract Campaign with Resumable {
     receive(msg: AffiliateWithdrawEarnings) {
 
         self.requireNotStopped();
-
         require(context().value >= GAS_FEE*2, "Insufficient gas fees to withdraw earnings");
         
         let affiliateDataOptional = self.affiliates.get(msg.affiliateId);
@@ -323,6 +325,7 @@ contract Campaign with Resumable {
     receive(msg: AdvertiserSignOffAllAffilliates) {
 
         require(sender() == self.advertiser, "Only advertiser can approve withdrawal");
+        require(self.isCampaignActive(), "Campaign is not active");
         require(self.campaignDetails.requiresAdvertiserApprovalForWithdrawl, "Advertiser can sin off affiliate earnings only if campaign is setup this requiresApprovalForWithdrawlFlag");
 
         foreach(affiliateId, affiliateData in self.affiliates) {            
@@ -344,6 +347,7 @@ contract Campaign with Resumable {
     receive(msg: AdvertiserSignOffWithdraw) {
 
         require(sender() == self.advertiser, "Only advertiser can approve withdrawal");
+        require(self.isCampaignActive(), "Campaign is not active");
         require(self.campaignDetails.requiresAdvertiserApprovalForWithdrawl, "Advertiser can only modify affiliate earnings only if campaign is setup this requiresApprovalForWithdrawlFlag");
         
         foreach(affiliateId, amountToWithdraw in msg.setAffiliatesWithdrawEarnings) {
@@ -568,7 +572,9 @@ contract Campaign with Resumable {
         require(sender() == self.advertiser, "Only the advertiser can remove the campaign and withdraw all funds");
 
         let campaignBalance: Int = self.calcCampaignBalance();
-        require(campaignBalance >= msg.amount, "Campaign has no funds");
+        require(campaignBalance >= msg.amount, "Insufficient campaign funds");
+
+        self.numAdvertiserWithdrawls += 1;
 
         send(SendParameters{
             to: self.owner,
@@ -817,6 +823,7 @@ contract Campaign with Resumable {
             totalAffiliateEarnings: self.totalAffiliateEarnings,
             campaignStartTimestamp: self.campaignStartTimestamp,
             lastUserActionTimestamp: self.lastUserActionTimestamp,
+            numAdvertiserWithdrawls: self.numAdvertiserWithdrawls,
             numUserActions: self.numUserActions,
             state: self.state,
             campaignBalance: self.calcCampaignBalance(),

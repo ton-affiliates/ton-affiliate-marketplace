@@ -2,7 +2,7 @@ import { toNano, Address, fromNano } from '@ton/core';
 import { Campaign } from '../../wrappers/Campaign';
 import { AffiliateMarketplace } from '../../wrappers/AffiliateMarketplace';
 import { NetworkProvider, sleep } from '@ton/blueprint';
-import { AFFILIATE_MARKETPLACE_ADDRESS } from '../constants'
+import { AFFILIATE_MARKETPLACE_ADDRESS, MAX_ATTEMPTS, GAS_FEE } from '../constants'
 
 export async function run(provider: NetworkProvider, args: string[]) {
     
@@ -24,11 +24,16 @@ export async function run(provider: NetworkProvider, args: string[]) {
 	let affiliateEarningsBefore = (await campaign.getAffiliateData(affiliateId))!.withdrawEarnings;
 	
 	console.log(`Affiliate's earnings: ${fromNano(affiliateEarningsBefore)}`);
+	if (affiliateEarningsBefore == BigInt(0)) {
+        ui.write(`Error: no withdrawable earnings for affiliate ${affiliateId}!`);
+        return;
+    }
+	
 
 	await campaign.send(
         provider.sender(),
         { 
-			value: toNano('0.05') 
+			value: GAS_FEE 
 		},
         { 
 			$$type: 'AffiliateWithdrawEarnings',
@@ -41,7 +46,14 @@ export async function run(provider: NetworkProvider, args: string[]) {
 	let affiliateEarningsAfter = (await campaign.getAffiliateData(affiliateId))!.withdrawEarnings;
     let attempt = 1;
     while(affiliateEarningsBefore === affiliateEarningsAfter) {
-        ui.setActionPrompt(`Attempt ${attempt}`);
+        
+		if (attempt == MAX_ATTEMPTS) {
+			// tx failed
+			ui.write(`Error: TX failed or timedout!`);
+			return;
+		}
+		
+		ui.setActionPrompt(`Attempt ${attempt}`);
         await sleep(2000);
         affiliateEarningsAfter = (await campaign.getAffiliateData(affiliateId))!.withdrawEarnings;
         attempt++;

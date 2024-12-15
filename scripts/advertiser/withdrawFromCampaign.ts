@@ -2,7 +2,7 @@ import { toNano, Address, fromNano, Dictionary } from '@ton/core';
 import { Campaign } from '../../wrappers/Campaign';
 import { AffiliateMarketplace } from '../../wrappers/AffiliateMarketplace';
 import { NetworkProvider, sleep } from '@ton/blueprint';
-import { AFFILIATE_MARKETPLACE_ADDRESS } from '../constants'
+import { AFFILIATE_MARKETPLACE_ADDRESS, MAX_ATTEMPTS, GAS_FEE } from '../constants'
 
 
 
@@ -21,8 +21,7 @@ export async function run(provider: NetworkProvider, args: string[]) {
     }
 	
 	const campaign = provider.open(Campaign.fromAddress(campaignAddress));
-	let campaignBalanceBefore = (await campaign.getCampaignData()).campaignBalance;
-	
+	let numAdvertiserWithdrawlsBefore = (await campaign.getCampaignData()).numAdvertiserWithdrawls;
 	
 	const userInputAsString = args.length > 2 ? args[2] : await ui.input(`Enter amount to withdraw.  Max amount to withdraw ${fromNano(campaignBalanceBefore)}:`);
 	const parsedInput: number = parseFloat(userInputAsString); // Convert input to a number
@@ -34,8 +33,7 @@ export async function run(provider: NetworkProvider, args: string[]) {
 		return;
 	}
 		
-	
-			
+		
 	await campaign.send(
         provider.sender(),
         { 
@@ -49,12 +47,20 @@ export async function run(provider: NetworkProvider, args: string[]) {
 		
     ui.write('Waiting for campaign to update allowed affiliates...');
 	
-	let campaignBalanceAfter = (await campaign.getCampaignData()).campaignBalance;
+	let numAdvertiserWithdrawlsAfter = (await campaign.getCampaignData()).numAdvertiserWithdrawls;
     let attempt = 1;
-    while(campaignBalanceBefore === campaignBalanceAfter) {
+	
+    while (numAdvertiserWithdrawlsBefore == numAdvertiserWithdrawlsAfter) {
+		
+		if (attempt == MAX_ATTEMPTS) {
+			// tx failed
+			ui.write(`Error: TX failed or timedout!`);
+			return;
+		}
+	
         ui.setActionPrompt(`Attempt ${attempt}`);
         await sleep(2000);
-		campaignBalanceAfter = (await campaign.getCampaignData()).campaignBalance;
+		numAdvertiserWithdrawlsAfter = (await campaign.getCampaignData()).numAdvertiserWithdrawls;
         attempt++;
     }
 	

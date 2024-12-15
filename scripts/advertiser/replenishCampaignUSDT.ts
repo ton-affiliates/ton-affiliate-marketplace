@@ -10,7 +10,8 @@ import * as Constants from "../constants";
 
 
 function calculateBufferInNanoTON(usdtAmount: number): bigint {
-    if (usdtAmount <= 0) {
+    
+	if (usdtAmount <= 0) {
         throw new Error('USDT amount must be a positive number!');
     }
 
@@ -136,6 +137,13 @@ export async function run(provider: NetworkProvider, args: string[]) {
 	
     let attempt = 1;
     while (campaignBalanceBefore === campaignBalanceAfter) {
+		
+		if (attempt == Constants.MAX_ATTEMPTS) {
+			// tx failed
+			ui.write(`Error: TX failed or timedout!`);
+			return;
+		}
+	
         ui.setActionPrompt(`Attempt ${attempt}`);
         await sleep(2000);
         campaignBalanceAfter = (await campaign.getCampaignData()).contractUSDTBalance;
