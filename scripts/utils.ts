@@ -119,8 +119,12 @@ export function fromUSDT(amount: bigint): string {
 
 export function parseBigIntToPriceMap(input: string): Dictionary<bigint, bigint> {
     const map = Dictionary.empty<bigint, bigint>();
+
     if (input) {
-        const pairs = input.split(','); // Format: "1:100,2:200"
+        // Remove curly brackets and whitespace
+        const sanitizedInput = input.trim().replace(/^\{|\}$/g, '').replace(/\s+/g, '');
+        
+        const pairs = sanitizedInput.split(','); // Split into key-value pairs
         for (const pair of pairs) {
             const [key, value] = pair.split(':');
             if (key && value) {
@@ -128,8 +132,10 @@ export function parseBigIntToPriceMap(input: string): Dictionary<bigint, bigint>
             }
         }
     }
+
     return map;
 }
+
 
 
 

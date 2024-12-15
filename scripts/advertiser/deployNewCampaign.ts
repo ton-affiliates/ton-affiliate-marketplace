@@ -1,7 +1,7 @@
 import { toNano, Address, fromNano } from '@ton/core';
 import { AffiliateMarketplace } from '../../wrappers/AffiliateMarketplace';
 import { NetworkProvider, sleep } from '@ton/blueprint';
-import { AFFILIATE_MARKETPLACE_ADDRESS } from '../constants'
+import { AFFILIATE_MARKETPLACE_ADDRESS, MAX_ATTEMPTS, GAS_FEE } from '../constants'
 
 
 export async function run(provider: NetworkProvider, args: string[]) {
@@ -29,6 +29,13 @@ export async function run(provider: NetworkProvider, args: string[]) {
     let numCampaignsAfter = await affiliateMarketplace.getNumCampaigns();
     let attempt = 1;
     while (numCampaignsBefore === numCampaignsAfter) {
+		
+		if (attempt == MAX_ATTEMPTS) {
+			// tx failed
+			ui.write(`Error: TX failed or timedout!`);
+			return;
+		}
+	
         ui.setActionPrompt(`Attempt ${attempt}`);
         await sleep(2000);
         numCampaignsAfter = await affiliateMarketplace.getNumCampaigns();

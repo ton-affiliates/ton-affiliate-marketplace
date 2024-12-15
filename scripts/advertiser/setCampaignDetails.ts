@@ -3,6 +3,7 @@ import { Campaign } from '../../wrappers/Campaign';
 import { AffiliateMarketplace } from '../../wrappers/AffiliateMarketplace';
 import { NetworkProvider, sleep } from '@ton/blueprint';
 import { AFFILIATE_MARKETPLACE_ADDRESS, BOT_OP_CODE_USER_CLICK } from '../constants'
+import { parseBigIntToPriceMap } from '../utils'
 
 export async function run(provider: NetworkProvider, args: string[]) {
     
@@ -27,12 +28,19 @@ export async function run(provider: NetworkProvider, args: string[]) {
         return;
 	}
 	
-	const regularUsersMapCostPerActionMap = Dictionary.empty<bigint, bigint>();
-    const premiumUsersMapCostPerActionMap = Dictionary.empty<bigint, bigint>();
-
-	regularUsersMapCostPerActionMap.set(BOT_OP_CODE_USER_CLICK, toNano('0.1')); // TODO parameter
-	premiumUsersMapCostPerActionMap.set(BOT_OP_CODE_USER_CLICK, toNano('0.15')); // TODO parameter
+	const regularUsersMapCostPerActionMapAsString: string = args.length > 2 ? args[2] : await ui.input('regularUsersMapCostPerActionMap: i.e. {0: 0.05, 2: 0.2}');
+	const regularUsersMapCostPerActionMap: Dictionary<bigint, bigint> = await parseBigIntToPriceMap(regularUsersMapCostPerActionMapAsString);
 	
+	const premiumUsersMapCostPerActionMapAsString: string = args.length > 3 ? args[3] : await ui.input('premiumUsersMapCostPerActionMap: i.e. {0: 0.05, 2: 0.2}');
+	const premiumUsersMapCostPerActionMap: Dictionary<bigint, bigint> = await parseBigIntToPriceMap(premiumUsersMapCostPerActionMapAsString);
+	
+	const isPublicCampaign = Boolean(args.length > 4 ? args[4] : await ui.input('isPublicCampaign '));
+	console.log(isPublicCampaign);
+	
+	const campaignValidForNumDays = BigInt(args.length > 5 ? args[5] : await ui.input('campaignValidForNumDays (0 = no expiration) '));
+	const paymentMethod = BigInt(args.length > 6 ? args[6] : await ui.input('Payment Method: (0 = TON, 1=USDT) '));
+	const requiresAdvertiserApprovalForWithdrawl = Boolean(args.length > 7 ? args[7] : await ui.input('requiresAdvertiserApprovalForWithdrawl '));
+
 	await campaignContract.send(
             provider.sender(),
             {
@@ -42,12 +50,12 @@ export async function run(provider: NetworkProvider, args: string[]) {
                 $$type: 'AdvertiserSetCampaignDetails',
                 campaignDetails: {
                     $$type: 'CampaignDetails',
-                    regularUsersCostPerAction: regularUsersMapCostPerActionMap, // TODO parameter
-                    premiumUsersCostPerAction: premiumUsersMapCostPerActionMap, // TODO parameter
-                    allowedAffiliates: Dictionary.empty<Address, boolean>(), // TODO parameter
-                    isPublicCampaign: true,  // public campaign // TODO parameter
-                    campaignValidForNumDays: null, // no end date // TODO parameter
-					paymentMethod: BigInt(0), // 0 - TON, 1 - USDT // TODO parameter
+                    regularUsersCostPerAction: regularUsersMapCostPerActionMap, 
+                    premiumUsersCostPerAction: premiumUsersMapCostPerActionMap, 
+                    allowedAffiliates: Dictionary.empty<Address, boolean>(), // always empty at first stage
+                    isPublicCampaign: isPublicCampaign,  // public campaign 
+                    campaignValidForNumDays: campaignValidForNumDays == BigInt(0) ? null: campaignValidForNumDays, // no end date // TODO parameter
+					paymentMethod: paymentMethod, // 0 - TON, 1 - USDT 
 					requiresAdvertiserApprovalForWithdrawl: true // TODO parameter
                 }
             }
