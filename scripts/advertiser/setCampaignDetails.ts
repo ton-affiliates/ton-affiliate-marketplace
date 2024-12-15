@@ -34,11 +34,17 @@ export async function run(provider: NetworkProvider, args: string[]) {
 	const premiumUsersMapCostPerActionMapAsString: string = args.length > 3 ? args[3] : await ui.input('premiumUsersMapCostPerActionMap: i.e. {0: 0.05, 2: 0.2}');
 	const premiumUsersMapCostPerActionMap: Dictionary<bigint, bigint> = await parseBigIntToPriceMap(premiumUsersMapCostPerActionMapAsString);
 	
-	const isPublicCampaign = Boolean(args.length > 4 ? args[4] : await ui.input('isPublicCampaign '));
+	const isPublicCampaign = args.length > 4
+		? args[4].trim().toLowerCase() === 'true' // Parse input argument if provided
+		: (await ui.input('isPublicCampaign: ')).trim().toLowerCase() === 'true'; // Prompt user and parse input
+		
 	
 	const campaignValidForNumDays = BigInt(args.length > 5 ? args[5] : await ui.input('campaignValidForNumDays (0 = no expiration) '));
 	const paymentMethod = BigInt(args.length > 6 ? args[6] : await ui.input('Payment Method: (0 = TON, 1=USDT) '));
-	const requiresAdvertiserApprovalForWithdrawl = Boolean(args.length > 7 ? args[7] : await ui.input('requiresAdvertiserApprovalForWithdrawl '));
+	const requiresAdvertiserApprovalForWithdrawl = args.length > 7
+		? args[7].trim().toLowerCase() === 'true' // Parse input argument if provided
+		: (await ui.input('requiresAdvertiserApprovalForWithdrawl: ')).trim().toLowerCase() === 'true'; // Prompt user and parse input
+		
 	
 	let tonToSend = toNano('0.15'); // default for USDT
 	if (paymentMethod == BigInt(0)) {

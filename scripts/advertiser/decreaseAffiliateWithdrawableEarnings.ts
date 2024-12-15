@@ -25,7 +25,7 @@ export async function run(provider: NetworkProvider, args: string[]) {
 	const userInputAsString: string = args.length > 2 ? args[2] : await ui.input('affiliateIdToWithdrawEarningsMap: i.e. {1: 100, 2: 200}');
 	const affiliateIdToWithdrawEarningsMap: Dictionary<bigint, bigint> = await parseBigIntToPriceMap(userInputAsString);
 	
-	let affiliateIdBefore = BigInt(0);
+	let affiliateIdBefore = BigInt(-1);
 	let affiliatePendingApprovalEarningsBefore = BigInt(0); 
 	
 	for (const [key, value] of affiliateIdToWithdrawEarningsMap) {
@@ -47,7 +47,7 @@ export async function run(provider: NetworkProvider, args: string[]) {
 			totalEarnings: ${fromNano(affiliateData!.totalEarnings)}`);
 	}
 	
-	if (affiliateIdBefore == BigInt(0)) {
+	if (affiliateIdBefore == BigInt(-1)) {
 		ui.write(`Error: Could not extract pending approval data!`);
 		return;
 	}

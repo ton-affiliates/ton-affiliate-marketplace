@@ -25,8 +25,10 @@ export async function run(provider: NetworkProvider, args: string[]) {
 	
 	const affiliateId = BigInt(args.length > 2 ? args[2] : await ui.input('AffiliateId: '));
 	const userActionOpCode = BigInt(args.length > 3 ? args[3] : await ui.input('user Action OP Code: '));
-	const isPremiumUser = Boolean(args.length > 4 ? args[4] : await ui.input('isPremiumUser: '));
-	
+	const isPremiumUser = args.length > 4
+		? args[4].trim().toLowerCase() === 'true' // Parse input argument if provided
+		: (await ui.input('isPremiumUser: ')).trim().toLowerCase() === 'true'; // Prompt user and parse input
+		
 	const campaign = provider.open(Campaign.fromAddress(campaignAddress));
 	let affiliateBalanceBefore = (await campaign.getAffiliateData(affiliateId))!.totalEarnings;
 	
