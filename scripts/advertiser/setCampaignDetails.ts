@@ -48,7 +48,7 @@ export async function run(provider: NetworkProvider, args: string[]) {
 	
 	let tonToSend = toNano('0.15'); // default for USDT
 	if (paymentMethod == BigInt(0)) {
-		const tonToSend = toNano(args.length > 8 ? args[8] : await ui.input('Amount of TON to start with: (e.g. 100) '));
+		tonToSend = toNano(args.length > 8 ? args[8] : await ui.input('Amount of TON to start with: (e.g. 100) '));
 	}
 	
 	await campaignContract.send(
