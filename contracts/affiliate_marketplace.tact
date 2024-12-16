@@ -294,7 +294,7 @@ contract Campaign with Resumable {
         self.affiliates.set(msg.affiliateId, affiliateData);
 
          // Update campaign’s total affiliate earnings
-        self.totalAffiliateEarnings = self.totalAffiliateEarnings - withdrawalAmount;
+        self.totalAffiliateEarnings -= withdrawalAmount;
 
         // Calculate the net amount after fees
         let fee: Int = (withdrawalAmount * self.feePercentage + 9999) / 10000;  // e.g., fee=200 = 2%
@@ -349,7 +349,7 @@ contract Campaign with Resumable {
 
     }
 
-    // function to decrease earnings for some affiliates due to poor execution
+    // function sign off earnings for some affiliates due to poor execution
     receive(msg: AdvertiserSignOffWithdraw) {
 
         self.requireNotStopped();
