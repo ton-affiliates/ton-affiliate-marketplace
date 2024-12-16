@@ -197,7 +197,7 @@ describe('Advertiser Actions - Positive and Negative Tests for Advertiser Functi
                     regularUsersCostPerAction: regularUsersMapCostPerActionMap,
                     premiumUsersCostPerAction: premiumUsersMapCostPerActionMap,
                     allowedAffiliates: Dictionary.empty<Address, boolean>().set(affiliate1.address, true),
-                    isPublicCampaign: false,
+                    isPublicCampaign: true,
                     campaignValidForNumDays: null,
 					paymentMethod: BigInt(0), // TON
 					requiresAdvertiserApprovalForWithdrawl: false
@@ -227,7 +227,7 @@ describe('Advertiser Actions - Positive and Negative Tests for Advertiser Functi
                     regularUsersCostPerAction: regularUsersMapCostPerActionMap,
                     premiumUsersCostPerAction: regularUsersMapCostPerActionMap,
                     allowedAffiliates: Dictionary.empty<Address, boolean>().set(affiliate1.address, true),
-                    isPublicCampaign: false,
+                    isPublicCampaign: true,
                     campaignValidForNumDays: null,
 					paymentMethod: BigInt(0), // TON
 					requiresAdvertiserApprovalForWithdrawl: false
@@ -256,7 +256,7 @@ describe('Advertiser Actions - Positive and Negative Tests for Advertiser Functi
                     regularUsersCostPerAction: regularUsersMapCostPerActionMap,
                     premiumUsersCostPerAction: regularUsersMapCostPerActionMap,
                     allowedAffiliates: Dictionary.empty<Address, boolean>().set(affiliate1.address, true),
-                    isPublicCampaign: false,
+                    isPublicCampaign: true,
                     campaignValidForNumDays: null,
 					paymentMethod: BigInt(0), // TON
 					requiresAdvertiserApprovalForWithdrawl: false
@@ -377,7 +377,7 @@ describe('Advertiser Actions - Positive and Negative Tests for Advertiser Functi
                     regularUsersCostPerAction: regularUsersMapCostPerActionMap,
                     premiumUsersCostPerAction: regularUsersMapCostPerActionMap,
                     allowedAffiliates: Dictionary.empty<Address, boolean>().set(affiliate1.address, true),
-                    isPublicCampaign: false,
+                    isPublicCampaign: true,
                     campaignValidForNumDays: null,
 					paymentMethod: BigInt(0), // TON
 					requiresAdvertiserApprovalForWithdrawl: false
@@ -431,7 +431,7 @@ describe('Advertiser Actions - Positive and Negative Tests for Advertiser Functi
                     regularUsersCostPerAction: regularUsersMapCostPerActionMap,
                     premiumUsersCostPerAction: regularUsersMapCostPerActionMap,
                     allowedAffiliates: Dictionary.empty<Address, boolean>().set(affiliate1.address, true),
-                    isPublicCampaign: false,
+                    isPublicCampaign: true,
                     campaignValidForNumDays: null,
 					paymentMethod: BigInt(0), // TON
 					requiresAdvertiserApprovalForWithdrawl: false
@@ -488,7 +488,7 @@ describe('Advertiser Actions - Positive and Negative Tests for Advertiser Functi
                     regularUsersCostPerAction: regularUsersMapCostPerActionMap,
                     premiumUsersCostPerAction: regularUsersMapCostPerActionMap,
                     allowedAffiliates: Dictionary.empty<Address, boolean>(),
-                    isPublicCampaign: false,
+                    isPublicCampaign: true,
                     campaignValidForNumDays: null,
 					paymentMethod: BigInt(0), // TON
 					requiresAdvertiserApprovalForWithdrawl: false
@@ -533,7 +533,7 @@ describe('Advertiser Actions - Positive and Negative Tests for Advertiser Functi
                     regularUsersCostPerAction: regularUsersMapCostPerActionMap,
                     premiumUsersCostPerAction: regularUsersMapCostPerActionMap,
                     allowedAffiliates: Dictionary.empty<Address, boolean>().set(affiliate1.address, true),
-                    isPublicCampaign: false,
+                    isPublicCampaign: true,
                     campaignValidForNumDays: null,
 					paymentMethod: BigInt(0), // TON
 					requiresAdvertiserApprovalForWithdrawl: false
@@ -611,7 +611,7 @@ describe('Advertiser Actions - Positive and Negative Tests for Advertiser Functi
                     regularUsersCostPerAction: regularUsersMapCostPerActionMap,
                     premiumUsersCostPerAction: regularUsersMapCostPerActionMap,
                     allowedAffiliates: Dictionary.empty<Address, boolean>().set(affiliate1.address, true),
-                    isPublicCampaign: false,
+                    isPublicCampaign: true,
                     campaignValidForNumDays: null,
 					paymentMethod: BigInt(0), // TON
 					requiresAdvertiserApprovalForWithdrawl: true

@@ -173,7 +173,7 @@ beforeEach(async () => {
                 regularUsersCostPerAction: regularUsersMapCostPerActionMap,
                 premiumUsersCostPerAction: regularUsersMapCostPerActionMap,
                 allowedAffiliates: Dictionary.empty<Address, boolean>(),
-                isPublicCampaign: false,
+                isPublicCampaign: true,
 				campaignValidForNumDays: null,
 				paymentMethod: BigInt(0), // TON
 				requiresAdvertiserApprovalForWithdrawl: false

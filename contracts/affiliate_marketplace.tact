@@ -670,6 +670,11 @@ contract Campaign with Resumable {
         require(affiliateDataOptional != null, "Affiliate does not exist");
         let affiliateData: AffiliateData = affiliateDataOptional!!;
 
+        if (!self.campaignDetails.isPublicCampaign) {
+            require(self.campaignDetails.allowedAffiliates.get(affiliateData.affiliate) != null, "affiliate not on allowed list");
+            require(self.campaignDetails.allowedAffiliates.get(affiliateData.affiliate)!! == true, "affiliate not approved");
+        }
+
         let cpaOptional: Int? = null;
         if (isPremiumUser) {
             cpaOptional = self.campaignDetails.premiumUsersCostPerAction.get(userActionOpCode);

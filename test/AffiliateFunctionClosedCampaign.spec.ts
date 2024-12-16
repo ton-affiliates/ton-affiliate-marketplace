@@ -366,6 +366,21 @@ describe('Affiliate Actions - Positive and Negative Tests for Affiliate Function
         });
 	
 	});
+	
+	it('should fail when an unauthorized affiliate tries to join a closed campaign', async () => {
+        const createAffiliateResult = await campaignContract.send(
+            unauthorizedUser.getSender(),
+            { value: toNano('0.05') },
+            { $$type: 'AffiliateCreateNewAffiliate' }
+        );
+
+        expect(createAffiliateResult.transactions).toHaveTransaction({
+            from: unauthorizedUser.address,
+            to: campaignContract.address,
+            success: false,
+            exitCode: 49782 // Unauthorized affiliate access error code
+        });
+    });
 
     
 });

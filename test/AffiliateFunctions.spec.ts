@@ -192,7 +192,7 @@ beforeEach(async () => {
                 regularUsersCostPerAction: regularUsersMapCostPerActionMap,
                 premiumUsersCostPerAction: regularUsersMapCostPerActionMap,
                 allowedAffiliates: Dictionary.empty<Address, boolean>().set(affiliate1.address, true),
-                isPublicCampaign: false,
+                isPublicCampaign: true,
                 campaignValidForNumDays: null,
 				paymentMethod: BigInt(0), // TON
 				requiresAdvertiserApprovalForWithdrawl: false
@@ -267,21 +267,6 @@ describe('Affiliate Actions - Positive and Negative Tests for Affiliate Function
             from: campaignContract.address,
             to: affiliate1.address,
             success: true
-        });
-    });
-
-    it('should fail when an unauthorized affiliate tries to join a closed campaign', async () => {
-        const createAffiliateResult = await campaignContract.send(
-            unauthorizedUser.getSender(),
-            { value: toNano('0.05') },
-            { $$type: 'AffiliateCreateNewAffiliate' }
-        );
-
-        expect(createAffiliateResult.transactions).toHaveTransaction({
-            from: unauthorizedUser.address,
-            to: campaignContract.address,
-            success: false,
-            exitCode: 49782 // Unauthorized affiliate access error code
         });
     });
 
