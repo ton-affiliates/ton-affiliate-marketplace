@@ -1,0 +1,1 @@
+console.log('in script.ts gotdsddd');
