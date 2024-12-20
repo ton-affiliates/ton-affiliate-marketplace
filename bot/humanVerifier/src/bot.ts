@@ -1,16 +1,20 @@
+// EXAMPLE - affiliate link to campaign 12345 and affiliate 1:
+// https://t.me/ton_affiliates_verifier_bot?start=12345_0
+
 import { Telegraf } from 'telegraf';
 import * as svgCaptcha from 'svg-captcha';
 import sharp from 'sharp';
 import dotenv from 'dotenv';
 // @ts-ignore
 import rateLimit from 'telegraf-ratelimit';
+import Redis from 'ioredis';
+import { TelegramEvent, EventType, TelegramAssetType } from '../../common';
 
-// EXAMPLE - affiliate link to campaign 12345 and affiliate 1:
-// https://t.me/ton_affiliates_verifier_bot?start=12345_0
+// const redis = new Redis(process.env.REDIS_URL || '');
 
 dotenv.config();
 
-const BOT_API_KEY = process.env.BOT_API_KEY || '';
+const BOT_API_KEY = process.env.HUMAN_VERIFIER_BOT_API_KEY || '';
 const bot = new Telegraf(BOT_API_KEY);
 
 const limitConfig = {
@@ -92,13 +96,30 @@ bot.on('text', async (ctx) => {
             captchaState.delete(userId);
 
             // Fetch Telegram redirect URL from Redis
-            const telegramRedirectUrl =  "https://t.me/TonAfiliatesTest";  // Replace with Redis fetch
+            const telegramRedirectUrl = "https://t.me/+1dKu7kfkdudmN2Y0"; // test channel "https://t.me/TonAfiliatesTest";  // Replace with Redis fetch
 
             await ctx.reply(`✅ Captcha solved correctly\\! [Click Here](${telegramRedirectUrl})`, {
                 parse_mode: 'MarkdownV2',
             });
+            
+            // // log event in redis
+            // const captchaSolvedEvent: TelegramEvent = {
+            //     eventType: EventType.CAPTCHA_SOLVED,
+            //     telegramAsset: {
+            //         id: -1009876543210,
+            //         name: '@PublicChannelName',
+            //         type: TelegramAssetType.CHANNEL,
+            //     },
+            //     userId: 123456,
+            //     timestamp: Date.now(),
+            //     campaignId: 101,
+            //     affiliateId: 202,
+            // };
 
-            // TODO: Log to Redis: user joined campaign.  NExt bot will verify that the user actually joined.
+            // // Publish the event to a Redis pub/sub if channel to verify 'isMember'
+            // await redis.publish('user:verified', JSON.stringify(event));
+            // console.log(`Published verification event for user ${userId}`);
+
         } else {
 
 

@@ -25,6 +25,8 @@
         "@ton/blueprint": "^0.27.0",
         "@ton/ton": "^15.1.0",
         "husky": "^9.1.7",
+        "ioredis": "^5.4.1",
+        "ioredis-mock": "^8.9.0",
         "npx": "^10.2.2",
         "sharp": "^0.33.5",
         "svg-captcha": "^1.4.0",
