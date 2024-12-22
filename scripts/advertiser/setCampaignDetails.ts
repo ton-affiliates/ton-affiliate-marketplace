@@ -2,7 +2,7 @@ import { toNano, Address, fromNano, Dictionary } from '@ton/core';
 import { Campaign } from '../../wrappers/Campaign';
 import { AffiliateMarketplace } from '../../wrappers/AffiliateMarketplace';
 import { NetworkProvider, sleep } from '@ton/blueprint';
-import { AFFILIATE_MARKETPLACE_ADDRESS, BOT_OP_CODE_USER_CLICK } from '../constants'
+import { AFFILIATE_MARKETPLACE_ADDRESS, MAX_ATTEMPTS, GAS_FEE } from '../constants'
 import { parseBigIntToPriceMap } from '../utils'
 
 export async function run(provider: NetworkProvider, args: string[]) {
@@ -46,15 +46,10 @@ export async function run(provider: NetworkProvider, args: string[]) {
 		: (await ui.input('requiresAdvertiserApprovalForWithdrawl: ')).trim().toLowerCase() === 'true'; // Prompt user and parse input
 		
 	
-	let tonToSend = toNano('0.15'); // default for USDT
-	if (paymentMethod == BigInt(0)) {
-		tonToSend = toNano(args.length > 8 ? args[8] : await ui.input('Amount of TON to start with: (e.g. 100) '));
-	}
-	
 	await campaignContract.send(
             provider.sender(),
             {
-                value: tonToSend,  
+                value: GAS_FEE,   
             },
             {
                 $$type: 'AdvertiserSetCampaignDetails',
@@ -76,6 +71,13 @@ export async function run(provider: NetworkProvider, args: string[]) {
     let stateAfter = (await campaignContract.getCampaignData()).state;
     let attempt = 1;
     while (stateBefore === stateAfter) {
+        
+        if (attempt == MAX_ATTEMPTS) {
+            // tx failed
+            ui.write(`Error: TX failed or timedout!`);
+            return;
+        }
+
         ui.setActionPrompt(`Attempt ${attempt}`);
         await sleep(2000);
         stateAfter = (await campaignContract.getCampaignData()).state;

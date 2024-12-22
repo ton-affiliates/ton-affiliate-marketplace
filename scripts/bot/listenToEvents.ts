@@ -2,10 +2,9 @@
 //https://github.com/nikandr-surkov/Defi-on-Ton-Youtube-Lesson-11
 import { AFFILIATE_MARKETPLACE_ADDRESS, HTTP_ENDPOINT_NETWORK } from "../constants"
 import { getHttpEndpoint } from "@orbs-network/ton-access";
-import { Address } from '@ton/core';
 import { NetworkProvider } from '@ton/blueprint';
 
-import { TonClient } from "ton";
+import { TonClient } from "@ton/ton";
 import { 
 AdvertiserSignedCampaignDetailsEvent,
 loadAdvertiserSignedCampaignDetailsEvent,

@@ -1,30 +1,30 @@
 import { toNano, Address, fromNano, Dictionary, Cell, beginCell } from '@ton/core';
-import { Campaign } from '../../wrappers/Campaign';
-import { AffiliateMarketplace } from '../../wrappers/AffiliateMarketplace';
+import { Campaign } from '../../../wrappers/Campaign';
+import { AffiliateMarketplace } from '../../../wrappers/AffiliateMarketplace';
 import { NetworkProvider, sleep } from '@ton/blueprint';
-import { translateAddress, fromUSDT, toUSDT } from '../utils';
-import { getUSDTWalletAddress } from '../usdtUtils' 
-import {TonClient, internal}from 'ton';
+import { translateAddress, fromUSDT, toUSDT } from '../../utils';
+import { getUSDTWalletAddress } from '../../utils' 
+import {TonClient }from '@ton/ton';
 import { randomBytes } from 'crypto';
-import * as Constants from "../constants";
+import * as Constants from "../../constants";
 
 
-function calculateBufferInNanoTON(usdtAmount: number): bigint {
+// function calculateBufferInNanoTON(usdtAmount: number): bigint {
     
-	if (usdtAmount <= 0) {
-        throw new Error('USDT amount must be a positive number!');
-    }
+// 	if (usdtAmount <= 0) {
+//         throw new Error('USDT amount must be a positive number!');
+//     }
 
-    const bufferPercentage = 2; // Buffer is 2% of the USDT amount
-    const usdtBuffer = usdtAmount * (bufferPercentage / 100); // Calculate 2.5% of USDT
-    const usdtToTonRate = 5; // 1 TON = 5 USDT
-    const tonBuffer = usdtBuffer / usdtToTonRate; // Convert USDT buffer to TON
+//     const bufferPercentage = 2; // Buffer is 2% of the USDT amount
+//     const usdtBuffer = usdtAmount * (bufferPercentage / 100); // Calculate 2% of USDT
+//     const usdtToTonRate = 5; // 1 TON = 5 USDT
+//     const tonBuffer = usdtBuffer / usdtToTonRate; // Convert USDT buffer to TON
 
-    const nanoTONFactor = 10n ** 9n; // Convert TON to nanoTON
-    const bufferInNanoTON = BigInt(Math.ceil(tonBuffer * Number(nanoTONFactor))); // Ensure rounding up
+//     const nanoTONFactor = 10n ** 9n; // Convert TON to nanoTON
+//     const bufferInNanoTON = BigInt(Math.ceil(tonBuffer * Number(nanoTONFactor))); // Ensure rounding up
 
-    return bufferInNanoTON;
-}
+//     return bufferInNanoTON;
+// }
 
 
 export async function run(provider: NetworkProvider, args: string[]) {
@@ -63,6 +63,7 @@ export async function run(provider: NetworkProvider, args: string[]) {
     console.log(`Sender Jetton Wallet Address: ${senderJettonWalletAddress.toString()}`);
 	
 	let userAddress = Address.parse(userAddressStr);
+
 	
 	// ---------
 	
@@ -76,18 +77,18 @@ export async function run(provider: NetworkProvider, args: string[]) {
 		return;
 	}
 	
-	const bufferNanoTON = calculateBufferInNanoTON(parsedUSDT);
+	// const bufferNanoTON = calculateBufferInNanoTON(parsedUSDT);
 	
-	ui.write(`Calculated buffer (TON): ${fromNano(bufferNanoTON)} TON`);
+	// ui.write(`Calculated buffer (TON): ${fromNano(bufferNanoTON)} TON`);
 	
-    // Minimum buffer in TON (e.g., 1 TON)
-	let contractTonBalance = campaignData.contractTonBalance;
-    let minimumBufferNanoTON = contractTonBalance >= Constants.MIN_BUFFER_GAS_FEES ? toNano("0") : (Constants.MIN_BUFFER_GAS_FEES - contractTonBalance);
-	minimumBufferNanoTON = minimumBufferNanoTON + toNano("0.02");
-    const finalBufferNanoTON = bufferNanoTON > minimumBufferNanoTON ? bufferNanoTON : minimumBufferNanoTON;
+    // // Minimum buffer in TON (e.g., 1 TON)
+	// let contractTonBalance = campaignData.contractTonBalance;
+    // let minimumBufferNanoTON = contractTonBalance >= Constants.MIN_BUFFER_GAS_FEES ? toNano("0") : (Constants.MIN_BUFFER_GAS_FEES - contractTonBalance);
+	// minimumBufferNanoTON = minimumBufferNanoTON + toNano("0.02");
+    //const finalBufferNanoTON =  bufferNanoTON > minimumBufferNanoTON ? bufferNanoTON : minimumBufferNanoTON;
 
     // Output final buffer in TON
-    ui.write(`Final Buffer (TON): ${fromNano(finalBufferNanoTON)} TON`);
+    //ui.write(`Final Buffer (TON): ${fromNano(finalBufferNanoTON)} TON`);
 	
 	// Generate random query ID
     const randomQueryId = BigInt('0x' + randomBytes(8).toString('hex'));
@@ -98,7 +99,7 @@ export async function run(provider: NetworkProvider, args: string[]) {
         .storeStringTail('Replenish Campaign with USDT')
         .endCell();
 
-    const forwardTonAmount = finalBufferNanoTON; // TON for forwarding to contract
+    //const forwardTonAmount = finalBufferNanoTON; // TON for forwarding to contract
 	const usdtAmountNano = toUSDT(parsedUSDT); // Convert to 6 decimals (nano USDT)
 	
 	console.log('usdtAmountNano: ' + usdtAmountNano);
@@ -110,7 +111,7 @@ export async function run(provider: NetworkProvider, args: string[]) {
         .storeAddress(campaignAddress) // Recipient address
         .storeAddress(campaignAddress) // Response address for excess gas
         .storeBit(0) // No custom payload
-        .storeCoins(forwardTonAmount) // Forwarded TON amount
+        .storeCoins(Constants.GAS_FEE) // Forwarded TON amount
         .storeBit(1) // Forward payload is stored as a reference
         .storeRef(forwardPayload)
         .endCell();
@@ -119,7 +120,7 @@ export async function run(provider: NetworkProvider, args: string[]) {
 	const fixedGasFee = toNano('0.05');
 
 	// Calculate the total value to send (forwarded TON + gas fee)
-	const totalValueToSend = forwardTonAmount + fixedGasFee;
+	const totalValueToSend = Constants.GAS_FEE + fixedGasFee;
 	  
 	// Send the message using `provider.sender()`
     await provider.sender().send({

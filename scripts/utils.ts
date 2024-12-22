@@ -1,5 +1,7 @@
 // utils.ts
 import { beginCell, Cell, Address, Dictionary, toNano } from '@ton/core';
+import { USDT_MASTER_ADDRESS } from './constants'
+import { TonClient } from '@ton/ton'
 
 interface AddressFormats {
     rawAddress: string;
@@ -7,6 +9,14 @@ interface AddressFormats {
     userFriendly: string;
     base64url: string;
     rawUrlSafe: string;
+}
+
+// Function to calculate Jetton Wallet Address
+export async function getUSDTWalletAddress (ownerAddressStr: string, client: TonClient) {
+  let ownerAddress = Address.parse(ownerAddressStr);
+  const ownerAddressCell = beginCell().storeAddress(ownerAddress).endCell();
+  const result = await client.runMethod(USDT_MASTER_ADDRESS, 'get_wallet_address', [{ type: 'slice', cell: ownerAddressCell }]);
+  return result.stack.readAddress();
 }
 
 export function translateAddress(address: string): AddressFormats {

@@ -57,6 +57,8 @@ struct CampaignData {
     lastUserActionTimestamp: Int as uint32;
     numAdvertiserWithdrawls: Int as uint32;
     numAdvertiserSignOffs: Int as uint32;
+    numAdvertiserReplenishCampaign: Int as uint32;
+    numAdvertiserReplenishGasFees: Int as uint32;
     numUserActions: Int as uint32;
     campaignBalance: Int as coins;
     maxCpaValue: Int as coins;
@@ -122,6 +124,8 @@ contract Campaign with Resumable {
     lastUserActionTimestamp: Int as uint32;
     numAdvertiserWithdrawls: Int as uint32;
     numAdvertiserSignOffs: Int as uint32;
+    numAdvertiserReplenishCampaign: Int as uint32;
+    numAdvertiserReplenishGasFees: Int as uint32;
     numUserActions: Int as uint32;
     totalAffiliateEarnings: Int as coins;
     maxCpaValue: Int as coins;
@@ -132,7 +136,6 @@ contract Campaign with Resumable {
 
     contractUSDTBalance: Int as coins;
     contractUsdtWallet: Address;
-    processedJettonTransfers: map<Int, Bool>;
 
     init(owner: Address, campaignId: Int, advertiser: Address, payout: Address, 
          bot: Address, usdtMasterAddress: Address, usdtWalletBytecode: Cell,
@@ -167,6 +170,8 @@ contract Campaign with Resumable {
         self.campaignStartTimestamp = 0;
         self.numAdvertiserWithdrawls = 0;
         self.numAdvertiserSignOffs = 0;
+        self.numAdvertiserReplenishCampaign = 0;
+        self.numAdvertiserReplenishGasFees = 0;
         self.numUserActions = 0;
         self.totalAffiliateEarnings = 0;
         self.maxCpaValue = ton("0");
@@ -177,9 +182,6 @@ contract Campaign with Resumable {
         // USDT details
 		self.contractUSDTBalance = 0;
 		self.contractUsdtWallet = calculateUSDTWalletAddress(myAddress(), usdtMasterAddress, usdtWalletBytecode);
-
-        // replay attack protection
-        self.processedJettonTransfers = emptyMap();
     }
 
     // piggyback on this message for deployment
@@ -271,9 +273,7 @@ contract Campaign with Resumable {
         require(msg.sender == self.advertiser, "Only advertiser can send tokens to this contract");
         require(self.campaignDetails.paymentMethod == PAYMENT_METHOD_USDT, "Only USDT Campaigns can accept USDT");
         
-        // replay
-        require(self.processedJettonTransfers.get(msg.queryId) != null, "Cannot replay message");
-        self.processedJettonTransfers.set(msg.queryId, true);
+        self.numAdvertiserReplenishCampaign += 1;
 
         // Calculate the net amount after fees
         let depositAmount = (msg.amount * 1000); // convert to 9 decimals
@@ -399,14 +399,6 @@ contract Campaign with Resumable {
         self.maxCpaValue = max(self.maxCpaValue, val);
     }
 
-    fun validateUserActionOpCodeValue(val: Int, campaignDetails: CampaignDetails) {
-        if (campaignDetails.paymentMethod == PAYMENT_METHOD_TON) {
-            require(val >= ton("0.02"), "Value of user action has to be a minimum of 0.02 TON");
-        } else {
-            require(val >= ton("0.1"), "Value of user action has to be a minimum of 0.1 USDT");
-        }
-    }
-
     // advetiser sets campaign details 
     receive (msg: AdvertiserSetCampaignDetails) {
 
@@ -419,12 +411,10 @@ contract Campaign with Resumable {
         // get maxCpaValue
         let maxCpaValue: Int = ton("0");
         foreach (key, val in msg.campaignDetails.regularUsersCostPerAction) {
-            self.validateUserActionOpCodeValue(val, msg.campaignDetails);
             self.updateMaxCpaValue(val);
         }
 
         foreach (key, val in msg.campaignDetails.premiumUsersCostPerAction) {
-            self.validateUserActionOpCodeValue(val, msg.campaignDetails);
             self.updateMaxCpaValue(val);
         }
 
@@ -449,6 +439,8 @@ contract Campaign with Resumable {
         require(self.state == STATE_CAMPAIGN_DETAILS_SET_BY_ADVERTISER, "Must be in state: STATE_CAMPAIGN_DETAILS_SET_BY_ADVERTISER");
         require(sender() == self.advertiser, "Only the advertiser can replenish the contract");
 
+        self.numAdvertiserReplenishCampaign += 1;
+
         // Calculate the net amount after fees
         let depositAmount = context().value;
         let fee: Int = (depositAmount * self.advertiserFeePercentage + 9999) / 10000;  // e.g., fee=200 = 2%
@@ -470,6 +462,8 @@ contract Campaign with Resumable {
         require(sender() == self.advertiser, "Only the advertiser can replenish the contract");
         require(self.state == STATE_CAMPAIGN_DETAILS_SET_BY_ADVERTISER, "Must be in state: STATE_CAMPAIGN_DETAILS_SET_BY_ADVERTISER");
         require(self.campaignDetails.paymentMethod == PAYMENT_METHOD_USDT, "Can replenish TON for gas fees for USDT camapigns only");
+    
+        self.numAdvertiserReplenishGasFees += 1;
     }
 
     receive(msg: AffiliateCreateNewAffiliate) {
@@ -646,12 +640,10 @@ contract Campaign with Resumable {
 
         if (isPremiumUserOpCode) {
             require(self.campaignDetails.premiumUsersCostPerAction.get(newUserOpCode) != null, "Can only add op codes");
-            self.validateUserActionOpCodeValue(cpa, self.campaignDetails);
             self.updateMaxCpaValue(cpa);
             self.campaignDetails.premiumUsersCostPerAction.set(newUserOpCode, cpa);
         } else {
             require(self.campaignDetails.regularUsersCostPerAction.get(newUserOpCode) != null, "Can only add op codes");
-            self.validateUserActionOpCodeValue(cpa, self.campaignDetails);
             self.updateMaxCpaValue(cpa);
             self.campaignDetails.regularUsersCostPerAction.set(newUserOpCode, cpa);
         }
@@ -851,6 +843,8 @@ contract Campaign with Resumable {
             numAdvertiserWithdrawls: self.numAdvertiserWithdrawls,
             numUserActions: self.numUserActions,
             numAdvertiserSignOffs: self.numAdvertiserSignOffs,
+            numAdvertiserReplenishCampaign: self.numAdvertiserReplenishCampaign,
+            numAdvertiserReplenishGasFees: self.numAdvertiserReplenishGasFees,
             state: self.state,
             campaignBalance: self.calcCampaignBalance(),
             maxCpaValue: self.maxCpaValue,
