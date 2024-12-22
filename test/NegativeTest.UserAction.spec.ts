@@ -11,7 +11,7 @@ import { AffiliateMarketplace } from '../build/AffiliateMarketplace/tact_Affilia
 import { Campaign } from '../build/Campaign/tact_Campaign';
 import '@ton/test-utils';
 import { loadCampaignCreatedEvent } from '../scripts/events'; // Ensure this utility is correctly set up for testing
-import { USDT_MASTER_ADDRESS, USDT_WALLET_BYTECODE } from '../scripts/constants'
+import { USDT_MASTER_ADDRESS, USDT_WALLET_BYTECODE, AFFILIATE_FEE_PERCENTAGE, ADVERTISER_FEE_PERCENTAGE } from '../scripts/constants'
 import { hexToCell } from '../scripts/utils';
 
 // Set up global variables and initial state
@@ -26,7 +26,7 @@ let unauthorizedUser: SandboxContract<TreasuryContract>;
 let decodedCampaign: any | null;
 
 const BOT_OP_CODE_USER_CLICK = 0;
-const ADVERTISER_OP_CODE_CUSTOMIZED_EVENT = 2001;
+const ADVERTISER_OP_CODE_CUSTOMIZED_EVENT = 20001;
 
 let campaignId = BigInt(0);
 
@@ -95,8 +95,8 @@ beforeEach(async () => {
     unauthorizedUser = await blockchain.treasury('unauthorizedUser');
 
     // Deploy AffiliateMarketplace contract
-    affiliateMarketplaceContract = blockchain.openContract(await AffiliateMarketplace.fromInit(bot.address, USDT_MASTER_ADDRESS, hexToCell(USDT_WALLET_BYTECODE)));
-    const deployResult = await affiliateMarketplaceContract.send(
+    affiliateMarketplaceContract = blockchain.openContract(await AffiliateMarketplace.fromInit(bot.address, 
+            USDT_MASTER_ADDRESS, hexToCell(USDT_WALLET_BYTECODE), ADVERTISER_FEE_PERCENTAGE, AFFILIATE_FEE_PERCENTAGE));     const deployResult = await affiliateMarketplaceContract.send(
         deployer.getSender(),
         { value: toNano('0.05') },
         { $$type: 'Deploy', queryId: 0n }
@@ -213,7 +213,7 @@ describe('Negative Tests for User Actions', () => {
             {
                 $$type: 'BotUserAction',
                 affiliateId: BigInt(0),
-                userActionOpCode: BigInt(2001),
+                userActionOpCode: BigInt(100000),
                 isPremiumUser: false,
             }
         );
@@ -221,8 +221,8 @@ describe('Negative Tests for User Actions', () => {
         expect(userActionResult.transactions).toHaveTransaction({
             from: bot.address,
             to: campaignContract.address,
-            success: false, // 34905: Bot can verify only op codes under 2000
-			exitCode: 34905
+            success: false, // 7354
+			exitCode: 7354
         });
 
         // Attempt by the advertiser to verify an action that should be verified by the bot
@@ -240,8 +240,8 @@ describe('Negative Tests for User Actions', () => {
         expect(advertiserUnauthorizedUserAction.transactions).toHaveTransaction({
             from: advertiser.address,
             to: campaignContract.address,
-            success: false,  // 60644: Advertiser can verify only op codes over 2000 
-			exitCode: 60644
+            success: false,  // 14465: Advertiser can verify only op codes over 20000
+			exitCode: 14465
         });
     });
 
@@ -253,7 +253,7 @@ describe('Negative Tests for User Actions', () => {
             {
                 $$type: 'AdvertiserUserAction',
                 affiliateId: 0n,
-                userActionOpCode: BigInt(9999), // Invalid op code not defined in campaign
+                userActionOpCode: BigInt(99999), // Invalid op code not defined in campaign
                 isPremiumUser: false,
             }
         );

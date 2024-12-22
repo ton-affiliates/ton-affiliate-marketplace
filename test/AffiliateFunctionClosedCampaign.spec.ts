@@ -107,7 +107,7 @@ import {
 	  loadAdvertiserApprovedAffiliateToJoinAllowedListEvent,
 	  loadAdvertiserRemovedAffiliateFromAllowedListEvent} from '../scripts/events';
 	  
-import { USDT_MASTER_ADDRESS, USDT_WALLET_BYTECODE } from '../scripts/constants'
+import { USDT_MASTER_ADDRESS, USDT_WALLET_BYTECODE, ADVERTISER_FEE_PERCENTAGE, AFFILIATE_FEE_PERCENTAGE } from '../scripts/constants'
 
 // Set up global variables and initial state
 let blockchain: Blockchain;
@@ -131,7 +131,8 @@ beforeEach(async () => {
     unauthorizedUser = await blockchain.treasury('unauthorizedUser');
 
     // Deploy AffiliateMarketplace contract
-    affiliateMarketplaceContract = blockchain.openContract(await AffiliateMarketplace.fromInit(bot.address, USDT_MASTER_ADDRESS, hexToCell(USDT_WALLET_BYTECODE)));
+    affiliateMarketplaceContract = blockchain.openContract(await AffiliateMarketplace.fromInit(bot.address, 
+            USDT_MASTER_ADDRESS, hexToCell(USDT_WALLET_BYTECODE), ADVERTISER_FEE_PERCENTAGE, AFFILIATE_FEE_PERCENTAGE));
     const deployResult = await affiliateMarketplaceContract.send(
         deployer.getSender(),
         { value: toNano('0.05') },

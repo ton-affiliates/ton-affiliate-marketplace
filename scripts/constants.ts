@@ -12,6 +12,8 @@ export const HTTP_ENDPOINT_NETWORK = "testnet";
 export const MIN_BUFFER_GAS_FEES = toNano("0.5");
 export const GAS_FEE = toNano('0.05');
 export const MAX_ATTEMPTS = 20;
+export const ADVERTISER_FEE_PERCENTAGE = BigInt(0);  // 0 %
+export const AFFILIATE_FEE_PERCENTAGE = BigInt(200);  // 2 %
 
 // OP CODES Bot
 export const BOT_OP_CODE_USER_CLICK = BigInt(0);

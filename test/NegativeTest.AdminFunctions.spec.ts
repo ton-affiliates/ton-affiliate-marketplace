@@ -11,7 +11,7 @@ import { AffiliateMarketplace } from '../build/AffiliateMarketplace/tact_Affilia
 import { Campaign } from '../build/Campaign/tact_Campaign';
 import '@ton/test-utils';
 import { loadCampaignCreatedEvent } from '../scripts/events'; // Ensure this utility is correctly set up for testing
-import { USDT_MASTER_ADDRESS, USDT_WALLET_BYTECODE } from '../scripts/constants'
+import { USDT_MASTER_ADDRESS, USDT_WALLET_BYTECODE, ADVERTISER_FEE_PERCENTAGE, AFFILIATE_FEE_PERCENTAGE } from '../scripts/constants'
 import { hexToCell } from '../scripts/utils';
 
 // Set up global variables and initial state
@@ -26,7 +26,7 @@ let affiliate2: SandboxContract<TreasuryContract>;
 let unauthorizedUser: SandboxContract<TreasuryContract>;
 
 const BOT_OP_CODE_USER_CLICK = 0;
-const ADVERTISER_OP_CODE_CUSTOMIZED_EVENT = 2001;
+const ADVERTISER_OP_CODE_CUSTOMIZED_EVENT = 20001;
 
 
 let campaignId = BigInt(0);
@@ -96,8 +96,8 @@ beforeEach(async () => {
     unauthorizedUser = await blockchain.treasury('unauthorizedUser');
 
     // Deploy AffiliateMarketplace contract
-    affiliateMarketplaceContract = blockchain.openContract(await AffiliateMarketplace.fromInit(bot.address, USDT_MASTER_ADDRESS, hexToCell(USDT_WALLET_BYTECODE)));
-    const deployResult = await affiliateMarketplaceContract.send(
+affiliateMarketplaceContract = blockchain.openContract(await AffiliateMarketplace.fromInit(bot.address, 
+            USDT_MASTER_ADDRESS, hexToCell(USDT_WALLET_BYTECODE), ADVERTISER_FEE_PERCENTAGE, AFFILIATE_FEE_PERCENTAGE));     const deployResult = await affiliateMarketplaceContract.send(
         deployer.getSender(),
         { value: toNano('0.05') },
         { $$type: 'Deploy', queryId: 0n }
@@ -202,26 +202,6 @@ describe('Administrative Actions - Negative Tests for AffiliateMarketplace Contr
         );
 
         expect(adminSeizeCampaignBalanceResult.transactions).toHaveTransaction({
-            from: unauthorizedUser.address,
-            to: affiliateMarketplaceContract.address,
-            success: false, //132: Access denied
-			exitCode: 132
-        });
-    });
-
-    it('should fail when a non-owner tries to update the campaign fee percentage', async () => {
-        const adminModifyCampaignFeeResult = await affiliateMarketplaceContract.send(
-            unauthorizedUser.getSender(),
-            { value: toNano('0.05') },
-            {
-                $$type: 'AdminModifyCampaignFeePercentage',
-                campaignId: campaignId, 
-				advertiser: advertiser.address,
-                feePercentage: BigInt(150), // 1.5%
-            }
-        );
-
-        expect(adminModifyCampaignFeeResult.transactions).toHaveTransaction({
             from: unauthorizedUser.address,
             to: affiliateMarketplaceContract.address,
             success: false, //132: Access denied

@@ -105,7 +105,7 @@ import { AffiliateMarketplace } from '../build/AffiliateMarketplace/tact_Affilia
 import { Campaign } from '../build/Campaign/tact_Campaign';
 import '@ton/test-utils';
 import { loadCampaignCreatedEvent } from '../scripts/events'; // Ensure this utility is correctly set up for testing
-import { USDT_MASTER_ADDRESS, USDT_WALLET_BYTECODE } from '../scripts/constants'
+import { USDT_MASTER_ADDRESS, USDT_WALLET_BYTECODE, AFFILIATE_FEE_PERCENTAGE, ADVERTISER_FEE_PERCENTAGE } from '../scripts/constants'
 import { hexToCell } from '../scripts/utils';
 
 // Set up global variables and initial state
@@ -120,6 +120,8 @@ let affiliate2: SandboxContract<TreasuryContract>;
 let unauthorizedUser: SandboxContract<TreasuryContract>;
 
 
+const ADVERTISER_USER_OP_CODE = BigInt(20001);
+
 beforeEach(async () => {
     // Initialize blockchain and deployer wallets
     blockchain = await Blockchain.create();
@@ -131,7 +133,9 @@ beforeEach(async () => {
     unauthorizedUser = await blockchain.treasury('unauthorizedUser');
 
     // Deploy AffiliateMarketplace contract
-    affiliateMarketplaceContract = blockchain.openContract(await AffiliateMarketplace.fromInit(bot.address, USDT_MASTER_ADDRESS, hexToCell(USDT_WALLET_BYTECODE)));
+    affiliateMarketplaceContract = blockchain.openContract(await AffiliateMarketplace.fromInit(bot.address, 
+        USDT_MASTER_ADDRESS, hexToCell(USDT_WALLET_BYTECODE), ADVERTISER_FEE_PERCENTAGE, AFFILIATE_FEE_PERCENTAGE));
+    
     const deployResult = await affiliateMarketplaceContract.send(
         deployer.getSender(),
         { value: toNano('0.05') },
@@ -419,7 +423,7 @@ describe('Advertiser Actions - Positive and Negative Tests for Advertiser Functi
     it('should allow the advertiser to verify a user action directly', async () => {
         // Set campaign details so advertiser becomes registered
         const regularUsersMapCostPerActionMap = Dictionary.empty<bigint, bigint>();
-        regularUsersMapCostPerActionMap.set(BigInt(2001), toNano('0.2')); // Custom op code for advertiser action
+        regularUsersMapCostPerActionMap.set(BigInt(ADVERTISER_USER_OP_CODE), toNano('0.2')); // Custom op code for advertiser action
 
         await campaignContract.send(
             advertiser.getSender(),
@@ -458,7 +462,7 @@ describe('Advertiser Actions - Positive and Negative Tests for Advertiser Functi
             {
                 $$type: 'AdvertiserUserAction',
                 affiliateId: BigInt(0), // Matching affiliate1's ID
-                userActionOpCode: BigInt(2001), // Custom op code set by advertiser
+                userActionOpCode: BigInt(ADVERTISER_USER_OP_CODE), // Custom op code set by advertiser
                 isPremiumUser: false
             }
         );
@@ -521,7 +525,7 @@ describe('Advertiser Actions - Positive and Negative Tests for Advertiser Functi
 	it('should not allow the advertiser to modify affiliate earnings if requiresAdvertiserApprovalForWithdrawl is false', async () => {
         // Set campaign details so advertiser becomes registered
         const regularUsersMapCostPerActionMap = Dictionary.empty<bigint, bigint>();
-        regularUsersMapCostPerActionMap.set(BigInt(2001), toNano('0.2')); // Custom op code for advertiser action
+        regularUsersMapCostPerActionMap.set(BigInt(ADVERTISER_USER_OP_CODE), toNano('0.2')); // Custom op code for advertiser action
 
         await campaignContract.send(
             advertiser.getSender(),
@@ -560,7 +564,7 @@ describe('Advertiser Actions - Positive and Negative Tests for Advertiser Functi
             {
                 $$type: 'AdvertiserUserAction',
                 affiliateId: BigInt(0), // Matching affiliate1's ID
-                userActionOpCode: BigInt(2001), // Custom op code set by advertiser
+                userActionOpCode: BigInt(ADVERTISER_USER_OP_CODE), // Custom op code set by advertiser
                 isPremiumUser: false
             }
         );
@@ -599,7 +603,7 @@ describe('Advertiser Actions - Positive and Negative Tests for Advertiser Functi
 	it('should fail if advertiser modifies with amount  >= affiliate earnings', async () => {
         // Set campaign details so advertiser becomes registered
         const regularUsersMapCostPerActionMap = Dictionary.empty<bigint, bigint>();
-        regularUsersMapCostPerActionMap.set(BigInt(2001), toNano('0.2')); // Custom op code for advertiser action
+        regularUsersMapCostPerActionMap.set(BigInt(ADVERTISER_USER_OP_CODE), toNano('0.2')); // Custom op code for advertiser action
 
         await campaignContract.send(
             advertiser.getSender(),
@@ -638,7 +642,7 @@ describe('Advertiser Actions - Positive and Negative Tests for Advertiser Functi
             {
                 $$type: 'AdvertiserUserAction',
                 affiliateId: BigInt(0), // Matching affiliate1's ID
-                userActionOpCode: BigInt(2001), // Custom op code set by advertiser
+                userActionOpCode: BigInt(ADVERTISER_USER_OP_CODE), // Custom op code set by advertiser
                 isPremiumUser: false
             }
         );

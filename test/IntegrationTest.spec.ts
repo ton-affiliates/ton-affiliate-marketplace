@@ -17,7 +17,7 @@ import {
 	  loadAdvertiserApprovedAffiliateToJoinAllowedListEvent,
 	  loadAdvertiserRemovedAffiliateFromAllowedListEvent} from '../scripts/events';
 	  
-import { USDT_MASTER_ADDRESS, USDT_WALLET_BYTECODE } from '../scripts/constants'
+import { USDT_MASTER_ADDRESS, USDT_WALLET_BYTECODE, ADVERTISER_FEE_PERCENTAGE, AFFILIATE_FEE_PERCENTAGE } from '../scripts/constants'
 import { hexToCell } from '../scripts/utils';
 
 describe('AffiliateMarketplace Integration Test', () => {
@@ -30,7 +30,7 @@ describe('AffiliateMarketplace Integration Test', () => {
     let affiliate2: SandboxContract<TreasuryContract>;
 
     let BOT_OP_CODE_USER_CLICK = BigInt(0);
-    let ADVERTISER_OP_CODE_CUSTOMIZED_EVENT = BigInt(2001);
+    let ADVERTISER_OP_CODE_CUSTOMIZED_EVENT = BigInt(20001);
 	
 	let CAMPAIGN_BUFFER = 1;  // 1 TON
 	let GAS = 0.05;  // 1 TON
@@ -45,7 +45,8 @@ describe('AffiliateMarketplace Integration Test', () => {
         affiliate1 = await blockchain.treasury('affiliate1');
         affiliate2 = await blockchain.treasury('affiliate2');
 		
-		affiliateMarketplaceContract = blockchain.openContract(await AffiliateMarketplace.fromInit(bot.address, USDT_MASTER_ADDRESS, hexToCell(USDT_WALLET_BYTECODE)));
+        affiliateMarketplaceContract = blockchain.openContract(await AffiliateMarketplace.fromInit(bot.address, 
+            USDT_MASTER_ADDRESS, hexToCell(USDT_WALLET_BYTECODE), ADVERTISER_FEE_PERCENTAGE, AFFILIATE_FEE_PERCENTAGE)); 
 
         // Deploy the contract
         const deployResult = await affiliateMarketplaceContract.send(

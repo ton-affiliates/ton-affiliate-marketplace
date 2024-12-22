@@ -6,6 +6,11 @@ message AdminWithdraw {
     wallets: map<Address, Bool>;
 }
 
+message AdminUpdateFeeBalance {
+    advertiserFeePercentage: Int as uint32;  // 200 = 2% fee
+    affiliateFeePercentage: Int as uint32; // 200 = 2% fee
+}
+
 message AdminReplenish {}
 
 message AdminModifyCampaignFeePercentage {
@@ -171,12 +176,11 @@ message AdvertiserAddNewAffiliateToAllowedList{affiliate: Address}
 message AdvertiserRemoveExistingAffiliateFromAllowedList{affiliate: Address}
 
 message AdvertiserReplenish {}
+message AdvertiserReplenishGasFeesForUSDTCampaign{}
 
 message AdvertiserSignOffWithdraw {
 	setAffiliatesWithdrawEarnings: map<Int, Int>;  // affiliateId -> withdrawalAmount
 }
-
-message AdvertiserSignOffAllAffilliates{}
 
 // Child to Parent - INTERNAL Messages
 message ChildToParentCampaignDeployedSuccessfully {

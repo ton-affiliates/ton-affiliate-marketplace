@@ -3,6 +3,7 @@ import { Campaign } from '../../wrappers/Campaign';
 import { AffiliateMarketplace } from '../../wrappers/AffiliateMarketplace';
 import { NetworkProvider, sleep } from '@ton/blueprint';
 import { AFFILIATE_MARKETPLACE_ADDRESS, MAX_ATTEMPTS, GAS_FEE } from '../constants'
+import { parseBigIntToPriceMap } from '../utils'
 
 export async function run(provider: NetworkProvider, args: string[]) {
     
@@ -21,6 +22,16 @@ export async function run(provider: NetworkProvider, args: string[]) {
 	const campaign = provider.open(Campaign.fromAddress(campaignAddress));
 	let numAdvertiserSignOffsBefore = (await campaign.getCampaignData()).numAdvertiserSignOffs;
 
+	const affiliateIdToWithdrawEarningsMap: Dictionary<bigint, bigint> = await parseBigIntToPriceMap(userInputAsString);
+				
+	for (const [key, value] of affiliateIdToWithdrawEarningsMap) {
+		
+		let affiliateData = await campaign.getAffiliateData(key);
+		if (affiliateData == null) {
+			ui.write(`Error: Affiliate ${key.toString()} does not exist!`);
+			return;
+		}
+	}
 			
 	await campaign.send(
         provider.sender(),
@@ -28,7 +39,8 @@ export async function run(provider: NetworkProvider, args: string[]) {
 			value: toNano('0.3')  // remainder will be returned to advertiser 
 		},
         { 
-			$$type: 'AdvertiserSignOffAllAffilliates'
+			$$type: 'AdvertiserSignOffWithdraw',
+			setAffiliatesWithdrawEarnings: affiliateIdToWithdrawEarningsMap
 		}
 	);
 		
