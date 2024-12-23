@@ -23,6 +23,16 @@ const stringifyWithBigInt = (obj: any) => {
     );
 };
 
+// last lt getter/setter functions
+async function saveLastProcessedLt(lt: bigint): Promise<void> {
+    await redisClient.set('lastProcessedLt', lt.toString());
+}
+
+async function getLastProcessedLt(): Promise<bigint> {
+    const value = await redisClient.get('lastProcessedLt');
+    return value ? BigInt(value) : BigInt(0); // Default to 0 if not found
+}
+
 async function processEvents(events: EmitLogEvent[]) {
     for (const event of events) {
         if (event.type === 'CampaignCreatedEvent') {
@@ -40,10 +50,22 @@ async function processEvents(events: EmitLogEvent[]) {
 
 // Server loop to fetch and process events periodically
 const fetchAndProcessEvents = async (): Promise<void> => {
-
     try {
-        const events: EmitLogEvent[] = await getLatestEvents();
-        processEvents(events);
+        const lastProcessedLt = await getLastProcessedLt(); // Fetch the last processed LT
+        console.log('Last Processed LT:', lastProcessedLt);
+
+        const events: EmitLogEvent[] = await getLatestEvents(lastProcessedLt); // Pass LT to fetch events
+        if (events.length > 0) {
+            await processEvents(events);
+
+            // Update the lastProcessedLt to the highest LT from the processed events
+            const maxLt = events.reduce(
+                (max, event) => (event.createdLt > max ? event.createdLt : max),
+                lastProcessedLt
+            );
+            await saveLastProcessedLt(maxLt);
+            console.log('Updated Last Processed LT:', maxLt);
+        }
     } catch (error) {
         console.error('Error fetching or processing events:', error);
     }

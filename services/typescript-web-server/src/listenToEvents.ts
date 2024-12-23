@@ -102,72 +102,71 @@ function getEventType(cell: Cell): 'AdvertiserWithdrawFundsEvent' | 'CampaignCre
     }
 }
 
-export async function getLatestEvents() {
-	
-
-	// Load client
+export async function getLatestEvents(lastProcessedEventLt = BigInt(0)) {
+    // Load client
     const endpoint = await getHttpV4Endpoint({ network: HTTP_ENDPOINT_NETWORK });
-    const client = new TonClient4({ endpoint })
+    const client = new TonClient4({ endpoint });
 
-	 // Load transactions
-	 let block = (await client.getLastBlock()).last.seqno;
-	 let account = await client.getAccount(block, AFFILIATE_MARKETPLACE_ADDRESS)
-	 if (account.account.state.type !== 'active') {
-		 throw new Error('Account is not active');
-	 }
+    // Load transactions
+    const block = (await client.getLastBlock()).last.seqno;
+    const account = await client.getAccount(block, AFFILIATE_MARKETPLACE_ADDRESS);
 
-	let transactions = (await client.getAccountTransactions(AFFILIATE_MARKETPLACE_ADDRESS, BigInt(account.account.last!.lt), Buffer.from(account.account.last!.hash, 'base64'))).map((v) => v.tx);
+    if (account.account.state.type !== 'active') {
+        throw new Error('Account is not active');
+    }
 
-	// const transactions = await client.getAccountTransactions(AFFILIATE_MARKETPLACE_ADDRESS, lastProcessedEventLT); // last 10 events
+    const transactions = (await client.getAccountTransactions(
+        AFFILIATE_MARKETPLACE_ADDRESS,
+        BigInt(account.account.last!.lt),
+        Buffer.from(account.account.last!.hash, 'base64')
+    ))
+        .filter((tx) => BigInt(tx.tx.lt) > lastProcessedEventLt) // Filter transactions by last processed LT
+        .map((v) => v.tx); // Extract the transaction object
 
     const logs: EmitLogEvent[] = [];
-		
-    for (const tx of transactions) {
-		
-		if (tx?.outMessages) {
-            for (const key of tx.outMessages.keys()) { // Iterate over message keys
-                const message = tx.outMessages.get(key); // Access message using `get`				
-				
-				if (message) {
-					if (message?.info.type == 'external-out') {
-					
-						const createdAt = message?.info.createdAt;
-						const createdLt = message?.info.createdLt; 
-					
-						const bodyBuffer = Buffer.from(message.body.toBoc());
-						const bodyCell = Cell.fromBoc(bodyBuffer)[0];
-						const eventType = getEventType(bodyCell);
 
-						if (eventType === 'AdvertiserWithdrawFundsEvent') {
-							const decodedEvent = decodeAdvertiserWithdrawFundsEvent(bodyCell);
-							logs.push({ type: 'AdvertiserWithdrawFundsEvent', createdAt: createdAt, createdLt: createdLt, data: decodedEvent });
-						} else if (eventType === 'CampaignCreatedEvent') {
-							const decodedEvent = decodeCampaignCreatedEvent(bodyCell);
-							logs.push({ type: 'CampaignCreatedEvent', createdAt: createdAt, createdLt: createdLt, data: decodedEvent });
-						} else if (eventType === 'AffiliateCreatedEvent') {
-							const decodedEvent = decodeAffiliateCreatedEvent(bodyCell);
-							logs.push({ type: 'AffiliateCreatedEvent', createdAt: createdAt, createdLt: createdLt, data: decodedEvent });
-						} else if (eventType === 'AffiliateAskToJoinAllowedListEvent') {
-							const decodedEvent = decodeAffiliateAskToJoinAllowedListEvent(bodyCell);
-							logs.push({ type: 'AffiliateAskToJoinAllowedListEvent', createdAt: createdAt, createdLt: createdLt, data: decodedEvent });
-						} else if (eventType === 'AdvertiserRemovedAffiliateFromAllowedListEvent') {
-							const decodedEvent = decodeAdvertiserRemovedAffiliateFromAllowedListEvent(bodyCell);
-							logs.push({ type: 'AdvertiserRemovedAffiliateFromAllowedListEvent', createdAt: createdAt, createdLt: createdLt, data: decodedEvent });
-						} else if (eventType === 'AdvertiserApprovedAffiliateToAllowedListEvent') {
-							const decodedEvent = decodeAdvertiserApprovedAffiliateToAllowedListEvent(bodyCell);
-							logs.push({ type: 'AdvertiserApprovedAffiliateToAllowedListEvent', createdAt: createdAt, createdLt: createdLt, data: decodedEvent });
-						} else if (eventType === 'AdvertiserSignedCampaignDetailsEvent') {
-							const decodedEvent = decodeAdvertiserSignedCampaignDetailsEvent(bodyCell);
-							logs.push({ type: 'AdvertiserSignedCampaignDetailsEvent', createdAt: createdAt, createdLt: createdLt, data: decodedEvent });
-						} else {
-							console.log("Unknown Event!");
-						}
-					}
-				}
+    for (const tx of transactions) {
+        if (tx?.outMessages) {
+            for (const key of tx.outMessages.keys()) { // Iterate over message keys
+                const message = tx.outMessages.get(key); // Access message using `get`
+
+                if (message && message?.info.type === 'external-out') {
+                    const createdAt = message?.info.createdAt;
+                    const createdLt = message?.info.createdLt;
+
+                    const bodyBuffer = Buffer.from(message.body.toBoc());
+                    const bodyCell = Cell.fromBoc(bodyBuffer)[0];
+                    const eventType = getEventType(bodyCell);
+
+                    if (eventType === 'AdvertiserWithdrawFundsEvent') {
+                        const decodedEvent = decodeAdvertiserWithdrawFundsEvent(bodyCell);
+                        logs.push({ type: 'AdvertiserWithdrawFundsEvent', createdAt, createdLt, data: decodedEvent });
+                    } else if (eventType === 'CampaignCreatedEvent') {
+                        const decodedEvent = decodeCampaignCreatedEvent(bodyCell);
+                        logs.push({ type: 'CampaignCreatedEvent', createdAt, createdLt, data: decodedEvent });
+                    } else if (eventType === 'AffiliateCreatedEvent') {
+                        const decodedEvent = decodeAffiliateCreatedEvent(bodyCell);
+                        logs.push({ type: 'AffiliateCreatedEvent', createdAt, createdLt, data: decodedEvent });
+                    } else if (eventType === 'AffiliateAskToJoinAllowedListEvent') {
+                        const decodedEvent = decodeAffiliateAskToJoinAllowedListEvent(bodyCell);
+                        logs.push({ type: 'AffiliateAskToJoinAllowedListEvent', createdAt, createdLt, data: decodedEvent });
+                    } else if (eventType === 'AdvertiserRemovedAffiliateFromAllowedListEvent') {
+                        const decodedEvent = decodeAdvertiserRemovedAffiliateFromAllowedListEvent(bodyCell);
+                        logs.push({ type: 'AdvertiserRemovedAffiliateFromAllowedListEvent', createdAt, createdLt, data: decodedEvent });
+                    } else if (eventType === 'AdvertiserApprovedAffiliateToAllowedListEvent') {
+                        const decodedEvent = decodeAdvertiserApprovedAffiliateToAllowedListEvent(bodyCell);
+                        logs.push({ type: 'AdvertiserApprovedAffiliateToAllowedListEvent', createdAt, createdLt, data: decodedEvent });
+                    } else if (eventType === 'AdvertiserSignedCampaignDetailsEvent') {
+                        const decodedEvent = decodeAdvertiserSignedCampaignDetailsEvent(bodyCell);
+                        logs.push({ type: 'AdvertiserSignedCampaignDetailsEvent', createdAt, createdLt, data: decodedEvent });
+                    } else {
+                        console.log("Unknown Event!");
+                    }
+                }
             }
-		}
+        }
     }
 
     console.log('Logs data', logs);
-	return logs;  
+    return logs;
 }
