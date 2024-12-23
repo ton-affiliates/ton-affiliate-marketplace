@@ -3,7 +3,7 @@ import { beginCell, Cell, Address, Dictionary, toNano } from '@ton/core';
 import { USDT_MASTER_ADDRESS } from './constants'
 import { TonClient } from '@ton/ton'
 
-interface AddressFormats {
+export interface AddressFormats {
     rawAddress: string;
     raw: string;
     userFriendly: string;
