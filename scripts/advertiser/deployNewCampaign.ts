@@ -14,7 +14,7 @@ export async function run(provider: NetworkProvider, args: string[]) {
 	console.log("Before:");
 	console.log(numCampaignsBefore);
 	
-	 await affiliateMarketplace.send(
+	await affiliateMarketplace.send(
         provider.sender(),
         {
             value: toNano('0.15'),

@@ -152,7 +152,6 @@ export async function run(provider: NetworkProvider, args: string[]) {
     }
 	
 	console.log("\n campaignBalanceAfter(fromNano): " + fromNano(campaignBalanceAfter));
-	// convert from 9 decials to string -> 6 decimals -> back to string
 	
     ui.clearActionPrompt();
     ui.write('Campaign updated successfully!');

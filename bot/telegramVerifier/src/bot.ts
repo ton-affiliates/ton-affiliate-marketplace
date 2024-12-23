@@ -10,7 +10,7 @@ dotenv.config();
 const BOT_API_KEY = process.env.TELEGRAM_VERIFIER_BOT_API_KEY || '';
 const bot = new Telegraf(BOT_API_KEY);
 
-// const redis = new Redis(process.env.REDIS_URL || '');
+const redis = new Redis(process.env.REDIS_URL || '');
 
 // group or supergroup
 bot.on('new_chat_members', async (ctx) => {
@@ -28,12 +28,12 @@ bot.on('new_chat_members', async (ctx) => {
         const userId = member.id;
 
         // Log join event
-        //await redis.set(`user:${userId}:joined:${chatId}`, Date.now());
+        await redis.set(`user:${userId}:joined:${chatId}`, Date.now());
         console.log(`User ${userId} joined chat ${chatId}`);
 
         // Check if the user is a Telegram Premium user
         const isPremium = member.is_premium || false;
-        //await redis.set(`user:${userId}:premium:${chatId}`, isPremium ? 'Yes' : 'No');
+        await redis.set(`user:${userId}:premium:${chatId}`, isPremium ? 'Yes' : 'No');
 
         console.log(`User ${userId} Premium Status: ${isPremium ? 'Yes' : 'No'}`);
     }
@@ -67,7 +67,7 @@ bot.on('left_chat_member', async (ctx) => {
     const userId = ctx.message.left_chat_member.id;
 
     // Log leave event
-    //await redis.set(`user:${userId}:left:${chatId}`, Date.now());
+    await redis.set(`user:${userId}:left:${chatId}`, Date.now());
     console.log(`User ${userId} left chat ${chatId}`);
 });
 
@@ -78,7 +78,7 @@ bot.on('message', async (ctx) => {
 
     // Track comments/messages in the group
     if ((ctx.chat.type === 'supergroup' || ctx.chat.type === 'group') && 'text' in ctx.message) {
-        //await redis.incr(`user:${userId}:comments:${chatId}`);
+        await redis.incr(`user:${userId}:comments:${chatId}`);
         console.log(`User ${userId} commented in chat ${chatId}`);
     }
 });

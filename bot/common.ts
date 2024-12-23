@@ -43,6 +43,7 @@ export interface TelegramAsset {
     id: number;                 // Unique numeric identifier (e.g., "-1001234567890")
     name: string;               // Public username (e.g., "@ChannelName") or "PRIVATE" for private groups/channels
     type: TelegramAssetType;    // Type of the Telegram asset (channel, group, etc.)
+    isPublic: boolean;          // is this asset public or private
 }
 
 // examples:
@@ -52,6 +53,7 @@ const publicChannel: TelegramAsset = {
     id: -1009876543210,
     name: '@PublicChannelName',
     type: TelegramAssetType.CHANNEL,
+    isPublic: true
 };
 
 //private group example
@@ -59,6 +61,7 @@ const privateGroup: TelegramAsset = {
     id: -1001234567890,
     name: 'PRIVATE',
     type: TelegramAssetType.GROUP,
+    isPublic: false
 };
 
 //Forum in a Supergroup example
@@ -66,6 +69,7 @@ const forum: TelegramAsset = {
     id: -1001122334455,
     name: '@SuperGroupForum',
     type: TelegramAssetType.FORUM,
+    isPublic: true
 };
 
 
@@ -88,6 +92,7 @@ const captchaSolvedEvent: TelegramEvent = {
         id: -1009876543210,
         name: '@PublicChannelName',
         type: TelegramAssetType.CHANNEL,
+        isPublic: true
     },
     userId: 123456,
     timestamp: Date.now(),
@@ -102,6 +107,7 @@ const channelUserIsMemberEvent: TelegramEvent = {
         id: -1009876543210,
         name: '@PublicChannelName',
         type: TelegramAssetType.CHANNEL,
+        isPublic: true
     },
     userId: 789012,
     timestamp: Date.now(),
@@ -114,8 +120,9 @@ const groupUserCommentedEvent: TelegramEvent = {
     eventType: EventType.GROUP_USER_COMMENTED,
     telegramAsset: {
         id: -1001234567890,
-        name: 'PRIVATE',
+        name: '',
         type: TelegramAssetType.GROUP,
+        isPublic: false
     },
     userId: 901234,
     timestamp: Date.now(),
