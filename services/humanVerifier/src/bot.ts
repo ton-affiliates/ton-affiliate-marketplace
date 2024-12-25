@@ -7,8 +7,7 @@ import { getCampaign, TelegramAssetType, getCampaignByChatId } from '../../redis
 
 dotenv.config();
 
-const BOT_API_KEY = process.env.UNIFIED_BOT_API_KEY || '';
-const bot = new Telegraf(BOT_API_KEY);
+const bot = new Telegraf(process.env.BOT_API_KEY || '');
 
 const redis = new Redis(process.env.REDIS_URL || '');
 
