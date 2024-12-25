@@ -129,31 +129,6 @@ bot.on('new_chat_members', async (ctx) => {
     }
 });
 
-// Event: Check Member
-bot.command('check_member', async (ctx) => {
-    const userId = ctx.from.id; // The user interacting with the bot
-    const chatId = ctx.chat.id;
-
-    try {
-        const member = await bot.telegram.getChatMember(chatId, userId);
-        console.log(`Membership status for user ${userId}: ${member.status}`);
-
-        const isMember = ['member'].includes(member.status);
-
-        await logVerifiedEvent(userId, chatId, 'checked_membership', {
-            status: member.status,
-        });
-
-        if (isMember) {
-            await ctx.reply(`✅ You are a member of the chat: ${chatId}`);
-        } else {
-            await ctx.reply(`❌ You are not a member of the chat: ${chatId}`);
-        }
-    } catch (error) {
-        console.error('Error checking membership:', error);
-        await ctx.reply('⚠️ Unable to check your membership status. Please try again later.');
-    }
-});
 
 // Event: Left Chat Member
 bot.on('left_chat_member', async (ctx) => {
@@ -165,7 +140,7 @@ bot.on('left_chat_member', async (ctx) => {
     console.log(`User ${userId} left chat ${chatId}`);
 });
 
-// Periodic Engagement Tracking
+// Periodic Engagement Tracking with Membership Verification
 setInterval(async () => {
     const keys = await redis.keys('user:*:joined:*');
 
@@ -178,12 +153,37 @@ setInterval(async () => {
             const twoWeeks = 2 * 7 * 24 * 60 * 60 * 1000; // 2 weeks in milliseconds
 
             if (timeStayed >= twoWeeks) {
-                console.log(`User ${userId} has stayed in chat ${chatId} for 2 weeks.`);
-                await logVerifiedEvent(parseInt(userId, 10), parseInt(chatId, 10), 'stayed_two_weeks', {});
+                try {
+                    // Check if the user is still a member of the chat
+                    const member = await bot.telegram.getChatMember(Number(chatId), Number(userId));
+                    const isMember = ['member', 'administrator', 'creator'].includes(member.status);
+
+                    if (isMember) {
+                        console.log(`User ${userId} has stayed in chat ${chatId} for 2 weeks and is still a member.`);
+                        await logVerifiedEvent(
+                            parseInt(userId, 10),
+                            parseInt(chatId, 10),
+                            'stayed_two_weeks',
+                            { status: member.status }
+                        );
+                    } else {
+                        console.log(`User ${userId} has stayed in chat ${chatId} for 2 weeks but is no longer a member.`);
+                        // Optionally, log this event as a separate type
+                        await logVerifiedEvent(
+                            parseInt(userId, 10),
+                            parseInt(chatId, 10),
+                            'left_after_two_weeks',
+                            { status: member.status }
+                        );
+                    }
+                } catch (error) {
+                    console.error(`Error verifying membership for user ${userId} in chat ${chatId}:`, error.message);
+                }
             }
         }
     }
 }, 24 * 60 * 60 * 1000); // Run every 24 hours
+
 
 
 
