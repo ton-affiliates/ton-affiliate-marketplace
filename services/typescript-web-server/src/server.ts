@@ -188,7 +188,7 @@ async function processEvents(events: EmitLogEvent[]) {
                     await sendTelegramMessage(affiliateInfo.telegramId, message);
                     console.log(`Message sent to affiliate: ${affiliateInfo.telegramId}`);
                 } catch (error) {
-                    console.error(`Error processing AdvertiserApprovedAffiliateToAllowedListEvent: ${error.message}`, error);
+                    console.error(`Error processing AdvertiserApprovedAffiliateToAllowedListEvent: ${error}`, error);
                 }
                 break;
             }
@@ -228,7 +228,7 @@ async function processEvents(events: EmitLogEvent[]) {
                     await sendTelegramMessage(affiliateInfo.telegramId, message);
                     console.log(`Message sent to affiliate: ${affiliateInfo.telegramId}`);
                 } catch (error) {
-                    console.error(`Error processing AdvertiserRemovedAffiliateFromAllowedListEvent: ${error.message}`, error);
+                    console.error(`Error processing AdvertiserRemovedAffiliateFromAllowedListEvent: ${error}`, error);
                 }
                 break;
             }

@@ -1,6 +1,6 @@
 
 //https://github.com/nikandr-surkov/Defi-on-Ton-Youtube-Lesson-11
-import { AFFILIATE_MARKETPLACE_ADDRESS, HTTP_ENDPOINT_NETWORK } from "../../../scripts/constants"
+import { AFFILIATE_MARKETPLACE_ADDRESS, HTTP_ENDPOINT_NETWORK } from "../../../scripts/blueprint/constants"
 import { getHttpEndpoint } from "@orbs-network/ton-access";
 // import { TonClient } from "@ton/ton";
 import { getHttpV4Endpoint } from "@orbs-network/ton-access";

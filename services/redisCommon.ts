@@ -20,9 +20,8 @@ export interface TelegramAsset {
     name: string; // Public username (e.g., "@AbuAliExpress") or "PRIVATE" for private groups/channels
     type: TelegramAssetType; // Type of the Telegram asset (channel, group, etc.)
     isPublic: boolean; // Is this asset public or private
-    url: string;  // after user solves CAPTCHA - redirect here (e.g. https://t.me/+1dKu7kfkdudmN2Y0 for private groups/channel and https://t.me/abualiexpress for public)
+    url: string;  // Redirect URL (e.g., https://t.me/+1dKu7kfkdudmN2Y0)
 }
-
 
 export enum TelegramCategory {
     GAMING = 'Gaming',
@@ -67,9 +66,17 @@ export async function saveCampaign(
         telegramAssetIsPublic: telegramAsset.isPublic ? 'true' : 'false',
         advertiserAddress,
     });
+
+    // Map chatId to campaignId for reverse lookup
+    await redisClient.set(`chat:${telegramAsset.id}`, campaignId);
 }
 
-// Get campaign information, including advertiser and affiliate user details
+// Get campaign by chatId
+export async function getCampaignByChatId(chatId: number): Promise<string | null> {
+    return await redisClient.get(`chat:${chatId}`);
+}
+
+// Get campaign information
 export async function getCampaign(
     campaignId: string
 ): Promise<{
@@ -80,14 +87,14 @@ export async function getCampaign(
     advertiser: { telegramId: number; handle: string; name: string; addresses: string[] } | null;
     affiliates: Array<{ telegramId: number; handle: string; name: string; addresses: string[] }>;
 } | null> {
-    const campaignTelegramData = await redisClient.hGetAll(`campaign:${campaignId}`);
+    const campaignData = await redisClient.hGetAll(`campaign:${campaignId}`);
 
-    if (!campaignTelegramData || Object.keys(campaignTelegramData).length === 0) {
+    if (!campaignData || Object.keys(campaignData).length === 0) {
         return null;
     }
 
     // Fetch advertiser user info
-    const advertiserUserId = await getUserIdByAddress(campaignTelegramData.advertiserAddress);
+    const advertiserUserId = await getUserIdByAddress(campaignData.advertiserAddress);
     const advertiser = advertiserUserId ? await getUserInfo(advertiserUserId) : null;
 
     // Fetch affiliate user info
@@ -104,15 +111,15 @@ export async function getCampaign(
     }
 
     return {
-        name: campaignTelegramData.name,
-        description: campaignTelegramData.description,
-        category: campaignTelegramData.category as TelegramCategory,
+        name: campaignData.name,
+        description: campaignData.description,
+        category: campaignData.category as TelegramCategory,
         telegramAsset: {
-            id: Number(campaignTelegramData.telegramAssetId),
-            name: campaignTelegramData.telegramAssetName,
-            type: Number(campaignTelegramData.telegramAssetType) as TelegramAssetType,
-            isPublic: campaignTelegramData.telegramAssetIsPublic === 'true',
-            url: campaignTelegramData.url
+            id: Number(campaignData.telegramAssetId),
+            name: campaignData.telegramAssetName,
+            type: Number(campaignData.telegramAssetType) as TelegramAssetType,
+            isPublic: campaignData.telegramAssetIsPublic === 'true',
+            url: campaignData.url,
         },
         advertiser,
         affiliates,
@@ -126,15 +133,10 @@ export async function addAffiliateToCampaign(campaignId: string, affiliateAddres
     return added;
 }
 
-// Get all affiliates of a campaign
-export async function getCampaignAffiliates(campaignId: string): Promise<string[]> {
-    return await redisClient.sMembers(`campaign:${campaignId}:affiliates`);
-}
-
 // Save user information
 export async function saveUserInfo(
     userId: string,
-    info: { telegramId: number; handle?: string; name?: string; }
+    info: { telegramId: number; handle?: string; name?: string }
 ): Promise<void> {
     const { telegramId, handle, name } = info;
 
@@ -173,5 +175,5 @@ export async function addUserAddress(userId: string, address: string): Promise<v
     await redisClient.sAdd(`user:${userId}:addresses`, address);
 
     // Map TON address to user ID for quick lookup
-    await redisClient.set(`address:${address}`, userId);  // always set latest
+    await redisClient.set(`address:${address}`, userId); // always set latest
 }
