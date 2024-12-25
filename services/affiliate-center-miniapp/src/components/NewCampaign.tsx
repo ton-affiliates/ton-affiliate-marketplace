@@ -180,7 +180,7 @@ const NewCampaign: React.FC<NewCampaignProps> = ({ setScreen }) => {
                                                 checked={campaignDetails.commissionableEvents[key as CommissionableEventKeys] }
                                                 onChange={(e) => handleCheckboxChange(e, key as CommissionableEventKeys)}
                                             />
-                                            <label htmlFor={key}>{key.replace(/([A-Z])/g, ' $1')}</label>
+                                            <label htmlFor={key}>{key.replace(/([A-Z])/g, ' $1').replace(/^./, (str) => str.toUpperCase())}</label>
                                         </div>
                                         <input
                                             type="number"
