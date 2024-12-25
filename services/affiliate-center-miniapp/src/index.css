@@ -1,0 +1,816 @@
+/*:root {
+  --tg-theme-bg-color: #efeff3;
+  --tg-theme-button-color: #63d0f9;
+  --tg-theme-button-text-color: black;
+}
+
+.App {
+  height: 100vh;
+  background-color: var(--tg-theme-bg-color);
+  color: var(--tg-theme-text-color);
+}
+
+.Container {
+  padding: 2rem;
+  max-width: 500px;
+  display: flex;
+  flex-direction: column;
+  gap: 30px;
+  align-items: center;
+  margin: 0 auto;
+  text-align: center;
+}
+
+.Button {
+  background-color: var(--tg-theme-button-color);
+  color: var(--tg-theme-button-text-color);
+  display: inline-block;
+  padding: 10px 20px;
+  border-radius: 10px;
+  cursor: pointer;
+  font-weight: bold;
+  width: 100%;
+}
+
+.Disabled {
+  filter: brightness(50%);
+  cursor: initial;
+}
+
+.Button.Active:hover {
+  filter: brightness(105%);
+}
+
+.Hint {
+  color: var(--tg-theme-hint-color);
+}
+
+.Card {
+  width: 100%;
+  padding: 10px 20px;
+  border-radius: 10px;
+  background-color: white;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --tg-theme-bg-color: #131415;
+    --tg-theme-text-color: #fff;
+    --tg-theme-button-color: #32a6fb;
+    --tg-theme-button-text-color: #fff;
+  }
+
+  .Card {
+    background-color: var(--tg-theme-bg-color);
+    filter: brightness(165%);
+  }
+
+  .CounterValue {
+    border-radius: 16px;
+    color: white;
+    padding: 10px;
+  }
+}*/
+.app-container {
+  font-family: Arial, sans-serif;
+  text-align: center;
+  padding: 20px;
+  /* height: 100vh; */
+  background-color: var(--tg-theme-bg-color);
+  color: var(--tg-theme-text-color);
+
+  background-color: #f8f7f7; /* White background for the card */
+  border-radius: 12px;       /* Rounded corners */
+  padding: 20px;             /* Inner padding for content */
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); /* Subtle shadow for depth */
+  margin: 20px;              /* Spacing around the card */
+  text-align: center;        /* Centered text */
+   /*max-width: 40%;            Responsive width */
+  max-height: 10%;            /* Responsive width */
+  margin-left: auto;         /* Center horizontally */
+  margin-right: auto;
+}
+
+.screen-container {
+  margin-top: 50px;
+  /* padding: 2rem; */
+  max-width: 500px;
+  display: flex;
+  flex-direction: column;
+  gap: 30px;
+  align-items: center;
+  margin: 0 auto;
+  text-align: center;
+}
+
+h1 {
+  font-size: 24px;
+  margin-bottom: 20px;
+}
+
+p {
+  font-size: 16px;
+  margin-bottom: 20px;
+}
+
+.button-group {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+}
+
+.custom-button {
+  padding: 10px 20px;
+  font-size: 16px;
+  background-color: #4caf50;
+  border: none;
+  border-radius: 5px;
+  color: white;
+  cursor: pointer;
+  transition: background-color 0.3s ease, transform 0.2s ease;
+}
+
+.custom-button:hover {
+  background-color: #45a049;
+  transform: scale(1.05);
+}
+
+.custom-button:focus {
+  outline: 2px solid #45a049;
+}
+
+.custom-button:active {
+  background-color: #397d3f;
+}
+.navigation-buttons {
+  margin-top: 20px;
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  align-items: center;
+}
+
+/* Expander button */
+.expander-button {
+  background-color: #ffffff; /* Matches the card background */
+  color: #007bff; /* Primary color for text */
+  border: 1px solid #d6e0eb; /* Subtle border */
+  border-radius: 8px; /* Rounded corners */
+  padding: 8px 12px; /* Spacing inside the button */
+  font-size: 0.9rem; /* Slightly smaller font */
+  cursor: pointer; /* Pointer cursor to indicate interactivity */
+  margin-top: 10px; /* Adds space above the button */
+  transition: background-color 0.3s ease, color 0.3s ease, transform 0.2s ease;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); /* Subtle shadow */
+  text-align: center;
+  width: fit-content; /* Adapts to content size */
+}
+
+/* Hover effect for expander button */
+.expander-button:hover {
+  background-color: #f0f4f8; /* Light background on hover */
+  color: #0056b3; /* Darker blue for hover state */
+  transform: scale(1.05); /* Slight zoom effect */
+}
+
+/* Active effect for expander button */
+.expander-button:active {
+  transform: scale(0.95); /* Slight compression on click */
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2); /* Adjust shadow on click */
+}
+
+.vertically-aligned {
+  display: flex;
+  flex-direction: column; 
+  align-items: center;    
+}
+
+.vertically-aligned2 {
+  display: flex;
+  flex-direction: column; 
+  
+}
+
+.expander-content {
+  background-color: #f0f4f8;
+  border: 1px solid #d6e0eb;
+  border-radius: 8px;
+  padding: 10px 15px;
+  margin-top: 10px;
+  color: #333;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  transition: opacity 0.3s ease, height 0.3s ease;
+  overflow: hidden;
+}
+
+.nav-button {
+  padding: 8px 16px;
+  font-size: 14px;
+  background-color: #007bff;
+  border: none;
+  border-radius: 5px;
+  color: white;
+  cursor: pointer;
+  transition: background-color 0.3s ease, transform 0.2s ease;
+}
+
+.nav-button:hover {
+  background-color: #0056b3;
+  transform: scale(1.05);
+}
+
+.nav-button:focus {
+  outline: 2px solid #0056b3;
+}
+
+.nav-button:active {
+  background-color: #003f7f;
+}
+
+.card {
+  background-color: #ffffff; /* White background for the card */
+  border-radius: 12px;       /* Rounded corners */
+  padding: 20px;             /* Inner padding for content */
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); /* Subtle shadow for depth */
+  margin: 20px;              /* Spacing around the card */
+  text-align: center;        /* Centered text */
+  max-width: 90%;            /* Responsive width */
+  margin-left: auto;         /* Center horizontally */
+  margin-right: auto;
+}
+
+/* Styling for h1 inside a card */
+.card h1 {
+  font-size: 1.8rem; /* Larger font for headings */
+  color: #333;       /* Neutral text color */
+  margin-bottom: 10px;
+}
+
+
+
+/* Styling for p inside a card */
+.card p {
+  font-size: 1rem;   /* Normal font size */
+  color: #555;       /* Subtle text color */
+  margin: 10px 0;
+  line-height: 1.5;  /* Improve readability */
+}
+
+
+
+new-campaign {
+  padding: 20px;
+}
+
+.card {
+  margin: 20px 0;
+  padding: 20px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  background-color: #fff;
+  align-self: stretch;
+}
+
+.label {
+  display: block;
+  font-weight: bold;
+  margin-bottom: 10px;
+  color: #333;
+}
+
+.radio-group,
+.checkbox-group,
+.checkbox-group-grid {
+  margin-top: 10px;
+}
+
+.radio-group input,
+.checkbox-group input,
+.checkbox-group-grid {
+  margin-right: 10px;
+}
+
+.radio-group label,
+.checkbox-group label,
+.checkbox-group-grid {
+  display: block;
+  text-align: start;
+  margin: 5px 0;
+  font-size: 14px;
+  color: #333;
+}
+
+.text-input {
+  align-self: center;
+  margin-left: 10px;
+  padding: 8px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  width: 120px;
+  display: inline-block;
+}
+
+.date-picker {
+  width: 200px;
+  padding: 8px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+
+.hidden {
+  display: none;
+} 
+
+.radio-group {
+  align-items: flex-start;
+  display: flex;
+  flex-direction: column; /* Vertical alignment for radio buttons */
+  gap: 10px; /* Space between each radio button */
+}
+
+.container-column {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start; /* Align everything to the left */
+}
+
+.container-row-end {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-end; /* Align everything to the left */
+}
+.checkbox-group {
+  display: flex;
+  flex-direction: row; /* Vertical alignment for radio buttons */
+ align-items: center;
+}
+
+.checkbox-group2 {
+  display: flex !important;
+  flex-direction: row; /* Vertical alignment for radio buttons */
+ align-items: center;
+}
+
+.checkbox-group-grid {
+  display: grid;
+  grid-template-columns: 4fr 3fr 0.3fr;  
+  justify-content: start; 
+  text-align: left;
+  align-items: center;
+}
+
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+/* Modal Content */
+.modal-content {
+  background: #fff;
+  border-radius: 8px;
+  padding: 20px;
+  width: 90%;
+  max-width: 400px;
+  position: relative;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+/* Close Button in Top-Right */
+.modal-close-top {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: transparent;
+  border: none; /* Adds a border */
+  border-radius: 14%; /* Makes it circular */
+  font-size: 20px;
+  cursor: pointer;
+  color: #333;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.3s ease, transform 0.2s ease, border-color 0.3s ease;
+}
+
+.modal-close-top:hover {
+  color: #007bff;
+  border-color: #007bff; /* Changes the border color on hover */
+  transform: scale(1.2); /* Slight zoom effect on hover */
+}
+
+.campaign-details {
+  margin: 20px 0;
+  text-align: left;
+}
+
+.detail-item {
+  margin-bottom: 10px;
+}
+
+.detail-item ul {
+  margin: 5px 0 0 20px;
+  padding-left: 0;
+}
+
+.full-width {
+  width: 100%;
+  display: block;
+}
+
+/* Buttons */
+.button {
+  display: block;
+  width: 100%;
+  padding: 10px 0;
+  margin-top: 10px;
+  background: #007bff;
+  color: #fff;
+  border: none;
+  border-radius: 5px;
+  text-align: center;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.button:hover {
+  background: #0056b3;
+}
+
+.button:focus {
+  outline: none;
+  box-shadow: 0 0 5px rgba(0, 123, 255, 0.5);
+}
+
+.margin-left {
+  margin-right: 10px;
+}
+
+
+/**/
+/* Left part: checkbox and label */
+.event-left {
+  display: flex;
+  align-items: center;
+  flex: 1; /* Allow it to take up available space */
+}
+
+/* Input field styling */
+.event-input {
+  width: 80px; /* Adjust width as needed */
+  padding: 4px 8px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  text-align: right; /* Align text to the right */
+  flex: 0 0 120px; /* Fixed width for input field container */
+  display: flex;
+  justify-content: flex-end; /* Align input to the right */
+}
+
+/* Input field disabled state */
+.event-input:disabled {
+  background-color: #f1f1f1;
+  cursor: not-allowed;
+}
+
+
+
+/* //CAMPAIGN STATUS */
+
+.min-content {
+  flex-basis: 0cqmin;
+}
+
+.display-block {
+  display: block;
+}
+
+.status-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.label {
+  font-weight: bold;
+  margin-right: 10px;
+}
+
+.status {
+  font-weight: bold;
+  padding: 5px 10px;
+  border-radius: 5px;
+}
+
+.status-active {
+  color: green;
+  background-color: #e6ffe6;
+}
+
+.status-inactive {
+  color: red;
+  background-color: #ffe6e6;
+}
+
+.details-pane {
+  margin-top: 10px;
+  padding: 10px;
+  border-top: 1px solid #ccc;
+}
+
+/* .detail-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 5px 0;
+} */
+
+.detail-row-inactive {
+  display: grid;
+  grid-template-columns: 2fr 0.3fr 0.3fr;  
+  justify-content: start; 
+  text-align: left;
+  align-items: center;
+}
+
+.detail-row-active {
+  display: grid;
+  grid-template-columns: 2fr  0.3fr;  
+  justify-content: start; 
+  text-align: left;
+  align-items: center;
+}
+
+.funds-button {
+  margin: 10px;
+  font-size: 14px;
+  background-color: #007bff;
+  border: none;
+  border-radius: 5px;
+  color: white;
+  cursor: pointer;
+  transition: background-color 0.3s ease, transform 0.2s ease;
+}
+
+.funds-button:hover {
+  background-color: #0056b3;
+  transform: scale(1.05);
+}
+
+.funds-button:focus {
+  outline: 2px solid #0056b3;
+}
+
+.funds-button:active {
+  background-color: #003f7f;
+}
+
+.visible-collapsed2 {
+  visibility: collapse;
+}
+
+.details2-pane {
+  max-width: 100%;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  padding: 10px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  background-color: #f9f9f9;
+  text-align: start;
+  max-height: 300px;
+}
+
+.detail2-row {
+  display: flex;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+
+.detail2-row strong {
+  flex: 1 0 30%;
+  font-weight: bold;
+  margin-right: 10px;
+  word-wrap: break-word;
+}
+
+.detail2-row span {
+  flex: 1 0 70%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap; /* For truncating */
+}
+
+.detail-row2 span:hover {
+  white-space: normal; /* Show full value on hover */
+  background-color: #f0f0f0;
+}
+
+.card .details2-pane {
+  overflow-x: auto; /* Adds horizontal scroll if needed */
+  overflow-y: auto
+}
+
+
+/*  Add Ton Pop Up*/
+.popup-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+/* Popup Container */
+.popup {
+  background-color: #ffffff;
+  border-radius: 10px;
+  width: 400px;
+  padding: 20px;
+  box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.2);
+  position: relative;
+  text-align: left;
+}
+
+/* Popup Header */
+.popup h2 {
+  margin: 0;
+  margin-bottom: 15px;
+  font-size: 24px;
+  text-align: center;
+}
+
+/* Popup Close Button */
+.popup-close-top {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  font-size: 20px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  color: #555;
+  transition: color 0.3s;
+}
+
+.popup-close-top:hover {
+  color: #007bff;
+  border-color: #007bff; /* Changes the border color on hover */
+  transform: scale(1.2); /* Slight zoom effect on hover */
+}
+
+/* Popup Row */
+.popup-row {
+  margin-top: 10px;
+  margin-bottom: 20px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Input Field */
+.popup-input {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 5px;
+  font-size: 16px;
+}
+
+/* Popup Buttons */
+.popup-buttons {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 20px;
+}
+
+.popup-button {
+  padding: 10px 15px;
+  font-size: 16px;
+  border: 1px solid #007bff;
+  border-radius: 5px;
+  background-color: #007bff;
+  color: white;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.popup-button:hover {
+  background-color: #0056b3;
+}
+
+.popup-button:focus {
+  outline: none;
+  box-shadow: 0px 0px 5px #007bff;
+}
+
+.no-padding {
+  padding: 12px 10px !important;
+}
+
+/* TOOL Tip*/
+/* Tooltip Styles */
+.tooltip-container {
+  position: relative;
+  display: inline-block;
+}
+
+.tooltip-trigger {
+  margin-left: 5px;
+  text-decoration: none;
+  color: #0056b3;
+  cursor: pointer;
+}
+
+.tooltip-trigger:hover {
+  text-decoration: underline;
+}
+
+.tooltip-content {
+  visibility: hidden;
+  width: 200px;
+  background-color: #faf7f7;
+  color: #0056b3;
+  text-align: center;
+  font-weight: lighter;
+  font-size: medium;
+  border-radius: 5px;
+  border: 1px solid #ddd;
+  padding: 10px;
+  position: absolute;
+  bottom: 125%; /* Position above the trigger */
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1;
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+.tooltip-container:hover .tooltip-content {
+  visibility: visible;
+  opacity: 1;
+}
+
+.telegram-pane {
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 5px;
+  background-color: #f9f9f9;
+  max-width: 100%;
+  overflow-x: scroll;
+  overflow-y: auto;
+  max-width: 250px;
+}
+
+.telegram-pane-section {
+  margin-bottom: 15px;
+}
+
+.telegram-pane-title {
+  font-weight: bold;
+  margin-bottom: 8px;
+}
+
+.telegram-pane-item {
+  display: flex;
+  margin-bottom: 5px;
+}
+
+.telegram-pane-key {
+  font-weight: bold;
+  margin-right: 5px;
+}
+
+.telegram-pane-value {
+  word-wrap: break-word;
+  max-width: 100%;
+}
+
+.available-select {
+  width: 250px; /* Adjust the width as desired */
+  padding: 10px;
+  font-size: 16px; /* Bigger font size for better readability */
+}
+
+.available-select option {
+  font-size: 16px; /* Font size for dropdown items */
+}
