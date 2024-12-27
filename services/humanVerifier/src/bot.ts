@@ -211,7 +211,7 @@ setInterval(async () => {
 
             if (isMember) {
                 console.log(`User ${userId} is now a member of channel ${channelId}`);
-                await logVerifiedEvent(Number(userId), Number(channelId), 'joined_channel', {
+                await logVerifiedEvent(Number(userId), Number(channelId), 'joined', {
                     status: member.status,
                 });
 
@@ -223,7 +223,6 @@ setInterval(async () => {
         }
     }
 }, 10 * 1000); // Run every 10 seconds
-
 
 
 

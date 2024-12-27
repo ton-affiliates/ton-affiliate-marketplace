@@ -10,6 +10,7 @@ import { getUserInfo, saveUserInfo, addUserAddress, getUserIdByAddress } from ".
 dotenv.config();
 
 const PORT: number = Number(process.env.PORT) || 3000;
+const HOST: string = process.env.HOST || "localhost";
 const REDIS_URL: string = process.env.REDIS_URL || 'redis://0.0.0.0:6379';
 const TELEGRAM_BOT_TOKEN: string = process.env.TELEGRAM_BOT_TOKEN || '';
 const TELEGRAM_API_URL = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}`;
@@ -263,12 +264,128 @@ const fetchAndProcessEvents = async (): Promise<void> => {
     }
 };
 
+
 // Schedule the event fetcher to run periodically
 setInterval(fetchAndProcessEvents, 10 * 1000);  // every 10 seconds
 
+
+
+
+//----------------------------------------------------------------------------------------------------
+
+
+// TON Blockchain Configuration
+const MNEMONIC = process.env.MNEMONIC || '';
+const tonClient = new TonClient({ network: { endpoints: ["main.ton.dev"] } }); // Update with appropriate network
+
+
+// Write verified event to the blockchain
+async function writeEventToBlockchain(eventKey: string, eventData: any) {
+    try {
+        // Convert mnemonic to key pair
+        const seed = await mnemonicToSeed(MNEMONIC);
+        const keyPair = await tonClient.crypto.mnemonic_derive_sign_keys({ phrase: MNEMONIC });
+
+        // Example transaction logic
+        console.log(`Writing event to blockchain: ${eventKey}`);
+        const transaction = {
+            key: eventKey,
+            data: eventData,
+        };
+
+        // Replace this with the actual blockchain transaction code
+        console.log('Simulated blockchain transaction:', transaction);
+    } catch (error) {
+        console.error('Error writing event to blockchain:', error);
+    }
+}
+
+// Periodically check Redis for events
+async function processVerifiedEvents() {
+    try {
+        const keys = await redisClient.keys('event:user:*');
+        const userEvents: Record<string, Record<string, any[]>> = {}; // Group events by userId and chatId
+
+        for (const key of keys) {
+            const eventData = await redisClient.get(key);
+
+            if (eventData) {
+                const parsedData = JSON.parse(eventData);
+                const userId = key.split(':')[2]; // Extract the userId
+                const chatId = parsedData.chatId; // Extract chatId from event data
+
+                if (!userEvents[userId]) {
+                    userEvents[userId] = {};
+                }
+
+                if (!userEvents[userId][chatId]) {
+                    userEvents[userId][chatId] = [];
+                }
+
+                userEvents[userId][chatId].push(parsedData);
+            }
+        }
+
+        for (const userId in userEvents) {
+            const chats = userEvents[userId];
+
+            for (const chatId in chats) {
+                const events = chats[chatId];
+
+                const hasCaptchaVerified = events.some(
+                    (event) => event.eventType === 'captcha_verified'
+                );
+                const hasJoinedGroupOrChannel = events.some(
+                    (event) => event.eventType === 'joined'
+                );
+
+                if (hasCaptchaVerified && hasJoinedGroupOrChannel) {
+                    console.log(`Processing verified events for user ${userId} in chat ${chatId}`);
+
+                    for (const event of events) {
+                        if (
+                            event.eventType === 'captcha_verified' ||
+                            event.eventType === 'joined'
+                        ) {
+                            const eventKey = `event:user:${userId}:${event.eventType}:${chatId}`;
+                            await writeEventToBlockchain(eventKey, event);
+
+                            // Optionally delete the event after processing
+                            await redisClient.del(eventKey);
+                        }
+                    }
+                }
+            }
+        }
+    } catch (error) {
+        console.error('Error processing verified events:', error);
+    }
+}
+
+
+
+// Periodic task to process verified events
+setInterval(async () => {
+    console.log('Checking for verified events...');
+    await processVerifiedEvents();
+}, 10 * 1000); // Run every 10 seconds
+
+
+
+
+
+//-----------------------------------------------------------------------------------------------------
+
+
+
+
+
+
+
+
 // Start the server
 httpServer.listen(PORT, () => {
-    console.log(`Server is running on http://localhost:${PORT}`);
+    console.log(`Server is running on http://${HOST}:${PORT}`);
 });
 
 
