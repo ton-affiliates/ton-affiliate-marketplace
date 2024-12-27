@@ -64,11 +64,11 @@ bot.on('text', async (ctx) => {
                 return;
             }
 
-            const { campaignId } = userCampaignData;
+            const { campaignId, affiliateId } = userCampaignData;
 
             // Retrieve the campaign data from Redis
             const campaignData = await getCampaign(campaignId);
-            if (!campaignData) {
+            if (!campaignData || !affiliateId) {
                 await ctx.reply('⚠️ Invalid campaign. Please check your link.');
                 return;
             }
@@ -77,6 +77,10 @@ bot.on('text', async (ctx) => {
             const redirectUrl = campaignData.telegramAsset.url;
             await ctx.reply(`✅ CAPTCHA solved successfully! [Click here to join](${redirectUrl})`, {
                 parse_mode: 'MarkdownV2',
+            });
+
+            await logVerifiedEvent(userId, campaignData.telegramAsset.id, 'captcha_verified', {
+                affiliateId: affiliateId
             });
 
             // Clear the user's campaign data from memory
@@ -109,7 +113,7 @@ async function logVerifiedEvent(userId: number, chatId: number, eventType: strin
     };
 
     const eventKey = `event:user:${userId}:${eventType}:${chatId}`;
-    await redis.set(eventKey, JSON.stringify(eventData), 'EX', 60 * 60 * 24 * 30); // Expire after 30 days
+    await redis.setnx(eventKey, JSON.stringify(eventData)); // set each event (e.g. each key - only once)
     console.log(`Logged verified event: ${eventKey}`, eventData);
 }
 
