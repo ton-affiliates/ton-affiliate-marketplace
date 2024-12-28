@@ -1,0 +1,37 @@
+// CommonEventLogger.ts
+import { createClient, RedisClientType } from 'redis';
+
+// Define the EventData type
+export interface EventData {
+    timestamp: number; // The timestamp when the event was logged
+    userId: number;    // The ID of the user associated with the event
+    chatId: number;    // The ID of the chat where the event occurred
+    eventType: string; // The type of the event (e.g., 'captcha_verified', 'joined')
+    additionalData: Record<string, any>; // Additional data specific to the event
+}
+
+export class CommonEventLogger {
+    private redisClient: RedisClientType;
+
+    constructor() {
+        this.redisClient = createClient({ url: process.env.REDIS_URL || 'redis://localhost:6379' });
+        this.redisClient.on('error', (err: Error) => console.error('Redis Client Error:', err));
+        this.redisClient.connect();
+    }
+
+    // Method to log verified events
+    async logVerifiedEvent(userId: number, chatId: number, eventType: string, additionalData: Record<string, any> = {}): Promise<void> {
+        const eventData: EventData = {
+            timestamp: Date.now(),
+            userId,
+            chatId,
+            eventType,
+            additionalData,
+        };
+
+        // TODO Guy - check for duplicates here in processed events
+        const eventKey = `event:user:${userId}:${eventType}:${chatId}`;
+        await this.redisClient.set(eventKey, JSON.stringify(eventData)); 
+        console.log(`Logged verified event: ${eventKey}`, eventData);
+    }
+}
