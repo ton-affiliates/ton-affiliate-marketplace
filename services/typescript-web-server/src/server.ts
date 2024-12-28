@@ -280,7 +280,10 @@ const tonClient = new TonClient({ network: { endpoints: ["main.ton.dev"] } }); /
 
 
 // Write verified event to the blockchain
-async function writeEventToBlockchain(eventKey: string, eventData: any) {
+async function writeEventToBlockchain(campaignId: BigInt, affiliateId: BigInt, userActionOpCode: BigInt, isPremium: Boolean) {
+
+    const campaignContractAddress = await getCampaignContractAddress(campaignId); 
+
     try {
         // Convert mnemonic to key pair
         const seed = await mnemonicToSeed(MNEMONIC);
@@ -300,29 +303,32 @@ async function writeEventToBlockchain(eventKey: string, eventData: any) {
     }
 }
 
-// Periodically check Redis for events
 async function processVerifiedEvents() {
     try {
-        const keys = await redisClient.keys('event:user:*');
+        const captchaKeys = await redisClient.keys('event:user:*:captcha_verified:*'); // Only look for captcha_verified events
         const userEvents: Record<string, Record<string, any[]>> = {}; // Group events by userId and chatId
 
-        for (const key of keys) {
+        for (const key of captchaKeys) {
             const eventData = await redisClient.get(key);
 
             if (eventData) {
-                const parsedData = JSON.parse(eventData);
-                const userId = key.split(':')[2]; // Extract the userId
-                const chatId = parsedData.chatId; // Extract chatId from event data
+                try {
+                    const parsedData = JSON.parse(eventData);
+                    const userId = key.split(':')[2]; // Extract the userId
+                    const chatId = parsedData.chatId; // Extract chatId from event data
 
-                if (!userEvents[userId]) {
-                    userEvents[userId] = {};
+                    if (!userEvents[userId]) {
+                        userEvents[userId] = {};
+                    }
+
+                    if (!userEvents[userId][chatId]) {
+                        userEvents[userId][chatId] = [];
+                    }
+
+                    userEvents[userId][chatId].push(parsedData);
+                } catch (error) {
+                    console.error(`Failed to parse event data for key ${key}:`, error);
                 }
-
-                if (!userEvents[userId][chatId]) {
-                    userEvents[userId][chatId] = [];
-                }
-
-                userEvents[userId][chatId].push(parsedData);
             }
         }
 
@@ -333,25 +339,43 @@ async function processVerifiedEvents() {
                 const events = chats[chatId];
 
                 const hasCaptchaVerified = events.some(
-                    (event) => event.eventType === 'captcha_verified'
+                    (event) => event.eventType === 'captcha_verified' && event.chatId === chatId
                 );
                 const hasJoinedGroupOrChannel = events.some(
-                    (event) => event.eventType === 'joined'
+                    (event) => event.eventType === 'joined' && event.chatId === chatId
                 );
 
                 if (hasCaptchaVerified && hasJoinedGroupOrChannel) {
                     console.log(`Processing verified events for user ${userId} in chat ${chatId}`);
+                    
+                    const campaignId, affiliateId, isPremium = redisClient.get(chatId);
+                    const userActionOpCode = BigInt(0);  // UserClick take from .env 
+                    const blockchainEvent = {
+                        userId,
+                        chatId,
+                        events: events.filter(
+                            (event) =>
+                                (event.eventType === 'captcha_verified' || event.eventType === 'joined') &&
+                                event.chatId === chatId
+                        ),
+                    };
 
-                    for (const event of events) {
-                        if (
-                            event.eventType === 'captcha_verified' ||
-                            event.eventType === 'joined'
-                        ) {
-                            const eventKey = `event:user:${userId}:${event.eventType}:${chatId}`;
-                            await writeEventToBlockchain(eventKey, event);
+                    try {
+                        await writeEventToBlockchain(campaignId, affiliateId, userActionOpCode, isPremium);
+                    } catch (error) {
+                        console.error(`Failed to write event to blockchain for user ${userId} in chat ${chatId}:`, error);
+                        continue;
+                    }
 
-                            // Optionally delete the event after processing
+                    for (const event of blockchainEvent.events) {
+                        const eventKey = `event:user:${userId}:${event.eventType}:${chatId}`;
+                        const processedKey = `processedEvents:user:${userId}:${event.eventType}:${chatId}`;
+
+                        try {
+                            await redisClient.set(processedKey, JSON.stringify(event));
                             await redisClient.del(eventKey);
+                        } catch (error) {
+                            console.error(`Failed to move event to processedEvents for key ${eventKey}:`, error);
                         }
                     }
                 }
@@ -361,6 +385,8 @@ async function processVerifiedEvents() {
         console.error('Error processing verified events:', error);
     }
 }
+
+
 
 
 
