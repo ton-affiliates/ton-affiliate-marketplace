@@ -27,7 +27,8 @@ const MainScreen: React.FC<MainScreenProps> = ({ setScreen }) => {
             exit={{ opacity: 0 }}
         >
             <div className="card">
-                <h1>Hi There!</h1>
+            
+                <h1>Hi {userInfo && userInfo.firstName ? userInfo.firstName : 'There'}!</h1>
                 <p>
                     Are you an Affiliate looking for active campaigns or 
                     An Advertiser looking to set up a referral campaign?
@@ -72,7 +73,9 @@ const MainScreen: React.FC<MainScreenProps> = ({ setScreen }) => {
                     <strong>Init Data Unsafe:</strong> {JSON.stringify(initDataUnsafe, null, 2)}
                 </p>
             </div> */}
-            {userInfo && (
+
+            {/* TELEGRAM INFO!!!!!!!!!!!!! */}
+            {/* {userInfo && (
             <div style={{ padding: '16px' }}>
                 <div className="card">
                     <h2>Telegram Info</h2>
@@ -82,7 +85,7 @@ const MainScreen: React.FC<MainScreenProps> = ({ setScreen }) => {
                         initDataUnsafe={initDataUnsafe}
                     />
                 </div>
-            </div>)}
+            </div>)} */}
         </motion.div>
     );
 };
