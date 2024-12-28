@@ -1,7 +1,7 @@
 // Examples for redisCommon.ts
 
-import { saveCampaign, getCampaign, addAffiliateToCampaign, getCampaignAffiliates, saveUserInfo, getUserInfo, addUserAddress, getUserIdByAddress } from './redisCommon';
-import { TelegramCategory, TelegramAssetType, TelegramAsset } from './redisCommon';
+import { saveCampaign, getCampaign, addAffiliateToCampaign, getCampaignAffiliates, saveUserInfo, getUserInfo, addUserAddress, getUserIdByAddress } from './common/redisCommon';
+import { TelegramCategory, TelegramAssetType, TelegramAsset } from './common/redisCommon';
 
 (async () => {
 

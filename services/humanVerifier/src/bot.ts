@@ -3,13 +3,17 @@ import dotenv from 'dotenv';
 import Redis from 'ioredis';
 import * as svgCaptcha from 'svg-captcha';
 import sharp from 'sharp';
-import { getCampaign, TelegramAssetType, getCampaignByChatId } from '../../redisCommon'; 
+import { getCampaign, TelegramAssetType, getCampaignByChatId } from '../../common/redisCommon'; 
+import { CommonEventLogger } from '../../common/EventLogging';
 
 dotenv.config();
 
 const bot = new Telegraf(process.env.BOT_API_KEY || '');
 
 const redis = new Redis(process.env.REDIS_URL || '');
+
+// Initialize the logger
+const eventLogger = new CommonEventLogger(redis);
 
 // Store active CAPTCHAs
 const activeCaptchas: Map<number, { campaignId: string; affiliateId: string }> = new Map();
@@ -52,6 +56,7 @@ async function sendCaptcha(ctx: any, userId: number) {
 
 bot.on('text', async (ctx) => {
     const userId = ctx.from.id;
+    const isPremiumUser = ctx.from.is_premium;
     const userCaptcha = await redis.get(`captcha:${userId}`);
 
     if (userCaptcha) {
@@ -64,11 +69,11 @@ bot.on('text', async (ctx) => {
                 return;
             }
 
-            const { campaignId } = userCampaignData;
+            const { campaignId, affiliateId } = userCampaignData;
 
             // Retrieve the campaign data from Redis
             const campaignData = await getCampaign(campaignId);
-            if (!campaignData) {
+            if (!campaignData || !affiliateId) {
                 await ctx.reply('⚠️ Invalid campaign. Please check your link.');
                 return;
             }
@@ -78,6 +83,12 @@ bot.on('text', async (ctx) => {
             await ctx.reply(`✅ CAPTCHA solved successfully! [Click here to join](${redirectUrl})`, {
                 parse_mode: 'MarkdownV2',
             });
+
+            const chatId = campaignData.telegramAsset.id;
+            const eventType = 'captcha_verified';
+            const additionalData = { affiliateId: affiliateId, isPremiumUser: isPremiumUser };
+
+            await eventLogger.logVerifiedEvent(userId, chatId, eventType, additionalData);
 
             // Clear the user's campaign data from memory
             activeCaptchas.delete(userId);
@@ -93,26 +104,6 @@ bot.on('text', async (ctx) => {
     }
 });
 
-
-// Helper to log verified events
-async function logVerifiedEvent(userId: number, chatId: number, eventType: string, additionalData: Record<string, any> = {}) {
-    const campaignId = await getCampaignByChatId(chatId);
-    const isPremium = additionalData.isPremium || false;
-
-    const eventData = {
-        timestamp: Date.now(),
-        userId,
-        chatId,
-        eventType,
-        campaignId,
-        isPremium
-    };
-
-    const eventKey = `event:user:${userId}:${eventType}:${chatId}`;
-    await redis.set(eventKey, JSON.stringify(eventData), 'EX', 60 * 60 * 24 * 30); // Expire after 30 days
-    console.log(`Logged verified event: ${eventKey}`, eventData);
-}
-
 // Event: New Chat Members
 bot.on('new_chat_members', async (ctx) => {
     const chatId = ctx.chat.id;
@@ -121,9 +112,7 @@ bot.on('new_chat_members', async (ctx) => {
     for (const member of members) {
         const userId = member.id;
 
-        await logVerifiedEvent(userId, chatId, 'joined', {
-            isPremium: member.is_premium || false,
-        });
+        await eventLogger.logVerifiedEvent(userId, chatId, 'joined', {});
 
         console.log(`User ${userId} joined chat ${chatId}`);
     }
@@ -135,7 +124,7 @@ bot.on('left_chat_member', async (ctx) => {
     const chatId = ctx.chat.id;
     const userId = ctx.message.left_chat_member.id;
 
-    await logVerifiedEvent(userId, chatId, 'left', {});
+    await eventLogger.logVerifiedEvent(userId, chatId, 'left', {});
 
     console.log(`User ${userId} left chat ${chatId}`);
 });
@@ -160,32 +149,19 @@ setInterval(async () => {
 
                     if (isMember) {
                         console.log(`User ${userId} has stayed in chat ${chatId} for 2 weeks and is still a member.`);
-                        await logVerifiedEvent(
-                            parseInt(userId, 10),
-                            parseInt(chatId, 10),
-                            'stayed_two_weeks',
-                            { status: member.status }
-                        );
+                        
+                        await eventLogger.logVerifiedEvent(parseInt(userId, 10), parseInt(chatId, 10), 'stayed_two_weeks', { status: member.status });
+
                     } else {
                         console.log(`User ${userId} has stayed in chat ${chatId} for 2 weeks but is no longer a member.`);
-                        // Optionally, log this event as a separate type
-                        await logVerifiedEvent(
-                            parseInt(userId, 10),
-                            parseInt(chatId, 10),
-                            'left_after_two_weeks',
-                            { status: member.status }
-                        );
                     }
                 } catch (error) {
-                    console.error(`Error verifying membership for user ${userId} in chat ${chatId}:`, error.message);
+                    console.error(`Error verifying membership for user ${userId} in chat ${chatId}:`, error);
                 }
             }
         }
     }
 }, 24 * 60 * 60 * 1000); // Run every 24 hours
-
-
-
 
 
 // Store verification requests after CAPTCHA
@@ -195,7 +171,7 @@ async function scheduleChannelVerification(userId: number, channelId: number) {
     console.log(`Scheduled verification for user ${userId} in channel ${channelId}`);
 }
 
-// Periodic verification loop
+// Periodic verification loop for channels
 setInterval(async () => {
     const keys = await redis.keys('verification:channel:*:user:*');
 
@@ -207,9 +183,7 @@ setInterval(async () => {
 
             if (isMember) {
                 console.log(`User ${userId} is now a member of channel ${channelId}`);
-                await logVerifiedEvent(Number(userId), Number(channelId), 'joined_channel', {
-                    status: member.status,
-                });
+                await eventLogger.logVerifiedEvent(parseInt(userId, 10), parseInt(channelId, 10), 'joined', {});
 
                 // Remove the verification key after success
                 await redis.del(key);
@@ -219,7 +193,6 @@ setInterval(async () => {
         }
     }
 }, 10 * 1000); // Run every 10 seconds
-
 
 
 

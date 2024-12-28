@@ -80,6 +80,8 @@ export async function getCampaignByChatId(chatId: number): Promise<string | null
 export async function getCampaign(
     campaignId: string
 ): Promise<{
+    campaignId: string;
+    advertiserAddress: string;
     name: string;
     description: string;
     category: TelegramCategory;
@@ -111,6 +113,8 @@ export async function getCampaign(
     }
 
     return {
+        campaignId: campaignId,
+        advertiserAddress: campaignData.advertiserAddress,
         name: campaignData.name,
         description: campaignData.description,
         category: campaignData.category as TelegramCategory,
