@@ -17,10 +17,10 @@ export enum TelegramAssetType {
 
 export interface TelegramAsset {
     id: number; // Unique numeric identifier (e.g., "-1001234567890")
-    name: string; // Public username (e.g., "@AbuAliExpress") or "PRIVATE" for private groups/channels
+    name: string; // Public username (e.g., "Abu Ali Express Channel") 
     type: TelegramAssetType; // Type of the Telegram asset (channel, group, etc.)
     isPublic: boolean; // Is this asset public or private
-    url: string;  // Redirect URL (e.g., https://t.me/+1dKu7kfkdudmN2Y0)
+    url: string;  // Redirect URL (e.g., for private channels/groups: https://t.me/+1dKu7kfkdudmN2Y0 and for public: https://t.me/AbuAliExpress)
 }
 
 export enum TelegramCategory {
@@ -42,6 +42,32 @@ export enum TelegramCategory {
     MUSIC = 'Music',
     OTHER = 'Other', // For uncategorized or unique cases
 }
+
+// Define the EventData type
+export interface EventData {
+    timestamp: number; // The timestamp when the event was logged
+    userId: number;    // The ID of the user associated with the event
+    chatId: number;    // The ID of the chat where the event occurred
+    eventType: string; // The type of the event (e.g., 'captcha_verified', 'joined')
+    additionalData: Record<string, any>; // Additional data specific to the event
+}
+
+
+export async function logVerifiedEvent(userId: number, chatId: number, eventType: string, additionalData: Record<string, any> = {}): Promise<void> {
+    const eventData: EventData = {
+        timestamp: Date.now(),
+        userId,
+        chatId,
+        eventType,
+        additionalData
+    };
+
+    // TODO Guy - check for duplicates here in processed events
+    const eventKey = `event:user:${userId}:${eventType}:${chatId}`;
+    await redisClient.set(eventKey, JSON.stringify(eventData)); 
+    console.log(`Logged verified event: ${eventKey}`, eventData);
+}
+
 
 // Save campaign information
 export async function saveCampaign(
@@ -100,7 +126,7 @@ export async function getCampaign(
     const advertiser = advertiserUserId ? await getUserInfo(advertiserUserId) : null;
 
     // Fetch affiliate user info
-    const affiliateAddresses = await redisClient.sMembers(`campaign:${campaignId}:affiliates`);
+    const affiliateAddresses = await redisClient.sMembers(`campaign:${campaignId}:affiliates`); // TODO Guy - get this from blockchain
     const affiliates = [];
     for (const address of affiliateAddresses) {
         const userId = await getUserIdByAddress(address);

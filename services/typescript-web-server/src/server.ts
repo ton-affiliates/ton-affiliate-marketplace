@@ -4,8 +4,9 @@ import { createClient, RedisClientType } from 'redis';
 import axios from 'axios';
 import dotenv from 'dotenv';
 import { getLatestEvents, EmitLogEvent } from './listenToEvents';
-import { getUserInfo, saveUserInfo, addUserAddress, getUserIdByAddress, getCampaignByChatId, getCampaign } from "../../common/redisCommon"
-import { EventData } from "../../common/EventLogging"
+import { getUserInfo, saveUserInfo, addUserAddress, getUserIdByAddress, getCampaignByChatId, getCampaign } from "../../common/redis"
+import { EventData } from "../../common/redis"
+import { writeEventToBlockchainMnemonics } from "./blockchain"
 
 // Load environment variables
 dotenv.config();
@@ -273,34 +274,8 @@ setInterval(fetchAndProcessEvents, 10 * 1000);  // every 10 seconds
 //----------------------------------------------------------------------------------------------------
 
 
-// TON Blockchain Configuration
-const MNEMONIC = process.env.MNEMONIC || '';
-const tonClient = new TonClient({ network: { endpoints: ["main.ton.dev"] } }); // Update with appropriate network
 
 
-// Write verified event to the blockchain
-async function writeEventToBlockchain(campaignId: BigInt, advertiserAddress: string, affiliateId: BigInt, userActionOpCode: BigInt, isPremium: Boolean) {
-
-    const campaignContractAddress = await getCampaignContractAddress(campaignId); 
-
-    try {
-        // Convert mnemonic to key pair
-        const seed = await mnemonicToSeed(MNEMONIC);
-        const keyPair = await tonClient.crypto.mnemonic_derive_sign_keys({ phrase: MNEMONIC });
-
-        // Example transaction logic
-        console.log(`Writing event to blockchain: ${eventKey}`);
-        const transaction = {
-            key: eventKey,
-            data: eventData,
-        };
-
-        // Replace this with the actual blockchain transaction code
-        console.log('Simulated blockchain transaction:', transaction);
-    } catch (error) {
-        console.error('Error writing event to blockchain:', error);
-    }
-}
 
 async function processVerifiedEvents() {
     try {
@@ -363,7 +338,7 @@ async function processVerifiedEvents() {
                     const userActionOpCode = BigInt(0);  // UserClick take from .env 
                     
                     try {
-                        await writeEventToBlockchain(BigInt(campaignId), campaignData.advertiserAddress, affiliateId, userActionOpCode, isPremiumUser);
+                        await writeEventToBlockchainMnemonics(BigInt(campaignId), campaignData.advertiserAddress, affiliateId, userActionOpCode, isPremiumUser);
                     } catch (error) {
                         console.error(`Failed to write event to blockchain for user ${userId} in chat ${chatId}:`, error);
                         continue;
@@ -377,9 +352,9 @@ async function processVerifiedEvents() {
             const chats = userEvents[userId];
 
             for (const chatId in chats) {
-                const events:EventData = chats[chatId];
+                const events:EventData[] = chats[chatId];
 
-                for (const event in events) {
+                for (const event of events) {
                     const eventKey = `event:user:${userId}:${event.eventType}:${chatId}`;
                     const processedKey = `processedEvents:user:${userId}:${event.eventType}:${chatId}`;
 
@@ -407,13 +382,6 @@ setInterval(async () => {
     console.log('Checking for verified events...');
     await processVerifiedEvents();
 }, 10 * 1000); // Run every 10 seconds
-
-
-
-
-
-//-----------------------------------------------------------------------------------------------------
-
 
 
 
