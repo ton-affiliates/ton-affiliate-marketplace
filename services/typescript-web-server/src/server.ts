@@ -70,9 +70,17 @@ async function processEvents(events: EmitLogEvent[]) {
 
         switch (event.type) {
             case 'CampaignCreatedEvent': {
-                const channel = 'CampaignCreatedEventChannel';
-                const message = stringifyWithBigInt(event.data);
-                await redisClient.publish(channel, message); // publish to all listeners (all mini apps).
+                
+                // save in DB a new empty campaign for this advertiser
+
+
+                break;
+            }
+
+            case 'AdvertiserSignedCampaignDetailsEvent': {
+
+                // set in DB a that this campaign is not empty anymore
+
                 break;
             }
 
@@ -119,8 +127,7 @@ async function processEvents(events: EmitLogEvent[]) {
             case 'AdvertiserApprovedAffiliateEvent': {
                 try {
                     // Get affiliate's user ID
-                    const affiliateAddress = await getAffiliateAddressByAffiliateId(event.data.campaignId, event.data.affiliateId);
-                    const affiliateTelegramUser = await getUserIdByAddress(affiliateAddress);
+                    const affiliateTelegramUser = await getUserIdByAddress(event.data.affiliate);
                     if (!affiliateTelegramUser) {
                         console.error(`Affiliate address not found: ${event.data.affiliate}`);
                         break;
@@ -160,8 +167,7 @@ async function processEvents(events: EmitLogEvent[]) {
             case 'AdvertiserRemovedAffiliateEvent': {
                 try {
                     // Get affiliate's user ID
-                    const affiliateAddress = await getAffiliateAddressByAffiliateId(event.data.campaignId, event.data.affiliateId);
-                    const affiliateTelegramUser = await getUserIdByAddress(affiliateAddress);
+                    const affiliateTelegramUser = await getUserIdByAddress(event.data.affiliate);
                     if (!affiliateTelegramUser) {
                         console.error(`Affiliate address not found: ${event.data.affiliate}`);
                         break;

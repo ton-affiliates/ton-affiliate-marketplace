@@ -68,142 +68,219 @@ export async function logVerifiedEvent(userId: number, chatId: number, eventType
     console.log(`Logged verified event: ${eventKey}`, eventData);
 }
 
+//-------------------------------------------------------------------------------------------------------------
 
-// Save campaign information
-export async function saveCampaign(
-    campaignId: string,
-    campaignInfo: {
-        name: string;
-        description?: string;
-        category: TelegramCategory;
-        telegramAsset: TelegramAsset;
-        advertiserAddress: string;
-    }
-): Promise<void> {
-    const { name, description, category, telegramAsset, advertiserAddress } = campaignInfo;
 
-    await redisClient.hSet(`campaign:${campaignId}`, {
-        name,
-        description: description || '',
-        category,
-        telegramAssetId: telegramAsset.id.toString(),
-        telegramAssetName: telegramAsset.name,
-        telegramAssetType: telegramAsset.type.toString(),
-        telegramAssetIsPublic: telegramAsset.isPublic ? 'true' : 'false',
-        advertiserAddress,
-    });
-
-    // Map chatId to campaignId for reverse lookup
-    await redisClient.set(`chat:${telegramAsset.id}`, campaignId);
-}
-
-// Get campaign by chatId
-export async function getCampaignByChatId(chatId: number): Promise<string | null> {
-    return await redisClient.get(`chat:${chatId}`);
-}
-
-// Get campaign information
-export async function getCampaign(
-    campaignId: string
-): Promise<{
+// campaign in telegram
+export interface Campaign {
     campaignId: string;
-    advertiserAddress: string;
     name: string;
     description: string;
     category: TelegramCategory;
     telegramAsset: TelegramAsset;
-    advertiser: { telegramId: number; handle: string; name: string; addresses: string[] } | null;
-    affiliates: Array<{ telegramId: number; handle: string; name: string; addresses: string[] }>;
-} | null> {
-    const campaignData = await redisClient.hGetAll(`campaign:${campaignId}`);
+    status: string;
+}
 
-    if (!campaignData || Object.keys(campaignData).length === 0) {
+
+// flow -> 1. deploy new empty campaign and get campaignId via event. Save empty telegram campaign, 2. set campaign telegram details (via bot as admin), 3. set blockchain details 
+export async function createNewEmptyCampaign(advertiserTelegramId: number, campaignId: number): Promise<Campaign> {
+    const campaignKey = `campaign:${campaignId}`;
+    const userCampaignsKey = `user:${advertiserTelegramId}:campaigns`;
+
+    // Create an empty campaign
+    const emptyCampaign: Campaign = {
+        campaignId: campaignId.toString(),
+        name: 'Empty - need to set details',
+        description: '',
+        category: '' as TelegramCategory, // Default empty category
+        telegramAsset: {
+            id: 0, // Placeholder for no asset
+            name: '',
+            type: TelegramAssetType.CHANNEL, // Default type, update as needed
+            isPublic: false,
+            url: '',
+        },
+        status: 'EMPTY',
+    };
+
+    await redisClient.hSet(campaignKey, {
+        name: emptyCampaign.name,
+        description: emptyCampaign.description,
+        category: emptyCampaign.category,
+        telegramAsset: JSON.stringify(emptyCampaign.telegramAsset),
+        advertiserId: advertiserTelegramId,
+        status: emptyCampaign.status,
+    });
+
+    // Associate campaign with the user
+    await redisClient.sAdd(userCampaignsKey, campaignId.toString());
+
+    console.log(`Campaign ${campaignId} created and associated with user ${advertiserTelegramId}`);
+
+    return emptyCampaign;
+}
+
+
+export async function setCampaignDetails(
+    advertiserTelegramId: number,
+    campaignId: number,
+    campaignInfo: Omit<Campaign, 'campaignId' | 'status'>
+): Promise<Campaign> {
+    const campaignKey = `campaign:${campaignId}`;
+
+    // Check if the campaign exists
+    const campaignExists = await redisClient.exists(campaignKey);
+    if (!campaignExists) {
+        throw new Error(`Campaign with ID ${campaignId} does not exist.`);
+    }
+
+    // Get the current status of the campaign
+    const currentStatus = await redisClient.hGet(campaignKey, 'status');
+    if (currentStatus !== 'EMPTY') {
+        throw new Error(`Campaign with ID ${campaignId} is not empty and cannot be updated.`);
+    }
+
+    // Update the campaign details
+    const updatedCampaign: Campaign = {
+        campaignId: campaignId.toString(),
+        name: campaignInfo.name,
+        description: campaignInfo.description || '',
+        category: campaignInfo.category,
+        telegramAsset: campaignInfo.telegramAsset,
+        status: 'COMPLETED',
+    };
+
+    await redisClient.hSet(campaignKey, {
+        name: updatedCampaign.name,
+        description: updatedCampaign.description,
+        category: updatedCampaign.category,
+        telegramAsset: JSON.stringify(updatedCampaign.telegramAsset),
+        status: updatedCampaign.status,
+    });
+
+    console.log(`Campaign ${campaignId} details updated by user ${advertiserTelegramId}`);
+
+    return updatedCampaign;
+}
+
+export async function getCampaign(campaignId: number): Promise<Campaign | null> {
+    const campaignKey = `campaign:${campaignId}`;
+
+    // Check if the campaign exists
+    const campaignExists = await redisClient.exists(campaignKey);
+    if (!campaignExists) {
+        console.warn(`Campaign with ID ${campaignId} does not exist.`);
         return null;
     }
 
-    // Fetch advertiser user info
-    const advertiserUserId = await getUserIdByAddress(campaignData.advertiserAddress);
-    const advertiser = advertiserUserId ? await getUserInfo(advertiserUserId) : null;
+    // Fetch campaign details from Redis
+    const campaignData = await redisClient.hGetAll(campaignKey);
 
-    // Fetch affiliate user info
-    const affiliateAddresses = await redisClient.sMembers(`campaign:${campaignId}:affiliates`); // TODO Guy - get this from blockchain
-    const affiliates = [];
-    for (const address of affiliateAddresses) {
-        const userId = await getUserIdByAddress(address);
-        if (userId) {
-            const userInfo = await getUserInfo(userId);
-            if (userInfo) {
-                affiliates.push(userInfo);
-            }
-        }
-    }
-
+    // Parse the data into the required structure
     return {
-        campaignId: campaignId,
-        advertiserAddress: campaignData.advertiserAddress,
+        campaignId: campaignId.toString(),
         name: campaignData.name,
-        description: campaignData.description,
+        description: campaignData.description || '',
         category: campaignData.category as TelegramCategory,
-        telegramAsset: {
-            id: Number(campaignData.telegramAssetId),
-            name: campaignData.telegramAssetName,
-            type: Number(campaignData.telegramAssetType) as TelegramAssetType,
-            isPublic: campaignData.telegramAssetIsPublic === 'true',
-            url: campaignData.url,
-        },
-        advertiser,
-        affiliates,
+        telegramAsset: JSON.parse(campaignData.telegramAsset),
+        status: campaignData.status,
     };
 }
 
-// Add an affiliate to a campaign
-export async function addAffiliateToCampaign(campaignId: string, affiliateAddress: string): Promise<boolean> {
-    const key = `campaign:${campaignId}:affiliates`;
-    const added = await redisClient.sAdd(key, affiliateAddress) > 0; // true if added, false if already exists
-    return added;
+export async function getCampaignsForUser(userTelegramId: number): Promise<Campaign[]> {
+    const userCampaignsKey = `user:${userTelegramId}:campaigns`;
+
+    // Fetch all campaign IDs associated with the user
+    const campaignIds = await redisClient.sMembers(userCampaignsKey);
+    if (!campaignIds || campaignIds.length === 0) {
+        return [];
+    }
+
+    // Fetch campaign details for each campaign ID using getCampaign
+    const campaigns: Campaign[] = [];
+    for (const campaignId of campaignIds) {
+        const campaign = await getCampaign(Number(campaignId));
+        if (campaign) {
+            campaigns.push(campaign);
+        }
+    }
+
+    return campaigns;
 }
 
-// Save user information
+
+
+
+//------------------------------------------------------------------------------------------------------
+
+
+// User
 export async function saveUserInfo(
-    userId: string,
-    info: { telegramId: number; handle?: string; name?: string }
+    telegramId: number,
+    info: { handle?: string; name?: string },
+    address: string
 ): Promise<void> {
-    const { telegramId, handle, name } = info;
+    const userKey = `user:${telegramId}`;
+    const { handle = '', name = '' } = info;
 
-    await redisClient.hSet(`user:${userId}`, {
+    // Save user info
+    await redisClient.hSet(userKey, {
         telegramId: telegramId.toString(),
-        handle: handle || '',
-        name: name || '',
+        handle,
+        name,
     });
+
+    // Save associated TON addresses and reverse lookup
+    await addTonAddressToUser(telegramId, address);
+    
+
+    console.log(`User ${telegramId} info saved with address: ${address}`);
 }
 
-// Get user information
-export async function getUserInfo(
-    userId: string
-): Promise<{ telegramId: number; handle: string; name: string; addresses: string[] } | null> {
-    const userInfo = await redisClient.hGetAll(`user:${userId}`);
+export async function addTonAddressToUser(telegramId: number, address: string): Promise<void> {
+    const userKey = `user:${telegramId}`;
+    const addressesKey = `${userKey}:addresses`;
+
+    // Add address to user's address set
+    await redisClient.sAdd(addressesKey, address);
+
+    // Map TON address to the user's Telegram ID
+    await redisClient.set(`address:${address}`, telegramId.toString());
+
+    console.log(`Address ${address} added for user ${telegramId}`);
+}
+
+export async function getUserInfo(telegramId: number): Promise<{
+    telegramId: number;
+    handle: string;
+    name: string;
+} | null> {
+    const userKey = `user:${telegramId}`;
+
+    // Fetch user info
+    const userInfo = await redisClient.hGetAll(userKey);
     if (!userInfo || Object.keys(userInfo).length === 0) {
         return null;
     }
 
-    const addresses = await redisClient.sMembers(`user:${userId}:addresses`);
     return {
         telegramId: Number(userInfo.telegramId),
-        handle: userInfo.handle,
-        name: userInfo.name,
-        addresses,
+        handle: userInfo.handle || '',
+        name: userInfo.name || '',
     };
 }
 
-// Get user ID by TON address
-export async function getUserIdByAddress(address: string): Promise<string | null> {
-    return await redisClient.get(`address:${address}`);
-}
+export async function getUserByTonAddress(address: string): Promise<{
+    telegramId: number;
+    handle: string;
+    name: string;
+} | null> {
+    // Get the Telegram ID from the TON address
+    const telegramId = await redisClient.get(`address:${address}`);
+    if (!telegramId) {
+        return null;
+    }
 
-// Add an address to an existing user
-export async function addUserAddress(userId: string, address: string): Promise<void> {
-    await redisClient.sAdd(`user:${userId}:addresses`, address);
-
-    // Map TON address to user ID for quick lookup
-    await redisClient.set(`address:${address}`, userId); // always set latest
+    // Fetch user info by Telegram ID
+    return await getUserInfo(Number(telegramId));
 }

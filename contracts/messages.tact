@@ -83,12 +83,14 @@ message AdvertiserRemovedAffiliateEvent {
 	campaignId: Int as uint32;
     advertiser: Address;
     affiliateId: Int as uint32;
+    affiliate: Address;
 }
 
 message AdvertiserApprovedAffiliateListEvent {
     campaignId: Int as uint32;
     advertiser: Address;
     affiliateId: Int as uint32;
+    affiliate: Address;
 }
 
 //---------------------------------------------------------------------------------------------
@@ -211,12 +213,14 @@ message ChildToParentAdvertiserApprovedAffiliate {
     campaignId: Int as uint32;
     advertiser: Address;
     affiliateId: Int as uint32;
+    affiliate: Address;
 }
 
 message ChildToParentAdvertiserRemovedAffiliate {
     campaignId: Int as uint32;
     advertiser: Address;
     affiliateId: Int as uint32;
+    affiliate: Address;
 }
 
 

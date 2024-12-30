@@ -526,7 +526,8 @@ contract Campaign with Resumable {
             body: ChildToParentAdvertiserApprovedAffiliate {
                 campaignId: self.campaignId,
                 advertiser: self.advertiser,
-                affiliateId: msg.affiliateId
+                affiliateId: msg.affiliateId,
+                affiliate: affiliateData.affiliate
             }.toCell(),
             value: GAS_FEE,
             mode: SendPayGasSeparately 
@@ -550,7 +551,8 @@ contract Campaign with Resumable {
             body: ChildToParentAdvertiserRemovedAffiliate {
                 campaignId: self.campaignId,
                 advertiser: self.advertiser,
-                affiliateId: msg.affiliateId
+                affiliateId: msg.affiliateId,
+                affiliate: affiliateData.affiliate
             }.toCell(),
             value: GAS_FEE,
             mode: SendPayGasSeparately 
@@ -1059,7 +1061,9 @@ contract AffiliateMarketplace with Deployable, Resumable  {
          emit(AdvertiserApprovedAffiliateListEvent{
                 campaignId: msg.campaignId,
                 advertiser: msg.advertiser,
-                affiliateId: msg.affiliateId}.toCell());
+                affiliateId: msg.affiliateId,
+                affiliate: msg.affiliate
+        }.toCell());
     }
 
     receive(msg: ChildToParentAdvertiserRemovedAffiliate) {
@@ -1070,7 +1074,9 @@ contract AffiliateMarketplace with Deployable, Resumable  {
          emit(AdvertiserRemovedAffiliateEvent{
                 campaignId: msg.campaignId,
                 advertiser: msg.advertiser,
-                affiliateId: msg.affiliateId}.toCell());
+                affiliateId: msg.affiliateId,
+                affiliate: msg.affiliate
+        }.toCell());
     }
 	
 	
