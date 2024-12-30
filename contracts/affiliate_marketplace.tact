@@ -20,11 +20,14 @@ const USER_ACTION_OP_CODES_BOT: Int = 20000;  // first 20 thousand op codes for 
 const PAYMENT_METHOD_TON: Int = 0;
 const PAYMENT_METHOD_USDT: Int = 1;
 
+// affiliate status
+const STATE_AFFILIATE_PENDING_APPROVAL: Int = 0;
+const STATE_AFFILIATE_ACTIVE: Int = 1;
+
 struct CampaignDetails {
     regularUsersCostPerAction: map<Int, Int>; // op code -> cpa
     premiumUsersCostPerAction: map<Int, Int>; // op code -> cpa
-    allowedAffiliates: map<Address, Bool>;  // closed campaign affiliates list
-    isPublicCampaign: Bool; // anyone can be an affiliate
+    isPublicCampaign: Bool; // if public -> anyone can be an affiliate
     campaignValidForNumDays: Int? as uint32; // optional - campaign expiry period
     paymentMethod: Int as uint32; // TON (0) or USDT (1)
     requiresAdvertiserApprovalForWithdrawl: Bool;  // Flag indicating if advertiser withdraws earnings for affiliates by default or not
@@ -37,6 +40,7 @@ struct UserActionStats {
 
 struct AffiliateData {
     affiliate: Address;
+    state: Int as uint8;
     userActionsStats: map<Int, UserActionStats>;
     premiumUserActionsStats: map<Int, UserActionStats>;
     pendingApprovalEarnings: Int as coins;
@@ -158,7 +162,6 @@ contract Campaign with Resumable {
         self.campaignDetails = CampaignDetails {
             regularUsersCostPerAction: emptyMap(),
             premiumUsersCostPerAction: emptyMap(),
-            allowedAffiliates: emptyMap(),
             isPublicCampaign: true,
             campaignValidForNumDays: null,
             paymentMethod: PAYMENT_METHOD_TON, // Default to TON
@@ -403,11 +406,10 @@ contract Campaign with Resumable {
     receive (msg: AdvertiserSetCampaignDetails) {
 
         require(sender() == self.advertiser, "Only advertiser can set campaign details");
-        require((self.state == STATE_CAMPAIGN_CREATED) || (self.currAffiliateId == 0), "Must be in state: STATE_CAMPAIGN_CREATED or have zero affiliates");
+        require(self.state == STATE_CAMPAIGN_CREATED, "Must be in state: STATE_CAMPAIGN_CREATED");
         require(msg.campaignDetails.paymentMethod == PAYMENT_METHOD_TON || msg.campaignDetails.paymentMethod == PAYMENT_METHOD_USDT, "Only TON or USDT supported as payment methods");
         require((msg.campaignDetails.campaignValidForNumDays == null) || msg.campaignDetails.campaignValidForNumDays!! > 0, "Invalid campaignValidForNumDays param");
 		
-        // verify keys are the same in both sets
         // get maxCpaValue
         let maxCpaValue: Int = ton("0");
         foreach (key, val in msg.campaignDetails.regularUsersCostPerAction) {
@@ -429,8 +431,8 @@ contract Campaign with Resumable {
                 campaignId: self.campaignId,
                 advertiser: self.advertiser
             }.toCell(),
-            value: GAS_FEE,
-            mode: SendPayGasSeparately
+            value: 0,
+            mode: SendRemainingValue
         });
     }
 
@@ -474,16 +476,14 @@ contract Campaign with Resumable {
         let numAffiliates = self.currAffiliateId;
         require(numAffiliates <= MAX_NUM_AFFILIATES, "Reached max number of affiliates for this campaign");
 
-        if (!self.campaignDetails.isPublicCampaign) {
-            require(self.campaignDetails.allowedAffiliates.get(sender()) != null, "affiliate not on allowed list");
-            require(self.campaignDetails.allowedAffiliates.get(sender())!! == true, "affiliate not approved yet");
-        }
-
         let affiliateId = self.currAffiliateId;
         self.currAffiliateId += 1;
 
+        let affiliateInitialState: Int = self.campaignDetails.isPublicCampaign ? STATE_AFFILIATE_ACTIVE : STATE_AFFILIATE_PENDING_APPROVAL;
+
         self.affiliates.set(affiliateId, AffiliateData{
             affiliate: sender(), 
+            state: affiliateInitialState,
             userActionsStats: emptyMap(), 
             premiumUserActionsStats: emptyMap(), 
             pendingApprovalEarnings: ton("0"),
@@ -498,84 +498,62 @@ contract Campaign with Resumable {
                 campaignId: self.campaignId,
                 advertiser: self.advertiser,
                 affiliateId: affiliateId,
-                affiliate: sender()
-            }.toCell(),
-            value: 0,
-            mode: SendRemainingValue 
-        });
-    }
-
-    fun setAffiliateAllowedListStatus(affiliate: Address, isAllowed: Bool?) {
-
-        require(self.isCampaignActive(), "Campaign is not active");
-
-        // Check if the campaign is not public (closed campaign)
-        require(!self.campaignDetails.isPublicCampaign, "Cannot manually add affiliates to an public campaign");
-
-        // verify isAllowed is always a different value
-        require(self.campaignDetails.allowedAffiliates.get(affiliate) != isAllowed, "Invalid value for isAllowed");
-
-        // Add the new affiliate to the allowed affiliates list
-        self.campaignDetails.allowedAffiliates.set(affiliate, isAllowed);
-    }
-
-
-    receive(msg: AdvertiserAddNewAffiliateToAllowedList) {
-        
-        // Ensure only the advertiser can invoke this function
-        require(sender() == self.advertiser, "Only the advertiser can add a new affiliate");
-        self.setAffiliateAllowedListStatus(msg.affiliate, true);
-		
-		//emit event so parent will notify affiliate
-        send(SendParameters{
-            to: self.owner,
-            body: ChildToParentAdvertiserModifiedAllowedList {
-                campaignId: self.campaignId,
-                advertiser: self.advertiser,
-                affiliate: msg.affiliate,
-				allowedListStatus: true
-            }.toCell(),
-            value: GAS_FEE,
-            mode: SendPayGasSeparately 
-        });
-    }
-
-    receive(msg: AdvertiserRemoveExistingAffiliateFromAllowedList) {
-        
-        // Ensure only the advertiser can invoke this function
-        require(sender() == self.advertiser, "Only the advertiser can remove an existing affiliate");
-        self.setAffiliateAllowedListStatus(msg.affiliate, null);
-		
-		//emit event so parent will notify affiliate
-        send(SendParameters{
-            to: self.owner,
-            body: ChildToParentAdvertiserModifiedAllowedList {
-                campaignId: self.campaignId,
-                advertiser: self.advertiser,
-                affiliate: msg.affiliate,
-				allowedListStatus: null
-            }.toCell(),
-            value: GAS_FEE,
-            mode: SendPayGasSeparately 
-        });
-    }
-
-    receive(msg: AffiliateAskToJoinAllowedList) {
-        
-        require(context().value >= GAS_FEE, "Insufficient funds!");
-        self.setAffiliateAllowedListStatus(sender(), false);
-
-        //emit event so parent will notify advertiser
-        send(SendParameters{
-            to: self.owner,
-            body: ChildToParentAdvertiserModifiedAllowedList {
-                campaignId: self.campaignId,
-                advertiser: self.advertiser,
                 affiliate: sender(),
-				allowedListStatus: false
+                state: affiliateInitialState
             }.toCell(),
             value: 0,
-            mode: SendRemainingValue 
+            mode: SendRemainingValue, 
+        });
+    }
+
+    receive(msg: AdvertiserApproveAffiliate) {
+
+        require(sender() == self.advertiser, "Only the advertiser can remove an existing affiliate");
+        require(!self.campaignDetails.isPublicCampaign, "Cannot manually add affiliates to an public campaign");
+        
+        let affiliateDataOptional = self.affiliates.get(msg.affiliateId);
+        require(affiliateDataOptional != null, "Affiliate does not exist");
+        let affiliateData: AffiliateData = affiliateDataOptional!!;
+
+        require(affiliateData.state == STATE_AFFILIATE_PENDING_APPROVAL, "Affiliate in ACTIVE state");
+        affiliateData.state = STATE_AFFILIATE_ACTIVE;
+
+        self.affiliates.set(msg.affiliateId, affiliateData);
+
+        //emit event so parent will notify affiliate
+        send(SendParameters{
+            to: self.owner,
+            body: ChildToParentAdvertiserApprovedAffiliate {
+                campaignId: self.campaignId,
+                advertiser: self.advertiser,
+                affiliateId: msg.affiliateId
+            }.toCell(),
+            value: GAS_FEE,
+            mode: SendPayGasSeparately 
+        });
+        
+    }
+
+    receive(msg: AdvertiserRemoveAffiliate) {
+        
+        require(sender() == self.advertiser, "Only the advertiser can remove an existing affiliate");
+        
+        let affiliateDataOptional = self.affiliates.get(msg.affiliateId);
+        require(affiliateDataOptional != null, "Affiliate does not exist");
+        let affiliateData: AffiliateData = affiliateDataOptional!!;
+
+        self.affiliates.del(msg.affiliateId);
+
+        //emit event so parent will notify affiliate
+        send(SendParameters{
+            to: self.owner,
+            body: ChildToParentAdvertiserRemovedAffiliate {
+                campaignId: self.campaignId,
+                advertiser: self.advertiser,
+                affiliateId: msg.affiliateId
+            }.toCell(),
+            value: GAS_FEE,
+            mode: SendPayGasSeparately 
         });
     }
 
@@ -676,10 +654,7 @@ contract Campaign with Resumable {
         require(affiliateDataOptional != null, "Affiliate does not exist");
         let affiliateData: AffiliateData = affiliateDataOptional!!;
 
-        if (!self.campaignDetails.isPublicCampaign) {
-            require(self.campaignDetails.allowedAffiliates.get(affiliateData.affiliate) != null, "affiliate not on allowed list");
-            require(self.campaignDetails.allowedAffiliates.get(affiliateData.affiliate)!! == true, "affiliate not approved");
-        }
+        require(affiliateData.state == STATE_AFFILIATE_ACTIVE, "Inactive affiliate");
 
         let cpaOptional: Int? = null;
         if (isPremiumUser) {
@@ -1075,30 +1050,29 @@ contract AffiliateMarketplace with Deployable, Resumable  {
             mode: SendRemainingValue
         });
     }
-	
-	receive(msg: ChildToParentAdvertiserModifiedAllowedList) {
+
+    receive(msg: ChildToParentAdvertiserApprovedAffiliate) {
 		
 		let expectedAddress: Address = contractAddress(self.campaignContractStateInit(msg.campaignId, msg.advertiser));
         require(sender() == expectedAddress, "Access denied");
 
-        if (msg.allowedListStatus == null) {
-            emit(AdvertiserRemovedAffiliateFromAllowedListEvent{
+         emit(AdvertiserApprovedAffiliateListEvent{
                 campaignId: msg.campaignId,
                 advertiser: msg.advertiser,
-                affiliate: msg.affiliate}.toCell());
+                affiliateId: msg.affiliateId}.toCell());
+    }
 
-        } else if (msg.allowedListStatus!! == false) {
-            emit(AffiliateAskToJoinAllowedListEvent{
+    receive(msg: ChildToParentAdvertiserRemovedAffiliate) {
+		
+		let expectedAddress: Address = contractAddress(self.campaignContractStateInit(msg.campaignId, msg.advertiser));
+        require(sender() == expectedAddress, "Access denied");
+
+         emit(AdvertiserRemovedAffiliateEvent{
                 campaignId: msg.campaignId,
                 advertiser: msg.advertiser,
-                affiliate: msg.affiliate}.toCell());
-        } else {
-            emit(AdvertiserApprovedAffiliateToAllowedListEvent{
-                campaignId: msg.campaignId,
-                advertiser: msg.advertiser,
-                affiliate: msg.affiliate}.toCell());
-        }
-	}
+                affiliateId: msg.affiliateId}.toCell());
+    }
+	
 	
     receive(msg: ChildToParentAdvertiserWithdrawFunds) {
 
@@ -1132,7 +1106,8 @@ contract AffiliateMarketplace with Deployable, Resumable  {
             campaignId: msg.campaignId,
             affiliateId: msg.affiliateId,
             advertiser: msg.advertiser,
-            affiliate: msg.affiliate
+            affiliate: msg.affiliate,
+            state: msg.state
         }.toCell());
     }
 

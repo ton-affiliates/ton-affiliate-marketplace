@@ -116,50 +116,11 @@ async function processEvents(events: EmitLogEvent[]) {
                 break;
             }
 
-            case 'AffiliateAskToJoinAllowedListEvent': {
-                try {
-                    // Get advertiser's user ID
-                    const advertiserTelegramUser = await getUserIdByAddress(event.data.advertiserAddress);
-                    if (!advertiserTelegramUser) {
-                        console.error(`Advertiser address not found: ${event.data.advertiserAddress}`);
-                        break;
-                    }
-            
-                    // Get advertiser's user info
-                    const advertiserInfo = await getUserInfo(advertiserTelegramUser);
-                    if (!advertiserInfo) {
-                        console.error(`Advertiser info not found for user ID: ${advertiserTelegramUser}`);
-                        break;
-                    }
-            
-                    // Get affiliate's user ID
-                    const affiliateTelegramUser = await getUserIdByAddress(event.data.affiliate);
-                    if (!affiliateTelegramUser) {
-                        console.error(`Affiliate address not found: ${event.data.affiliate}`);
-                        break;
-                    }
-            
-                    // Get affiliate's user info
-                    const affiliateInfo = await getUserInfo(affiliateTelegramUser);
-                    if (!affiliateInfo) {
-                        console.error(`Affiliate info not found for user ID: ${affiliateTelegramUser}`);
-                        break;
-                    }
-            
-                    // Prepare and send the message
-                    const message = `Affiliate has requested to join your allowed list: ${JSON.stringify(affiliateInfo)} on campaign: ${event.data.campaignId}`;
-                    await sendTelegramMessage(advertiserInfo.telegramId, message);
-                    console.log(`Message sent to advertiser: ${advertiserInfo.telegramId}`);
-                } catch (error) {
-                    console.error(`Error processing AffiliateCreatedEvent: ${error}`, error);
-                }
-                break;
-            }
-
-            case 'AdvertiserApprovedAffiliateToAllowedListEvent': {
+            case 'AdvertiserApprovedAffiliateEvent': {
                 try {
                     // Get affiliate's user ID
-                    const affiliateTelegramUser = await getUserIdByAddress(event.data.affiliate);
+                    const affiliateAddress = await getAffiliateAddressByAffiliateId(event.data.campaignId, event.data.affiliateId);
+                    const affiliateTelegramUser = await getUserIdByAddress(affiliateAddress);
                     if (!affiliateTelegramUser) {
                         console.error(`Affiliate address not found: ${event.data.affiliate}`);
                         break;
@@ -187,7 +148,7 @@ async function processEvents(events: EmitLogEvent[]) {
                     }
             
                     // Prepare and send the message to the affiliate
-                    const message = `Your request to join the allowed list has been approved by the advertiser: ${advertiserInfo.handle || advertiserInfo.name}. Campaign ID: ${event.data.campaignId}`;
+                    const message = `Your affiliate: ${event.data.affiliateId} in campaign: ${event.data.campaignId} was approved by the advertiser.`;
                     await sendTelegramMessage(affiliateInfo.telegramId, message);
                     console.log(`Message sent to affiliate: ${affiliateInfo.telegramId}`);
                 } catch (error) {
@@ -196,10 +157,11 @@ async function processEvents(events: EmitLogEvent[]) {
                 break;
             }
 
-            case 'AdvertiserRemovedAffiliateFromAllowedListEvent': {
+            case 'AdvertiserRemovedAffiliateEvent': {
                 try {
                     // Get affiliate's user ID
-                    const affiliateTelegramUser = await getUserIdByAddress(event.data.affiliate);
+                    const affiliateAddress = await getAffiliateAddressByAffiliateId(event.data.campaignId, event.data.affiliateId);
+                    const affiliateTelegramUser = await getUserIdByAddress(affiliateAddress);
                     if (!affiliateTelegramUser) {
                         console.error(`Affiliate address not found: ${event.data.affiliate}`);
                         break;
@@ -227,11 +189,11 @@ async function processEvents(events: EmitLogEvent[]) {
                     }
             
                     // Prepare and send the message to the affiliate
-                    const message = `You have been removed from the allowed list by the advertiser: ${advertiserInfo.handle || advertiserInfo.name}. Campaign ID: ${event.data.campaignId}`;
+                    const message = `Your affiliate: ${event.data.affiliateId} in campaign: ${event.data.campaignId} was removed by the advertiser.`;
                     await sendTelegramMessage(affiliateInfo.telegramId, message);
                     console.log(`Message sent to affiliate: ${affiliateInfo.telegramId}`);
                 } catch (error) {
-                    console.error(`Error processing AdvertiserRemovedAffiliateFromAllowedListEvent: ${error}`, error);
+                    console.error(`Error processing AdvertiserRemovedAffiliateEvent: ${error}`, error);
                 }
                 break;
             }

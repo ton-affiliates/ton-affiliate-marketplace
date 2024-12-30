@@ -209,7 +209,6 @@ affiliateMarketplaceContract = blockchain.openContract(await AffiliateMarketplac
                 $$type: 'CampaignDetails',
                 regularUsersCostPerAction: regularUsersMapCostPerActionMap,
                 premiumUsersCostPerAction: regularUsersMapCostPerActionMap,  // same pricing for premium and regular users
-                allowedAffiliates: Dictionary.empty<Address, boolean>(),
                 isPublicCampaign: true,
 				campaignValidForNumDays: null, // no expiration
 				paymentMethod: BigInt(0), // TON
@@ -223,6 +222,23 @@ affiliateMarketplaceContract = blockchain.openContract(await AffiliateMarketplac
         to: campaignContract.address,
         success: true
     });
+
+    // Replenish campaign balance
+    const replenishResult = await campaignContract.send(
+        advertiser.getSender(),
+        { value: toNano('5') },
+        { $$type: 'AdvertiserReplenish' }
+    );
+
+    expect(replenishResult.transactions).toHaveTransaction({
+        from: advertiser.address,
+        to: campaignContract.address,
+        success: true
+    });
+
+    // Verify campaign balance update
+    const campaignData = await campaignContract.getCampaignData();
+    expect(campaignData.campaignBalance).toBeGreaterThan(0);
 	
 	// Register affiliate1 in the campaign by creating their affiliate link
     let createAffiliateResult = await campaignContract.send(

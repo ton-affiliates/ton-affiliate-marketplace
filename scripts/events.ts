@@ -4,12 +4,11 @@ import { Cell } from '@ton/core';
 
 // Event types from the ABI
 export const EVENT_TYPE_CAMPAIGN_CREATED = 2452245169;
-export const EVENT_TYPE_AFFILIATE_CREATED = 157562025;
+export const EVENT_TYPE_AFFILIATE_CREATED = 2267067737;
 export const EVENT_TYPE_ADVERTISER_WITHDRAW_FUNDS = 3552449590;
 export const EVENT_TYPE_ADVERTISER_SIGNED_CAMPAIGN_DETAILS = 1529127575;
-export const EVENT_TYPE_AFFILIATE_ASK_TO_JOIN_ALLOWED_LIST = 851937543;
-export const EVENT_TYPE_ADVERTISER_APPROVED_AFFILIATE_TO_JOIN_ALLOWED_LIST = 3495604191;
-export const EVENT_TYPE_ADVERTISER_REMOVED_AFFILIATE_FROM_ALLOWED_LIST = 3639428509;
+export const EVENT_TYPE_ADVERTISER_APPROVED_AFFILIATE = 3182724502;
+export const EVENT_TYPE_ADVERTISER_REMOVED_AFFILIATE = 3802281434;
 
 export function verifyEventHeader(cell: Cell, expectedEventType: number) {
     const slice = cell.beginParse();
@@ -34,7 +33,8 @@ export function loadAffiliateCreatedEvent(cell: Cell) {
 	const advertiserAddressStr = slice.loadAddress().toString();
     const affiliateId = slice.loadUint(32);
     const affiliateAddressStr = slice.loadAddress().toString();
-    return { $$type: 'AffiliateCreatedEvent', campaignId, affiliateId, advertiserAddressStr, affiliateAddressStr };
+    const state = slice.loadUint(8);
+    return { $$type: 'AffiliateCreatedEvent', campaignId, affiliateId, advertiserAddressStr, affiliateAddressStr, state };
 }
 
 export function loadAdvertiserWithdrawFundsEvent(cell: Cell) {
@@ -52,26 +52,18 @@ export function loadAdvertiserSignedCampaignDetailsEvent(cell: Cell) {
     return { $$type: 'AdvertiserSignedCampaignDetailsEvent', campaignId, advertiserAddressStr };
 }
 
-export function loadAffiliateAskToJoinAllowedListEvent(cell: Cell) {
-    const slice = verifyEventHeader(cell, EVENT_TYPE_AFFILIATE_ASK_TO_JOIN_ALLOWED_LIST);
-    const campaignId = slice.loadUint(32);
-    const advertiserAddressStr = slice.loadAddress().toString();
-	const affiliateAddressStr = slice.loadAddress().toString();
-    return { $$type: 'AffiliateAskToJoinAllowedListEvent', campaignId, advertiserAddressStr, affiliateAddressStr };
-}
-
 export function loadAdvertiserRemovedAffiliateFromAllowedListEvent(cell: Cell) {
-    const slice = verifyEventHeader(cell, EVENT_TYPE_ADVERTISER_REMOVED_AFFILIATE_FROM_ALLOWED_LIST);
+    const slice = verifyEventHeader(cell, EVENT_TYPE_ADVERTISER_REMOVED_AFFILIATE);
     const campaignId = slice.loadUint(32);
     const advertiserAddressStr = slice.loadAddress().toString();
-	const affiliateAddressStr = slice.loadAddress().toString();
-    return { $$type: 'AdvertiserRemovedAffiliateFromAllowedListEvent', campaignId, advertiserAddressStr, affiliateAddressStr };
+	const affiliateId = slice.loadUint(32);
+    return { $$type: 'AdvertiserRemovedAffiliateFromAllowedListEvent', campaignId, advertiserAddressStr, affiliateId };
 }
 
 export function loadAdvertiserApprovedAffiliateToJoinAllowedListEvent(cell: Cell) {
-    const slice = verifyEventHeader(cell, EVENT_TYPE_ADVERTISER_APPROVED_AFFILIATE_TO_JOIN_ALLOWED_LIST);
+    const slice = verifyEventHeader(cell, EVENT_TYPE_ADVERTISER_APPROVED_AFFILIATE);
     const campaignId = slice.loadUint(32);
     const advertiserAddressStr = slice.loadAddress().toString();
-	const affiliateAddressStr = slice.loadAddress().toString();
-    return { $$type: 'AdvertiserApprovedAffiliateToJoinAllowedListEvent', campaignId, advertiserAddressStr, affiliateAddressStr };
+	const affiliateId = slice.loadUint(32);
+    return { $$type: 'AdvertiserApprovedAffiliateToJoinAllowedListEvent', campaignId, advertiserAddressStr, affiliateId };
 }
