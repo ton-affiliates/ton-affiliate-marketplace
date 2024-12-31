@@ -3,8 +3,8 @@ import dotenv from 'dotenv';
 import Redis from 'ioredis';
 import * as svgCaptcha from 'svg-captcha';
 import sharp from 'sharp';
-import { getCampaign, TelegramAssetType, getCampaignByChatId } from '../../common/redis'; 
-import { EventData, logVerifiedEvent } from "../../common/redis"
+import { getCampaign, TelegramAssetType } from '../../typescript-web-server/src/redis/redis'; 
+import { EventData, logVerifiedEvent } from "../../typescript-web-server/src/redis/redis"
 
 
 dotenv.config();

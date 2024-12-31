@@ -57,7 +57,6 @@ export async function run(provider: NetworkProvider, args: string[]) {
                     $$type: 'CampaignDetails',
                     regularUsersCostPerAction: regularUsersMapCostPerActionMap, 
                     premiumUsersCostPerAction: premiumUsersMapCostPerActionMap, 
-                    allowedAffiliates: Dictionary.empty<Address, boolean>(), // always empty at first stage
                     isPublicCampaign: isPublicCampaign,  // public campaign 
                     campaignValidForNumDays: campaignValidForNumDays == BigInt(0) ? null: campaignValidForNumDays, // null = no end date 
 					paymentMethod: paymentMethod, // 0 - TON, 1 - USDT 
