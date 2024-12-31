@@ -76,25 +76,24 @@ message AffiliateCreatedEvent {
 	advertiser: Address;
     affiliateId: Int as uint32;
     affiliate: Address;
+    state: Int as uint8;
 }
 
-message AffiliateAskToJoinAllowedListEvent {
+message AdvertiserRemovedAffiliateEvent {
 	campaignId: Int as uint32;
     advertiser: Address;
-	affiliate: Address;
+    affiliateId: Int as uint32;
+    affiliate: Address;
 }
 
-message AdvertiserRemovedAffiliateFromAllowedListEvent {
-	campaignId: Int as uint32;
+message AdvertiserApprovedAffiliateListEvent {
+    campaignId: Int as uint32;
     advertiser: Address;
-	affiliate: Address;
+    affiliateId: Int as uint32;
+    affiliate: Address;
 }
 
-message AdvertiserApprovedAffiliateToAllowedListEvent {
-	campaignId: Int as uint32;
-    advertiser: Address;
-	affiliate: Address;
-}
+//---------------------------------------------------------------------------------------------
 
 message AdvertiserDeployNewCampaign {}
 
@@ -149,8 +148,6 @@ message AffiliateWithdrawEarnings {
     affiliateId: Int as uint32;
 }
 
-message AffiliateAskToJoinAllowedList{}
-
 // Advertiser API
 message AdvertiserWithdrawFunds{
 	amount: Int as coins;
@@ -172,8 +169,13 @@ message AdvertiserUserAction {
     isPremiumUser: Bool;
 } 
 
-message AdvertiserAddNewAffiliateToAllowedList{affiliate: Address}
-message AdvertiserRemoveExistingAffiliateFromAllowedList{affiliate: Address}
+message AdvertiserRemoveAffiliate {
+    affiliateId: Int as uint32;
+}
+
+message AdvertiserApproveAffiliate{
+    affiliateId: Int as uint32;
+}
 
 message AdvertiserReplenish {}
 message AdvertiserReplenishGasFeesForUSDTCampaign{}
@@ -193,6 +195,7 @@ message ChildToParentAffiliateCreated {
     affiliateId: Int as uint32;
     advertiser: Address;
     affiliate: Address;
+    state: Int as uint8;  // 0 - ACTIVE, 1 - PENDING_APPROVAL
 }
 
 message ChildToParentAdvertiserSignedCampaignDetails {
@@ -206,17 +209,18 @@ message ChildToParentAdvertiserWithdrawFunds{
     amount: Int as coins;
 }
 
-message ChildToParentAffiliateAskToJoinAllowedList {
-	campaignId: Int as uint32;
+message ChildToParentAdvertiserApprovedAffiliate {
+    campaignId: Int as uint32;
     advertiser: Address;
-	affiliate: Address;
+    affiliateId: Int as uint32;
+    affiliate: Address;
 }
 
-message ChildToParentAdvertiserModifiedAllowedList {
-	campaignId: Int as uint32;
+message ChildToParentAdvertiserRemovedAffiliate {
+    campaignId: Int as uint32;
     advertiser: Address;
-	affiliate: Address;
-	allowedListStatus: Bool?;
+    affiliateId: Int as uint32;
+    affiliate: Address;
 }
 
 

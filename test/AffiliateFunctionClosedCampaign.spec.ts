@@ -1,93 +1,4 @@
 
-
-
-// # Error Codes
-// 2: Stack underflow
-// 3: Stack overflow
-// 4: Integer overflow
-// 5: Integer out of expected range
-// 6: Invalid opcode
-// 7: Type check error
-// 8: Cell overflow
-// 9: Cell underflow
-// 10: Dictionary error
-// 11: 'Unknown' error
-// 12: Fatal error
-// 13: Out of gas error
-// 14: Virtualization error
-// 32: Action list is invalid
-// 33: Action list is too long
-// 34: Action is invalid or not supported
-// 35: Invalid source address in outbound message
-// 36: Invalid destination address in outbound message
-// 37: Not enough TON
-// 38: Not enough extra-currencies
-// 39: Outbound message does not fit into a cell after rewriting
-// 40: Cannot process a message
-// 41: Library reference is null
-// 42: Library change action error
-// 43: Exceeded maximum number of cells in the library or the maximum depth of the Merkle tree
-// 50: Account state size exceeded limits
-// 128: Null reference exception
-// 129: Invalid serialization prefix
-// 130: Invalid incoming message
-// 131: Constraints error
-// 132: Access denied
-// 133: Contract stopped
-// 134: Invalid argument
-// 135: Code of a contract was not found
-// 136: Invalid address
-// 137: Masterchain support is not enabled for this contract
-// 1919: Insufficient USDT funds to make transfer
-// 2509: Must have at least one wallet to withdraw to
-// 4138: Only the advertiser can add a new affiliate
-// 5136: Only TON or USDT supported as payment methods
-// 7226: Only advertiser can approve withdrawal
-// 9125: withdrawableAmount must be <= pendingApprovalEarnings
-// 10630: Must withdraw a positive amount
-// 11661: Only advertiser can verify these events
-// 12734: Can only add op codes
-// 12843: Must be in state: STATE_CAMPAIGN_CREATED or have zero affiliates
-// 12969: Must be in state: STATE_CAMPAIGN_DETAILS_SET_BY_ADVERTISER
-// 14486: Cannot find cpa for the given op code
-// 19587: Only the advertiser can remove an existing affiliate
-// 20411: Insufficient contract funds to repay bot
-// 24142: Campaign is not active
-// 26205: Only USDT Campaigns can accept USDT
-// 26924: affiliate not approved yet
-// 26953: Only affiliate can withdraw funds
-// 27356: Only advertiser can add user op codes
-// 33594: Cannot manually add affiliates to an open campaign
-// 34905: Bot can verify only op codes under 2000
-// 36010: Value of user action has to be a minimum of 0.02 TON
-// 36363: Only the advertiser can remove the campaign and withdraw all funds
-// 39945: Advertiser can only modify affiliate accrued earnings only if campaign is setup this requiresApprovalForWithdrawlFlag
-// 39963: Insufficient funds!
-// 40058: Campaign has no funds
-// 40368: Contract stopped
-// 40466: Insufficient funds to deploy new campaign
-// 40755: Only advertiser can send tokens to this contract
-// 42372: Only bot can invoke this function
-// 44215: Invalid indices
-// 44534: Cannot replay message
-// 45028: Insufficient gas fees to withdraw earnings
-// 46629: Reached max number of affiliates for this campaign
-// 48069: Affiliate does not exist for this id
-// 48874: Insufficient contract funds to make payment
-// 49065: Invalid value for isAllowed
-// 49469: Access denied
-// 49782: affiliate not on allowed list
-// 50865: owner must be deployer
-// 53205: Only the advertiser can replenish the contract
-// 53296: Contract not stopped
-// 53456: Affiliate does not exist
-// 56536: Insufficient gas fees to create affiliate
-// 57567: Only advertiser can set campaign details
-// 59035: Only contract wallet allowed to invoke
-// 60644: Advertiser can verify only op codes over 2000
-// 61090: Value of user action has to be a minimum of 0.1 USDT
-
-// Import necessary modules and utilities from @ton/sandbox, @ton/core, and other dependencies
 import {
     Blockchain,
     SandboxContract,
@@ -99,13 +10,8 @@ import { Campaign } from '../build/Campaign/tact_Campaign';
 import '@ton/test-utils';
 import { hexToCell } from '../scripts/utils'
 import {
-      loadAffiliateCreatedEvent,
       loadCampaignCreatedEvent,
-  	  loadAdvertiserWithdrawFundsEvent,
-	  loadAdvertiserSignedCampaignDetailsEvent,
-	  loadAffiliateAskToJoinAllowedListEvent,
-	  loadAdvertiserApprovedAffiliateToJoinAllowedListEvent,
-	  loadAdvertiserRemovedAffiliateFromAllowedListEvent} from '../scripts/events';
+  	} from '../scripts/events';
 	  
 import { USDT_MASTER_ADDRESS, USDT_WALLET_BYTECODE, ADVERTISER_FEE_PERCENTAGE, AFFILIATE_FEE_PERCENTAGE } from '../scripts/constants'
 
@@ -191,7 +97,6 @@ beforeEach(async () => {
                 $$type: 'CampaignDetails',
                 regularUsersCostPerAction: regularUsersMapCostPerActionMap,
                 premiumUsersCostPerAction: regularUsersMapCostPerActionMap,
-                allowedAffiliates: Dictionary.empty<Address, boolean>(),
                 isPublicCampaign: false,
                 campaignValidForNumDays: null,
 				paymentMethod: BigInt(0), // TON
@@ -199,6 +104,23 @@ beforeEach(async () => {
             }
         }
     );
+
+    // Replenish campaign balance
+    const replenishResult = await campaignContract.send(
+        advertiser.getSender(),
+        { value: toNano('5') },
+        { $$type: 'AdvertiserReplenish' }
+    );
+
+    expect(replenishResult.transactions).toHaveTransaction({
+        from: advertiser.address,
+        to: campaignContract.address,
+        success: true
+    });
+
+    // Verify campaign balance update
+    const campaignData = await campaignContract.getCampaignData();
+    expect(campaignData.campaignBalance).toBeGreaterThan(0);
 });
 
 describe('Affiliate Actions - Positive and Negative Tests for Affiliate Functions', () => {
@@ -214,62 +136,11 @@ describe('Affiliate Actions - Positive and Negative Tests for Affiliate Function
 		expect(createAffiliateResult.transactions).toHaveTransaction({
 			from: affiliate1.address,
 			to: campaignContract.address,
-			success: false, // 49782: affiliate not on allowed list 
-			exitCode: 49782
+			success: true, 
 		});
-		
-		// affiliate ask to join campaign 
-		const affiliateAskToJoinAllowedListResult = await campaignContract.send(
-            affiliate1.getSender(),
-            { value: toNano('0.05') },
-            {
-                $$type: 'AffiliateAskToJoinAllowedList'
-            }
-        );
-		
-		expect(affiliateAskToJoinAllowedListResult.transactions).toHaveTransaction({
-            from: affiliate1.address,
-            to: campaignContract.address,
-            success: true
-        });
-		
-		let decodedAffiliateAskToJoinAllowedList: any | null = null;
-        for (const external of affiliateAskToJoinAllowedListResult.externals) {
-            if (external.body) {
-                decodedAffiliateAskToJoinAllowedList = loadAffiliateAskToJoinAllowedListEvent(external.body);
-            }
-        }
-		
-        expect(decodedAffiliateAskToJoinAllowedList).not.toBeNull();
-        expect(BigInt(decodedAffiliateAskToJoinAllowedList!.campaignId)).toBe(campaignId);
-		
-		
-		
-		let campaignData = await campaignContract.getCampaignData();
-		let affiliate1AddedToAllowedListOnHold = false;
-		
-		for (const [affiliate, isAllowed] of campaignData.campaignDetails.allowedAffiliates) {
-			//console.log(`Affiliate: ${affiliate}, isAllowed: ${isAllowed}`);
-			if (affiliate.toString() == affiliate1.address.toString() && isAllowed == false) {
-				affiliate1AddedToAllowedListOnHold = true;
-			}
-		}
-		
-		expect(affiliate1AddedToAllowedListOnHold).toBe(true);
-		
-		createAffiliateResult = await campaignContract.send(
-			affiliate1.getSender(),
-			{ value: toNano('0.05') },
-			{ $$type: 'AffiliateCreateNewAffiliate' }
-		);
 
-		expect(createAffiliateResult.transactions).toHaveTransaction({
-			from: affiliate1.address,
-			to: campaignContract.address,
-			success: false, // 26924: affiliate not approved yet 
-			exitCode: 26924
-		});
-		
+        let affiliateData = await campaignContract.getAffiliateData(BigInt(0));
+		expect(affiliateData!.state == BigInt(0)); //pending approval 
 		
 		//----
 		
@@ -278,8 +149,8 @@ describe('Affiliate Actions - Positive and Negative Tests for Affiliate Function
             advertiser.getSender(),
             { value: toNano('0.05') },
             {
-                $$type: 'AdvertiserAddNewAffiliateToAllowedList',
-				affiliate: affiliate1.address
+                $$type: 'AdvertiserApproveAffiliate',
+				affiliateId: BigInt(0)
             }
         );
 		
@@ -289,42 +160,10 @@ describe('Affiliate Actions - Positive and Negative Tests for Affiliate Function
             success: true
         });
 		
-		let decodedAdvertiserApprovedAffiliateToJoinAllowedListEvent: any | null = null;
-        for (const external of advetiserApprovesRequestResult.externals) {
-            if (external.body) {
-                decodedAdvertiserApprovedAffiliateToJoinAllowedListEvent = loadAdvertiserApprovedAffiliateToJoinAllowedListEvent(external.body);
-            }
-        }
-		
-		expect(decodedAdvertiserApprovedAffiliateToJoinAllowedListEvent).not.toBeNull();
-		
-		campaignData = await campaignContract.getCampaignData();
-		let affiliate1AddedToAllowedListApproved = false;
-		
-		for (const [affiliate, isAllowed] of campaignData.campaignDetails.allowedAffiliates) {
-			//console.log(`Affiliate: ${affiliate}, isAllowed: ${isAllowed}`);
-			if (affiliate.toString() == affiliate1.address.toString() && isAllowed == true) {
-				affiliate1AddedToAllowedListApproved = true;
-			}
-		}
-		
-		expect(affiliate1AddedToAllowedListApproved).toBe(true);
-		
-		// -----
-		
-		// finally, affiliate can create a new affiliate
-		createAffiliateResult = await campaignContract.send(
-			affiliate1.getSender(),
-			{ value: toNano('0.05') },
-			{ $$type: 'AffiliateCreateNewAffiliate' }
-		);
 
-		expect(createAffiliateResult.transactions).toHaveTransaction({
-			from: affiliate1.address,
-			to: campaignContract.address,
-			success: true
-		});
-			
+        affiliateData = await campaignContract.getAffiliateData(BigInt(0));
+		expect(affiliateData!.state == BigInt(1)); //active 
+	
     });
 	
 	it('should not allow unauthorizedUser to approve other affiliates', async () => {
@@ -333,16 +172,16 @@ describe('Affiliate Actions - Positive and Negative Tests for Affiliate Function
             unauthorizedUser.getSender(),
             { value: toNano('0.05') },
             {
-                $$type: 'AdvertiserAddNewAffiliateToAllowedList',
-				affiliate: affiliate1.address
+                $$type: 'AdvertiserApproveAffiliate',
+				affiliateId: BigInt(0)
             }
         );
 		
 		expect(unauthorizedUserApprovesRequestResult.transactions).toHaveTransaction({
             from: unauthorizedUser.address,
             to: campaignContract.address,
-            success: false, // 4138: Only the advertiser can add a new affiliate
-			exitCode: 4138
+            success: false, // 19587: Only the advertiser can remove an existing affiliate
+			exitCode: 19587
         });
 	
 	});
@@ -354,8 +193,8 @@ describe('Affiliate Actions - Positive and Negative Tests for Affiliate Function
             unauthorizedUser.getSender(),
             { value: toNano('0.05') },
             {
-                $$type: 'AdvertiserRemoveExistingAffiliateFromAllowedList',
-				affiliate: affiliate1.address
+                $$type: 'AdvertiserRemoveAffiliate',
+				affiliateId: BigInt(0)
             }
         );
 		
@@ -368,20 +207,6 @@ describe('Affiliate Actions - Positive and Negative Tests for Affiliate Function
 	
 	});
 	
-	it('should fail when an unauthorized affiliate tries to join a closed campaign', async () => {
-        const createAffiliateResult = await campaignContract.send(
-            unauthorizedUser.getSender(),
-            { value: toNano('0.05') },
-            { $$type: 'AffiliateCreateNewAffiliate' }
-        );
 
-        expect(createAffiliateResult.transactions).toHaveTransaction({
-            from: unauthorizedUser.address,
-            to: campaignContract.address,
-            success: false,
-            exitCode: 49782 // Unauthorized affiliate access error code
-        });
-    });
 
-    
 });

@@ -12,10 +12,7 @@ import {
       loadAffiliateCreatedEvent,
       loadCampaignCreatedEvent,
   	  loadAdvertiserWithdrawFundsEvent,
-	  loadAdvertiserSignedCampaignDetailsEvent,
-	  loadAffiliateAskToJoinAllowedListEvent,
-	  loadAdvertiserApprovedAffiliateToJoinAllowedListEvent,
-	  loadAdvertiserRemovedAffiliateFromAllowedListEvent} from '../scripts/events';
+	  loadAdvertiserSignedCampaignDetailsEvent} from '../scripts/events';
 	  
 import { USDT_MASTER_ADDRESS, USDT_WALLET_BYTECODE, ADVERTISER_FEE_PERCENTAGE, AFFILIATE_FEE_PERCENTAGE } from '../scripts/constants'
 import { hexToCell } from '../scripts/utils';
@@ -151,7 +148,7 @@ describe('AffiliateMarketplace Integration Test', () => {
         const advertiserSetCampaignDetailsResult = await campaignContract.send(
             advertiser.getSender(),
             {
-                value: toNano('10'),
+                value: toNano('0.05'),
             },
             {
                 $$type: 'AdvertiserSetCampaignDetails',
@@ -159,7 +156,6 @@ describe('AffiliateMarketplace Integration Test', () => {
                     $$type: 'CampaignDetails',
                     regularUsersCostPerAction: regularUsersMapCostPerActionMap,
                     premiumUsersCostPerAction: premiumUsersMapCostPerActionMap,
-                    allowedAffiliates: Dictionary.empty<Address, boolean>(),
                     isPublicCampaign: true,  // open campaign
                     campaignValidForNumDays: null, // no end date
 					paymentMethod: BigInt(0), // TON
@@ -173,6 +169,23 @@ describe('AffiliateMarketplace Integration Test', () => {
             to: campaignContract.address,
             success: true,
         });
+
+        // Replenish campaign balance
+        const replenishResult = await campaignContract.send(
+            advertiser.getSender(),
+            { value: toNano('10') },
+            { $$type: 'AdvertiserReplenish' }
+        );
+    
+        expect(replenishResult.transactions).toHaveTransaction({
+            from: advertiser.address,
+            to: campaignContract.address,
+            success: true
+        });
+    
+        // Verify campaign balance update
+        campaignData = await campaignContract.getCampaignData();
+        expect(campaignData.campaignBalance).toBeGreaterThan(0);
 		
 		let decodedAdvertiserSetCampaignDetailsEvent: any | null = null;
         for (const external of advertiserSetCampaignDetailsResult.externals) {

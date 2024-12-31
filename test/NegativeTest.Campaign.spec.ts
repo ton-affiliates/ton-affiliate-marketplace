@@ -30,94 +30,6 @@ const ADVERTISER_OP_CODE_CUSTOMIZED_EVENT = 20001;
 
 let campaignId = BigInt(0);
 
-// # Error Codes
-// 2: Stack underflow
-// 3: Stack overflow
-// 4: Integer overflow
-// 5: Integer out of expected range
-// 6: Invalid opcode
-// 7: Type check error
-// 8: Cell overflow
-// 9: Cell underflow
-// 10: Dictionary error
-// 11: 'Unknown' error
-// 12: Fatal error
-// 13: Out of gas error
-// 14: Virtualization error
-// 32: Action list is invalid
-// 33: Action list is too long
-// 34: Action is invalid or not supported
-// 35: Invalid source address in outbound message
-// 36: Invalid destination address in outbound message
-// 37: Not enough TON
-// 38: Not enough extra-currencies
-// 39: Outbound message does not fit into a cell after rewriting
-// 40: Cannot process a message
-// 41: Library reference is null
-// 42: Library change action error
-// 43: Exceeded maximum number of cells in the library or the maximum depth of the Merkle tree
-// 50: Account state size exceeded limits
-// 128: Null reference exception
-// 129: Invalid serialization prefix
-// 130: Invalid incoming message
-// 131: Constraints error
-// 132: Access denied
-// 133: Contract stopped
-// 134: Invalid argument
-// 135: Code of a contract was not found
-// 136: Invalid address
-// 137: Masterchain support is not enabled for this contract
-// 1919: Insufficient USDT funds to make transfer
-// 2432: Only contract wallet can invoke
-// 2509: Must have at least one wallet to withdraw to
-// 3688: Not mintable
-// 4138: Only the advertiser can add a new affiliate
-// 4429: Invalid sender
-// 7226: Only advertiser can approve withdrawal
-// 11661: Only advertiser can verify these events
-// 12241: Max supply exceeded
-// 12969: Must be in state: STATE_CAMPAIGN_DETAILS_SET_BY_ADVERTISER
-// 13965: Invalid destinationId!
-// 14486: Cannot find cpa for the given op code
-// 14534: Not owner
-// 16059: Invalid value
-// 17062: Invalid amount
-// 18026: Only advertiser can modify affiliates withdrawl flag
-// 18668: Can't Mint Anymore
-// 23951: Insufficient gas
-// 26205: Only USDT Campaigns can accept USDT
-// 26953: Only affiliate can withdraw funds
-// 30892: Only owner can deploy
-// 33318: Insufficient funds to repay parent for deployment and keep buffer
-// 33594: Cannot manually add affiliates to an open campaign
-// 34085: Only TON supported as payment method
-// 34905: Bot can verify only op codes under 2000
-// 35494: Affiliate with requiresAdvertiserApprovalForWithdrawl flag
-// 36363: Only the advertiser can remove the campaign and withdraw all funds
-// 40058: Campaign has no funds
-// 40368: Contract stopped
-// 40755: Only advertiser can send tokens to this contract
-// 42708: Invalid sender!
-// 43100: Reached max number of affiliates for this campagn
-// 43422: Invalid value - Burn
-// 44318: Only bot can Deploy new Campaign
-// 48874: Insufficient contract funds to make payment
-// 49469: Access denied
-// 49782: affiliate not on allowed list
-// 50865: owner must be deployer
-// 52003: Campaign is expired
-// 53205: Only the advertiser can replenish the contract
-// 53296: Contract not stopped
-// 53456: Affiliate does not exist
-// 54206: Insufficient campaign balance to make payment
-// 57013: Affiliate without requiresAdvertiserApprovalForWithdrawl flag
-// 57313: Must be in state: STATE_CAMPAIGN_CREATED
-// 58053: OP codes for regular and premium users must match
-// 59035: Only contract wallet allowed to invoke
-// 60644: Advertiser can verify only op codes over 2000
-// 62634: Only bot can invoke User Actions
-// 62972: Invalid balance
-
 
 beforeEach(async () => {
     // Initialize blockchain and deployer wallets
@@ -204,8 +116,7 @@ beforeEach(async () => {
                 $$type: 'CampaignDetails',
                 regularUsersCostPerAction: regularUsersMapCostPerActionMap,
                 premiumUsersCostPerAction: regularUsersMapCostPerActionMap,
-                allowedAffiliates: Dictionary.empty<Address, boolean>(),
-                isPublicCampaign: false,
+                isPublicCampaign: true,
 				campaignValidForNumDays: null,
 				paymentMethod: BigInt(0), // TON
 				requiresAdvertiserApprovalForWithdrawl: false
@@ -218,31 +129,32 @@ beforeEach(async () => {
         to: campaignContract.address,
         success: true
     });
+
+    // Replenish campaign balance
+    const replenishResult = await campaignContract.send(
+        advertiser.getSender(),
+        { value: toNano('5') },
+        { $$type: 'AdvertiserReplenish' }
+    );
+
+    expect(replenishResult.transactions).toHaveTransaction({
+        from: advertiser.address,
+        to: campaignContract.address,
+        success: true
+    });
+
+    // Verify campaign balance update
+    const campaignData = await campaignContract.getCampaignData();
+    expect(campaignData.campaignBalance).toBeGreaterThan(0);
 });
 
 
 describe('Negative Tests for Campaign', () => {
 
 
-    // Affiliate Actions
-    it('should fail to create an affiliate when campaign is closed and not in allowed list', async () => {
-	
-        const createAffiliateResult = await campaignContract.send(
-            affiliate.getSender(),
-            { value: toNano('0.05') },
-            { $$type: 'AffiliateCreateNewAffiliate' }
-        );
-
-        expect(createAffiliateResult.transactions).toHaveTransaction({
-            from: affiliate.address,
-            to: campaignContract.address,
-            success: false, //49782: affiliate not on allowed list
-			exitCode: 49782
-        });
-    });
 
     // Test: Unauthorized Campaign Removal
-    it('should fail when a non-advertiser tries to remove the campaign and withdraw funds', async () => {
+    it('should fail when a non-advertiser tries to withdraw funds', async () => {
 		
         // Attempt to remove the campaign by a non-advertiser user
         const removeCampaignResult = await campaignContract.send(
@@ -266,20 +178,6 @@ describe('Negative Tests for Campaign', () => {
 	
 	it('should fail if someone other than the affiliate tries to  withdraw earnings', async () => {
 						
-        const addNewAffiliateToAllowedListResult = await campaignContract.send(
-            advertiser.getSender(),
-            { value: toNano('0.05') }, 
-            { $$type: 'AdvertiserAddNewAffiliateToAllowedList',
-			  affiliate: affiliate.address
-			}
-        );
-
-        expect(addNewAffiliateToAllowedListResult.transactions).toHaveTransaction({
-            from: advertiser.address,
-            to: campaignContract.address,
-            success: true, 
-        });
-		
 		const createAffiliateResult = await campaignContract.send(
             affiliate.getSender(),
             { value: toNano('0.05') },

@@ -116,7 +116,6 @@ beforeEach(async () => {
                 $$type: 'CampaignDetails',
                 regularUsersCostPerAction: regularUsersMapCostPerActionMap,
                 premiumUsersCostPerAction: regularUsersMapCostPerActionMap,
-                allowedAffiliates: Dictionary.empty<Address, boolean>(),
                 isPublicCampaign: true,
 				campaignValidForNumDays: null,
 				paymentMethod: BigInt(0), // TON
@@ -130,6 +129,23 @@ beforeEach(async () => {
         to: campaignContract.address,
         success: true
     });
+
+    // Replenish campaign balance
+    const replenishResult = await campaignContract.send(
+        advertiser.getSender(),
+        { value: toNano('5') },
+        { $$type: 'AdvertiserReplenish' }
+    );
+
+    expect(replenishResult.transactions).toHaveTransaction({
+        from: advertiser.address,
+        to: campaignContract.address,
+        success: true
+    });
+
+    // Verify campaign balance update
+    const campaignData = await campaignContract.getCampaignData();
+    expect(campaignData.campaignBalance).toBeGreaterThan(0);
 });
 
 describe('Administrative Actions - positive test', () => {

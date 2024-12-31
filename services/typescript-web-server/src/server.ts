@@ -4,8 +4,10 @@ import { createClient, RedisClientType } from 'redis';
 import axios from 'axios';
 import dotenv from 'dotenv';
 import { getLatestEvents, EmitLogEvent } from './listenToEvents';
-import { getUserInfo, saveUserInfo, addUserAddress, getUserIdByAddress, getCampaignByChatId, getCampaign } from "../../common/redisCommon"
-import { EventData } from "../../common/EventLogging"
+import { getUserByTonAddress, getCampaignByChatId, getCampaign, getUserInfo, Campaign } from "../../common/redis"
+import { EventData } from "../../common/redis"
+import { writeEventToBlockchainMnemonics } from "../../common/blockchain/write/writeMnemonics"
+import { fetchAffiliateData } from "../../common/blockchain/read/readFromCampaign"
 
 // Load environment variables
 dotenv.config();
@@ -69,16 +71,24 @@ async function processEvents(events: EmitLogEvent[]) {
 
         switch (event.type) {
             case 'CampaignCreatedEvent': {
-                const channel = 'CampaignCreatedEventChannel';
-                const message = stringifyWithBigInt(event.data);
-                await redisClient.publish(channel, message); // publish to all listeners (all mini apps).
+                
+                // save in DB a new empty campaign for this advertiser
+                event.campaignId - // TODO how to pass it to client?
+
+                break;
+            }
+
+            case 'AdvertiserSignedCampaignDetailsEvent': {
+
+                // do nothing here
+
                 break;
             }
 
             case 'AffiliateCreatedEvent': {
                 try {
                     // Get advertiser's user ID
-                    const advertiserTelegramUser = await getUserIdByAddress(event.data.advertiserAddress);
+                    const advertiserTelegramUser = await getUserByTonAddress(event.data.advertiserAddress);
                     if (!advertiserTelegramUser) {
                         console.error(`Advertiser address not found: ${event.data.advertiserAddress}`);
                         break;
@@ -92,7 +102,7 @@ async function processEvents(events: EmitLogEvent[]) {
                     }
             
                     // Get affiliate's user ID
-                    const affiliateTelegramUser = await getUserIdByAddress(event.data.affiliate);
+                    const affiliateTelegramUser = await getUserByTonAddress(event.data.affiliate);
                     if (!affiliateTelegramUser) {
                         console.error(`Affiliate address not found: ${event.data.affiliate}`);
                         break;
@@ -105,60 +115,37 @@ async function processEvents(events: EmitLogEvent[]) {
                         break;
                     }
             
-                    // Prepare and send the message
-                    const message = `A new affiliate has been created with ID: ${event.data.affiliateId}. Affiliate Telegram data: ${JSON.stringify(affiliateInfo)}`;
-                    await sendTelegramMessage(advertiserInfo.telegramId, message);
-                    console.log(`Message sent to advertiser: ${advertiserInfo.telegramId}`);
+                    // Fetch the affiliate data from the blockchain
+                    const affiliateData = await fetchAffiliateData(event.data.contractAddress, event.data.affiliateId);
+                    if (!affiliateData) {
+                        console.error(`Failed to fetch affiliate data for ID: ${event.data.affiliateId}`);
+                        break;
+                    }
+            
+                    if (affiliateData.state === 0) { // PENDING APPROVAL
+                        // Send message to the advertiser
+                        const message = `Affiliate request pending approval:
+                                            Affiliate ID: ${event.data.affiliateId}
+                                            Affiliate Info: ${JSON.stringify(affiliateInfo)}\nPlease review and approve.`;
+                        await sendTelegramMessage(advertiserInfo.telegramId, message);
+                        console.log(`Message sent to advertiser: ${advertiserInfo.telegramId}`);
+                    } else {
+                        // Send message to the affiliate
+                        const message = `Congratulations! Your affiliate account has been created with ID: ${event.data.affiliateId} and is now active.`;
+                        await sendTelegramMessage(affiliateInfo.telegramId, message);
+                        console.log(`Message sent to affiliate: ${affiliateInfo.telegramId}`);
+                    }
                 } catch (error) {
                     console.error(`Error processing AffiliateCreatedEvent: ${error}`, error);
                 }
                 break;
             }
+            
 
-            case 'AffiliateAskToJoinAllowedListEvent': {
-                try {
-                    // Get advertiser's user ID
-                    const advertiserTelegramUser = await getUserIdByAddress(event.data.advertiserAddress);
-                    if (!advertiserTelegramUser) {
-                        console.error(`Advertiser address not found: ${event.data.advertiserAddress}`);
-                        break;
-                    }
-            
-                    // Get advertiser's user info
-                    const advertiserInfo = await getUserInfo(advertiserTelegramUser);
-                    if (!advertiserInfo) {
-                        console.error(`Advertiser info not found for user ID: ${advertiserTelegramUser}`);
-                        break;
-                    }
-            
-                    // Get affiliate's user ID
-                    const affiliateTelegramUser = await getUserIdByAddress(event.data.affiliate);
-                    if (!affiliateTelegramUser) {
-                        console.error(`Affiliate address not found: ${event.data.affiliate}`);
-                        break;
-                    }
-            
-                    // Get affiliate's user info
-                    const affiliateInfo = await getUserInfo(affiliateTelegramUser);
-                    if (!affiliateInfo) {
-                        console.error(`Affiliate info not found for user ID: ${affiliateTelegramUser}`);
-                        break;
-                    }
-            
-                    // Prepare and send the message
-                    const message = `Affiliate has requested to join your allowed list: ${JSON.stringify(affiliateInfo)} on campaign: ${event.data.campaignId}`;
-                    await sendTelegramMessage(advertiserInfo.telegramId, message);
-                    console.log(`Message sent to advertiser: ${advertiserInfo.telegramId}`);
-                } catch (error) {
-                    console.error(`Error processing AffiliateCreatedEvent: ${error}`, error);
-                }
-                break;
-            }
-
-            case 'AdvertiserApprovedAffiliateToAllowedListEvent': {
+            case 'AdvertiserApprovedAffiliateEvent': {
                 try {
                     // Get affiliate's user ID
-                    const affiliateTelegramUser = await getUserIdByAddress(event.data.affiliate);
+                    const affiliateTelegramUser = await getUserByTonAddress(event.data.affiliate);
                     if (!affiliateTelegramUser) {
                         console.error(`Affiliate address not found: ${event.data.affiliate}`);
                         break;
@@ -172,7 +159,7 @@ async function processEvents(events: EmitLogEvent[]) {
                     }
             
                     // Get advertiser's user ID
-                    const advertiserTelegramUser = await getUserIdByAddress(event.data.advertiserAddress);
+                    const advertiserTelegramUser = await getUserByTonAddress(event.data.advertiserAddress);
                     if (!advertiserTelegramUser) {
                         console.error(`Advertiser address not found: ${event.data.advertiserAddress}`);
                         break;
@@ -186,7 +173,7 @@ async function processEvents(events: EmitLogEvent[]) {
                     }
             
                     // Prepare and send the message to the affiliate
-                    const message = `Your request to join the allowed list has been approved by the advertiser: ${advertiserInfo.handle || advertiserInfo.name}. Campaign ID: ${event.data.campaignId}`;
+                    const message = `Your affiliate: ${event.data.affiliateId} in campaign: ${event.data.campaignId} was approved by the advertiser.`;
                     await sendTelegramMessage(affiliateInfo.telegramId, message);
                     console.log(`Message sent to affiliate: ${affiliateInfo.telegramId}`);
                 } catch (error) {
@@ -195,10 +182,10 @@ async function processEvents(events: EmitLogEvent[]) {
                 break;
             }
 
-            case 'AdvertiserRemovedAffiliateFromAllowedListEvent': {
+            case 'AdvertiserRemovedAffiliateEvent': {
                 try {
                     // Get affiliate's user ID
-                    const affiliateTelegramUser = await getUserIdByAddress(event.data.affiliate);
+                    const affiliateTelegramUser = await getUserByTonAddress(event.data.affiliate);
                     if (!affiliateTelegramUser) {
                         console.error(`Affiliate address not found: ${event.data.affiliate}`);
                         break;
@@ -212,7 +199,7 @@ async function processEvents(events: EmitLogEvent[]) {
                     }
             
                     // Get advertiser's user ID
-                    const advertiserTelegramUser = await getUserIdByAddress(event.data.advertiserAddress);
+                    const advertiserTelegramUser = await getUserByTonAddress(event.data.advertiserAddress);
                     if (!advertiserTelegramUser) {
                         console.error(`Advertiser address not found: ${event.data.advertiserAddress}`);
                         break;
@@ -226,11 +213,11 @@ async function processEvents(events: EmitLogEvent[]) {
                     }
             
                     // Prepare and send the message to the affiliate
-                    const message = `You have been removed from the allowed list by the advertiser: ${advertiserInfo.handle || advertiserInfo.name}. Campaign ID: ${event.data.campaignId}`;
+                    const message = `Your affiliate: ${event.data.affiliateId} in campaign: ${event.data.campaignId} was removed by the advertiser.`;
                     await sendTelegramMessage(affiliateInfo.telegramId, message);
                     console.log(`Message sent to affiliate: ${affiliateInfo.telegramId}`);
                 } catch (error) {
-                    console.error(`Error processing AdvertiserRemovedAffiliateFromAllowedListEvent: ${error}`, error);
+                    console.error(`Error processing AdvertiserRemovedAffiliateEvent: ${error}`, error);
                 }
                 break;
             }
@@ -273,34 +260,8 @@ setInterval(fetchAndProcessEvents, 10 * 1000);  // every 10 seconds
 //----------------------------------------------------------------------------------------------------
 
 
-// TON Blockchain Configuration
-const MNEMONIC = process.env.MNEMONIC || '';
-const tonClient = new TonClient({ network: { endpoints: ["main.ton.dev"] } }); // Update with appropriate network
 
 
-// Write verified event to the blockchain
-async function writeEventToBlockchain(campaignId: BigInt, advertiserAddress: string, affiliateId: BigInt, userActionOpCode: BigInt, isPremium: Boolean) {
-
-    const campaignContractAddress = await getCampaignContractAddress(campaignId); 
-
-    try {
-        // Convert mnemonic to key pair
-        const seed = await mnemonicToSeed(MNEMONIC);
-        const keyPair = await tonClient.crypto.mnemonic_derive_sign_keys({ phrase: MNEMONIC });
-
-        // Example transaction logic
-        console.log(`Writing event to blockchain: ${eventKey}`);
-        const transaction = {
-            key: eventKey,
-            data: eventData,
-        };
-
-        // Replace this with the actual blockchain transaction code
-        console.log('Simulated blockchain transaction:', transaction);
-    } catch (error) {
-        console.error('Error writing event to blockchain:', error);
-    }
-}
 
 async function processVerifiedEvents() {
     try {
@@ -347,14 +308,9 @@ async function processVerifiedEvents() {
                 if (captchaEvent && joinedEvent) {
                     
                     console.log(`Processing verified events for user ${userId} in chat ${chatId}`);
-                    const campaignId: string | null = await getCampaignByChatId(captchaEvent.chatId);
-                    if (!campaignId) {
-                        console.error(`Failed to extract campaign Id for ${userId} in chat ${chatId}`);
-                        continue;
-                    }
-                    const campaignData = await getCampaign(campaignId);
+                    const campaignData: Campaign | null = await getCampaignByChatId(captchaEvent.chatId);
                     if (!campaignData) {
-                        console.error(`Failed to extract campaign data for campaign ID ${campaignId}`);
+                        console.error(`Failed to extract campaign for ${userId} in chat ${chatId}`);
                         continue;
                     }
 
@@ -363,7 +319,7 @@ async function processVerifiedEvents() {
                     const userActionOpCode = BigInt(0);  // UserClick take from .env 
                     
                     try {
-                        await writeEventToBlockchain(BigInt(campaignId), campaignData.advertiserAddress, affiliateId, userActionOpCode, isPremiumUser);
+                        await writeEventToBlockchainMnemonics(BigInt(campaignData.campaignId), campaignData.advertiserAddress, affiliateId, userActionOpCode, isPremiumUser);
                     } catch (error) {
                         console.error(`Failed to write event to blockchain for user ${userId} in chat ${chatId}:`, error);
                         continue;
@@ -377,9 +333,9 @@ async function processVerifiedEvents() {
             const chats = userEvents[userId];
 
             for (const chatId in chats) {
-                const events:EventData = chats[chatId];
+                const events:EventData[] = chats[chatId];
 
-                for (const event in events) {
+                for (const event of events) {
                     const eventKey = `event:user:${userId}:${event.eventType}:${chatId}`;
                     const processedKey = `processedEvents:user:${userId}:${event.eventType}:${chatId}`;
 
@@ -407,13 +363,6 @@ setInterval(async () => {
     console.log('Checking for verified events...');
     await processVerifiedEvents();
 }, 10 * 1000); // Run every 10 seconds
-
-
-
-
-
-//-----------------------------------------------------------------------------------------------------
-
 
 
 
