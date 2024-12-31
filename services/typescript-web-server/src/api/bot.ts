@@ -1,40 +1,32 @@
 import express, { Router, Request, Response } from 'express';
-import { isBotAdminInChat } from '../telegram/telegramService';
+import { isBotAdminInChatByHandle } from '../telegram/telegramService';
 
 const router: Router = express.Router();
 
-/**
- * Check if the bot is an admin in a specified chat or group
- * 
- * Endpoint: `/is-bot-admin`
- * Method: `POST`
- * 
- * Description:
- * Verifies if the bot has administrative privileges in a given Telegram chat or group.
- */
 router.post('/is-bot-admin', async (req: Request, res: Response): Promise<void> => {
-    const { chatId } = req.body;
+    const { handle } = req.body;
 
-    if (!chatId) {
-        res.status(400).json({ error: 'Missing required parameter: chatId' });
+    if (!handle) {
+        res.status(400).json({ error: 'Missing required parameter: handle' });
         return;
     }
 
     try {
-        const isAdmin = await isBotAdminInChat(chatId);
+        const isAdmin = await isBotAdminInChatByHandle(handle);
 
         res.status(200).json({
-            chatId,
+            handle,
             isAdmin,
             message: isAdmin
-                ? `The bot is an admin in chat ID ${chatId}.`
-                : `The bot is NOT an admin in chat ID ${chatId}.`,
+                ? `The bot is an admin in the chat associated with handle ${handle}.`
+                : `The bot is NOT an admin in the chat associated with handle ${handle}.`,
         });
     } catch (error) {
         console.error('Error verifying bot admin status:', error);
         res.status(500).json({ error: 'Failed to verify bot admin status' });
     }
 });
+
 
 export default router;
 

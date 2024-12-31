@@ -54,6 +54,36 @@ export async function isBotAdminInChat(chatId: number): Promise<boolean> {
 }
 
 
+export async function isBotAdminInChatByHandle(handle: string): Promise<boolean> {
+    try {
+        // First, fetch the chat ID using the handle
+        const chatResponse = await axios.get(`${TELEGRAM_API_URL}/getChat`, {
+            params: { username: handle },
+        });
+
+        const chatId = chatResponse.data.result.id;
+
+        // Then, check if the bot is an admin in the fetched chat ID
+        const adminResponse = await axios.get(`${TELEGRAM_API_URL}/getChatAdministrators`, {
+            params: { chat_id: chatId },
+        });
+
+        const admins = adminResponse.data.result;
+
+        // Check if the bot is listed as an admin
+        const isAdmin = admins.some(
+            (admin: any) => admin.user.is_bot && admin.user.username === BOT_USERNAME
+        );
+
+        return isAdmin;
+    } catch (error) {
+        console.error(`Failed to verify bot admin status for handle ${handle}:`, error);
+        throw new Error('Error verifying bot admin status');
+    }
+}
+
+
+
 /**
  * Fetch Telegram Asset Details
  * @param chatId - The unique identifier of the chat or group
