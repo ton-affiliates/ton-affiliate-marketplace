@@ -1,52 +1,17 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useUserRole } from "../UserRoleContext";
 import { TonConnectButton } from '@tonconnect/ui-react';
 import { useTonConnect } from '../hooks/useTonConnect';
 import { motion } from 'framer-motion';
 import { useTonConnectFetchContext } from '../TonConnectProvider';
+import { io } from 'socket.io-client';
+import useSocket from '../hooks/useSocket'; // Correct default import
+import { CampaignDetails } from './CampaignDetails';
 
 interface CampaignStatusProps {
     setScreen: React.Dispatch<React.SetStateAction<'main' | 'advertiser' | 'campaign' | 'status'>>;
 }
 
-type CampaignDetails = {
-    campaignId: string;
-    advertiser: string;
-    owner: string;
-    payout: string;
-    campaignDetails: {
-      regularUsersCostPerAction: string;
-      premiumUsersCostPerAction: string;
-      allowedAffiliates: string;
-      isPublicCampaign: boolean;
-      campaignExpiresInNumDays: string;
-      paymentMethod: string;
-      requiresAdvertiserApprovalForWithdrawl: boolean;
-    };
-    numAffiliates: string;
-    totalAffiliateEarnings: string;
-    state: string;
-    campaignStartTimestamp: string;
-    lastUserActionTimestamp: string;
-    numAdvertiserWithdrawls: string;
-    numAdvertiserSignOffs: string;
-    numUserActions: string;
-    campaignBalance: string;
-    maxCpaValue: string;
-    contractTonBalance: string;
-    contractAddress: string;
-    contractUSDTBalance: string;
-    contractUsdtJettonWallet: string;
-    advertiserFeePercentage: string;
-    affiliateFeePercentage: string;
-    campaignHasSufficientFundsToPayMaxCpa: boolean;
-    isCampaignExpired: boolean;
-    isCampaignPausedByAdmin: boolean;
-    campaignHasSufficientTonToPayGasFees: boolean;
-    isCampaignActive: boolean;
-    topAffiliates: string;
-  };
-  
   const campaignMap: { [key: string]: CampaignDetails } = {
     "3969379339": {
       campaignId: "3969379339",
@@ -124,19 +89,27 @@ type CampaignDetails = {
     },
   };
 
+  
+
+
 const CampaignStatus: React.FC<CampaignStatusProps> = ({ setScreen }) => {
 
     const [selectedCampaignId, setSelectedCampaignId] = useState<string | null>(null);
-    const [selectedCampaign, setSelectedCampaign] = useState<CampaignDetails | null>(null);
+    //const [selectedCampaign, setSelectedCampaign] = useState<CampaignDetails | null>(null);
     const [showStatusDetails, setShowStatusDetails] = useState(false);
     const [showCampaignData, setShowCampaignData] = useState(false);
     const [isPopupOpen, setIsPopupOpen] = useState(false);
     const { userRole } = useUserRole();
+
+    const [campaignIds, setCampaignIds] = useState<string[]>([]);
+
+    const { campaignsIds, campaignDetailsFromId, fetchCampaignDetails } = useSocket('http://localhost:5000'); // Backend URL
+
     //const { connected } = useTonConnect();
     const { connectedStatus } = useTonConnectFetchContext();
 
     const getStatusRowStyle = () => {
-        if(selectedCampaign && selectedCampaign.isCampaignActive) 
+        if(campaignDetailsFromId && campaignDetailsFromId.isCampaignActive) 
             return  "detail-row-active";
         return "detail-row-inactive";
     };
@@ -156,12 +129,31 @@ const CampaignStatus: React.FC<CampaignStatusProps> = ({ setScreen }) => {
     };
 
     const handleCampaignSelect = (id: string) => {
+        if (id) {
+            fetchCampaignDetails(id);
+          }
         setSelectedCampaignId(id);
         const campaign = getCampaignById(id);
-        setSelectedCampaign(campaign);
+       // setSelectedCampaign(campaign);
         setShowStatusDetails(false); // Reset the status details expander
         setShowCampaignData(false);
     };
+
+    const renderValue = (value: any): React.ReactNode => {
+        if (typeof value === 'object' && value !== null) {
+          return (
+            <div style={{ marginLeft: '1rem' }}>
+              {Object.entries(value).map(([nestedKey, nestedValue]) => (
+                <div key={nestedKey}>
+                  <strong>{nestedKey}:</strong> {renderValue(nestedValue)}
+                </div>
+              ))}
+            </div>
+          );
+        }
+        return value?.toString();
+      };
+   
 
     return (
         <motion.div
@@ -172,6 +164,33 @@ const CampaignStatus: React.FC<CampaignStatusProps> = ({ setScreen }) => {
         >
 
             <div className="campaign-status card">
+
+            {/* <div>
+      <h1>Available Campaigns:</h1>
+      {campaignsIds.length > 0 ? (
+        <select>
+          {campaignsIds.map((id) => (
+            <option key={id} value={id}>
+              {id}
+            </option>
+          ))}
+        </select>
+      ) : (
+        <p>No campaigns available.</p>
+      )}
+        {campaignDetailsFromId && (
+        <div>
+          <h3>Campaign Details</h3>
+          <div style={{ maxHeight: '300px', overflowY: 'auto', border: '1px solid #ccc', padding: '10px' }}>
+            {Object.entries(campaignDetailsFromId).map(([key, value]) => (
+              <div key={key}>
+                 <strong>{key}:</strong> {value !== null && value !== undefined ? String(value) : 'N/A'}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div> */}
             {userRole==="Advertiser" && (
                 <h1>Campaign Management</h1>)}
             {userRole==="Affiliate" && (
@@ -199,7 +218,7 @@ const CampaignStatus: React.FC<CampaignStatusProps> = ({ setScreen }) => {
                         <option value="" disabled>
                             Select a campaign
                         </option>
-                        {getCampaignIds().map((id) => (
+                        {campaignsIds.map((id) => (
                             <option key={id} value={id}>
                             {id}
                             </option>
@@ -210,17 +229,17 @@ const CampaignStatus: React.FC<CampaignStatusProps> = ({ setScreen }) => {
                 
 
                 {/* Campaign Status */}
-                {connectedStatus && selectedCampaign && (
+                {connectedStatus && campaignDetailsFromId && (
                     <>
                     <div className="card">
                         <div className="status-row">
                             <label className="label">Campaign Status:</label>
                             <span
                             className={`status ${
-                                selectedCampaign.isCampaignActive ? "status-active" : "status-inactive"
+                                campaignDetailsFromId.isCampaignActive ? "status-active" : "status-inactive"
                             }`}
                             >
-                            {selectedCampaign.isCampaignActive ? "Active" : "Inactive"}
+                            {campaignDetailsFromId.isCampaignActive ? "Active" : "Inactive"}
                             </span>
                         </div>
 
@@ -246,16 +265,16 @@ const CampaignStatus: React.FC<CampaignStatusProps> = ({ setScreen }) => {
                                         
                                             <span
                                                 className={`status ${
-                                                selectedCampaign.campaignHasSufficientFundsToPayMaxCpa
+                                                campaignDetailsFromId.campaignHasSufficientFundsToPayMaxCpa
                                                     ? "status-active"
                                                     : "status-inactive"
                                                 }`}
                                             >
-                                                {selectedCampaign.campaignHasSufficientFundsToPayMaxCpa
+                                                {campaignDetailsFromId.campaignHasSufficientFundsToPayMaxCpa
                                                 ? "Yes"
                                                 : "No"}
                                             </span>
-                                            {!selectedCampaign.campaignHasSufficientFundsToPayMaxCpa && (
+                                            {!campaignDetailsFromId.campaignHasSufficientFundsToPayMaxCpa && (
                                                 
                                                 <button className='min-content funds-button'>Add Funds</button>
                                             )}
@@ -265,16 +284,16 @@ const CampaignStatus: React.FC<CampaignStatusProps> = ({ setScreen }) => {
                                         
                                             <span
                                                 className={`status ${
-                                                selectedCampaign.campaignHasSufficientTonToPayGasFees
+                                                campaignDetailsFromId.campaignHasSufficientTonToPayGasFees
                                                     ? "status-active"
                                                     : "status-inactive"
                                                 }`}
                                             >
-                                                {selectedCampaign.campaignHasSufficientTonToPayGasFees
+                                                {campaignDetailsFromId.campaignHasSufficientTonToPayGasFees
                                                 ? "Yes"
                                                 : "No"}
                                             </span>
-                                            {!selectedCampaign.campaignHasSufficientTonToPayGasFees && (
+                                            {!campaignDetailsFromId.campaignHasSufficientTonToPayGasFees && (
                                                 
                                                 <button className='min-content funds-button'>Add Funds</button>
                                             )}
@@ -284,16 +303,16 @@ const CampaignStatus: React.FC<CampaignStatusProps> = ({ setScreen }) => {
                                         
                                             <span
                                                 className={`status ${
-                                                selectedCampaign.isCampaignExpired 
+                                                campaignDetailsFromId.isCampaignExpired 
                                                     ? "status-inactive"
                                                     : "status-active"
                                                 }`}
                                             >
-                                                {selectedCampaign.isCampaignExpired 
+                                                {campaignDetailsFromId.isCampaignExpired 
                                                 ? "Yes"
                                                 : "No"}
                                             </span>
-                                            {!selectedCampaign.isCampaignActive && !selectedCampaign.isCampaignExpired && (
+                                            {!campaignDetailsFromId.isCampaignActive && !campaignDetailsFromId.isCampaignExpired && (
                                                 
                                                 <button className='min-content funds-button visible-collapsed2'>Add Funds</button>
                                             )}
@@ -303,16 +322,16 @@ const CampaignStatus: React.FC<CampaignStatusProps> = ({ setScreen }) => {
                                         
                                             <span
                                                 className={`status ${
-                                                selectedCampaign.isCampaignPausedByAdmin  
+                                                campaignDetailsFromId.isCampaignPausedByAdmin  
                                                     ? "status-inactive"
                                                     : "status-active"
                                                 }`}
                                             >
-                                                {selectedCampaign.isCampaignPausedByAdmin  
+                                                {campaignDetailsFromId.isCampaignPausedByAdmin  
                                                 ? "Yes"
                                                 : "No"}
                                             </span>
-                                            {!selectedCampaign.isCampaignActive   && !selectedCampaign.isCampaignPausedByAdmin &&(
+                                            {!campaignDetailsFromId.isCampaignActive   && !campaignDetailsFromId.isCampaignPausedByAdmin &&(
                                                 
                                                 <button className='min-content funds-button visible-collapsed2'>Add Funds</button>
                                             )}
@@ -331,7 +350,7 @@ const CampaignStatus: React.FC<CampaignStatusProps> = ({ setScreen }) => {
                         </button>
                         {showCampaignData && (
                         <div className="details2-pane">
-                            {Object.entries(selectedCampaign).map(([key, value]) => (
+                            {Object.entries(campaignDetailsFromId).map(([key, value]) => (
                             <div key={key} className="detail2-row">
                                 <strong>{key}:</strong> <span>{value?.toString()}</span>
                             </div>
@@ -356,9 +375,9 @@ const CampaignStatus: React.FC<CampaignStatusProps> = ({ setScreen }) => {
                                     exit={{ opacity: 0, height: 0 }}
                                 >
                                     <div className="details2-pane">
-                                        {Object.entries(selectedCampaign).map(([key, value]) => (
+                                        {Object.entries(campaignDetailsFromId).map(([key, value]) => (
                                         <div key={key} className="detail2-row">
-                                            <strong>{key}:</strong> <span>{value?.toString()}</span>
+                                            <strong>{key}:</strong> <span>{renderValue(value)}</span>
                                         </div>
                                         ))}
                                     </div>
@@ -369,7 +388,7 @@ const CampaignStatus: React.FC<CampaignStatusProps> = ({ setScreen }) => {
 
 
                     <div>
-                    {selectedCampaign && userRole==="Advertiser" && (
+                    {campaignDetailsFromId && userRole==="Advertiser" && (
                         <div>
                         {/* Advertiser Actions */}
                         <div className="card">
@@ -386,7 +405,7 @@ const CampaignStatus: React.FC<CampaignStatusProps> = ({ setScreen }) => {
                     </div>
 
                     <div>
-                    {selectedCampaign && userRole==="Affiliate" && (
+                    {campaignDetailsFromId && userRole==="Affiliate" && (
                         <div>
                         {/* Advertiser Actions */}
                         <div className="card">

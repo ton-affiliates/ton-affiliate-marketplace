@@ -1,0 +1,37 @@
+export type CampaignDetails = {
+    campaignId: string;
+    advertiser: string;
+    owner: string;
+    payout: string;
+    campaignDetails: {
+        regularUsersCostPerAction: string;
+        premiumUsersCostPerAction: string;
+        allowedAffiliates: string;
+        isPublicCampaign: boolean;
+        campaignExpiresInNumDays: string;
+        paymentMethod: string;
+        requiresAdvertiserApprovalForWithdrawl: boolean;
+    };
+    numAffiliates: string;
+    totalAffiliateEarnings: string;
+    state: string;
+    campaignStartTimestamp: string;
+    lastUserActionTimestamp: string;
+    numAdvertiserWithdrawls: string;
+    numAdvertiserSignOffs: string;
+    numUserActions: string;
+    campaignBalance: string;
+    maxCpaValue: string;
+    contractTonBalance: string;
+    contractAddress: string;
+    contractUSDTBalance: string;
+    contractUsdtJettonWallet: string;
+    advertiserFeePercentage: string;
+    affiliateFeePercentage: string;
+    campaignHasSufficientFundsToPayMaxCpa: boolean;
+    isCampaignExpired: boolean;
+    isCampaignPausedByAdmin: boolean;
+    campaignHasSufficientTonToPayGasFees: boolean;
+    isCampaignActive: boolean;
+    topAffiliates: string;
+};
