@@ -1,10 +1,3 @@
-
-
-// TON Blockchain Configuration
-const MNEMONIC = process.env.MNEMONIC || '';
-const tonClient = new TonClient({ network: { endpoints: ["main.ton.dev"] } }); // Update with appropriate network
-
-
 // Write verified event to the blockchain
 export async function writeEventToBlockchainMnemonics(campaignId: BigInt, advertiserAddress: string, affiliateId: BigInt, userActionOpCode: BigInt, isPremium: Boolean) {
 

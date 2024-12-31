@@ -52,7 +52,7 @@ export interface EventData {
     additionalData: Record<string, any>; // Additional data specific to the event
 }
 
-
+// verified event can be - user solved captcha, user joined group/channel, user stayed 2 weeks, etc...
 export async function logVerifiedEvent(userId: number, chatId: number, eventType: string, additionalData: Record<string, any> = {}): Promise<void> {
     const eventData: EventData = {
         timestamp: Date.now(),
@@ -158,12 +158,15 @@ export async function setCampaignDetails(
         status: updatedCampaign.status,
     });
 
+     // Add reverse lookup telegramChatId -> campaignId
+     await redisClient.set(`chat:${campaignInfo.telegramAsset.id}`, campaignId.toString());
+
     console.log(`Campaign ${campaignId} details updated by user ${advertiserTelegramId}`);
 
     return updatedCampaign;
 }
 
-export async function getCampaign(campaignId: number): Promise<Campaign | null> {
+export async function getCampaignById(campaignId: number): Promise<Campaign | null> {
     const campaignKey = `campaign:${campaignId}`;
 
     // Check if the campaign exists
@@ -185,6 +188,18 @@ export async function getCampaign(campaignId: number): Promise<Campaign | null> 
         telegramAsset: JSON.parse(campaignData.telegramAsset),
         status: campaignData.status,
     };
+}
+
+export async function getCampaignByChatId(chatId: number): Promise<Campaign | null> {
+    // Fetch the campaignId associated with the chatId
+    const campaignId = await redisClient.get(`chat:${chatId}`);
+    if (!campaignId) {
+        console.warn(`No campaign found for chat ID ${chatId}.`);
+        return null;
+    }
+
+    // Use the getCampaignById function to fetch campaign details
+    return await getCampaignById(Number(campaignId));
 }
 
 export async function getCampaignsForUser(userTelegramId: number): Promise<Campaign[]> {
@@ -214,7 +229,39 @@ export async function getCampaignsForUser(userTelegramId: number): Promise<Campa
 //------------------------------------------------------------------------------------------------------
 
 
-// User
+// Wallet data
+export interface WalletInfo {
+    address: string;          // TON wallet address
+    publicKey: string;        // Public key of the wallet
+    walletName: string;       // Name of the wallet (e.g., "Tonkeeper")
+    walletVersion: string;    // Version of the wallet (e.g., "2.0.1")
+    network: string;          // Network (e.g., "mainnet", "testnet")
+}
+
+export async function saveWalletInfo(telegramId: number, wallet: WalletInfo): Promise<void> {
+    const userWalletsKey = `user:${telegramId}:wallets`;
+
+    // Save wallet info as a hash.  Each telegram user can have one or more wallets.
+    await redisClient.hSet(`${userWalletsKey}:${wallet.address}`, {
+        address: wallet.address,
+        publicKey: wallet.publicKey,
+        walletName: wallet.walletName,
+        walletVersion: wallet.walletVersion,
+        network: wallet.network
+    });
+
+    // Add reverse lookup address -> telegramId
+    await redisClient.set(`address:${wallet.address}`, telegramId.toString());
+
+    console.log(`Wallet ${wallet.address} saved for user ${telegramId}`);
+}
+
+
+//----------------------------------------------------------------------------------------------------------
+
+
+
+// User (Telegram Data)
 export async function saveUserInfo(
     telegramId: number,
     info: { handle?: string; name?: string },

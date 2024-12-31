@@ -17,34 +17,38 @@ export async function run(provider: NetworkProvider, args: string[]) {
         ui.write(`Error: Contract at address ${campaignAddress} is not deployed!`);
         return;
     }
-		
+
 	const campaign = provider.open(Campaign.fromAddress(campaignAddress));
-	let campaignData = await campaign.getCampaignData();
-	
-	const affiliateToApprove = Address.parse(args.length > 2 ? args[2] : await ui.input('Affiliate address: '));
-	let isApproveBefore = campaignData.campaignDetails.allowedAffiliates.get(affiliateToApprove);
-	if (isApproveBefore) {
-		ui.write(`Error: Affiliate already approved at address ${campaignAddress}`);
-		return;
+
+	const affiliateId = BigInt(args.length > 2 ? args[2] : await ui.input('Affiliate Id'));	
+	let affiliateData = await campaign.getAffiliateData(affiliateId);
+	if (affiliateData == null) {
+		ui.write(`Error: No such affiliate ${affiliateId} in campaign: ${campaignId}!`);
+        return;
 	}
-			
+
+	let affiliateStateBefore = affiliateData.state;
+	if (affiliateStateBefore == BigInt(1)) {
+		ui.write(`Error: Affiliate ${affiliateId} is already approved for campaign: ${campaignId}!`);
+        return;
+	}
+	
 	await campaign.send(
         provider.sender(),
         { 
 			value: GAS_FEE 
 		},
         { 
-			$$type: 'AdvertiserAddNewAffiliateToAllowedList',
-			affiliate: affiliateToApprove
+			$$type: 'AdvertiserApproveAffiliate',
+			affiliateId: affiliateId
 		}
 	);
 		
-    ui.write('Waiting for campaign to update allowed affiliates...');
+    ui.write('Waiting for campaign to update affiliate state...');
 	
-	campaignData = await campaign.getCampaignData();
-	let isApproveAfter = campaignData.campaignDetails.allowedAffiliates.get(affiliateToApprove);
+	let affiliateStateAfter = affiliateData.state;
     let attempt = 1;
-    while(isApproveBefore === isApproveAfter) {
+    while(affiliateStateBefore === affiliateStateAfter) {
 		
 		if (attempt == MAX_ATTEMPTS) {
 			// tx failed
@@ -54,8 +58,8 @@ export async function run(provider: NetworkProvider, args: string[]) {
 	
         ui.setActionPrompt(`Attempt ${attempt}`);
         await sleep(2000);
-		campaignData = await campaign.getCampaignData();
-		isApproveAfter = campaignData.campaignDetails.allowedAffiliates.get(affiliateToApprove);
+		affiliateData = await campaign.getAffiliateData(affiliateId);
+		affiliateStateAfter = affiliateData!.state;
         attempt++;
     }
 	
