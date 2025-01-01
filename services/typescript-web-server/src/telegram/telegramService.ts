@@ -6,67 +6,114 @@ dotenv.config();
 
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || '';
 const TELEGRAM_API_URL = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}`;
-const BOT_USERNAME = process.env.BOT_USERNAME || '';
 
-export async function createTelegramAssetAndVerifyAdminPrivileges(
-    channelName: string
-): Promise<TelegramAsset | string> {
+export async function createTelegramAssetFromUrl(url: string): Promise<TelegramAsset | string> {
     try {
-        console.log(`Processing channel: ${channelName}`);
+        console.log(`Processing URL: ${url}`);
 
-        // Fetch updates to identify the channel
-        const updatesResponse = await axios.get(`${TELEGRAM_API_URL}/getUpdates`);
-        const updates = updatesResponse.data.result;
+        // Updated regex for extracting invite code or username
+        const inviteRegex = /t\.me\/\+([a-zA-Z0-9_-]+)/; // Private invite links
+        const publicRegex = /t\.me\/([a-zA-Z0-9_]+)/;   // Public channels
 
-        const chatUpdate = updates.reverse().find((update: any) => {
-            const chat = update.my_chat_member?.chat;
-            return chat && (chat.username === channelName || chat.title === channelName);
-        });
+        let inviteCode: string | null = null;
+        let username: string | null = null;
 
-        if (!chatUpdate || !chatUpdate.my_chat_member?.chat?.id) {
-            return `No updates found for the channel: ${channelName}. Ensure the bot is added as an admin.`;
+        if (inviteRegex.test(url)) {
+            inviteCode = url.match(inviteRegex)?.[1] || null;
+            console.log(`Invite code extracted: ${inviteCode}`);
+        } else if (publicRegex.test(url)) {
+            username = url.match(publicRegex)?.[1] || null;
+            console.log(`Public username extracted: ${username}`);
+        } else {
+            console.error(`Invalid URL format provided: ${url}`);
+            return `Invalid channel or invite link provided: ${url}.`;
         }
 
-        const chatId = chatUpdate.my_chat_member.chat.id;
+        let chatId: string | null = null;
+        let chatType: string | null = null;
+        let chatTitle: string | null = null;
 
-        // Fetch detailed chat data
-        const chatDetailsResponse = await axios.get(`${TELEGRAM_API_URL}/getChat`, {
+        if (inviteCode) {
+            console.log('Fetching updates to resolve private chat ID...');
+            const updatesResponse = await axios.get(`${TELEGRAM_API_URL}/getUpdates`);
+            const updates = updatesResponse.data.result;
+        
+            console.log('Updates received:', JSON.stringify(updates, null, 2));
+        
+            const chatUpdate = updates.reverse().find((update: any) => {
+                const chat = update.my_chat_member?.chat;
+        
+                // Match by invite link, title, or other attributes
+                return (
+                    chat &&
+                    (chat.invite_link?.includes(inviteCode) || chat.title?.includes('TestChannel')) // Adjust matching criteria as needed
+                );
+            });
+        
+            if (chatUpdate && chatUpdate.my_chat_member?.chat?.id) {
+                chatId = chatUpdate.my_chat_member.chat.id;
+                chatType = chatUpdate.my_chat_member.chat.type;
+                chatTitle = chatUpdate.my_chat_member.chat.title;
+                console.log(`Chat ID resolved from updates: ${chatId}`);
+            } else {
+                console.error('No matching chat updates found.');
+                return `The bot cannot access the private channel with invite link: ${url}. Ensure the bot is added as an admin and has received recent updates.`;
+            }
+        }
+         else if (username) {
+            console.log(`Fetching details for public username: ${username}`);
+            const chatDetailsResponse = await axios.get(`${TELEGRAM_API_URL}/getChat`, {
+                params: { chat_id: `@${username}` },
+            });
+            const chatDetails = chatDetailsResponse.data.result;
+            chatId = chatDetails.id;
+            chatType = chatDetails.type;
+            chatTitle = chatDetails.title;
+            console.log(`Chat details fetched successfully: ${chatId}`);
+        }
+
+        if (!chatId || !chatType) {
+            return `Failed to resolve chat ID or type for URL: ${url}.`;
+        }
+
+        console.log('Verifying bot admin privileges...');
+        const adminResponse = await axios.get(`${TELEGRAM_API_URL}/getChatAdministrators`, {
             params: { chat_id: chatId },
         });
-        const chatDetails = chatDetailsResponse.data.result;
 
-        console.log('Chat details:', chatDetails);
+        const admins = adminResponse.data.result;
+        const botAdmin = admins.find((admin: any) => admin.user.is_bot);
 
-        // Determine if the channel is public or private
-        const isPublic = !!chatDetails.username; // Public if username exists
-        const url = isPublic
-            ? `https://t.me/${chatDetails.username}`
-            : chatDetails.invite_link || '';
-
-        if (!url) {
-            return `Could not determine the URL for the channel: ${channelName}.`;
+        if (!botAdmin) {
+            return `The bot is not an admin in the channel. Please add the bot as an admin.`;
         }
 
-        // Create and return the TelegramAsset object
+        if (!botAdmin.can_invite_users) {
+            return `The bot does not have sufficient privileges (e.g., "Add members") in the channel. Ensure "Add members" is enabled.`;
+        }
+
+        const isPublic = !!username;
+        const urlForChannel = isPublic ? `https://t.me/${username}` : url;
+
         const telegramAsset: TelegramAsset = {
-            id: chatId,
-            name: chatDetails.username || chatDetails.title || '',
-            type: mapChatTypeToAssetType(chatDetails.type),
+            id: Number(chatId),
+            name: chatTitle || username || inviteCode || 'Unknown',
+            type: mapChatTypeToAssetType(chatType),
             isPublic,
-            url,
+            url: urlForChannel,
         };
 
         console.log('TelegramAsset:', JSON.stringify(telegramAsset, null, 2));
         return telegramAsset;
     } catch (error: any) {
-        console.error(`Error processing channel ${channelName}:`, error);
+        console.error(`Error processing URL: ${url}`, error);
 
         if (error.response?.status === 403) {
-            return `The bot lacks permissions to access the channel: ${channelName}.`;
+            return `The bot lacks permissions to access the chat associated with: ${url}.`;
         } else if (error.response?.status === 400) {
-            return `Invalid channel name: ${channelName}.`;
+            return `Invalid URL provided: ${url}.`;
         }
-        return `An unexpected error occurred while processing the channel: ${channelName}.`;
+        return `An unexpected error occurred while processing the URL: ${url}.`;
     }
 }
 

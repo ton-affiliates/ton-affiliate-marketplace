@@ -1,33 +1,29 @@
 import express, { Router, Request, Response } from 'express';
-import { createTelegramAssetAndVerifyAdminPrivileges } from '../telegram/telegramService';
+import { createTelegramAssetFromUrl } from '../telegram/telegramService';
 
 const router: Router = express.Router();
 
 /**
- * Verify Admin Privileges and Create TelegramAsset
+ * Verify Admin Privileges and Create TelegramAsset from URL
  */
 router.post('/verify-and-create', async (req: Request, res: Response): Promise<void> => {
-    const { channelName } = req.body;
+    const { url } = req.body;
 
-    if (!channelName) {
-        res.status(400).json({ error: 'Missing required parameter: channelName' });
+    if (!url) {
+        res.status(400).json({ error: 'Missing required parameter: url' });
         return;
     }
 
     try {
-        const result = await createTelegramAssetAndVerifyAdminPrivileges(channelName);
+        const result = await createTelegramAssetFromUrl(url);
 
         if (typeof result === 'string') {
-            // If the function returned an error message
             res.status(400).json({ error: result });
         } else {
-            // Success - Return the TelegramAsset object
-            res.status(200).json({
-                telegramAsset: result
-            });
+            res.status(200).json({ telegramAsset: result });
         }
     } catch (error) {
-        console.error('Error verifying admin privileges or creating TelegramAsset:', error);
+        console.error('Error processing the URL:', error);
         res.status(500).json({ error: 'Failed to process the request' });
     }
 });
