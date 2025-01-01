@@ -5,7 +5,8 @@ import express from 'express';
 import campaignsRouter from './api/campaign'; // Adjust the path as per your file structure
 import usersRouter from './api/user'
 import walletRouter from './api/wallet'
-import authRouter from './api/authentication'
+// import authRouter from './api/authentication'
+import botRouter from './api/bot'
 
 // Load environment variables
 dotenv.config();
@@ -24,7 +25,9 @@ app.use(express.json()); // For parsing JSON request bodies
 app.use('/campaign', campaignsRouter);
 app.use('/user', usersRouter);
 app.use('/wallet', walletRouter);
-app.use('/auth', authRouter);
+// app.use('/auth', authRouter);
+app.use('/bot', botRouter);
+
 
 // Start the server
 httpServer.listen(PORT, () => {

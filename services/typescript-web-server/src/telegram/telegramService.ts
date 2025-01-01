@@ -1,114 +1,72 @@
 import axios from 'axios';
 import { TelegramAsset, TelegramAssetType } from '../../../common/models';
+import dotenv from 'dotenv';
 
-const TELEGRAM_BOT_TOKEN: string = process.env.TELEGRAM_BOT_TOKEN || '';
+dotenv.config();
+
+const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || '';
 const TELEGRAM_API_URL = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}`;
-const BOT_USERNAME: string = process.env.BOT_USERNAME || '';
+const BOT_USERNAME = process.env.BOT_USERNAME || '';
 
-if (!TELEGRAM_BOT_TOKEN) {
-    console.error('Error: TELEGRAM_BOT_TOKEN is not set in the .env file.');
-    process.exit(1);
-}
-
-if (!BOT_USERNAME) {
-    console.error('Error: BOT_USERNAME is not set in the .env file.');
-    process.exit(1);
-}
-
-/**
- * Send a message to a Telegram chat
- */
-export async function sendTelegramMessage(chatId: number, message: string): Promise<void> {
+export async function createTelegramAssetAndVerifyAdminPrivileges(
+    channelName: string
+): Promise<TelegramAsset | string> {
     try {
-        await axios.post(`${TELEGRAM_API_URL}/sendMessage`, {
-            chat_id: chatId,
-            text: message,
+        console.log(`Processing channel: ${channelName}`);
+
+        // Fetch updates to identify the channel
+        const updatesResponse = await axios.get(`${TELEGRAM_API_URL}/getUpdates`);
+        const updates = updatesResponse.data.result;
+
+        const chatUpdate = updates.reverse().find((update: any) => {
+            const chat = update.my_chat_member?.chat;
+            return chat && (chat.username === channelName || chat.title === channelName);
         });
-        console.log(`Message sent to Telegram chat ID: ${chatId}`);
-    } catch (error) {
-        console.error(`Failed to send Telegram message: ${error}`);
-    }
-}
 
-/**
- * Verify if the bot is an admin in a specified chat
- */
-export async function isBotAdminInChat(chatId: number): Promise<boolean> {
-    try {
-        const response = await axios.get(`${TELEGRAM_API_URL}/getChatAdministrators`, {
+        if (!chatUpdate || !chatUpdate.my_chat_member?.chat?.id) {
+            return `No updates found for the channel: ${channelName}. Ensure the bot is added as an admin.`;
+        }
+
+        const chatId = chatUpdate.my_chat_member.chat.id;
+
+        // Fetch detailed chat data
+        const chatDetailsResponse = await axios.get(`${TELEGRAM_API_URL}/getChat`, {
             params: { chat_id: chatId },
         });
+        const chatDetails = chatDetailsResponse.data.result;
 
-        const admins = response.data.result;
+        console.log('Chat details:', chatDetails);
 
-        // Check if the bot is listed as an admin
-        const isAdmin = admins.some(
-            (admin: any) => admin.user.is_bot && admin.user.username === BOT_USERNAME
-        );
+        // Determine if the channel is public or private
+        const isPublic = !!chatDetails.username; // Public if username exists
+        const url = isPublic
+            ? `https://t.me/${chatDetails.username}`
+            : chatDetails.invite_link || '';
 
-        return isAdmin;
-    } catch (error) {
-        console.error(`Failed to verify bot admin status for chat ID ${chatId}:`, error);
-        throw new Error('Error verifying bot admin status');
-    }
-}
+        if (!url) {
+            return `Could not determine the URL for the channel: ${channelName}.`;
+        }
 
-
-export async function isBotAdminInChatByHandle(handle: string): Promise<boolean> {
-    try {
-        // First, fetch the chat ID using the handle
-        const chatResponse = await axios.get(`${TELEGRAM_API_URL}/getChat`, {
-            params: { username: handle },
-        });
-
-        const chatId = chatResponse.data.result.id;
-
-        // Then, check if the bot is an admin in the fetched chat ID
-        const adminResponse = await axios.get(`${TELEGRAM_API_URL}/getChatAdministrators`, {
-            params: { chat_id: chatId },
-        });
-
-        const admins = adminResponse.data.result;
-
-        // Check if the bot is listed as an admin
-        const isAdmin = admins.some(
-            (admin: any) => admin.user.is_bot && admin.user.username === BOT_USERNAME
-        );
-
-        return isAdmin;
-    } catch (error) {
-        console.error(`Failed to verify bot admin status for handle ${handle}:`, error);
-        throw new Error('Error verifying bot admin status');
-    }
-}
-
-
-
-/**
- * Fetch Telegram Asset Details
- * @param chatId - The unique identifier of the chat or group
- * @returns TelegramAsset object
- */
-export async function createTelegramAsset(chatId: number): Promise<TelegramAsset> {
-    try {
-        const response = await axios.post(`${TELEGRAM_API_URL}/getChat`, { chat_id: chatId });
-
-        const chatData = response.data.result;
-
+        // Create and return the TelegramAsset object
         const telegramAsset: TelegramAsset = {
-            id: chatData.id,
-            name: chatData.username || chatData.title || '', // Public username or chat title
-            type: mapChatTypeToAssetType(chatData.type),
-            isPublic: !!chatData.username, // If the username exists, it is public
-            url: chatData.username
-                ? `https://t.me/${chatData.username}`
-                : `https://t.me/+${chatData.invite_link || ''}`, // Public or private link
+            id: chatId,
+            name: chatDetails.username || chatDetails.title || '',
+            type: mapChatTypeToAssetType(chatDetails.type),
+            isPublic,
+            url,
         };
 
+        console.log('TelegramAsset:', JSON.stringify(telegramAsset, null, 2));
         return telegramAsset;
-    } catch (error) {
-        console.error(`Failed to fetch chat details: ${error}`);
-        throw new Error('Unable to create TelegramAsset object');
+    } catch (error: any) {
+        console.error(`Error processing channel ${channelName}:`, error);
+
+        if (error.response?.status === 403) {
+            return `The bot lacks permissions to access the channel: ${channelName}.`;
+        } else if (error.response?.status === 400) {
+            return `Invalid channel name: ${channelName}.`;
+        }
+        return `An unexpected error occurred while processing the channel: ${channelName}.`;
     }
 }
 

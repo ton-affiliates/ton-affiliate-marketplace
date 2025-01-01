@@ -3,7 +3,7 @@ import { createServer } from 'http';
 import { createClient, RedisClientType } from 'redis';
 import axios from 'axios';
 import { getUserByTonAddress, getCampaignByChatId, getUserInfo } from "../redis/redis"
-import { sendTelegramMessage } from '../telegram/telegram'
+import { sendTelegramMessage } from '../telegram/telegramService'
 
 
 // Process events and send messages
