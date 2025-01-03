@@ -46,11 +46,10 @@ export interface WalletInfo {
 
 // campaign in telegram
 export interface TelegramCampaign {
-    campaignId: string;
     name: string;
     description: string;
     category: TelegramCategory;
-    telegramAsset: TelegramAsset;
+    telegramAsset: TelegramAsset;  
 }
 
 // Define the EventData type

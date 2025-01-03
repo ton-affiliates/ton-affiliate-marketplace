@@ -1,0 +1,31 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.TelegramCategory = exports.TelegramAssetType = void 0;
+var TelegramAssetType;
+(function (TelegramAssetType) {
+    TelegramAssetType[TelegramAssetType["CHANNEL"] = 0] = "CHANNEL";
+    TelegramAssetType[TelegramAssetType["GROUP"] = 1] = "GROUP";
+    TelegramAssetType[TelegramAssetType["SUPER_GROUP"] = 2] = "SUPER_GROUP";
+    TelegramAssetType[TelegramAssetType["FORUM"] = 3] = "FORUM";
+    TelegramAssetType[TelegramAssetType["MINI_APP"] = 4] = "MINI_APP";
+})(TelegramAssetType || (exports.TelegramAssetType = TelegramAssetType = {}));
+var TelegramCategory;
+(function (TelegramCategory) {
+    TelegramCategory["GAMING"] = "Gaming";
+    TelegramCategory["CRYPTO"] = "Crypto";
+    TelegramCategory["TECHNOLOGY"] = "Technology";
+    TelegramCategory["LIFESTYLE"] = "Lifestyle";
+    TelegramCategory["EDUCATION"] = "Education";
+    TelegramCategory["HEALTH"] = "Health";
+    TelegramCategory["TRAVEL"] = "Travel";
+    TelegramCategory["FINANCE"] = "Finance";
+    TelegramCategory["ENTERTAINMENT"] = "Entertainment";
+    TelegramCategory["POLITICS"] = "Politics";
+    TelegramCategory["SOCIAL"] = "Social";
+    TelegramCategory["SPORTS"] = "Sports";
+    TelegramCategory["NEWS"] = "News";
+    TelegramCategory["SCIENCE"] = "Science";
+    TelegramCategory["ART"] = "Art";
+    TelegramCategory["MUSIC"] = "Music";
+    TelegramCategory["OTHER"] = "Other";
+})(TelegramCategory || (exports.TelegramCategory = TelegramCategory = {}));

@@ -1,8 +1,10 @@
 {
   "name": "typescript-web-server",
   "version": "1.0.0",
-  "main": "server.ts",
+  "main": "dist/server.js",
   "scripts": {
+    "start": "node dist/server.js",
+    "build": "tsc",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
@@ -11,12 +13,30 @@
   "type": "commonjs",
   "description": "",
   "dependencies": {
-    "express": "^4.21.2"
+    "@orbs-network/ton-access": "^2.3.3",
+    "@ton/blueprint": "^0.27.0",
+    "@ton/core": "^0.59.1",
+    "@ton/ton": "^15.1.0",
+    "axios": "^1.7.9",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "ioredis": "^5.4.2",
+    "redis": "^4.7.0",
+    "module-alias": "^2.2.2"  
   },
   "devDependencies": {
+    "@types/axios": "^0.9.36",
+    "@types/dotenv": "^6.1.1",
     "@types/express": "^5.0.0",
+    "@types/ioredis": "^4.28.10",
     "@types/node": "^22.10.2",
+    "@types/redis": "^4.0.10",
     "ts-node": "^10.9.2",
     "typescript": "^5.7.2"
+  },
+  "_moduleAliases": {
+    "@common": "dist/common",
+    "@wrappers": "dist/wrappers",
+    "@build": "dist/build"
   }
 }

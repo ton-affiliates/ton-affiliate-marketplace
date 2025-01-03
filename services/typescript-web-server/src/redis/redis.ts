@@ -1,6 +1,6 @@
 // redisCommon.ts - Common Redis Utilities
 import { createClient, RedisClientType } from 'redis';
-import {EventData, TelegramCampaign, TelegramAsset, TelegramAssetType, TelegramCategory, WalletInfo} from '../../../common/models';
+import {EventData, TelegramCampaign, TelegramAsset, TelegramAssetType, TelegramCategory, WalletInfo} from '@common/models';
 
 // Initialize Redis client
 const redisClient: RedisClientType = createClient({ url: process.env.REDIS_URL || 'redis://localhost:6379' });
@@ -33,23 +33,17 @@ export async function setTelegramCampaignDetails(
     campaignId: number,
     campaignInfo: Omit<TelegramCampaign, 'campaignId'>
 ): Promise<TelegramCampaign> {
+    
     const campaignKey = `campaign:${campaignId}`;
 
     // Check if the campaign exists
     const campaignExists = await redisClient.exists(campaignKey);
-    if (!campaignExists) {
-        throw new Error(`Campaign with ID ${campaignId} does not exist.`);
-    }
-
-    // Get the current status of the campaign
-    const currentStatus = await redisClient.hGet(campaignKey, 'status');
-    if (currentStatus !== 'EMPTY') {
-        throw new Error(`Campaign with ID ${campaignId} is not empty and cannot be updated.`);
+    if (campaignExists) {
+        throw new Error(`Campaign with ID ${campaignId} already exists.`);
     }
 
     // Update the campaign details
     const updatedCampaign: TelegramCampaign = {
-        campaignId: campaignId.toString(),
         name: campaignInfo.name,
         description: campaignInfo.description || '',
         category: campaignInfo.category,
@@ -86,7 +80,6 @@ export async function getCampaignById(campaignId: number): Promise<TelegramCampa
 
     // Parse the data into the required structure
     return {
-        campaignId: campaignId.toString(),
         name: campaignData.name,
         description: campaignData.description || '',
         category: campaignData.category as TelegramCategory,

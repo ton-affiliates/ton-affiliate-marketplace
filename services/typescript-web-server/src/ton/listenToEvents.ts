@@ -1,7 +1,5 @@
 
-//https://github.com/nikandr-surkov/Defi-on-Ton-Youtube-Lesson-11
-import { AFFILIATE_MARKETPLACE_ADDRESS, HTTP_ENDPOINT_NETWORK } from "../../../../scripts/constants"
-// import { TonClient } from "@ton/ton";
+import { AFFILIATE_MARKETPLACE_ADDRESS, HTTP_ENDPOINT_NETWORK } from "@common/constants"
 import { getHttpV4Endpoint } from "@orbs-network/ton-access";
 import { TonClient4 } from "@ton/ton";
 import { 
@@ -16,7 +14,7 @@ loadAffiliateCreatedEvent,
 CampaignCreatedEvent,
 loadCampaignCreatedEvent, 
 AdvertiserWithdrawFundsEvent,
-loadAdvertiserWithdrawFundsEvent } from "../../../../wrappers/AffiliateMarketplace";
+loadAdvertiserWithdrawFundsEvent } from "@wrappers/AffiliateMarketplace";
 import { Cell } from "@ton/core";
 
 // Event types from the ABI

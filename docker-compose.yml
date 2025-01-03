@@ -1,0 +1,33 @@
+services:
+  web-server:
+    build:
+      context: .
+      dockerfile: ./services/typescript-web-server/Dockerfile
+    volumes:
+      # Mount only the necessary source directories
+      - ./services/typescript-web-server/src:/usr/src/app/src
+      - ./services/common:/usr/src/app/src/common
+      - ./wrappers:/usr/src/app/src/wrappers
+      - ./build:/usr/src/app/src/build
+      # Use an anonymous volume for node_modules to prevent overwriting
+      - /usr/src/app/node_modules
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+    env_file:
+      - ./services/typescript-web-server/.env
+    depends_on:
+      - redis
+    
+
+  redis:
+    image: redis:latest
+    container_name: redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+
+volumes:
+  redis-data:
