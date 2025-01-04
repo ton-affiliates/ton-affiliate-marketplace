@@ -5,7 +5,7 @@ import { useTonConnectFetchContext } from '../TonConnectProvider';
 //import { useCounterContract } from '../hooks/useCounterContract';
 
 interface NewCampaignProps {
-    setScreen: React.Dispatch<React.SetStateAction<'main' | 'advertiser' | 'campaign' | 'status'>>;
+    setScreen: React.Dispatch<React.SetStateAction<'main' | 'advertiser' | 'campaign' | 'status' | 'setupTelegram'>>;
 }
 
 type CommissionableEventKeys = 'userReferred' | 'premiumUserReferred' | 'userRetained' | 'userActive';

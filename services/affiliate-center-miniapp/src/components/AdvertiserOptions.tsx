@@ -2,7 +2,7 @@ import React from 'react';
 import { motion } from 'framer-motion';
 
 interface AdvertiserOptionsProps {
-    setScreen: React.Dispatch<React.SetStateAction<'main' | 'advertiser' | 'campaign' | 'status'>>;
+    setScreen: React.Dispatch<React.SetStateAction<'main' | 'advertiser' | 'campaign' | 'status' | 'setupTelegram'>>;
 }
 
 const AdvertiserOptions: React.FC<AdvertiserOptionsProps> = ({ setScreen }) => {
@@ -25,7 +25,7 @@ const AdvertiserOptions: React.FC<AdvertiserOptionsProps> = ({ setScreen }) => {
                 <div className="button-group">
                     <button
                         className="custom-button no-padding"
-                        onClick={() => setScreen('campaign')}
+                        onClick={() => setScreen('setupTelegram')}
                     >
                         Set up a new campaign
                     </button>
