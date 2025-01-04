@@ -7,9 +7,11 @@ import CampaignStatus from './components/CampaignStatus';
 import NewCampaign from './components/NewCampaign';
 import { TonConnectProvider } from './TonConnectProvider';
 import { TelegramProvider } from './TelegramContext';
+import { TelegramCampaignProvider } from './TelegramCampaignContext';
+import TelegramSetup from './components/TelegramSetup';
 
 const App: React.FC = () => {
-    const [screen, setScreen] = useState<'main' | 'advertiser' | 'campaign' | 'status'>('main');
+    const [screen, setScreen] = useState<'main' | 'advertiser' | 'campaign' | 'status' | 'setupTelegram'>('main');
 
     const renderScreen = () => {
         switch (screen) {
@@ -21,6 +23,8 @@ const App: React.FC = () => {
               return <NewCampaign setScreen={setScreen} />;
               case 'status':
                 return <CampaignStatus setScreen={setScreen} />;
+            case 'setupTelegram':
+                return <TelegramSetup setScreen={setScreen} />;
             default:
                 return null;
         }
@@ -36,9 +40,11 @@ const App: React.FC = () => {
         >
             {/* <UserRoleProvider> */}
             <TelegramProvider>
-              <TonConnectProvider>
-                {renderScreen()}
-              </TonConnectProvider>
+                <TelegramCampaignProvider>
+                    <TonConnectProvider>
+                        {renderScreen()}
+                    </TonConnectProvider>
+              </TelegramCampaignProvider>
             </TelegramProvider>
             {/* </UserRoleProvider> */}
         </motion.div>

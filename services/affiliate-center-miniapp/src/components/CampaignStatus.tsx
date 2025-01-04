@@ -1,14 +1,94 @@
-import React, { useState } from 'react';
+import React, {  useState } from 'react';
 import { useUserRole } from "../UserRoleContext";
 import { TonConnectButton } from '@tonconnect/ui-react';
-import {  } from '../hooks/useTonConnect';
+//import { useTonConnect } from '../hooks/useTonConnect';
 import { motion } from 'framer-motion';
 import { useTonConnectFetchContext } from '../TonConnectProvider';
+//import { io } from 'socket.io-client';
 import useSocket from '../hooks/useSocket'; // Correct default import
+//import { CampaignDetails } from './CampaignDetails';
 
 interface CampaignStatusProps {
-    setScreen: React.Dispatch<React.SetStateAction<'main' | 'advertiser' | 'campaign' | 'status'>>;
+    setScreen: React.Dispatch<React.SetStateAction<'main' | 'advertiser' | 'campaign' | 'status' | 'setupTelegram'>>;
 }
+
+//   const campaignMap: { [key: string]: CampaignDetails } = {
+//     "3969379339": {
+//       campaignId: "3969379339",
+//       advertiser: "EQCslGoFs0l5iNsxK47W6gAedbdZ51lR_ZUm5prC8RUoL39o",
+//       owner: "EQC7JRZSSZMiQEnw_bShtIfuLbIyFNfIHE8S2IJBVshgL-1W",
+//       payout: "EQCslGoFs0l5iNsxK47W6gAedbdZ51lR_ZUm5prC8RUoL39o",
+//       campaignDetails: {
+//         regularUsersCostPerAction: "0: 0.2",
+//         premiumUsersCostPerAction: "0: 0.2",
+//         allowedAffiliates: "",
+//         isPublicCampaign: true,
+//         campaignExpiresInNumDays: "No Expiration",
+//         paymentMethod: "USDT",
+//         requiresAdvertiserApprovalForWithdrawl: false,
+//       },
+//       numAffiliates: "0",
+//       totalAffiliateEarnings: "0",
+//       state: "1",
+//       campaignStartTimestamp: "22/12/2024, 13:37:20",
+//       lastUserActionTimestamp: "01/01/1970, 2:00:00",
+//       numAdvertiserWithdrawls: "0",
+//       numAdvertiserSignOffs: "0",
+//       numUserActions: "0",
+//       campaignBalance: "0",
+//       maxCpaValue: "0.2",
+//       contractTonBalance: "0.172914241",
+//       contractAddress: "EQAjGgLZ8HE-cRFlWnmPJXTxkaPpmwpgTvrsdMtZmi4Ef4Aq",
+//       contractUSDTBalance: "0",
+//       contractUsdtJettonWallet: "EQBROtQznU4a0Gyroul5q2xY2TnGGTwtLHazLWZVtx6cwB_h",
+//       advertiserFeePercentage: "0",
+//       affiliateFeePercentage: "200",
+//       campaignHasSufficientFundsToPayMaxCpa: false,
+//       isCampaignExpired: false,
+//       isCampaignPausedByAdmin: false,
+//       campaignHasSufficientTonToPayGasFees: false,
+//       isCampaignActive: false,
+//       topAffiliates: "",
+//     },
+//     "3969379340": {
+//         campaignId: "3969379340",
+//         advertiser: "EQFakeAdvertiser...",
+//         owner: "EQFakeOwner...",
+//         payout: "EQFakePayout...",
+//         campaignDetails: {
+//         regularUsersCostPerAction: "0: 0.3",
+//         premiumUsersCostPerAction: "0: 0.4",
+//         allowedAffiliates: "",
+//         isPublicCampaign: true,
+//         campaignExpiresInNumDays: "No Expiration",
+//         paymentMethod: "TON",
+//         requiresAdvertiserApprovalForWithdrawl: true,
+//         },
+//         numAffiliates: "5",
+//         totalAffiliateEarnings: "1.5",
+//         state: "1",
+//         campaignStartTimestamp: "21/12/2024, 13:37:20",
+//         lastUserActionTimestamp: "01/01/1970, 2:00:00",
+//         numAdvertiserWithdrawls: "0",
+//         numAdvertiserSignOffs: "0",
+//         numUserActions: "0",
+//         campaignBalance: "1",
+//         maxCpaValue: "0.4",
+//         contractTonBalance: "0.5",
+//         contractAddress: "EQFakeAddress...",
+//         contractUSDTBalance: "1",
+//         contractUsdtJettonWallet: "EQFakeWallet...",
+//         advertiserFeePercentage: "0",
+//         affiliateFeePercentage: "200",
+//         campaignHasSufficientFundsToPayMaxCpa: true,
+//         isCampaignExpired: false,
+//         isCampaignPausedByAdmin: false,
+//         campaignHasSufficientTonToPayGasFees: true,
+//         isCampaignActive: true,
+//         topAffiliates: "Affiliate1, Affiliate2",
+//     },
+//   };
+
   
 
 
@@ -20,6 +100,8 @@ const CampaignStatus: React.FC<CampaignStatusProps> = ({ setScreen }) => {
     const [showCampaignData, setShowCampaignData] = useState(false);
     const [isPopupOpen, setIsPopupOpen] = useState(false);
     const { userRole } = useUserRole();
+
+    //const [campaignIds, setCampaignIds] = useState<string[]>([]);
 
     const { campaignsIds, campaignDetailsFromId, fetchCampaignDetails } = useSocket('http://localhost:5000'); // Backend URL
 
@@ -40,11 +122,18 @@ const CampaignStatus: React.FC<CampaignStatusProps> = ({ setScreen }) => {
         setIsPopupOpen(false);
     };
 
+   // const getCampaignIds = () => Object.keys(campaignMap);
+
+    // const getCampaignById = (id: string) => {
+    //     return campaignMap[id] || null;
+    // };
+
     const handleCampaignSelect = (id: string) => {
         if (id) {
             fetchCampaignDetails(id);
           }
         setSelectedCampaignId(id);
+        //const campaign = getCampaignById(id);
        // setSelectedCampaign(campaign);
         setShowStatusDetails(false); // Reset the status details expander
         setShowCampaignData(false);

@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 
 interface CampaignOptionsProps {
     option: 'campaign' | 'status';
-    setScreen: React.Dispatch<React.SetStateAction<'main' | 'advertiser' | 'campaign' | 'status'>>;
+    setScreen: React.Dispatch<React.SetStateAction<'main' | 'advertiser' | 'campaign' | 'status' | 'setupTelegram'>>;
 }
 
 const CampaignOptions: React.FC<CampaignOptionsProps> = ({ option, setScreen }) => {
