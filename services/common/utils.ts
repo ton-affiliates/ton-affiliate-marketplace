@@ -1,20 +1,20 @@
-import { Address } from "@ton/core";
+// import { Address } from "@ton/core";
 
 
-function translateRawAddress(rawAddress: { workChain: number; hash: { type: string; data: number[] } }): Address {
-    if (!rawAddress || rawAddress.hash.type !== 'Buffer') {
-        throw new Error('Invalid raw address format');
-    }
+// function translateRawAddress(rawAddress: { workChain: number; hash: { type: string; data: number[] } }): Address {
+//     if (!rawAddress || rawAddress.hash.type !== 'Buffer') {
+//         throw new Error('Invalid raw address format');
+//     }
 
-    const workChain = rawAddress.workChain;
-    const hashBuffer = Buffer.from(rawAddress.hash.data);
+//     const workChain = rawAddress.workChain;
+//     const hashBuffer = Buffer.from(rawAddress.hash.data);
 
-    if (hashBuffer.length !== 32) {
-        throw new Error(`Invalid address hash length: ${hashBuffer.length}`);
-    }
+//     if (hashBuffer.length !== 32) {
+//         throw new Error(`Invalid address hash length: ${hashBuffer.length}`);
+//     }
 
-    return Address.parseRaw(`${workChain}:${hashBuffer.toString('hex')}`);
-}
+//     return Address.parseRaw(`${workChain}:${hashBuffer.toString('hex')}`);
+// }
 
 
 // // Subscribe to the Redis channel

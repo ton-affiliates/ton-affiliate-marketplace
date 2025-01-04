@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { TonConnectButton } from '@tonconnect/ui-react';
-import { useTonConnect } from '../hooks/useTonConnect';
 import { useTonConnectFetchContext } from '../TonConnectProvider';
 //import { useCounterContract } from '../hooks/useCounterContract';
 

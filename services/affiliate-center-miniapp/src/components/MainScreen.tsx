@@ -2,7 +2,6 @@ import React, { useContext } from 'react';
 import { motion } from 'framer-motion';
 import { useUserRole } from "../UserRoleContext";
 import { TelegramContext } from '../TelegramContext';
-import TelegramInfoPane from './TelegramInfoPane';
 import useScrollToTop from '../hooks/scrollToStart';
 
 interface MainScreenProps {
@@ -12,7 +11,7 @@ interface MainScreenProps {
 const MainScreen: React.FC<MainScreenProps> = ({ setScreen }) => {
 
     const { setUserRole } = useUserRole();
-    const { userInfo, initData, initDataUnsafe } = useContext(TelegramContext);
+    const { userInfo } = useContext(TelegramContext);
     const handleRoleSelection = (role: "Advertiser" | "Affiliate") => {
       setUserRole(role);
       // Navigate to the next screen here

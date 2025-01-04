@@ -19,7 +19,6 @@ services:
       - ./services/typescript-web-server/.env
     depends_on:
       - redis
-    
 
   redis:
     image: redis:latest
@@ -28,6 +27,16 @@ services:
       - "6379:6379"
     volumes:
       - redis-data:/data
+
+
+  mini-app:
+    build:
+      context: .
+      dockerfile: ./services/affiliate-center-miniapp/Dockerfile
+    ports:
+      - "8080:80"
+    environment:
+      - NODE_ENV=production
 
 volumes:
   redis-data:
