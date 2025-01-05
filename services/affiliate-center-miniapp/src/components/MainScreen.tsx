@@ -5,7 +5,7 @@ import { TelegramContext } from '../TelegramContext';
 import useScrollToTop from '../hooks/scrollToStart';
 
 interface MainScreenProps {
-    setScreen: React.Dispatch<React.SetStateAction<'main' | 'advertiser' | 'campaign' | 'status' | 'setupTelegram'>>;
+    setScreen: React.Dispatch<React.SetStateAction<'main' | 'advertiser' | 'campaign' | 'status' | 'setupTelegram' | 'deployEmptyCampaign'>>;
 }
 
 const MainScreen: React.FC<MainScreenProps> = ({ setScreen }) => {

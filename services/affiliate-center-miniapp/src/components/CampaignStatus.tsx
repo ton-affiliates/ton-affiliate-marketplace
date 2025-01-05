@@ -9,7 +9,7 @@ import useSocket from '../hooks/useSocket'; // Correct default import
 //import { CampaignDetails } from './CampaignDetails';
 
 interface CampaignStatusProps {
-    setScreen: React.Dispatch<React.SetStateAction<'main' | 'advertiser' | 'campaign' | 'status' | 'setupTelegram'>>;
+    setScreen: React.Dispatch<React.SetStateAction<'main' | 'advertiser' | 'campaign' | 'status' | 'setupTelegram' | 'deployEmptyCampaign'>>;
 }
 
 //   const campaignMap: { [key: string]: CampaignDetails } = {

@@ -3,7 +3,7 @@ import { useTelegramCampaignContext, TelegramCategory, TelegramAsset  } from '..
 import { motion } from 'framer-motion';
 
 interface TelegramSetupProps {
-  setScreen: React.Dispatch<React.SetStateAction<'main' | 'advertiser' | 'campaign' | 'status' | 'setupTelegram'>>;
+  setScreen: React.Dispatch<React.SetStateAction<'main' | 'advertiser' | 'campaign' | 'status' | 'setupTelegram' | 'deployEmptyCampaign'>>;
 }
 
 const TelegramSetup: React.FC<TelegramSetupProps> = ({ setScreen }) => {
