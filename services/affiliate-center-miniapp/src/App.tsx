@@ -5,13 +5,15 @@ import MainScreen from './components/MainScreen';
 import AdvertiserOptions from './components/AdvertiserOptions';
 import CampaignStatus from './components/CampaignStatus';
 import NewCampaign from './components/NewCampaign';
+import DeployEmptyCampaign from './components/DeployEmptyCampaign';
 import { TonConnectProvider } from './TonConnectProvider';
 import { TelegramProvider } from './TelegramContext';
 import { TelegramCampaignProvider } from './TelegramCampaignContext';
 import TelegramSetup from './components/TelegramSetup';
 
+
 const App: React.FC = () => {
-    const [screen, setScreen] = useState<'main' | 'advertiser' | 'campaign' | 'status' | 'setupTelegram'>('main');
+    const [screen, setScreen] = useState<'main' | 'advertiser' | 'campaign' | 'status' | 'setupTelegram' | 'deployEmptyCampaign'>('main');
 
     const renderScreen = () => {
         switch (screen) {
@@ -25,6 +27,8 @@ const App: React.FC = () => {
                 return <CampaignStatus setScreen={setScreen} />;
             case 'setupTelegram':
                 return <TelegramSetup setScreen={setScreen} />;
+            case 'deployEmptyCampaign':
+                return <DeployEmptyCampaign setScreen={setScreen} />;
             default:
                 return null;
         }
