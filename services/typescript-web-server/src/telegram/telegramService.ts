@@ -7,6 +7,19 @@ dotenv.config();
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || '';
 const TELEGRAM_API_URL = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}`;
 
+
+export async function sendTelegramMessage(chatId: number, message: string): Promise<void> {
+    try {
+        await axios.post(`${TELEGRAM_API_URL}/sendMessage`, {
+            chat_id: chatId,
+            text: message,
+        });
+        console.log(`Message sent to Telegram chat ID: ${chatId}`);
+    } catch (error) {
+        console.error(`Failed to send Telegram message: ${error}`);
+    }
+}
+
 // Interfaces for API responses
 interface TelegramApiResponse<T> {
     ok: boolean;

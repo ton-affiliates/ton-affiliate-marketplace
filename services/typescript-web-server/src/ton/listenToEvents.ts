@@ -151,6 +151,5 @@ export async function getLatestEvents(lastProcessedEventLt = BigInt(0)) {
         }
     }
 
-    console.log('Logs data', logs);
     return logs;
 }

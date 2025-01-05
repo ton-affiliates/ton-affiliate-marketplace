@@ -1,70 +1,105 @@
+// DeployCampaignButton.tsx
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { TonConnectButton } from '@tonconnect/ui-react';
-import { toNano } from '@ton/core';
 import { useTonConnect } from '../hooks/useTonConnect';
-
+import { toNano, Address } from '@ton/core';
 import { useTonConnectFetchContext } from '../TonConnectProvider';
 import { useAffiliateMarketplace } from '../hooks/useAffiliateMarketplace';
 
 interface DeployCampaignButtonProps {
-  // If you want to navigate to another screen afterward:
-  setScreen: React.Dispatch<
-    React.SetStateAction<
-      'main' | 'advertiser' | 'campaign' | 'status' | 'setupTelegram' | 'deployEmptyCampaign'
-    >
-  >;
+  setScreen: React.Dispatch<React.SetStateAction<
+    'main' | 'advertiser' | 'campaign' | 'status' | 'setupTelegram' | 'deployEmptyCampaign'
+  >>;
+}
+
+// Helper to convert a Tact raw address to an Address
+function translateRawAddress(rawAddress: { workChain: number; hash: { type: string; data: number[] } }): Address {
+  if (!rawAddress || rawAddress.hash.type !== 'Buffer') {
+    throw new Error('Invalid raw address format');
+  }
+
+  const workChain = rawAddress.workChain;
+  const hashBuffer = Buffer.from(rawAddress.hash.data);
+
+  if (hashBuffer.length !== 32) {
+    throw new Error(`Invalid address hash length: ${hashBuffer.length}`);
+  }
+
+  return Address.parseRaw(`${workChain}:${hashBuffer.toString('hex')}`);
 }
 
 const DeployCampaignButton: React.FC<DeployCampaignButtonProps> = ({ setScreen }) => {
+  // Grab your contract instance
   const affiliateMarketplace = useAffiliateMarketplace();
-  const { connectedStatus } = useTonConnectFetchContext();
+
+  // From TonConnectProvider: check if user is connected, plus full account object
+  const { connectedStatus, userAccount } = useTonConnectFetchContext();
+  // From your custom `useTonConnect` hook: used for sending contract calls
   const { sender } = useTonConnect();
 
-  // UI states
   const [loading, setLoading] = useState(false);
   const [numCampaigns, setNumCampaigns] = useState<string>('---');
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  // On mount, or whenever `affiliateMarketplace` changes, fetch the current campaign count
   useEffect(() => {
-    async function fetchCampaigns() {
-      if (!affiliateMarketplace) return;
-      try {
-        const count = await affiliateMarketplace.getNumCampaigns();
-        setNumCampaigns(count.toString());
-      } catch (error) {
-        console.error('Error fetching numCampaigns:', error);
-      }
-    }
-    fetchCampaigns();
-  }, [affiliateMarketplace]);
+    // Open a WebSocket to listen for new campaigns
+    const socket = new WebSocket('ws://localhost:3000');
 
-  /**
-   * Deploy a new campaign by sending an 'AdvertiserDeployNewCampaign' message.
-   * Then refetch the campaign count to show the updated value.
-   */
+    socket.onopen = () => {
+      console.log('WebSocket: connected to ws://localhost:3000');
+    };
+
+    socket.onmessage = (evt) => {
+      const message = JSON.parse(evt.data);
+      if (message.type === 'CampaignCreatedEvent') {
+        console.log('Received new campaign created event:', message.data);
+
+        // Possibly parse as BigInt
+        const campaignId = BigInt(message.data.campaignId);
+        console.log('Campaign ID:', campaignId);
+
+        // Bump the campaign count in the UI
+        setNumCampaigns((prev) => (parseInt(prev, 10) + 1).toString());
+
+        // Compare the event's advertiser with the connected user's address
+        const eventAdvertiser = translateRawAddress(message.data.advertiser).toString();
+        console.log('Event advertiser:', eventAdvertiser);
+        
+        // If userAccount is not null, we can access userAccount.address
+        if (userAccount) {
+          console.log('User address:', Address.parse(userAccount.address).toString());
+
+          if (eventAdvertiser === Address.parse(userAccount.address).toString()) {
+            console.log('This event belongs to the current user! Save to DB or navigate away...');
+          }
+        }
+      }
+    };
+
+    socket.onerror = (error) => {
+      console.error('WebSocket error:', error);
+    };
+
+    // Cleanup
+    return () => {
+      socket.close();
+    };
+  }, [userAccount]);
+
+  // Example function to deploy a new campaign
   const handleDeployCampaign = async () => {
     if (!affiliateMarketplace) return;
     setLoading(true);
     try {
-
-      // 1) Deploy new campaign
+      // Use 'sender' for contract calls
       await affiliateMarketplace.send(
-        sender,     
+        sender,
         { value: toNano('0.15') },
         { $$type: 'AdvertiserDeployNewCampaign' }
       );
       console.log('Deploy transaction sent!');
-
-      // 2) Fetch updated campaign count
-      const count = await affiliateMarketplace.getNumCampaigns();
-      setNumCampaigns(count.toString());
-      console.log(`Updated count: ${count}`);
-
-      // 3) Close modal (or navigate to 'status', etc.)
       setIsModalOpen(false);
-      // setScreen('status'); // If you want to jump to the status screen
     } catch (error) {
       console.error('Deploy error:', error);
     } finally {
@@ -73,63 +108,35 @@ const DeployCampaignButton: React.FC<DeployCampaignButtonProps> = ({ setScreen }
   };
 
   return (
-    <motion.div
-      className="screen-container"
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-    >
+    <motion.div className="screen-container" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
       <div className="card">
-        {/* If user isn't connected yet */}
-        {!connectedStatus && (
-          <p>To proceed, we need you to connect your Telegram wallet</p>
-        )}
+        {/* If user isn't connected, prompt them */}
+        {!connectedStatus && <p>Please connect your Telegram wallet</p>}
 
-        {/* Wallet status + Connect button */}
         <div className="navigation-buttons">
-          {connectedStatus && (
-            <p className="message status-active">Following Wallet is Connected:</p>
-          )}
+          {connectedStatus && <p className="message status-active">Wallet is connected</p>}
           <TonConnectButton />
         </div>
 
-        {/* If connected, show campaign info + "Create" button */}
         {connectedStatus && (
           <div className="vertically-aligned">
             <h1 className="headline">Deploy New Campaign</h1>
             <p>Num campaigns: {numCampaigns}</p>
-
-            <button
-              className="nav-button"
-              onClick={() => setIsModalOpen(true)}
-            >
+            <button className="nav-button" onClick={() => setIsModalOpen(true)}>
               Create New Campaign
             </button>
           </div>
         )}
-
-        {/* Expandable info for non-connected, if desired */}
-        {/* (Similar to your isExpanded approach in NewCampaign) */}
-
       </div>
 
-      {/* Modal overlay (like in NewCampaign) */}
       {isModalOpen && (
         <div className="modal-overlay">
           <div className="modal-content">
-            {/* Close button in the top-right corner */}
-            <button
-              className="modal-close-top"
-              onClick={() => setIsModalOpen(false)}
-              aria-label="Close"
-            >
+            <button className="modal-close-top" onClick={() => setIsModalOpen(false)}>
               ×
             </button>
             <h2>Review Campaign Details</h2>
-            <p>Here you could list fields or options for your campaign.</p>
             <p>Current # of campaigns: {numCampaigns}</p>
-
-            {/* Deploy button */}
             <button
               className="nav-button margin-left"
               onClick={handleDeployCampaign}
@@ -137,22 +144,10 @@ const DeployCampaignButton: React.FC<DeployCampaignButtonProps> = ({ setScreen }
             >
               {loading ? 'Deploying...' : 'Deploy'}
             </button>
-
-            {/* Or navigate away if you prefer */}
-            {/* <button
-              className="nav-button margin-left"
-              onClick={() => {
-                setIsModalOpen(false);
-                setScreen('status');
-              }}
-            >
-              Check Status
-            </button> */}
           </div>
         </div>
       )}
 
-      {/* Navigation buttons */}
       <div className="navigation-buttons">
         <button className="nav-button" onClick={() => setScreen('advertiser')}>
           Go Back
