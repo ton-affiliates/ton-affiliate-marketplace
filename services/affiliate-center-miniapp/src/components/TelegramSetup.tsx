@@ -16,6 +16,7 @@ const TelegramSetup: React.FC<TelegramSetupProps> = ({ setScreen }) => {
   const [isVerified, setIsVerified] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [copied, setCopied] = useState(false);
+  const sleep = (ms: number | undefined) => new Promise(r => setTimeout(r, ms));
   const serverBaseUrl = process.env.REACT_APP_SRV_BASE_URL;
 
   const handleVerify = async () => {
@@ -28,13 +29,15 @@ const TelegramSetup: React.FC<TelegramSetupProps> = ({ setScreen }) => {
             console.error('SERVER BASE API URL is not defined. Please check your .env file.');
         }
 		
-      const response = await fetch('${serverBaseUrl}/bot/verify-and-create', {
+      const response = await fetch('${serverBaseUrl}/telegram/verify-and-create', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ url: inviteLink }),
       });
+
+      await sleep(5000);
 
       if (!response.ok) {
         console.error('Invalid invite link');
@@ -137,7 +140,21 @@ const TelegramSetup: React.FC<TelegramSetupProps> = ({ setScreen }) => {
 
         {errorMessage && <p className="error-message">{errorMessage}</p>}
 
-        {isVerifying && <div className="spinner">Loading...</div>}
+      
+        {/* {isVerifying && (
+            <div className="spinner-overlay">
+                <div className="spinner-circle"></div>
+            </div>
+            )} */}
+
+        {isVerifying && (
+        <div className="spinner-overlay">
+            <div className="spinner-container">
+            <div className="spinner-circle"></div>
+            <div className="spinner-label">Verifying</div>
+            </div>
+        </div>
+        )}
 
         <div className="buttons-container">
             <button
