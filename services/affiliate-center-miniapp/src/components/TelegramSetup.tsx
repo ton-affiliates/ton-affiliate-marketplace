@@ -14,10 +14,11 @@ const TelegramSetup: React.FC<TelegramSetupProps> = ({ setScreen }) => {
   const [inviteLink, setInviteLink] = useState('');
   const [isVerifying, setIsVerifying] = useState(false);
   const [isVerified, setIsVerified] = useState(false);
-  const [errorMessage, setErrorMessage] = useState('');
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const sleep = (ms: number | undefined) => new Promise(r => setTimeout(r, ms));
   const serverBaseUrl = process.env.REACT_APP_SRV_BASE_URL;
+  const [showSuccessPopup, setShowSuccessPopup] = useState(false);
 
   const handleVerify = async () => {
     setIsVerifying(true);
@@ -37,24 +38,26 @@ const TelegramSetup: React.FC<TelegramSetupProps> = ({ setScreen }) => {
         body: JSON.stringify({ url: inviteLink }),
       });
 
-      await sleep(5000);
+      await sleep(1000);
 
       if (!response.ok) {
         console.error('Invalid invite link');
         throw new Error('Invalid invite link');
       }
 
-      const data = await response.json();
+     const data = await response.json();
+     // const mockedData = JSON.parse("{\"telegramAsset\":{\"id\":-1002273905871,\"name\":\"TonAffiliatesTestChannel\",\"type\":0,\"isPublic\":false,\"url\":\"https://t.me/+0_piKmVp4nk1YTQ0\"}}");
       setTelegramCampaign({
         ...telegramCampaign,
         campaignId: '',
         name: campaignName,
-        description,
+        description: description,
         category: category as TelegramCategory,
         telegramAsset: data.telegramAsset as TelegramAsset,
       });
       
       setIsVerified(true);
+      setShowSuccessPopup(true); // Show popup
     } catch (error) {
       setErrorMessage('The invite link you entered is not valid. Please enter a valid link and try again.');
       setIsVerified(false);
@@ -81,7 +84,7 @@ const TelegramSetup: React.FC<TelegramSetupProps> = ({ setScreen }) => {
         <h2>Set Up Your Telegram</h2>
 
         <div className="form-group">
-            <label htmlFor="campaignName">Campaign Name:</label>
+            <label htmlFor="campaignName">*Campaign Name:</label>
             <input
             id="campaignName"
             type="text"
@@ -91,7 +94,7 @@ const TelegramSetup: React.FC<TelegramSetupProps> = ({ setScreen }) => {
         </div>
 
         <div className="form-group">
-            <label htmlFor="category">Category:</label>
+            <label htmlFor="category">*Category:</label>
             <select
             id="category"
             value={category}
@@ -129,7 +132,7 @@ const TelegramSetup: React.FC<TelegramSetupProps> = ({ setScreen }) => {
         </div>
 
         <div className="form-group">
-            <label htmlFor="inviteLink">Copy invite link to group/channel here:</label>
+            <label htmlFor="inviteLink" className='align-self-center'>*Copy invite link to group/channel here:</label>
             <input
             id="inviteLink"
             type="text"
@@ -138,8 +141,63 @@ const TelegramSetup: React.FC<TelegramSetupProps> = ({ setScreen }) => {
             />
         </div>
 
-        {errorMessage && <p className="error-message">{errorMessage}</p>}
+       
 
+        {errorMessage && (
+            <div className="error-popup">
+                <div className="error-popup-content">
+                <button className="popup-close-top" onClick={() => setErrorMessage(null)}>
+                    &times;
+                </button>
+                <div className="error-popup-body">
+                    <h2 className="error-message">We Apologize</h2>
+                    <div className="error-message">
+                    {errorMessage.split('.').map((sentence, index) =>
+                        sentence.trim() ? <p key={index}>{sentence.trim()}.</p> : null
+                    )}
+                    </div>
+                </div>
+                <button className="next-step-button" onClick={() => setErrorMessage(null)}>
+                    Close
+                </button>
+                </div>
+            </div>
+            )}
+
+        {showSuccessPopup && (
+            <div className="popup-overlay">
+                <div className="popup-container">
+                <button className="popup-close-top" onClick={() => setShowSuccessPopup(false)}>
+                    &times;
+                </button>
+                <div className="popup-content">
+                    <div className="success-icon">&#x2714;</div> {/* Unicode check mark */}
+                    <h2>Your Telegram Details Verified Successfully</h2>
+                    <div className="campaign-details-pane">
+                    {telegramCampaign && Object.entries(telegramCampaign).map(([key, value]) => (
+                        <div key={key} className="campaign-detail">
+                        <strong>{key}:</strong>{' '}
+                        {typeof value === 'object' && value !== null ? (
+                            <div className="nested-object">
+                            {Object.entries(value).map(([nestedKey, nestedValue]) => (
+                                <div key={nestedKey} className="nested-detail">
+                                <strong>{nestedKey}:</strong> {nestedValue?.toString()}
+                                </div>
+                            ))}
+                            </div>
+                        ) : (
+                            <span>{value?.toString()}</span>
+                        )}
+                        </div>
+                    ))}
+                    </div>
+                    <button className="next-step-button" onClick={() => setScreen('campaign')}>
+                    Next Step
+                    </button>
+                </div>
+                </div>
+            </div>
+            )}
       
         {/* {isVerifying && (
             <div className="spinner-overlay">
@@ -161,6 +219,7 @@ const TelegramSetup: React.FC<TelegramSetupProps> = ({ setScreen }) => {
            className='telegram-campaign-button'
             disabled={!campaignName || !category || !inviteLink}
             onClick={handleVerify}
+            title={!campaignName || !category || !inviteLink ? 'Please fill all the Mandatory Fields marked with *' : ''}
             >
             Verify Setup
             </button>

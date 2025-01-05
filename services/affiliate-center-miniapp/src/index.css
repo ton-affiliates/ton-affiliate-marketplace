@@ -817,6 +817,10 @@ new-campaign {
 
 
 /* SETUP TELEGRAM SCREEN */
+.align-self-center {
+  align-self: center;
+}
+
 .form-container {
   display: flex;
   flex-direction: column;
@@ -834,6 +838,8 @@ new-campaign {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+  padding: 0.2rem;
+  align-items: flex-start;
 }
 
 .form-group label {
@@ -855,7 +861,8 @@ new-campaign {
 
 .copy-pane {
   position: relative;
-  padding: 1rem;
+  padding-bottom: 1.5rem;
+  padding-top: 1.5rem;
   background-color: #f8f9fa;
   border: 1px solid #e1e4e8;
   border-radius: 6px;
@@ -863,12 +870,31 @@ new-campaign {
   color: #24292e;
   margin-top: 1rem;
   white-space: pre-wrap; /* Ensures long text wraps */
+  overflow-x: auto; /* Enable horizontal scrolling */
+  white-space: nowrap; /* Prevent text wrapping */
+}
+
+.copy-pane::-webkit-scrollbar {
+  height: 8px; /* Height of the scrollbar */
+}
+
+.copy-pane::-webkit-scrollbar-thumb {
+  background: #888; /* Color of the scrollbar thumb */
+  border-radius: 4px;
+}
+
+.copy-pane::-webkit-scrollbar-thumb:hover {
+  background: #555; /* Darker color when hovered */
+}
+
+.copy-pane::-webkit-scrollbar-track {
+  background: #f1f1f1; /* Color of the scrollbar track */
 }
 
 .copy-pane .copy-button {
   position: absolute;
-  top: 0.5rem;
-  right: 0.5rem;
+  top: 0.1rem;
+  right: 0.1rem;
   background-color: transparent;
   border: none;
   color: #007bff;
@@ -1006,4 +1032,144 @@ button.secondary:hover {
   to {
     transform: rotate(360deg);
   }
+}
+
+
+
+
+/* Close Button */
+.close-button {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+}
+
+/* Success Icon */
+.success-icon {
+  font-size: 2.5rem;
+  color: green;
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+/* Campaign Details Pane */
+.campaign-details-pane {
+  max-height: 300px;
+  overflow-y: auto;
+  border: 1px solid #ddd;
+  border-radius: 5px;
+  padding: 10px;
+  background: #f9f9f9;
+  margin: 20px 0;
+}
+
+.campaign-detail {
+  margin-bottom: 10px;
+  text-align: left;
+}
+
+.nested-object {
+  margin-left: 20px;
+}
+
+.nested-detail {
+  margin-bottom: 5px;
+  text-align: left;
+}
+
+/* Next Step Button */
+.next-step-button {
+  display: block;
+  margin: 0 auto;
+  padding: 10px 20px;
+  background-color: #45a049;
+  color: white;
+  font-size: 1rem;
+  font-weight: bold;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.next-step-button:hover {
+  background-color: #397d3f;
+  transform: scale(1.05);
+}
+
+/* Popup Container */
+.popup-container {
+  background: white;
+  border-radius: 10px;
+  padding: 20px;
+  max-width: 600px;
+  width: 80%;
+  position: relative;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+
+.error-popup {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.error-popup-content {
+  background-color: white;
+  border-radius: 8px;
+  width: 400px;
+  padding: 20px;
+  text-align: center;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  position: relative;
+}
+
+.error-close-button-top {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  border: none;
+  background: none;
+  font-size: 18px;
+  cursor: pointer;
+}
+
+.error-popup-body {
+  margin-top: 20px;
+}
+
+.error-title {
+  color: red;
+  font-size: 20px;
+  margin-bottom: 10px;
+}
+
+.error-message {
+  font-size: 16px;
+  color: #333;
+  margin-bottom: 20px;
+}
+
+.error-close-button-bottom {
+  background-color: red;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 10px 20px;
+  cursor: pointer;
+}
+
+.error-close-button-bottom:hover {
+  background-color: darkred;
 }
