@@ -1,0 +1,9 @@
+/* SuccessIcon.css */
+
+.success-icon {
+    font-size: 3rem;
+    color: #28a745; /* green */
+    display: inline-block;
+    margin-bottom: 0.5rem;
+  }
+  

@@ -1,20 +1,30 @@
 // DeployCampaignButton.tsx
-import React, { useState, useEffect } from 'react';
+
+// Note: We don't import "React" at the top unless we explicitly need it (e.g., using React.* APIs).
+import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { TonConnectButton } from '@tonconnect/ui-react';
-import { useTonConnect } from '../hooks/useTonConnect';
 import { toNano, Address } from '@ton/core';
+import { useTonConnect } from '../hooks/useTonConnect';
 import { useTonConnectFetchContext } from '../TonConnectProvider';
 import { useAffiliateMarketplace } from '../hooks/useAffiliateMarketplace';
 
+// Import local CSS for styling
+import '../styles/DeplyCampaignButton.css';
+
+// Our feedback components (they no longer import "React" if it's not used)
+import Spinner from './Spinner';
+import SuccessIcon from './SuccessIcon';
+
 interface DeployCampaignButtonProps {
-  setScreen: React.Dispatch<React.SetStateAction<
-    'main' | 'advertiser' | 'campaign' | 'status' | 'setupTelegram' | 'deployEmptyCampaign'
-  >>;
+  setScreen: React.Dispatch<
+    React.SetStateAction<
+      'main' | 'advertiser' | 'campaign' | 'status' | 'setupTelegram' | 'deployEmptyCampaign'
+    >
+  >;
 }
 
-// Helper to convert a Tact raw address to an Address
-function translateRawAddress(rawAddress: { workChain: number; hash: { type: string; data: number[] } }): Address {
+function translateRawAddress(rawAddress: { workChain: number; hash: { type: string; data: number[] } }) {
   if (!rawAddress || rawAddress.hash.type !== 'Buffer') {
     throw new Error('Invalid raw address format');
   }
@@ -38,12 +48,19 @@ const DeployCampaignButton: React.FC<DeployCampaignButtonProps> = ({ setScreen }
   // From your custom `useTonConnect` hook: used for sending contract calls
   const { sender } = useTonConnect();
 
-  const [loading, setLoading] = useState(false);
+  // UI states
   const [numCampaigns, setNumCampaigns] = useState<string>('---');
   const [isModalOpen, setIsModalOpen] = useState(false);
 
+  // Transaction states
+  const [waitingForTx, setWaitingForTx] = useState(false);
+  const [txSuccess, setTxSuccess] = useState(false);
+  const [txFailed, setTxFailed] = useState(false);
+
+  // We'll store a reference for the timeout so we can cancel if needed
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+
   useEffect(() => {
-    // Open a WebSocket to listen for new campaigns
     const socket = new WebSocket('ws://localhost:3000');
 
     socket.onopen = () => {
@@ -55,23 +72,31 @@ const DeployCampaignButton: React.FC<DeployCampaignButtonProps> = ({ setScreen }
       if (message.type === 'CampaignCreatedEvent') {
         console.log('Received new campaign created event:', message.data);
 
-        // Possibly parse as BigInt
         const campaignId = BigInt(message.data.campaignId);
         console.log('Campaign ID:', campaignId);
 
-        // Bump the campaign count in the UI
+        // Increase the campaign count for display
         setNumCampaigns((prev) => (parseInt(prev, 10) + 1).toString());
 
-        // Compare the event's advertiser with the connected user's address
-        const eventAdvertiser = translateRawAddress(message.data.advertiser).toString();
-        console.log('Event advertiser:', eventAdvertiser);
-        
-        // If userAccount is not null, we can access userAccount.address
+        // Check if the event is for the current user
         if (userAccount) {
-          console.log('User address:', Address.parse(userAccount.address).toString());
+          const eventAdvertiser = translateRawAddress(message.data.advertiser).toString();
+          const userAddress = Address.parse(userAccount.address).toString();
+          console.log('Event advertiser:', eventAdvertiser);
+          console.log('User address:', userAddress);
 
-          if (eventAdvertiser === Address.parse(userAccount.address).toString()) {
-            console.log('This event belongs to the current user! Save to DB or navigate away...');
+          // If this belongs to the current user
+          if (eventAdvertiser === userAddress) {
+            console.log('Transaction success for current user! ID:', campaignId);
+
+            // Clear the timeout
+            if (timeoutRef.current) {
+              clearTimeout(timeoutRef.current);
+            }
+
+            setTxSuccess(true);
+            setWaitingForTx(false);
+            setTxFailed(false);
           }
         }
       }
@@ -81,36 +106,55 @@ const DeployCampaignButton: React.FC<DeployCampaignButtonProps> = ({ setScreen }
       console.error('WebSocket error:', error);
     };
 
-    // Cleanup
     return () => {
       socket.close();
+      // Clear any leftover timeout
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
     };
   }, [userAccount]);
 
-  // Example function to deploy a new campaign
   const handleDeployCampaign = async () => {
-    if (!affiliateMarketplace) return;
-    setLoading(true);
+    if (!affiliateMarketplace || !userAccount) return;
+
+    // Reset states
+    setWaitingForTx(true);
+    setTxSuccess(false);
+    setTxFailed(false);
+
     try {
-      // Use 'sender' for contract calls
+      // Deploy new campaign
       await affiliateMarketplace.send(
         sender,
         { value: toNano('0.15') },
         { $$type: 'AdvertiserDeployNewCampaign' }
       );
       console.log('Deploy transaction sent!');
-      setIsModalOpen(false);
+
+      // Start a 30-second timer
+      timeoutRef.current = setTimeout(() => {
+        console.log('No campaign ID arrived in 30s -> transaction failed');
+        setTxFailed(true);
+        setWaitingForTx(false);
+      }, 30_000);
+
     } catch (error) {
       console.error('Deploy error:', error);
+      setTxFailed(true);
+      setWaitingForTx(false);
     } finally {
-      setLoading(false);
+      // Close modal so user can't change screens
+      setIsModalOpen(false);
     }
   };
+
+  // Decide if we allow navigation based on the transaction state
+  const navigationDisabled = waitingForTx && !txSuccess && !txFailed;
 
   return (
     <motion.div className="screen-container" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
       <div className="card">
-        {/* If user isn't connected, prompt them */}
         {!connectedStatus && <p>Please connect your Telegram wallet</p>}
 
         <div className="navigation-buttons">
@@ -118,13 +162,37 @@ const DeployCampaignButton: React.FC<DeployCampaignButtonProps> = ({ setScreen }
           <TonConnectButton />
         </div>
 
-        {connectedStatus && (
+        {/* Normal state: user not in a transaction */}
+        {connectedStatus && !waitingForTx && !txSuccess && !txFailed && (
           <div className="vertically-aligned">
             <h1 className="headline">Deploy New Campaign</h1>
             <p>Num campaigns: {numCampaigns}</p>
             <button className="nav-button" onClick={() => setIsModalOpen(true)}>
               Create New Campaign
             </button>
+          </div>
+        )}
+
+        {/* Spinner if waiting for campaign ID */}
+        {waitingForTx && !txSuccess && !txFailed && (
+          <div className="status-container">
+            <Spinner />
+            <p>Waiting for transaction confirmation...</p>
+          </div>
+        )}
+
+        {/* Success UI if the campaign ID arrived for the current user */}
+        {txSuccess && (
+          <div className="status-container">
+            <SuccessIcon />
+            <p>Transaction successful!</p>
+          </div>
+        )}
+
+        {/* Failure if 30s passed or an error occurred */}
+        {txFailed && (
+          <div className="status-container">
+            <p className="error-text">Transaction failed. Please try again.</p>
           </div>
         )}
       </div>
@@ -140,19 +208,20 @@ const DeployCampaignButton: React.FC<DeployCampaignButtonProps> = ({ setScreen }
             <button
               className="nav-button margin-left"
               onClick={handleDeployCampaign}
-              disabled={loading}
+              disabled={waitingForTx}
             >
-              {loading ? 'Deploying...' : 'Deploy'}
+              {waitingForTx ? 'Deploying...' : 'Deploy'}
             </button>
           </div>
         </div>
       )}
 
+      {/* Navigation Buttons: disabled while waiting for TX */}
       <div className="navigation-buttons">
-        <button className="nav-button" onClick={() => setScreen('advertiser')}>
+        <button className="nav-button" onClick={() => setScreen('advertiser')} disabled={navigationDisabled}>
           Go Back
         </button>
-        <button className="nav-button" onClick={() => setScreen('main')}>
+        <button className="nav-button" onClick={() => setScreen('main')} disabled={navigationDisabled}>
           Go to Main Screen
         </button>
       </div>

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { useTelegramCampaignContext, TelegramCategory, TelegramAsset  } from '../TelegramCampaignContext';
+import { useTelegramCampaignContext  } from '../TelegramCampaignContext';
+import { TelegramCategory, TelegramAsset } from '@common/models';
 import { motion } from 'framer-motion';
 
 interface TelegramSetupProps {
@@ -49,7 +50,7 @@ const TelegramSetup: React.FC<TelegramSetupProps> = ({ setScreen }) => {
      // const mockedData = JSON.parse("{\"telegramAsset\":{\"id\":-1002273905871,\"name\":\"TonAffiliatesTestChannel\",\"type\":0,\"isPublic\":false,\"url\":\"https://t.me/+0_piKmVp4nk1YTQ0\"}}");
       setTelegramCampaign({
         ...telegramCampaign,
-        campaignId: '',
+        // campaignId: '',
         name: campaignName,
         description: description,
         category: category as TelegramCategory,
