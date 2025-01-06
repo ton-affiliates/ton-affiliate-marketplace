@@ -6,7 +6,7 @@ import { UserRoleProvider } from './UserRoleContext';
 
 // Use a relative path for the manifest URL
 // const manifestUrl = '/tonconnect-manifest.json';  // Correct path
-const manifestUrl = 'http://localhost/tonconnect-manifest.json';
+const manifestUrl = 'https://01bb-2a0d-6fc0-1f6a-b700-cc42-93b8-fafc-46fa.ngrok-free.app/tonconnect-manifest.json';
 
 
 ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
