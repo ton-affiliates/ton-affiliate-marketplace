@@ -1,9 +1,9 @@
 import React from 'react';
 import { motion } from 'framer-motion';
+import { ScreenProps } from './ScreenNavigation'; // Import shared types
 
-interface CampaignOptionsProps {
-    option: 'campaign' | 'status';
-    setScreen: React.Dispatch<React.SetStateAction<'main' | 'advertiser' | 'campaign' | 'status' | 'setupTelegram' | 'deployEmptyCampaign'>>;
+interface CampaignOptionsProps extends ScreenProps {
+    option: 'campaign' | 'status'; // Define specific options for this component
 }
 
 const CampaignOptions: React.FC<CampaignOptionsProps> = ({ option, setScreen }) => {

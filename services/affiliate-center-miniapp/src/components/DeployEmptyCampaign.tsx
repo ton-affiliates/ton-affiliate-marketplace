@@ -8,13 +8,10 @@ import { useAffiliateMarketplace } from '../hooks/useAffiliateMarketplace';
 import '../styles/DeplyCampaignButton.css';
 import Spinner from './Spinner';
 import SuccessIcon from './SuccessIcon';
+import { ScreenProps } from './ScreenNavigation'; // Import ScreenProps for type consistency
 
-interface DeployCampaignButtonProps {
-  setScreen: React.Dispatch<
-    React.SetStateAction<
-      'main' | 'advertiser' | 'campaign' | 'status' | 'setupTelegram' | 'deployEmptyCampaign'
-    >
-  >;
+interface DeployCampaignButtonProps extends ScreenProps {
+  setCampaignId: React.Dispatch<React.SetStateAction<string | null>>;
 }
 
 function translateRawAddress(rawAddress: { workChain: number; hash: { type: string; data: number[] } }): Address {
@@ -23,7 +20,7 @@ function translateRawAddress(rawAddress: { workChain: number; hash: { type: stri
   return Address.parseRaw(`${workChain}:${hashBuffer.toString('hex')}`);
 }
 
-const DeployCampaignButton: React.FC<DeployCampaignButtonProps> = ({ }) => {
+const DeployCampaignButton: React.FC<DeployCampaignButtonProps> = ({ setScreen, setCampaignId }) => {
   const affiliateMarketplace = useAffiliateMarketplace();
   const { connectedStatus, userAccount } = useTonConnectFetchContext();
   const { sender } = useTonConnect();
@@ -58,20 +55,22 @@ const DeployCampaignButton: React.FC<DeployCampaignButtonProps> = ({ }) => {
     socket.onmessage = (evt) => {
       const message = JSON.parse(evt.data);
       if (message.type === 'CampaignCreatedEvent') {
-        const campaignId = BigInt(message.data.campaignId);
+        const campaignId = BigInt(message.data.campaignId).toString();
         const eventAdvertiser = translateRawAddress(message.data.advertiser).toString();
         const userAddress = userAccount ? Address.parse(userAccount.address).toString() : null;
-
-        console.log('userAddress: ' + userAddress);
-        console.log('eventAdvertiser: ' + eventAdvertiser);
 
         if (eventAdvertiser === userAddress) {
           if (timeoutRef.current) clearTimeout(timeoutRef.current);
           setNumCampaigns((prev) => (parseInt(prev, 10) + 1).toString());
+          setCampaignId(campaignId); // Save campaignId for the next screen
           setTxSuccess(true);
           setWaitingForTx(false);
           setTxFailed(false);
-          alert(`Campaign ID: ${campaignId}\nAdvertiser Address: ${eventAdvertiser}`); // Show alert
+
+          // Redirect to setup page
+          setTimeout(() => {
+            setScreen('setupTelegram');
+          }, 1000);
         }
       }
     };
@@ -84,14 +83,12 @@ const DeployCampaignButton: React.FC<DeployCampaignButtonProps> = ({ }) => {
       socket.close();
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
     };
-  }, [userAccount]);
+  }, [userAccount, setCampaignId, setScreen]);
 
   const handleDeployCampaign = async () => {
     if (!affiliateMarketplace || !userAccount) return;
 
-    // Immediately close the modal
     setIsModalOpen(false);
-
     setWaitingForTx(true);
     setTxSuccess(false);
     setTxFailed(false);
@@ -163,11 +160,14 @@ const DeployCampaignButton: React.FC<DeployCampaignButtonProps> = ({ }) => {
         )}
       </div>
 
-      {/* Modal should no longer display if waitingForTx is true */}
       {isModalOpen && (
         <div className="modal-overlay">
           <div className="modal-content">
-            <button className="modal-close-top" onClick={() => setIsModalOpen(false)} disabled={waitingForTx}>
+            <button
+              className="modal-close-top"
+              onClick={() => setIsModalOpen(false)}
+              disabled={waitingForTx}
+            >
               ×
             </button>
             <h2>Review Campaign Details</h2>

@@ -1,12 +1,8 @@
 import React from 'react';
 import { motion } from 'framer-motion';
+import { ScreenProps } from './ScreenNavigation'; // Import ScreenProps for type consistency
 
-interface AdvertiserOptionsProps {
-    setScreen: React.Dispatch<React.SetStateAction<'main' | 'advertiser' | 'campaign' | 'status' | 'setupTelegram' | 'deployEmptyCampaign'>>;
-}
-
-
-const AdvertiserOptions: React.FC<AdvertiserOptionsProps> = ({ setScreen }) => {
+const AdvertiserOptions: React.FC<ScreenProps> = ({ setScreen }) => {
     return (
         <motion.div
             className="screen-container"
@@ -17,7 +13,7 @@ const AdvertiserOptions: React.FC<AdvertiserOptionsProps> = ({ setScreen }) => {
             <div className="card">
                 <p>
                     <strong>
-                        Hi Advertiser! 
+                        Hi Advertiser!
                     </strong>
                 </p>
                 <p>

@@ -2,15 +2,11 @@ import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { TonConnectButton } from '@tonconnect/ui-react';
 import { useTonConnectFetchContext } from '../TonConnectProvider';
-//import { useCounterContract } from '../hooks/useCounterContract';
-
-interface NewCampaignProps {
-    setScreen: React.Dispatch<React.SetStateAction<'main' | 'advertiser' | 'campaign' | 'status' | 'setupTelegram' | 'deployEmptyCampaign'>>;
-}
+import { ScreenProps } from './ScreenNavigation';
 
 type CommissionableEventKeys = 'userReferred' | 'premiumUserReferred' | 'userRetained' | 'userActive';
 
-const NewCampaign: React.FC<NewCampaignProps> = ({ setScreen }) => {
+const NewCampaign: React.FC<ScreenProps> = ({ setScreen }) => {
     const [isExpanded, setIsExpanded] = useState(false);
    // const { connected } = useTonConnect();
     const [isTooltipVisible, setIsTooltipVisible] = useState(false);
