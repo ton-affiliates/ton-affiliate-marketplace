@@ -2,9 +2,6 @@ import { saveLastProcessedLt, getLastProcessedLt } from '../redis/redis';
 import { getLatestEvents, EmitLogEvent } from './listenToEvents';
 import { wss } from '../app'; // import the wss from app
 
-
-
-
 async function processEvents(events: EmitLogEvent[]) {
   for (const event of events) {
     console.log(`Processing event of type ${event.type}:`, event);
@@ -34,6 +31,7 @@ async function processEvents(events: EmitLogEvent[]) {
 }
 
 export const processBlockchainEvents = async (): Promise<void> => {
+
   try {
     const lastProcessedLt = await getLastProcessedLt();
     console.log('Last Processed LT:', lastProcessedLt);

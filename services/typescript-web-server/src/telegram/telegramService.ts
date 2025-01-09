@@ -7,7 +7,6 @@ dotenv.config();
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || '';
 const TELEGRAM_API_URL = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}`;
 
-
 export async function sendTelegramMessage(chatId: number, message: string): Promise<void> {
     try {
         await axios.post(`${TELEGRAM_API_URL}/sendMessage`, {
@@ -51,21 +50,6 @@ interface Update {
                 username: string;
             };
             status: string;
-            can_be_edited: boolean;
-            can_manage_chat: boolean;
-            can_change_info: boolean;
-            can_post_messages: boolean;
-            can_edit_messages: boolean;
-            can_delete_messages: boolean;
-            can_invite_users: boolean;
-            can_restrict_members: boolean;
-            can_promote_members: boolean;
-            can_manage_video_chats: boolean;
-            can_post_stories: boolean;
-            can_edit_stories: boolean;
-            can_delete_stories: boolean;
-            is_anonymous: boolean;
-            can_manage_voice_chats: boolean;
         };
         new_chat_member: {
             user: {
@@ -75,21 +59,7 @@ interface Update {
                 username: string;
             };
             status: string;
-            can_be_edited: boolean;
-            can_manage_chat: boolean;
-            can_change_info: boolean;
-            can_post_messages: boolean;
-            can_edit_messages: boolean;
-            can_delete_messages: boolean;
-            can_invite_users: boolean;
-            can_restrict_members: boolean;
-            can_promote_members: boolean;
-            can_manage_video_chats: boolean;
-            can_post_stories: boolean;
-            can_edit_stories: boolean;
-            can_delete_stories: boolean;
-            is_anonymous: boolean;
-            can_manage_voice_chats: boolean;
+            can_invite_users?: boolean;
         };
     };
 }
@@ -107,6 +77,7 @@ interface ChatAdministrator {
         is_bot: boolean;
     };
     can_invite_users?: boolean;
+    can_manage_chat?: boolean;
 }
 
 /**
@@ -146,15 +117,6 @@ export async function createTelegramAssetFromUrl(url: string): Promise<TelegramA
             // Private channel handling
             console.log('Fetching updates to resolve private chat ID...');
 
-            // Optionally, clear previous updates to fetch only new ones
-            await axios.get<TelegramApiResponse<Update[]>>(`${TELEGRAM_API_URL}/getUpdates`, {
-                params: { offset: '0', limit: 100, timeout: 0 },
-            });
-
-            // Wait briefly to allow the bot to receive the update after being added
-            console.log('Waiting for the bot to receive the update...');
-            await new Promise(resolve => setTimeout(resolve, 2000)); // Wait for 2 seconds
-
             const updatesResponse = await axios.get<TelegramApiResponse<Update[]>>(`${TELEGRAM_API_URL}/getUpdates`, {
                 params: { offset: '0', limit: 100, timeout: 0 },
             });
@@ -162,7 +124,6 @@ export async function createTelegramAssetFromUrl(url: string): Promise<TelegramA
 
             console.log('Updates received:', JSON.stringify(updates, null, 2));
 
-            // Find the latest my_chat_member update where the bot was added
             const chatUpdate = updates.reverse().find((update) => {
                 if (update.my_chat_member) {
                     const status = update.my_chat_member.new_chat_member.status;
@@ -198,11 +159,10 @@ export async function createTelegramAssetFromUrl(url: string): Promise<TelegramA
         }
 
         if (!chatId || !chatType) {
-            console.error('No matching chat updates found. Verifying admin status directly...');
             return `Unable to resolve chat details for the provided URL: ${url}. Please ensure the bot is added as an admin.`;
         }
 
-        console.log('Verifying bot admin privileges...');
+        console.log('Verifying bot privileges...');
         const adminResponse = await axios.get<TelegramApiResponse<ChatAdministrator[]>>(`${TELEGRAM_API_URL}/getChatAdministrators`, {
             params: { chat_id: chatId },
         });
@@ -214,8 +174,14 @@ export async function createTelegramAssetFromUrl(url: string): Promise<TelegramA
             return `The bot is not an admin in the channel. Please add the bot as an admin.`;
         }
 
-        if (!botAdmin.can_invite_users) {
-            return `The bot does not have sufficient privileges (e.g., "Add members") in the channel. Ensure "Add members" is enabled.`;
+        if (isPublic) {
+            if (!botAdmin.can_invite_users) {
+                return `For public channels, the bot needs the privilege "Add Members" to manage invite links.`;
+            }
+        } else {
+            if (!botAdmin.can_manage_chat) {
+                return `For private channels, the bot needs the privilege "Manage Chat" to function properly.`;
+            }
         }
 
         const telegramAsset: TelegramAsset = {

@@ -9,8 +9,6 @@ import telegramRouter from './api/telegram';
 import { processBlockchainEvents } from './ton/fetchAndProcessEvents';
 import WebSocket from 'ws';
 
-// Guy TODO add auth. Check in production to listen on 'tonaffilaites.ocm/443'  host both mini app and web server on same dmoain
-
 // Load environment variables
 dotenv.config();
 
@@ -21,11 +19,16 @@ const HOST: string = process.env.HOST || "localhost";
 const app = express();
 app.use(express.json());
 
-// Routers
-app.use('/campaign', campaignsRouter);
-app.use('/user', usersRouter);
-app.use('/wallet', walletRouter);
-app.use('/telegram', telegramRouter);
+// Initialize the API router with '/api/v1' as the prefix
+const apiRouter = express.Router();
+
+apiRouter.use('/campaign', campaignsRouter);
+apiRouter.use('/user', usersRouter);
+apiRouter.use('/wallet', walletRouter);
+apiRouter.use('/telegram', telegramRouter);
+
+// Mount the API router
+app.use('/api/v1', apiRouter);
 
 // Create HTTP server from Express
 const httpServer = createServer(app);

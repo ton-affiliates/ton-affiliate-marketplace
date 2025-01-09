@@ -46,10 +46,10 @@ const DeployCampaignButton: React.FC<DeployCampaignButtonProps> = ({ setScreen, 
   }, [affiliateMarketplace]);
 
   useEffect(() => {
-    const socket = new WebSocket('ws://localhost:3000');
+    const socket = new WebSocket(`ws://${window.location.host}/api/ws`);
 
     socket.onopen = () => {
-      console.log('WebSocket connected to ws://localhost:3000');
+      console.log('WebSocket connected to Nginx-proxied WebSocket server');
     };
 
     socket.onmessage = (evt) => {

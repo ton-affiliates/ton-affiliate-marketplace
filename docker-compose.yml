@@ -4,21 +4,21 @@ services:
       context: .
       dockerfile: ./services/typescript-web-server/Dockerfile
     volumes:
-      # Mount only the necessary source directories
       - ./services/typescript-web-server/src:/usr/src/app/src
       - ./services/common:/usr/src/app/src/common
       - ./wrappers:/usr/src/app/src/wrappers
       - ./build:/usr/src/app/src/build
-      # Use an anonymous volume for node_modules to prevent overwriting
       - /usr/src/app/node_modules
     ports:
       - "3000:3000"
     environment:
-      - NODE_ENV=production
+      - NODE_ENV=development
     env_file:
       - ./services/typescript-web-server/.env
     depends_on:
       - redis
+    networks:
+      - app-network
 
   redis:
     image: redis:latest
@@ -27,20 +27,27 @@ services:
       - "6379:6379"
     volumes:
       - redis-data:/data
-
+    networks:
+      - app-network
 
   mini-app:
     build:
       context: .
       dockerfile: ./services/affiliate-center-miniapp/Dockerfile
-    env_file:
-      - ./services/affiliate-center-miniapp/.env
     ports:
       - "5173:80"
     volumes:
-      - ./services/affiliate-center-miniapp/nginx.conf:/etc/nginx/conf.d/default.conf
+      - ./services/affiliate-center-miniapp/nginx.conf:/etc/nginx/conf.d/nginx.conf.template
+    env_file:
+      - ./services/affiliate-center-miniapp/.env
     environment:
-      - NODE_ENV=production
+      - NODE_ENV=development
+    networks:
+      - app-network
 
 volumes:
   redis-data:
+
+
+networks:
+  app-network:

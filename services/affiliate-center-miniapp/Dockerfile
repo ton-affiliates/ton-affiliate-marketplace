@@ -48,5 +48,15 @@ COPY --from=builder /app/public/assets/icon.png /usr/share/nginx/html/assets/
 # Expose port 80 for Nginx
 EXPOSE 80
 
+# Add envsubst for dynamic configuration
+RUN apk add --no-cache gettext
+
+# Copy the nginx configuration template
+COPY services/affiliate-center-miniapp/nginx.conf /etc/nginx/conf.d/nginx.conf.template
+
+# Copy the start script
+COPY services/affiliate-center-miniapp/starts.sh /start.sh
+RUN chmod +x /start.sh
+
 # Start Nginx
-CMD ["nginx", "-g", "daemon off;"]
+ENTRYPOINT ["/start.sh"]

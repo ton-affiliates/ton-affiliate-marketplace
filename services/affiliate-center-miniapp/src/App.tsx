@@ -1,22 +1,22 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-// import { UserRoleProvider } from "./UserRoleContext"; // Import the context provider
 import MainScreen from './components/MainScreen';
 import AdvertiserOptions from './components/AdvertiserOptions';
-import CampaignStatus from './components/CampaignStatus';
 import NewCampaign from './components/NewCampaign';
 import DeployEmptyCampaign from './components/DeployEmptyCampaign';
+import TelegramSetup from './components/TelegramSetup';
+import { TonConnectButton } from '@tonconnect/ui-react';
 import { TonConnectProvider } from './TonConnectProvider';
 import { TelegramProvider } from './TelegramContext';
 import { TelegramCampaignProvider } from './TelegramCampaignContext';
-import TelegramSetup from './components/TelegramSetup';
+import { ScreenTypes } from './components/ScreenNavigation'; // Reuse ScreenTypes
 
 const App: React.FC = () => {
-  const [screen, setScreen] = useState<
-    'main' | 'advertiser' | 'campaign' | 'status' | 'setupTelegram' | 'deployEmptyCampaign'
-  >('main');
-
-  const [campaignId, setCampaignId] = useState<string | null>(null); // State to store campaignId
+  // State for managing the active screen
+  const [screen, setScreen] = useState<ScreenTypes>('main');
+  
+  // State for managing the campaignId
+  const [campaignId, setCampaignId] = useState<string | null>(null);
 
   const renderScreen = () => {
     switch (screen) {
@@ -27,13 +27,11 @@ const App: React.FC = () => {
       case 'campaign':
         return <NewCampaign setScreen={setScreen} />;
       case 'status':
-        return <CampaignStatus setScreen={setScreen} />;
+        return null; // TMP <CampaignStatus setScreen={setScreen} />;
       case 'setupTelegram':
-        return <TelegramSetup setScreen={setScreen} campaignId={campaignId} />; // Pass campaignId
+        return <TelegramSetup setScreen={setScreen} campaignId={campaignId} />;
       case 'deployEmptyCampaign':
-        return <DeployEmptyCampaign setScreen={setScreen} setCampaignId={setCampaignId} />; // Pass setCampaignId
-      default:
-        return null;
+        return <DeployEmptyCampaign setScreen={setScreen} setCampaignId={setCampaignId} />;
     }
   };
 
@@ -44,15 +42,19 @@ const App: React.FC = () => {
       exit={{ opacity: 0 }}
       className="app-container"
     >
-      {/* <UserRoleProvider> */}
+      {/* Wrapping everything in providers */}
       <TelegramProvider>
         <TelegramCampaignProvider>
           <TonConnectProvider>
+            {/* Wallet Connect Button at Top Right */}
+            <div style={{ position: 'absolute', top: 10, right: 10 }}>
+              <TonConnectButton />
+            </div>
+            {/* Render the selected screen */}
             {renderScreen()}
           </TonConnectProvider>
         </TelegramCampaignProvider>
       </TelegramProvider>
-      {/* </UserRoleProvider> */}
     </motion.div>
   );
 };

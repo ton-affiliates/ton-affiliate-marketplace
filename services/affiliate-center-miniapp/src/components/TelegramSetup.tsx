@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useTelegramCampaignContext } from '../TelegramCampaignContext';
-import { TelegramCategory, TelegramAsset } from '@common/models';
+import { TelegramCategory, TelegramAsset, TelegramAssetType } from '@common/models';
 import { motion } from 'framer-motion';
 import { ScreenProps } from './ScreenNavigation'; // Import the common ScreenProps interface
 
@@ -14,26 +14,19 @@ const TelegramSetup: React.FC<TelegramSetupProps> = ({ setScreen, campaignId }) 
   const [category, setCategory] = useState<TelegramCategory | ''>('');
   const [description, setDescription] = useState('');
   const [inviteLink, setInviteLink] = useState('');
-  const [_, setIsVerifying] = useState(false);
-
+  const [telegramType, setTelegramType] = useState<TelegramAssetType | ''>('');
+  const [isVerifying, setIsVerifying] = useState(false);
   const [isVerified, setIsVerified] = useState(false);
+  const [telegramAsset, setTelegramAsset] = useState<TelegramAsset | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
-  const sleep = (ms: number | undefined) => new Promise((r) => setTimeout(r, ms));
-  const serverBaseUrl = process.env.REACT_APP_SRV_BASE_URL;
-  const [showSuccessPopup, setShowSuccessPopup] = useState(false);
 
   const handleVerify = async () => {
     setIsVerifying(true);
-    setErrorMessage('');
+    setErrorMessage(null);
 
     try {
-      if (!serverBaseUrl) {
-        console.error('SERVER BASE API URL is not defined. Please check your .env file.');
-        return;
-      }
-
-      const response = await fetch(`${serverBaseUrl}/telegram/verify-and-create`, {
+      const response = await fetch(`/api/v1/telegram/verify-and-create`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -41,26 +34,15 @@ const TelegramSetup: React.FC<TelegramSetupProps> = ({ setScreen, campaignId }) 
         body: JSON.stringify({ url: inviteLink }),
       });
 
-      await sleep(1000);
-
       if (!response.ok) {
-        console.error('Invalid invite link');
-        throw new Error('Invalid invite link');
+        throw new Error('Invalid invite link or insufficient bot privileges.');
       }
 
       const data = await response.json();
-      setTelegramCampaign({
-        ...telegramCampaign,
-        name: campaignName,
-        description,
-        category: category as TelegramCategory,
-        telegramAsset: data.telegramAsset as TelegramAsset,
-      });
-
+      setTelegramAsset(data.telegramAsset as TelegramAsset);
       setIsVerified(true);
-      setShowSuccessPopup(true); // Show popup
-    } catch (error) {
-      setErrorMessage('The invite link you entered is not valid. Please enter a valid link and try again.');
+    } catch (error: any) {
+      setErrorMessage(error.message || 'Failed to verify the Telegram URL. Please try again.');
       setIsVerified(false);
     } finally {
       setIsVerifying(false);
@@ -72,6 +54,31 @@ const TelegramSetup: React.FC<TelegramSetupProps> = ({ setScreen, campaignId }) 
     setCopied(true);
 
     setTimeout(() => setCopied(false), 2000); // Reset "Copied" after 2 seconds
+  };
+
+  const handleConfirm = () => {
+    if (!telegramAsset) return;
+
+    setTelegramCampaign({
+      ...telegramCampaign,
+      name: campaignName,
+      description,
+      category: category as TelegramCategory,
+      telegramAsset,
+    });
+
+    setScreen('campaign');
+  };
+
+  const renderTelegramType = (type: TelegramAssetType): string => {
+    switch (type) {
+      case TelegramAssetType.CHANNEL:
+        return 'Channel';
+      case TelegramAssetType.GROUP:
+        return 'Group';
+      default:
+        return 'Unknown';
+    }
   };
 
   return (
@@ -116,6 +123,31 @@ const TelegramSetup: React.FC<TelegramSetupProps> = ({ setScreen, campaignId }) 
         </div>
 
         <div className="form-group">
+          <label htmlFor="telegramType">*Telegram Type:</label>
+          <select
+            id="telegramType"
+            value={telegramType}
+            onChange={(e) => {
+                const value = e.target.value;
+              
+                // Map the string value to the enum
+                const enumValue = (Object.values(TelegramAssetType) as string[]).includes(value)
+                  ? (value as unknown as TelegramAssetType)
+                  : undefined;
+              
+                if (enumValue) {
+                  setTelegramType(enumValue);
+                }
+              }}>              
+            <option value="" disabled>
+              Select Telegram Asset Type
+            </option>
+            <option value={TelegramAssetType.CHANNEL}>Channel</option>
+            <option value={TelegramAssetType.GROUP}>Group</option>
+          </select>
+        </div>
+
+        <div className="form-group">
           <label htmlFor="description">Description:</label>
           <input
             id="description"
@@ -126,7 +158,25 @@ const TelegramSetup: React.FC<TelegramSetupProps> = ({ setScreen, campaignId }) 
         </div>
 
         <div className="card">
-          <p>Please add the following bot as ADMIN to your channel/group with the 'add new members' privileges:</p>
+          <p>
+            <strong>Why add the bot as an admin?</strong>{' '}
+            <button
+              className="info-button"
+              title="The bot needs admin privileges to verify membership of users."
+            >
+              i
+            </button>
+          </p>
+          <ul>
+            <li>
+              <strong>Public:</strong> Add the bot as an admin with the <em>"Add Members"</em>{' '}
+              privilege.
+            </li>
+            <li>
+              <strong>Private:</strong> Add the bot as an admin with the <em>"Manage Chat"</em>{' '}
+              privilege.
+            </li>
+          </ul>
           <div className="copy-pane">
             @ton_affiliates_verifier_bot
             <button
@@ -157,12 +207,30 @@ const TelegramSetup: React.FC<TelegramSetupProps> = ({ setScreen, campaignId }) 
           </div>
         )}
 
-        {showSuccessPopup && (
+        {isVerified && telegramAsset && (
           <div className="popup-overlay">
             <div className="popup-container">
-              <h2>Your Telegram Details Verified Successfully</h2>
-              <button className="next-step-button" onClick={() => setScreen('campaign')}>
-                Next Step
+              <h2>Telegram Details Verified</h2>
+              <p>
+                <strong>
+                  {telegramAsset.type === TelegramAssetType.GROUP ? 'Group Name:' : 'Channel Name:'}
+                </strong>{' '}
+                {telegramAsset.name}
+              </p>
+              <p>
+                <strong>Type:</strong> {renderTelegramType(telegramAsset.type)}
+              </p>
+              <p>
+                <strong>Visibility:</strong> {telegramAsset.isPublic ? 'Public' : 'Private'}
+              </p>
+              <p>
+                <strong>Invite Link:</strong>{' '}
+                <a href={telegramAsset.url} target="_blank" rel="noopener noreferrer">
+                  {telegramAsset.url}
+                </a>
+              </p>
+              <button className="next-step-button" onClick={handleConfirm}>
+                Confirm and Proceed
               </button>
             </div>
           </div>
@@ -171,14 +239,15 @@ const TelegramSetup: React.FC<TelegramSetupProps> = ({ setScreen, campaignId }) 
         <div className="buttons-container">
           <button
             className="telegram-campaign-button"
-            disabled={!campaignName || !category || !inviteLink}
+            disabled={!campaignName || !category || !inviteLink || !telegramType || isVerifying}
             onClick={handleVerify}
-            title={!campaignName || !category || !inviteLink ? 'Please fill all the Mandatory Fields marked with *' : ''}
+            title={
+              !campaignName || !category || !inviteLink || !telegramType
+                ? 'Please fill all the Mandatory Fields marked with *'
+                : ''
+            }
           >
-            Verify Setup
-          </button>
-          <button className="telegram-campaign-button" disabled={!isVerified} onClick={() => setScreen('campaign')}>
-            Next
+            {isVerifying ? 'Verifying...' : 'Verify Setup'}
           </button>
         </div>
       </div>
