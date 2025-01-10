@@ -6,9 +6,9 @@ import NewCampaign from './components/NewCampaign';
 import DeployEmptyCampaign from './components/DeployEmptyCampaign';
 import TelegramSetup from './components/TelegramSetup';
 import { TonConnectButton } from '@tonconnect/ui-react';
-import { TonConnectProvider } from './TonConnectProvider';
-import { TelegramProvider } from './TelegramContext';
-import { TelegramCampaignProvider } from './TelegramCampaignContext';
+import { TonConnectProvider } from './components/TonConnectProvider';
+import { TelegramProvider } from './components/TelegramContext';
+import { TelegramCampaignProvider } from './components/TelegramCampaignContext';
 import { ScreenTypes } from './components/ScreenNavigation'; // Reuse ScreenTypes
 
 const App: React.FC = () => {

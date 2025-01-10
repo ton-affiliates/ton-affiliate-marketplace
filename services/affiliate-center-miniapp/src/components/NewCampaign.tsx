@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { TonConnectButton } from '@tonconnect/ui-react';
-import { useTonConnectFetchContext } from '../TonConnectProvider';
+import { useTonConnectFetchContext } from './TonConnectProvider';
 import { ScreenProps } from './ScreenNavigation';
 
 type CommissionableEventKeys = 'userReferred' | 'premiumUserReferred' | 'userRetained' | 'userActive';

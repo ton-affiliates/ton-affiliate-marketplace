@@ -1,36 +1,40 @@
-import { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { TonConnectButton } from '@tonconnect/ui-react';
-import { toNano, Address } from '@ton/core';
+import { toNano } from '@ton/core';
 import { useTonConnect } from '../hooks/useTonConnect';
-import { useTonConnectFetchContext } from '../TonConnectProvider';
+import { useTonConnectFetchContext } from './TonConnectProvider';
 import { useAffiliateMarketplace } from '../hooks/useAffiliateMarketplace';
-import '../styles/DeplyCampaignButton.css';
 import Spinner from './Spinner';
 import SuccessIcon from './SuccessIcon';
-import { ScreenProps } from './ScreenNavigation'; // Import ScreenProps for type consistency
+import { useCampaignWebSocket } from '../hooks/useCampaignWebSocket';
+import { ScreenTypes } from './ScreenNavigation';
 
-interface DeployCampaignButtonProps extends ScreenProps {
+interface DeployEmptyCampaignProps {
+  setScreen: React.Dispatch<React.SetStateAction<ScreenTypes>>;
   setCampaignId: React.Dispatch<React.SetStateAction<string | null>>;
 }
 
-function translateRawAddress(rawAddress: { workChain: number; hash: { type: string; data: number[] } }): Address {
-  const workChain = rawAddress.workChain;
-  const hashBuffer = Buffer.from(rawAddress.hash.data);
-  return Address.parseRaw(`${workChain}:${hashBuffer.toString('hex')}`);
-}
-
-const DeployCampaignButton: React.FC<DeployCampaignButtonProps> = ({ setScreen, setCampaignId }) => {
+const DeployEmptyCampaign: React.FC<DeployEmptyCampaignProps> = ({ setScreen, setCampaignId }) => {
   const affiliateMarketplace = useAffiliateMarketplace();
   const { connectedStatus, userAccount } = useTonConnectFetchContext();
   const { sender } = useTonConnect();
 
   const [numCampaigns, setNumCampaigns] = useState<string>('---');
-  const [isModalOpen, setIsModalOpen] = useState(false);
   const [waitingForTx, setWaitingForTx] = useState(false);
   const [txSuccess, setTxSuccess] = useState(false);
   const [txFailed, setTxFailed] = useState(false);
-  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Use the WebSocket hook to handle real-time campaign updates
+  useCampaignWebSocket(
+    userAccount,
+    setNumCampaigns,
+    setCampaignId,
+    setTxSuccess,
+    setWaitingForTx,
+    setTxFailed,
+    setScreen
+  );
 
   useEffect(() => {
     const fetchNumCampaigns = async () => {
@@ -45,76 +49,49 @@ const DeployCampaignButton: React.FC<DeployCampaignButtonProps> = ({ setScreen, 
     fetchNumCampaigns();
   }, [affiliateMarketplace]);
 
-  useEffect(() => {
-    const socket = new WebSocket(`ws://${window.location.host}/api/ws`);
-
-    socket.onopen = () => {
-      console.log('WebSocket connected to Nginx-proxied WebSocket server');
-    };
-
-    socket.onmessage = (evt) => {
-      const message = JSON.parse(evt.data);
-      if (message.type === 'CampaignCreatedEvent') {
-        const campaignId = BigInt(message.data.campaignId).toString();
-        const eventAdvertiser = translateRawAddress(message.data.advertiser).toString();
-        const userAddress = userAccount ? Address.parse(userAccount.address).toString() : null;
-
-        if (eventAdvertiser === userAddress) {
-          if (timeoutRef.current) clearTimeout(timeoutRef.current);
-          setNumCampaigns((prev) => (parseInt(prev, 10) + 1).toString());
-          setCampaignId(campaignId); // Save campaignId for the next screen
-          setTxSuccess(true);
-          setWaitingForTx(false);
-          setTxFailed(false);
-
-          // Redirect to setup page
-          setTimeout(() => {
-            setScreen('setupTelegram');
-          }, 1000);
-        }
-      }
-    };
-
-    socket.onerror = (error) => {
-      console.error('WebSocket error:', error);
-    };
-
-    return () => {
-      socket.close();
-      if (timeoutRef.current) clearTimeout(timeoutRef.current);
-    };
-  }, [userAccount, setCampaignId, setScreen]);
-
   const handleDeployCampaign = async () => {
     if (!affiliateMarketplace || !userAccount) return;
 
-    setIsModalOpen(false);
-    setWaitingForTx(true);
-    setTxSuccess(false);
-    setTxFailed(false);
+    setWaitingForTx(true); // Show loading spinner
+    setTxSuccess(false);   // Reset success state
+    setTxFailed(false);    // Reset failure state
 
     try {
-      await affiliateMarketplace.send(
+      // Send transaction and wait for user interaction
+      const txPromise = affiliateMarketplace.send(
         sender,
         { value: toNano('0.15') },
         { $$type: 'AdvertiserDeployNewCampaign' }
       );
-      console.log('Deploy transaction sent!');
 
-      timeoutRef.current = setTimeout(() => {
-        console.log('No campaign ID received within 60 seconds -> transaction failed.');
-        setTxFailed(true);
-        setWaitingForTx(false);
-      }, 60_000);
+      console.log('Waiting for user to confirm the transaction...');
+      await txPromise;
+
+      console.log('Transaction sent successfully!');
+      // Allow WebSocket to handle success state (handled by useCampaignWebSocket)
     } catch (error) {
-      console.error('Deploy transaction error:', error);
-      setTxFailed(true);
-      setWaitingForTx(false);
+      console.error('Transaction failed or was canceled:', error);
+
+      if (error instanceof Error) {
+        // Check if the user canceled the transaction explicitly
+        if (error.message.includes('canceled')) {
+          console.log('Transaction was canceled by the user.');
+        } else {
+          console.log('Transaction failed due to an error.');
+        }
+      } else {
+        console.log('An unknown error occurred:', error);
+      }
+
+      // Reset UI state to its initial form
+      setWaitingForTx(false); // Remove spinner
+      setTxSuccess(false);    // Ensure success state is reset
+      setTxFailed(false);     // Ensure failure state is reset
     }
   };
 
   return (
-    <motion.div className="screen-container" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+    <motion.div className="deploy-campaign-container" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
       <div className="card">
         {!connectedStatus && <p>Please connect your Telegram wallet.</p>}
 
@@ -124,13 +101,12 @@ const DeployCampaignButton: React.FC<DeployCampaignButtonProps> = ({ setScreen, 
               <p className="message status-active">Wallet is connected.</p>
               <TonConnectButton />
             </div>
-
             <div className="vertically-aligned">
-              <h1 className="headline">Deploy New Campaign</h1>
+              <h1 className="headline">Deploy Empty Campaign</h1>
               <p>Number of campaigns: {numCampaigns}</p>
               <button
                 className="nav-button"
-                onClick={() => setIsModalOpen(true)}
+                onClick={handleDeployCampaign}
                 disabled={waitingForTx}
               >
                 Create New Campaign
@@ -159,31 +135,8 @@ const DeployCampaignButton: React.FC<DeployCampaignButtonProps> = ({ setScreen, 
           </div>
         )}
       </div>
-
-      {isModalOpen && (
-        <div className="modal-overlay">
-          <div className="modal-content">
-            <button
-              className="modal-close-top"
-              onClick={() => setIsModalOpen(false)}
-              disabled={waitingForTx}
-            >
-              ×
-            </button>
-            <h2>Review Campaign Details</h2>
-            <p>Current number of campaigns: {numCampaigns}</p>
-            <button
-              className="nav-button margin-left"
-              onClick={handleDeployCampaign}
-              disabled={waitingForTx}
-            >
-              Deploy
-            </button>
-          </div>
-        </div>
-      )}
     </motion.div>
   );
 };
 
-export default DeployCampaignButton;
+export default DeployEmptyCampaign;

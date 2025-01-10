@@ -1,4 +1,3 @@
-// TonConnectProvider.tsx
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { TonConnectUI } from "@tonconnect/ui";
 import type { Account } from "@tonconnect/ui"; // The type for walletInfo.account
@@ -7,11 +6,9 @@ import { useTonConnectUI } from "@tonconnect/ui-react";
 type TonConnectContextType = {
   connectedStatus: boolean;
   tonConnectUI: TonConnectUI;
-  /**
-   * The entire wallet account object from TonConnect.
-   * If not connected, this is `null`.
-   */
   userAccount: Account | null;
+  transactionStatus: string | null;
+  sendTransaction: (tx: any) => Promise<void>; // Function to send a transaction
 };
 
 const TonConnectContext = createContext<TonConnectContextType | undefined>(undefined);
@@ -19,16 +16,15 @@ const TonConnectContext = createContext<TonConnectContextType | undefined>(undef
 export const TonConnectProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [connectedStatus, setConnectedStatus] = useState(false);
   const [userAccount, setUserAccount] = useState<Account | null>(null);
+  const [transactionStatus, setTransactionStatus] = useState<string | null>(null);
   const [tonConnectUI] = useTonConnectUI();
 
   useEffect(() => {
     // Subscribe to connection/disconnection events
     const unsubscribe = tonConnectUI.onStatusChange((walletInfo) => {
-      // If walletInfo exists, user is connected
       setConnectedStatus(!!walletInfo);
 
       if (walletInfo) {
-        // Store the entire account object, e.g. { address: "...", chain: "...", ... }
         setUserAccount(walletInfo.account);
       } else {
         setUserAccount(null);
@@ -40,8 +36,28 @@ export const TonConnectProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     };
   }, [tonConnectUI]);
 
+  const sendTransaction = async (tx: any) => {
+    setTransactionStatus("pending");
+
+    try {
+      await tonConnectUI.sendTransaction(tx); // Send the transaction
+      setTransactionStatus("success");
+    } catch (error) {
+      setTransactionStatus("error");
+      console.error("Transaction failed:", error);
+    }
+  };
+
   return (
-    <TonConnectContext.Provider value={{ connectedStatus, tonConnectUI, userAccount }}>
+    <TonConnectContext.Provider
+      value={{
+        connectedStatus,
+        tonConnectUI,
+        userAccount,
+        transactionStatus,
+        sendTransaction, // Expose the transaction sender
+      }}
+    >
       {children}
     </TonConnectContext.Provider>
   );

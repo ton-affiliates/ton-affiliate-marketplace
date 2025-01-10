@@ -1,6 +1,13 @@
 # Stage 1: Build the React App
 FROM node:18-alpine AS builder
 
+# Set build arguments
+ARG NODE_ENV
+ARG NETWORK_ENV
+
+# Print for debugging
+RUN echo "NODE_ENV=${NODE_ENV}" && echo "NETWORK_ENV=${NETWORK_ENV}"
+
 WORKDIR /app
 
 # 1. Copy package files
@@ -24,11 +31,19 @@ COPY services/common ./src/common
 COPY build/AffiliateMarketplace/tact_AffiliateMarketplace.ts ./src/contracts/AffiliateMarketplace.ts
 COPY build/Campaign/tact_Campaign.ts ./src/contracts/Campaign.ts
 
-# 6. Prepend // @ts-nocheck to Tact files (optional step)
+# 6. Copy shared and service-specific .env files
+COPY ./services/common/.env.${NETWORK_ENV} ./src/common/.env.shared
+COPY ./services/affiliate-center-miniapp/.env.${NODE_ENV} ./src/.env.service
+
+# 7. Merge shared and service-specific .env files
+RUN echo "" >> ./src/common/.env.shared && cat ./src/.env.service >> ./src/common/.env.shared && mv ./src/common/.env.shared .env
+
+
+# 8. Prepend // @ts-nocheck to Tact files (optional step)
 RUN echo "// @ts-nocheck" | cat - ./src/contracts/AffiliateMarketplace.ts > temp && mv temp ./src/contracts/AffiliateMarketplace.ts
 RUN echo "// @ts-nocheck" | cat - ./src/contracts/Campaign.ts > temp && mv temp ./src/contracts/Campaign.ts
 
-# 7. Build the application
+# 9. Build the application
 RUN npm run build
 
 # Stage 2: Serve with Nginx
@@ -37,10 +52,10 @@ FROM nginx:stable-alpine
 # Clean out the default nginx html folder
 RUN rm -rf /usr/share/nginx/html/*
 
-# Copy the production build from the builder
+# 10. Copy the production build from the builder
 COPY --from=builder /app/dist /usr/share/nginx/html
 
-# Copy the TonConnect manifest file and icon from the builder
+# 11. Copy the TonConnect manifest file and icon from the builder
 COPY --from=builder /app/public/tonconnect-manifest.json /usr/share/nginx/html/
 RUN mkdir -p /usr/share/nginx/html/assets/
 COPY --from=builder /app/public/assets/icon.png /usr/share/nginx/html/assets/

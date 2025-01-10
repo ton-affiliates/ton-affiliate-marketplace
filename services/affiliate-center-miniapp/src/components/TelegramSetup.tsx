@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { useTelegramCampaignContext } from '../TelegramCampaignContext';
+import { useTelegramCampaignContext } from './TelegramCampaignContext';
 import { TelegramCategory, TelegramAsset, TelegramAssetType } from '@common/models';
 import { motion } from 'framer-motion';
-import { ScreenProps } from './ScreenNavigation'; // Import the common ScreenProps interface
+import { ScreenProps } from './ScreenNavigation';
 
 interface TelegramSetupProps extends ScreenProps {
   campaignId: string | null;
@@ -81,6 +81,13 @@ const TelegramSetup: React.FC<TelegramSetupProps> = ({ setScreen, campaignId }) 
     }
   };
 
+  // Debugging logs
+  console.log('campaignName:', campaignName);
+  console.log('category:', category);
+  console.log('inviteLink:', inviteLink);
+  console.log('telegramType:', telegramType);
+  console.log('isVerifying:', isVerifying);
+
   return (
     <motion.div
       className="screen-container"
@@ -128,17 +135,18 @@ const TelegramSetup: React.FC<TelegramSetupProps> = ({ setScreen, campaignId }) 
             id="telegramType"
             value={telegramType}
             onChange={(e) => {
-                const value = e.target.value;
-              
-                // Map the string value to the enum
-                const enumValue = (Object.values(TelegramAssetType) as string[]).includes(value)
-                  ? (value as unknown as TelegramAssetType)
-                  : undefined;
-              
-                if (enumValue) {
-                  setTelegramType(enumValue);
-                }
-              }}>              
+              const value = e.target.value;
+
+              // Map the string value to the enum
+              const enumValue = (Object.values(TelegramAssetType) as string[]).includes(value)
+                ? (value as unknown as TelegramAssetType)
+                : undefined;
+
+              if (enumValue) {
+                setTelegramType(enumValue);
+              }
+            }}
+          >
             <option value="" disabled>
               Select Telegram Asset Type
             </option>

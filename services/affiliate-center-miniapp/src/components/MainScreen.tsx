@@ -1,7 +1,7 @@
 import React, { useContext } from 'react';
 import { motion } from 'framer-motion';
-import { useUserRole } from "../UserRoleContext";
-import { TelegramContext } from '../TelegramContext';
+import { useUserRole } from "./UserRoleContext";
+import { TelegramContext } from './TelegramContext';
 import useScrollToTop from '../hooks/scrollToStart';
 import { ScreenProps } from './ScreenNavigation'; // Use centralized ScreenProps type
 
