@@ -11,10 +11,10 @@ interface TelegramSetupProps extends ScreenProps {
 const TelegramSetup: React.FC<TelegramSetupProps> = ({ setScreen, campaignId }) => {
   const { telegramCampaign, setTelegramCampaign } = useTelegramCampaignContext();
   const [campaignName, setCampaignName] = useState('');
-  const [category, setCategory] = useState<TelegramCategory | ''>('');
+  const [category] = useState<TelegramCategory | ''>('');
   const [description, setDescription] = useState('');
   const [inviteLink, setInviteLink] = useState('');
-  const [telegramType, setTelegramType] = useState<TelegramAssetType | ''>('');
+  const [telegramType, setTelegramType] = useState<TelegramAssetType | ''>(''); // Empty value fallback
   const [isVerifying, setIsVerifying] = useState(false);
   const [isVerified, setIsVerified] = useState(false);
   const [telegramAsset, setTelegramAsset] = useState<TelegramAsset | null>(null);
@@ -52,13 +52,11 @@ const TelegramSetup: React.FC<TelegramSetupProps> = ({ setScreen, campaignId }) 
   const handleCopy = () => {
     navigator.clipboard.writeText('@ton_affiliates_verifier_bot');
     setCopied(true);
-
-    setTimeout(() => setCopied(false), 2000); // Reset "Copied" after 2 seconds
+    setTimeout(() => setCopied(false), 2000);
   };
 
   const handleConfirm = () => {
     if (!telegramAsset) return;
-
     setTelegramCampaign({
       ...telegramCampaign,
       name: campaignName,
@@ -66,7 +64,6 @@ const TelegramSetup: React.FC<TelegramSetupProps> = ({ setScreen, campaignId }) 
       category: category as TelegramCategory,
       telegramAsset,
     });
-
     setScreen('campaign');
   };
 
@@ -81,6 +78,34 @@ const TelegramSetup: React.FC<TelegramSetupProps> = ({ setScreen, campaignId }) 
     }
   };
 
+  const handleTelegramTypeChange = (value: string) => {
+    const mappedType = stringToTelegramAssetType(value);
+    if (mappedType !== undefined) {
+      setTelegramType(mappedType);
+    } else {
+      console.error(`Invalid TelegramType: ${value}`);
+    }
+  };
+  
+  // Helper function to map strings to TelegramAssetType
+  const stringToTelegramAssetType = (value: string): TelegramAssetType | undefined => {
+    switch (value.toLowerCase()) {
+      case 'channel':
+        return TelegramAssetType.CHANNEL;
+      case 'group':
+        return TelegramAssetType.GROUP;
+      case 'super_group':
+        return TelegramAssetType.SUPER_GROUP;
+      case 'forum':
+        return TelegramAssetType.FORUM;
+      case 'mini_app':
+        return TelegramAssetType.MINI_APP;
+      default:
+        return undefined;
+    }
+  };
+  
+    
   return (
     <motion.div
       className="screen-container"
@@ -93,7 +118,6 @@ const TelegramSetup: React.FC<TelegramSetupProps> = ({ setScreen, campaignId }) 
         <p>
           <strong>Campaign ID:</strong> {campaignId || 'No campaign ID provided'}
         </p>
-
         <div className="form-group">
           <label htmlFor="campaignName">*Campaign Name:</label>
           <input
@@ -103,46 +127,26 @@ const TelegramSetup: React.FC<TelegramSetupProps> = ({ setScreen, campaignId }) 
             onChange={(e) => setCampaignName(e.target.value)}
           />
         </div>
-
         <div className="form-group">
           <label htmlFor="category">*Category:</label>
           <select
-            id="category"
-            value={category}
-            onChange={(e) => setCategory(e.target.value as TelegramCategory)}
-          >
-            <option value="" disabled>
-              Select a category
-            </option>
-            {Object.values(TelegramCategory).map((cat) => (
-              <option key={cat} value={cat}>
-                {cat}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div className="form-group">
-          <label htmlFor="telegramType">*Telegram Type:</label>
-          <select
             id="telegramType"
-            value={telegramType}
-            onChange={(e) => {
-              console.log('Selected Value:', e.target.value); // Debugging
-              setTelegramType(e.target.value as TelegramAssetType);
-            }}
+            value={telegramType !== undefined ? TelegramAssetType[telegramType as number] : ''} // Ensure numeric index
+            onChange={(e) => handleTelegramTypeChange(e.target.value)}
           >
             <option value="" disabled>
               Select Telegram Asset Type
             </option>
-            {Object.values(TelegramAssetType).map((type) => (
-              <option key={type} value={type}>
-                {renderTelegramType(type)}
-              </option>
-            ))}
-          </select>
-        </div>
+            {Object.values(TelegramAssetType)
+              .filter((value) => typeof value === 'number') // Only numeric values
+              .map((type) => (
+                <option key={type} value={TelegramAssetType[type as number]}>
+                  {TelegramAssetType[type as number]}
+                </option>
+              ))}
+          </select>;
 
+        </div>
         <div className="form-group">
           <label htmlFor="description">Description:</label>
           <input
@@ -152,7 +156,6 @@ const TelegramSetup: React.FC<TelegramSetupProps> = ({ setScreen, campaignId }) 
             onChange={(e) => setDescription(e.target.value)}
           />
         </div>
-
         <div className="card">
           <p>
             <strong>Why add the bot as an admin?</strong>{' '}
@@ -184,7 +187,6 @@ const TelegramSetup: React.FC<TelegramSetupProps> = ({ setScreen, campaignId }) 
             </button>
           </div>
         </div>
-
         <div className="form-group">
           <label htmlFor="inviteLink" className="align-self-center">
             *Copy invite link to group/channel here:
@@ -196,13 +198,7 @@ const TelegramSetup: React.FC<TelegramSetupProps> = ({ setScreen, campaignId }) 
             onChange={(e) => setInviteLink(e.target.value)}
           />
         </div>
-
-        {errorMessage && (
-          <div className="error-popup">
-            <p>{errorMessage}</p>
-          </div>
-        )}
-
+        {errorMessage && <div className="error-popup"><p>{errorMessage}</p></div>}
         {isVerified && telegramAsset && (
           <div className="popup-overlay">
             <div className="popup-container">
@@ -231,7 +227,6 @@ const TelegramSetup: React.FC<TelegramSetupProps> = ({ setScreen, campaignId }) 
             </div>
           </div>
         )}
-
         <div className="buttons-container">
           <button
             className="telegram-campaign-button"
