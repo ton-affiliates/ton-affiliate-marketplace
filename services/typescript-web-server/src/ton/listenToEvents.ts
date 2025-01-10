@@ -91,7 +91,9 @@ function getEventType(cell: Cell): 'AdvertiserWithdrawFundsEvent' | 'CampaignCre
 
 export async function getLatestEvents(lastProcessedEventLt = BigInt(0)) {
     // Load client
-    const endpoint = await getHttpV4Endpoint({ network: HTTP_ENDPOINT_NETWORK });
+    const endpoint = HTTP_ENDPOINT_NETWORK == "testnet" ? 
+            await getHttpV4Endpoint({ network: HTTP_ENDPOINT_NETWORK }) :
+            await getHttpV4Endpoint();
     const client = new TonClient4({ endpoint });
 
     // Load transactions

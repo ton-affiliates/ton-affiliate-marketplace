@@ -1,13 +1,6 @@
 # Stage 1: Build the React App
 FROM node:18-alpine AS builder
 
-# Set build arguments
-ARG NODE_ENV
-ARG NETWORK_ENV
-
-# Print for debugging
-RUN echo "NODE_ENV=${NODE_ENV}" && echo "NETWORK_ENV=${NETWORK_ENV}"
-
 WORKDIR /app
 
 # 1. Copy package files
@@ -30,14 +23,6 @@ COPY services/common ./src/common
 # 5. Copy Tact-generated TS files (example: AffiliateMarketplace, Campaign)
 COPY build/AffiliateMarketplace/tact_AffiliateMarketplace.ts ./src/contracts/AffiliateMarketplace.ts
 COPY build/Campaign/tact_Campaign.ts ./src/contracts/Campaign.ts
-
-# 6. Copy shared and service-specific .env files
-COPY ./services/common/.env.${NETWORK_ENV} ./src/common/.env.shared
-COPY ./services/affiliate-center-miniapp/.env.${NODE_ENV} ./src/.env.service
-
-# 7. Merge shared and service-specific .env files
-RUN echo "" >> ./src/common/.env.shared && cat ./src/.env.service >> ./src/common/.env.shared && mv ./src/common/.env.shared .env
-
 
 # 8. Prepend // @ts-nocheck to Tact files (optional step)
 RUN echo "// @ts-nocheck" | cat - ./src/contracts/AffiliateMarketplace.ts > temp && mv temp ./src/contracts/AffiliateMarketplace.ts

@@ -16,8 +16,7 @@ export const AFFILIATE_MARKETPLACE_ADDRESS = Address.parse(
   process.env.AFFILIATE_MARKETPLACE_ADDRESS || "EQDSP9zo1qXTJI9nZh7X9EIqf7AYD9Jr4Iyz7vsxdGejGpDx"
 );
 
-export const HTTP_ENDPOINT_NETWORK: 'mainnet' | 'testnet' = process.env.NETWORK_ENV as 'mainnet' | 'testnet';
-
+export const HTTP_ENDPOINT_NETWORK = process.env.HTTP_ENDPOINT_NETWORK || "testnet";
 
 // General configuration
 export const MIN_BUFFER_GAS_FEES = toNano(process.env.MIN_BUFFER_GAS_FEES || "0.5");

@@ -28,25 +28,28 @@ export const useCampaignWebSocket = (
 
     socket.onmessage = (evt) => {
       const message = JSON.parse(evt.data);
-      if (message.type === 'CampaignCreatedEvent') {
+      if (message.type === "CampaignCreatedEvent") {
         const campaignId = BigInt(message.data.campaignId).toString();
         const eventAdvertiser = translateRawAddress(message.data.advertiser).toString();
         const userAddress = userAccount ? Address.parse(userAccount.address).toString() : null;
-
+    
         if (eventAdvertiser === userAddress) {
           if (timeoutRef.current) clearTimeout(timeoutRef.current);
           setNumCampaigns((prev) => (parseInt(prev, 10) + 1).toString());
           setCampaignId(campaignId);
           setTxSuccess(true);
-          setWaitingForTx(false);
-          setTxFailed(false);
-
+          setWaitingForTx(false); // Stop spinner
+          setTxFailed(false);     // Reset failure state
+    
           setTimeout(() => {
-            setScreen('setupTelegram');
+            setScreen("setupTelegram");
           }, 1000);
         }
       }
     };
+    
+    
+    
 
     socket.onerror = (error) => {
       console.error('WebSocket error:', error);

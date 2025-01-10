@@ -81,13 +81,6 @@ const TelegramSetup: React.FC<TelegramSetupProps> = ({ setScreen, campaignId }) 
     }
   };
 
-  // Debugging logs
-  console.log('campaignName:', campaignName);
-  console.log('category:', category);
-  console.log('inviteLink:', inviteLink);
-  console.log('telegramType:', telegramType);
-  console.log('isVerifying:', isVerifying);
-
   return (
     <motion.div
       className="screen-container"
@@ -135,23 +128,18 @@ const TelegramSetup: React.FC<TelegramSetupProps> = ({ setScreen, campaignId }) 
             id="telegramType"
             value={telegramType}
             onChange={(e) => {
-              const value = e.target.value;
-
-              // Map the string value to the enum
-              const enumValue = (Object.values(TelegramAssetType) as string[]).includes(value)
-                ? (value as unknown as TelegramAssetType)
-                : undefined;
-
-              if (enumValue) {
-                setTelegramType(enumValue);
-              }
+              console.log('Selected Value:', e.target.value); // Debugging
+              setTelegramType(e.target.value as TelegramAssetType);
             }}
           >
             <option value="" disabled>
               Select Telegram Asset Type
             </option>
-            <option value={TelegramAssetType.CHANNEL}>Channel</option>
-            <option value={TelegramAssetType.GROUP}>Group</option>
+            {Object.values(TelegramAssetType).map((type) => (
+              <option key={type} value={type}>
+                {renderTelegramType(type)}
+              </option>
+            ))}
           </select>
         </div>
 

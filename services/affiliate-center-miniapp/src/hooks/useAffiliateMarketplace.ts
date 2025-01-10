@@ -6,6 +6,8 @@ export function useAffiliateMarketplace() {
   const client = useTonClient();
   if (!client) return null;
 
+  console.log(AffiliateMarketplace.fromAddress(AFFILIATE_MARKETPLACE_ADDRESS));
+
   // Create a provider for the affiliate marketplace
   return client.open(
     AffiliateMarketplace.fromAddress(AFFILIATE_MARKETPLACE_ADDRESS)

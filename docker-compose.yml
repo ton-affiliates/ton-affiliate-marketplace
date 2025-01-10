@@ -3,9 +3,6 @@ services:
     build:
       context: .
       dockerfile: ./services/typescript-web-server/Dockerfile
-      args:
-        NODE_ENV: ${NODE_ENV}
-        NETWORK_ENV: ${NETWORK_ENV}
     volumes:
       - ./services/typescript-web-server/src:/usr/src/app/src
       - ./services/common:/usr/src/app/src/common
@@ -14,36 +11,29 @@ services:
       - /usr/src/app/node_modules
     ports:
       - "3000:3000"
-    environment:
-      - NODE_ENV=${NODE_ENV}
-      - NETWORK_ENV=${NETWORK_ENV}
     depends_on:
       - redis
     networks:
       - app-network
     env_file:
-      - ./services/typescript-web-server/.env.${NODE_ENV} # Load environment file based on NODE_ENV
+      - ./services/typescript-web-server/.env.${NODE_ENV}
+      - ./services/common/.env.${NETWORK_ENV}
 
   mini-app:
     build:
       context: .
       dockerfile: ./services/affiliate-center-miniapp/Dockerfile
-      args:
-        NODE_ENV: ${NODE_ENV}
-        NETWORK_ENV: ${NETWORK_ENV}
     ports:
       - "5173:80"
     volumes:
       - ./services/affiliate-center-miniapp/nginx.conf:/etc/nginx/conf.d/nginx.conf.template
       - ./services/common:/usr/src/app/src/common
-    environment:
-      - NODE_ENV=${NODE_ENV}
-      - NETWORK_ENV=${NETWORK_ENV}
     networks:
       - app-network
     env_file:
-      - ./services/affiliate-center-miniapp/.env.${NODE_ENV} # Load environment file based on NODE_ENV
-
+      - ./services/affiliate-center-miniapp/.env.${NODE_ENV}
+      - ./services/common/.env.${NETWORK_ENV}
+  
   redis:
     image: redis:latest
     container_name: redis
