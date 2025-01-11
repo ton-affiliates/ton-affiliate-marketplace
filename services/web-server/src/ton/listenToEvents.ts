@@ -14,7 +14,7 @@ loadAffiliateCreatedEvent,
 CampaignCreatedEvent,
 loadCampaignCreatedEvent, 
 AdvertiserWithdrawFundsEvent,
-loadAdvertiserWithdrawFundsEvent } from "@wrappers/AffiliateMarketplace";
+loadAdvertiserWithdrawFundsEvent } from "../contracts/AffiliateMarketplace";
 import { Cell } from "@ton/core";
 
 // Event types from the ABI

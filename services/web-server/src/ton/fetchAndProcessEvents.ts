@@ -1,4 +1,4 @@
-import { saveLastProcessedLt, getLastProcessedLt } from '../redis/redis';
+import { saveLastProcessedLt, getLastProcessedLt } from '../services/processedOffsetService';
 import { getLatestEvents, EmitLogEvent } from './listenToEvents';
 import { wss } from '../app'; // import the wss from app
 

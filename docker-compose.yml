@@ -2,50 +2,34 @@ services:
   web-server:
     build:
       context: .
-      dockerfile: ./services/typescript-web-server/Dockerfile
-    volumes:
-      - ./services/typescript-web-server/src:/usr/src/app/src
-      - ./services/common:/usr/src/app/src/common
-      - ./wrappers:/usr/src/app/src/wrappers
-      - ./build:/usr/src/app/src/build
-      - /usr/src/app/node_modules
+      dockerfile: ./services/web-server/Dockerfile
     ports:
       - "3000:3000"
     depends_on:
-      - redis
+      - db
     networks:
       - app-network
     env_file:
-      - ./services/typescript-web-server/.env.${NODE_ENV}
-      - ./services/common/.env.${NETWORK_ENV}
-
-  mini-app:
-    build:
-      context: .
-      dockerfile: ./services/affiliate-center-miniapp/Dockerfile
+      - ./services/web-server/.env.${NODE_ENV}
+      - ./services/common/.env.${NETWORK_ENV}      # <-- Also load the "common" .env
+  db:
+    image: postgres:15-alpine
+    container_name: postgres_db
+    restart: always
+    environment:
+      POSTGRES_USER: my_user
+      POSTGRES_PASSWORD: my_password
+      POSTGRES_DB: my_database
     ports:
-      - "5173:80"
+      - "5432:5432"
     volumes:
-      - ./services/affiliate-center-miniapp/nginx.conf:/etc/nginx/conf.d/nginx.conf.template
-      - ./services/common:/usr/src/app/src/common
-    networks:
-      - app-network
-    env_file:
-      - ./services/affiliate-center-miniapp/.env.${NODE_ENV}
-      - ./services/common/.env.${NETWORK_ENV}
-  
-  redis:
-    image: redis:latest
-    container_name: redis
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis-data:/data
+      - postgres-data:/var/lib/postgresql/data
     networks:
       - app-network
 
 volumes:
-  redis-data:
+  postgres-data:
 
 networks:
   app-network:
+    driver: bridge

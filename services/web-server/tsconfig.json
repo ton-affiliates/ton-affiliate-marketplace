@@ -1,0 +1,21 @@
+{
+  "compilerOptions": {
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "target": "ES2020",
+    "module": "commonjs",
+    "esModuleInterop": true,
+    "strict": true,
+    "allowJs": true,
+    "skipLibCheck": true,
+    "baseUrl": "./src",
+    "paths": {
+      "@common/*": ["common/*"]
+    },
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    // If you want to avoid having to initialize every property:
+    "strictPropertyInitialization": false
+  },
+  "include": ["src/**/*"]
+}
