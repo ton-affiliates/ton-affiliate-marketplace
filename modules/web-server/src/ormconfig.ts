@@ -5,7 +5,7 @@ import { Campaign } from './entity/Campaign';
 import { CampaignRole } from './entity/CampaignRole';
 import { ProcessedOffset } from './entity/ProcessedOffset';
 
-
+//psql -h db -U my_user -d my_database
 export default new DataSource({
   type: 'postgres',
   host: process.env.DB_HOST || 'db',
@@ -13,12 +13,12 @@ export default new DataSource({
   username: process.env.POSTGRES_USER || 'my_user',
   password: process.env.POSTGRES_PASSWORD || 'my_password',
   database: process.env.POSTGRES_DB || 'my_database',
-  entities: [User, Wallet, Campaign, CampaignRole],
+  entities: [User, Wallet, Campaign, CampaignRole, ProcessedOffset],
   /**
    * Let TypeORM discover compiled migration files
-   * in the dist/ directory.
+   * in the s/ directory.
    */
-  migrations: ["dist/src/migrations/*.js"],
+  migrations: ["dist/migrations/*.js"],
   synchronize: false,
   logging: false
 });

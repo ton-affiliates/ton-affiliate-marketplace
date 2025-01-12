@@ -10,7 +10,6 @@ import {
    * Stores the "last processed LT" 
    */
   @Entity({ name: 'processed_offsets' })
-  @Unique(['network'])
   export class ProcessedOffset {
     
     @PrimaryGeneratedColumn()

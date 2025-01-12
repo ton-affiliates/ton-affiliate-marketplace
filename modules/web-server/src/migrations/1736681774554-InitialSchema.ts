@@ -1,6 +1,6 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
-export class ZeroInitialSchema implements MigrationInterface {
+export class InitialSchema1736681774554 implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {
     // 1) USERS TABLE
     await queryRunner.query(`
@@ -28,13 +28,14 @@ export class ZeroInitialSchema implements MigrationInterface {
       );
     `);
 
-    // 3) CAMPAIGNS TABLE (associated with the wallet that created/owns the campaign)
+    // 3) CAMPAIGNS TABLE
     await queryRunner.query(`
       CREATE TABLE IF NOT EXISTS "campaigns" (
         "id"                VARCHAR(255) PRIMARY KEY,  -- Unique ID from the blockchain
         "wallet_id"         BIGINT NOT NULL,           -- References wallets(id)
-        "asset_type"        VARCHAR(50),               -- e.g., "CHANNEL"
+        "asset_type"        VARCHAR(255),              -- e.g., "CHANNEL" 
         "asset_name"        VARCHAR(255),              -- e.g., public channel username
+        "asset_category"    VARCHAR(255),              -- e.g. "CHANNEL/GROUP/MINI-APP"
         "asset_title"       VARCHAR(255),
         "asset_description" TEXT,
         "invite_link"       VARCHAR(500),
@@ -46,7 +47,7 @@ export class ZeroInitialSchema implements MigrationInterface {
       );
     `);
 
-    // 4) CAMPAIGN_ROLES TABLE (link each wallet to a campaign with a specific role)
+    // 4) CAMPAIGN_ROLES TABLE
     await queryRunner.query(`
       CREATE TABLE IF NOT EXISTS "campaign_roles" (
         "id"           SERIAL PRIMARY KEY,
@@ -65,12 +66,12 @@ export class ZeroInitialSchema implements MigrationInterface {
       );
     `);
 
-     // A simple table with a single row
-     await queryRunner.query(`
+    // Simple table with a single row for offsets
+    await queryRunner.query(`
       CREATE TABLE IF NOT EXISTS "processed_offsets" (
-        "id" SERIAL PRIMARY KEY,
-        "network" VARCHAR(50) NOT NULL,
-        "last_lt" VARCHAR(50) NOT NULL DEFAULT '0',
+        "id"        SERIAL PRIMARY KEY,
+        "network"   VARCHAR(50) NOT NULL,
+        "last_lt"   VARCHAR(50) NOT NULL DEFAULT '0',
         "updated_at" TIMESTAMP NOT NULL DEFAULT NOW(),
         CONSTRAINT "uq_network" UNIQUE ("network")
       );

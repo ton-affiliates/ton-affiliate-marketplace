@@ -2,7 +2,7 @@ services:
   web-server:
     build:
       context: .
-      dockerfile: ./services/web-server/Dockerfile
+      dockerfile: ./modules/web-server/Dockerfile
     ports:
       - "3000:3000"
     depends_on:
@@ -10,16 +10,14 @@ services:
     networks:
       - app-network
     env_file:
-      - ./services/web-server/.env.${NODE_ENV}
-      - ./services/common/.env.${NETWORK_ENV}      # <-- Also load the "common" .env
+      - ./modules/web-server/.env.${NODE_ENV}
+      - ./modules/common/.env.${NETWORK_ENV}      # <-- Also load the "common" .env
   db:
     image: postgres:15-alpine
     container_name: postgres_db
     restart: always
-    environment:
-      POSTGRES_USER: my_user
-      POSTGRES_PASSWORD: my_password
-      POSTGRES_DB: my_database
+    env_file:
+      - ./modules/web-server/.env.${NODE_ENV}
     ports:
       - "5432:5432"
     volumes:

@@ -1,6 +1,6 @@
-import { saveLastProcessedLt, getLastProcessedLt } from '../services/processedOffsetService';
-import { getLatestEvents, EmitLogEvent } from './listenToEvents';
-import { wss } from '../app'; // import the wss from app
+import { saveLastProcessedLt, getLastProcessedLt } from '../services/ProcessedOffsetService';
+import { getLatestEvents, EmitLogEvent } from './ListenToEvents';
+import { wss } from '../App'; // import the wss from app
 
 async function processEvents(events: EmitLogEvent[]) {
   for (const event of events) {
