@@ -2,16 +2,17 @@ export enum TelegramAssetType {
     CHANNEL,
     GROUP,
     SUPER_GROUP,
-    FORUM,
-    MINI_APP,
+    MINI_APP
 }
 
 export interface TelegramAsset {
     id: number; // Unique numeric identifier (e.g., "-1001234567890")
-    name: string; // Public username (e.g., "Abu Ali Express Channel") 
+    name: string; // from the API Public username (e.g., "Abu Ali Express Channel") 
+    description: string;  // from the API
     type: TelegramAssetType; // Type of the Telegram asset (channel, group, etc.)
     isPublic: boolean; // Is this asset public or private
-    url: string;  // Redirect URL (e.g., for private channels/groups: https://t.me/+1dKu7kfkdudmN2Y0 and for public: https://t.me/AbuAliExpress)
+    url: string;  // invite link - which we will use as redirect URL (e.g., for private channels/groups: https://t.me/+1dKu7kfkdudmN2Y0 and for public: https://t.me/AbuAliExpress)
+    photo?: Buffer;       // Actual image data (if we want to store the raw bytes)
 }
 
 export enum TelegramCategory {

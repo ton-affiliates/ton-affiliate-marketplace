@@ -44,7 +44,7 @@ export async function updateWallet(id: number, updates: Partial<Wallet>): Promis
     Object.assign(wallet, updates);
     return await repo.save(wallet);
   } catch (err) {
-    Logger.error(`Error updating wallet: ${id}`, err);
+    Logger.error(`Error updating wallet: ${id} ` + err);
     throw new Error('Could not update wallet');
   }
 }
@@ -55,7 +55,7 @@ export async function deleteWallet(id: number): Promise<boolean> {
     const result = await repo.delete({ id });
     return result.affected !== 0;
   } catch (err) {
-    Logger.error(`Error deleting wallet: ${id}`, err);
+    Logger.error(`Error deleting wallet: ${id} ` + err);
     throw new Error('Could not delete wallet');
   }
 }

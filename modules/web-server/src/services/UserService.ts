@@ -21,7 +21,7 @@ export async function createUser(userData: Partial<User>): Promise<User> {
     const user = repo.create(userData);
     return await repo.save(user);
   } catch (err) {
-    Logger.error('Error creating user', err);
+    Logger.error('Error creating user ' +  err);
     throw new Error('Could not create user');
   }
 }
@@ -36,7 +36,7 @@ export async function getUserById(id: number): Promise<User | null> {
       relations: ['wallets'], // optionally load wallets
     });
   } catch (err) {
-    Logger.error(`Error fetching user by ID: ${id}`, err);
+    Logger.error(`Error fetching user by ID: ${id} ` + err);
     throw new Error('Could not retrieve user');
   }
 }
@@ -54,7 +54,7 @@ export async function getUserByWalletAddress(address: string): Promise<User | nu
     });
     return wallet ? wallet.user : null;
   } catch (err) {
-    Logger.error(`Error fetching user by wallet address: ${address}`, err);
+    Logger.error(`Error fetching user by wallet address: ${address} ` + err);
     throw new Error('Could not retrieve user');
   }
 }
@@ -71,7 +71,7 @@ export async function updateUser(id: number, updates: Partial<User>): Promise<Us
     Object.assign(user, updates);
     return await repo.save(user);
   } catch (err) {
-    Logger.error(`Error updating user: ${id}`, err);
+    Logger.error(`Error updating user: ${id} ` + err);
     throw new Error('Could not update user');
   }
 }
@@ -85,7 +85,7 @@ export async function deleteUser(id: number): Promise<boolean> {
     const result = await repo.delete({ id });
     return result.affected !== 0;
   } catch (err) {
-    Logger.error(`Error deleting user: ${id}`, err);
+    Logger.error(`Error deleting user: ${id} ` + err);
     throw new Error('Could not delete user');
   }
 }

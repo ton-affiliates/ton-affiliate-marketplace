@@ -16,7 +16,7 @@ export async function getLastProcessedLt(): Promise<bigint> {
     Logger.info(`Fetched Last Processed LT: ${record.lastLt}`);
     return BigInt(record.lastLt);
   } catch (err) {
-    Logger.error('Error fetching last processed LT', err);
+    Logger.error('Error fetching last processed LT ' + err);
     throw new Error('Could not retrieve last processed LT');
   }
 }
@@ -32,7 +32,7 @@ export async function saveLastProcessedLt(lt: bigint): Promise<void> {
     }
     await offsetRepository().save(record);
   } catch (err) {
-    Logger.error('Error saving last processed LT', err);
+    Logger.error('Error saving last processed LT: ' + err);
     throw new Error('Could not save last processed LT');
   }
 }

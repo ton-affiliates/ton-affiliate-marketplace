@@ -22,7 +22,7 @@ router.post('/', async (req, res) => {
     const role = await createCampaignRole(roleData);
     res.status(201).json(role);
   } catch (err: any) {
-    Logger.error('Error in POST /campaign-roles', err);
+    Logger.error('Error in POST /campaign-roles ' + err);
     res.status(500).json({ error: err.message || 'Internal Server Error' });
   }
 });
@@ -41,7 +41,7 @@ router.get('/:id', async (req, res) => {
     }
     res.json(role);
   } catch (err: any) {
-    Logger.error(`Error in GET /campaign-roles/${req.params.id}`, err);
+    Logger.error(`Error in GET /campaign-roles/${req.params.id} ` + err);
     res.status(500).json({ error: err.message || 'Internal Server Error' });
   }
 });
@@ -60,7 +60,7 @@ router.get('/advertiser/:campaignId', async (req, res) => {
     }
     res.json(advertiser);
   } catch (err: any) {
-    Logger.error(`Error in GET /campaign-roles/advertiser/${req.params.campaignId}`, err);
+    Logger.error(`Error in GET /campaign-roles/advertiser/${req.params.campaignId} ` +err);
     res.status(500).json({ error: err.message || 'Internal Server Error' });
   }
 });
@@ -76,7 +76,7 @@ router.get('/affiliates/:campaignId', async (req, res) => {
     const affiliates = await getAllAffiliatesForCampaign(campaignId);
     res.json(affiliates);
   } catch (err: any) {
-    Logger.error(`Error in GET /campaign-roles/affiliates/${req.params.campaignId}`, err);
+    Logger.error(`Error in GET /campaign-roles/affiliates/${req.params.campaignId} ` + err);
     res.status(500).json({ error: err.message || 'Internal Server Error' });
   }
 });
@@ -96,7 +96,7 @@ router.patch('/:id', async (req, res) => {
     }
     res.json(role);
   } catch (err: any) {
-    Logger.error(`Error in PATCH /campaign-roles/${req.params.id}`, err);
+    Logger.error(`Error in PATCH /campaign-roles/${req.params.id} ` + err);
     res.status(500).json({ error: err.message || 'Internal Server Error' });
   }
 });
@@ -115,7 +115,7 @@ router.delete('/:id', async (req, res) => {
     }
     res.status(204).send();
   } catch (err: any) {
-    Logger.error(`Error in DELETE /campaign-roles/${req.params.id}`, err);
+    Logger.error(`Error in DELETE /campaign-roles/${req.params.id} ` + err);
     res.status(500).json({ error: err.message || 'Internal Server Error' });
   }
 });

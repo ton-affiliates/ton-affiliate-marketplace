@@ -79,7 +79,7 @@ router.patch('/:id', async (req, res) => {
     }
     res.json(user);
   } catch (err: any) {
-    Logger.error(`Error in PATCH /users/${req.params.id}`, err);
+    Logger.error(`Error in PATCH /users/${req.params.id} ` + err);
     res.status(500).json({ error: err.message || 'Internal Server Error' });
   }
 });
@@ -98,7 +98,7 @@ router.delete('/:id', async (req, res) => {
     }
     res.status(204).send();
   } catch (err: any) {
-    Logger.error(`Error in DELETE /users/${req.params.id}`, err);
+    Logger.error(`Error in DELETE /users/${req.params.id} ` + err);
     res.status(500).json({ error: err.message || 'Internal Server Error' });
   }
 });

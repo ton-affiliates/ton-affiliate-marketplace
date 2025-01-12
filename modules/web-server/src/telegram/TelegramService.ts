@@ -1,238 +1,123 @@
+// TelegramService.ts
+
 import axios from 'axios';
-import { TelegramAsset, TelegramAssetType } from '@common/models';
 import dotenv from 'dotenv';
-import { Logger } from "../utils/Logger"; 
+import { Logger } from '../utils/Logger';
+import { TelegramAsset, TelegramAssetType } from '@common/models';
 
 dotenv.config();
 
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || '';
 const TELEGRAM_API_URL = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}`;
 
-export async function sendTelegramMessage(chatId: number, message: string): Promise<void> {
-    try {
-        await axios.post(`${TELEGRAM_API_URL}/sendMessage`, {
-            chat_id: chatId,
-            text: message,
-        });
-        Logger.info(`Message sent to Telegram chat ID: ${chatId}`);
-    } catch (error) {
-        Logger.error(`Failed to send Telegram message: ${error}`);
-    }
-}
-
-// Interfaces for API responses
-interface TelegramApiResponse<T> {
-    ok: boolean;
-    result: T;
-}
-
-interface Update {
-    update_id: number;
-    my_chat_member?: {
-        chat: {
-            id: number;
-            title?: string;
-            type: string;
-            username?: string;
-        };
-        from: {
-            id: number;
-            is_bot: boolean;
-            first_name: string;
-            username: string;
-            language_code: string;
-        };
-        date: number;
-        old_chat_member: {
-            user: {
-                id: number;
-                is_bot: boolean;
-                first_name: string;
-                username: string;
-            };
-            status: string;
-        };
-        new_chat_member: {
-            user: {
-                id: number;
-                is_bot: boolean;
-                first_name: string;
-                username: string;
-            };
-            status: string;
-            can_invite_users?: boolean;
-        };
-    };
-}
-
-interface ChatDetails {
-    id: number;
-    title: string;
-    type: string;
-    username?: string;
-}
-
-interface ChatAdministrator {
-    user: {
-        id: number;
-        is_bot: boolean;
-    };
-    can_invite_users?: boolean;
-    can_manage_chat?: boolean;
-}
-
 /**
- * Create a TelegramAsset from a URL
- * @param url - The URL to process (invite link or channel username)
- * @returns TelegramAsset or an error message
+ * Fetches public chat info for a given handle (e.g. "MyPublicChannel") and downloads its photo if available.
  */
-export async function createTelegramAssetFromUrl(url: string): Promise<TelegramAsset | string> {
-    try {
-        Logger.info(`Processing URL: ${url}`);
+export async function fetchPublicChatInfo(telegramHandle: string): Promise<TelegramAsset> {
+  try {
+    // 1) Get basic chat info
+    const chatIdParam = `@${telegramHandle}`;
+    Logger.info(`Fetching public chat info for handle: ${chatIdParam}`);
 
-        // Regex patterns
-        const inviteRegex = /t\.me\/\+([a-zA-Z0-9_-]+)/; // Private invite links
-        const publicRegex = /t\.me\/([a-zA-Z0-9_]+)/;   // Public channels
+    const response = await axios.get(`${TELEGRAM_API_URL}/getChat`, {
+      params: { chat_id: chatIdParam },
+    });
 
-        let inviteCode: string | null = null;
-        let username: string | null = null;
-
-        if (inviteRegex.test(url)) {
-            inviteCode = url.match(inviteRegex)?.[1] || null;
-            Logger.info(`Invite code extracted: ${inviteCode}`);
-        } else if (publicRegex.test(url)) {
-            username = url.match(publicRegex)?.[1] || null;
-            Logger.info(`Public username extracted: ${username}`);
-        } else {
-            Logger.error(`Invalid URL format provided: ${url}`);
-            return `Invalid channel or invite link provided: ${url}.`;
-        }
-
-        let chatId: number | null = null;
-        let chatType: string | null = null;
-        let chatTitle: string | null = null;
-        let isPublic: boolean = false;
-        let urlForChannel: string = url;
-
-        if (inviteCode) {
-            // Private channel handling
-            Logger.info('Fetching updates to resolve private chat ID...');
-
-            const updatesResponse = await axios.get<TelegramApiResponse<Update[]>>(`${TELEGRAM_API_URL}/getUpdates`, {
-                params: { offset: '0', limit: 100, timeout: 0 },
-            });
-            const updates = updatesResponse.data.result;
-
-            Logger.info('Updates received:', JSON.stringify(updates, null, 2));
-
-            const chatUpdate = updates.reverse().find((update) => {
-                if (update.my_chat_member) {
-                    const status = update.my_chat_member.new_chat_member.status;
-                    return status === 'administrator' || status === 'member';
-                }
-                return false;
-            });
-
-            if (chatUpdate && chatUpdate.my_chat_member?.chat?.id) {
-                chatId = chatUpdate.my_chat_member.chat.id;
-                chatType = chatUpdate.my_chat_member.chat.type;
-                chatTitle = chatUpdate.my_chat_member.chat.title || 'Unknown';
-                isPublic = !!chatUpdate.my_chat_member.chat.username;
-                urlForChannel = isPublic ? `https://t.me/${chatUpdate.my_chat_member.chat.username}` : url;
-                Logger.info(`Chat ID resolved from updates: ${chatId}`);
-            } else {
-                Logger.error('No matching chat updates found.');
-                return `The bot cannot access the private channel with invite link: ${url}. Ensure the bot is added as an admin and has received recent updates.`;
-            }
-        } else if (username) {
-            // Public channel handling
-            Logger.info(`Fetching details for public username: ${username}`);
-            const chatDetailsResponse = await axios.get<TelegramApiResponse<ChatDetails>>(`${TELEGRAM_API_URL}/getChat`, {
-                params: { chat_id: `@${username}` },
-            });
-            const chatDetails = chatDetailsResponse.data.result;
-            chatId = chatDetails.id;
-            chatType = chatDetails.type;
-            chatTitle = chatDetails.title;
-            isPublic = !!chatDetails.username;
-            urlForChannel = isPublic ? `https://t.me/${username}` : url;
-            Logger.info(`Chat details fetched successfully: ${chatId}`);
-        }
-
-        if (!chatId || !chatType) {
-            return `Unable to resolve chat details for the provided URL: ${url}. Please ensure the bot is added as an admin.`;
-        }
-
-        Logger.info('Verifying bot privileges...');
-        const adminResponse = await axios.get<TelegramApiResponse<ChatAdministrator[]>>(`${TELEGRAM_API_URL}/getChatAdministrators`, {
-            params: { chat_id: chatId },
-        });
-
-        const admins = adminResponse.data.result;
-        const botAdmin = admins.find((admin) => admin.user.is_bot);
-
-        if (!botAdmin) {
-            return `The bot is not an admin in the channel. Please add the bot as an admin.`;
-        }
-
-        if (isPublic) {
-            if (!botAdmin.can_invite_users) {
-                return `For public channels, the bot needs the privilege "Add Members" to manage invite links.`;
-            }
-        } else {
-            if (!botAdmin.can_manage_chat) {
-                return `For private channels, the bot needs the privilege "Manage Chat" to function properly.`;
-            }
-        }
-
-        const telegramAsset: TelegramAsset = {
-            id: chatId,
-            name: chatTitle || username || inviteCode || 'Unknown',
-            type: mapChatTypeToAssetType(chatType),
-            isPublic,
-            url: urlForChannel,
-        };
-
-        Logger.info('TelegramAsset:', JSON.stringify(telegramAsset, null, 2));
-        return telegramAsset;
-    } catch (error: any) {
-        Logger.error(`Error processing URL: ${url}`, error);
-
-        if (error.response) {
-            Logger.error('Error Response Data:', error.response.data);
-            Logger.error('Error Response Status:', error.response.status);
-            Logger.error('Error Response Headers:', error.response.headers);
-            if (error.response.status === 403) {
-                return `The bot lacks permissions to access the chat associated with: ${url}.`;
-            } else if (error.response.status === 400) {
-                return `Invalid URL provided: ${url}.`;
-            }
-        } else if (error.request) {
-            Logger.error('No response received:', error.request);
-        } else {
-            Logger.error('Error Setting Up Request:', error.message);
-        }
-
-        return `An unexpected error occurred while processing the URL: ${url}.`;
+    if (!response.data.ok) {
+      throw new Error(`Telegram API returned not ok: ${JSON.stringify(response.data)}`);
     }
+
+    // The chat object from the response
+    const chat = response.data.result;
+
+    // 2) Extract relevant fields
+    const photoFileId = chat.photo?.big_file_id || null;
+
+    // 3) Build your TelegramAsset object
+    const telegramAsset: TelegramAsset = {
+      id: chat.id,
+      name: chat.title || telegramHandle,       // fallback if no title
+      description: chat.description || '',
+      type: mapChatTypeToAssetType(chat.type),  // channel, group, supergroup, ...
+      isPublic: true,                           // We assume it's public if we can fetch it
+      url: `https://t.me/${telegramHandle}`,    // or something similar
+      photo: undefined,                         // We'll fill this soon if we find a file ID
+    };
+
+    // 4) If there's a photo, download it
+    if (photoFileId) {
+      Logger.info(`Found photoFileId: ${photoFileId}, downloading image...`);
+      try {
+        const photoBuffer = await downloadTelegramImage(photoFileId);
+        telegramAsset.photo = photoBuffer;
+        Logger.info(`Downloaded photo successfully, size: ${photoBuffer.length} bytes`);
+      } catch (error: any) {
+        // Non-fatal, just log if we can't get the image
+        Logger.error(`Failed to download Telegram image: ${error.message}`);
+      }
+    }
+
+    return telegramAsset;
+  } catch (error: any) {
+    Logger.error(`Failed to fetch public chat info for handle: ${telegramHandle}`, error);
+    throw new Error(`Could not retrieve info for Telegram handle: ${telegramHandle}. ${error.message}`);
+  }
 }
 
 /**
- * Map Telegram chat type to TelegramAssetType
- * @param chatType - The type of chat as returned by Telegram
- * @returns TelegramAssetType
+ * Download Telegram image by file ID using getFile, then fetch the file from the returned path.
+ */
+async function downloadTelegramImage(photoFileId: string): Promise<Buffer> {
+  // 1) Get file path from getFile
+  const getFileResponse = await axios.get(`${TELEGRAM_API_URL}/getFile`, {
+    params: { file_id: photoFileId },
+  });
+
+  if (!getFileResponse.data.ok) {
+    throw new Error(`Error fetching file path: ${JSON.stringify(getFileResponse.data)}`);
+  }
+
+  const filePath = getFileResponse.data.result.file_path;
+  if (!filePath) {
+    throw new Error(`File path not found in the getFile result. The result was: ${JSON.stringify(getFileResponse.data.result)}`);
+  }
+
+  // 2) Construct the download URL
+  const fileUrl = `https://api.telegram.org/file/bot${TELEGRAM_BOT_TOKEN}/${filePath}`;
+
+  // 3) Download the file as arraybuffer
+  const fileResponse = await axios.get(fileUrl, { responseType: 'arraybuffer' });
+  return Buffer.from(fileResponse.data);
+}
+
+/**
+ * Convert Telegram chat.type string to our enum
  */
 function mapChatTypeToAssetType(chatType: string): TelegramAssetType {
-    switch (chatType) {
-        case 'channel':
-            return TelegramAssetType.CHANNEL;
-        case 'group':
-            return TelegramAssetType.GROUP;
-        case 'supergroup':
-            return TelegramAssetType.SUPER_GROUP;
-        case 'forum':
-            return TelegramAssetType.FORUM;
-        default:
-            throw new Error(`Unsupported chat type: ${chatType}`);
-    }
+  switch (chatType) {
+    case 'channel':
+      return TelegramAssetType.CHANNEL;
+    case 'group':
+      return TelegramAssetType.GROUP;
+    case 'supergroup':
+      return TelegramAssetType.SUPER_GROUP;
+    default:
+      // If we get something weird, we can default or throw
+      throw new Error(`Unsupported chat type: ${chatType}`);
+  }
+}
+
+/**
+ * If you still want to keep sending messages somewhere the bot is a member
+ */
+export async function sendTelegramMessage(chatId: number, message: string): Promise<void> {
+  try {
+    await axios.post(`${TELEGRAM_API_URL}/sendMessage`, {
+      chat_id: chatId,
+      text: message,
+    });
+    Logger.info(`Message sent to Telegram chat ID: ${chatId}`);
+  } catch (error) {
+    Logger.error(`Failed to send Telegram message: ${error}`);
+  }
 }

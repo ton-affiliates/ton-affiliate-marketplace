@@ -39,6 +39,7 @@ export class InitialSchema1736681774554 implements MigrationInterface {
         "asset_title"       VARCHAR(255),
         "asset_description" TEXT,
         "invite_link"       VARCHAR(500),
+        "asset_photo"       BYTEA,                     -- New column for storing photo data
         "created_at"        TIMESTAMP NOT NULL DEFAULT NOW(),
         "updated_at"        TIMESTAMP NOT NULL DEFAULT NOW(),
         CONSTRAINT "fk_wallet_campaign"
@@ -46,6 +47,7 @@ export class InitialSchema1736681774554 implements MigrationInterface {
           REFERENCES "wallets"("id")
       );
     `);
+    
 
     // 4) CAMPAIGN_ROLES TABLE
     await queryRunner.query(`

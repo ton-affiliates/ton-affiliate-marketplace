@@ -38,6 +38,13 @@ import {
   
     @Column({ length: 500, nullable: true })
     inviteLink: string;
+
+      /**
+   * Store the raw photo data as BYTEA if you're storing images directly in Postgres.
+   * Make sure your DB column is set to `BYTEA`.
+   */
+    @Column({ type: 'bytea', nullable: true })
+    assetPhoto: Buffer | null;
   
     @CreateDateColumn()
     createdAt: Date;

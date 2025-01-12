@@ -59,7 +59,7 @@ router.get('/byAddress/:address', async (req, res) => {
     }
     res.json(wallet);
   } catch (err: any) {
-    Logger.error(`Error in GET /wallets/byAddress/${req.params.address}`, err);
+    Logger.error(`Error in GET /wallets/byAddress/${req.params.address} ` + err);
     res.status(500).json({ error: err.message || 'Internal Server Error' });
   }
 });
@@ -79,7 +79,7 @@ router.patch('/:id', async (req, res) => {
     }
     res.json(wallet);
   } catch (err: any) {
-    Logger.error(`Error in PATCH /wallets/${req.params.id}`, err);
+    Logger.error(`Error in PATCH /wallets/${req.params.id} ` + err);
     res.status(500).json({ error: err.message || 'Internal Server Error' });
   }
 });
@@ -98,7 +98,7 @@ router.delete('/:id', async (req, res) => {
     }
     res.status(204).send();
   } catch (err: any) {
-    Logger.error(`Error in DELETE /wallets/${req.params.id}`, err);
+    Logger.error(`Error in DELETE /wallets/${req.params.id} ` + err);
     res.status(500).json({ error: err.message || 'Internal Server Error' });
   }
 });

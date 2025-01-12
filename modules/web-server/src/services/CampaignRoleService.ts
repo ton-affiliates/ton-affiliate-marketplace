@@ -12,7 +12,7 @@ export async function createCampaignRole(data: Partial<CampaignRole>): Promise<C
     const role = repo.create(data);
     return await repo.save(role);
   } catch (err) {
-    Logger.error('Error creating campaign role', err);
+    Logger.error('Error creating campaign role ' + err);
     throw new Error('Could not create campaign role');
   }
 }
@@ -24,7 +24,7 @@ export async function getCampaignRoleById(id: number): Promise<CampaignRole | nu
       relations: ['campaign', 'wallet'],
     });
   } catch (err) {
-    Logger.error(`Error fetching campaign role by ID: ${id}`, err);
+    Logger.error(`Error fetching campaign role by ID: ${id} ` + err);
     throw new Error('Could not retrieve campaign role');
   }
 }
@@ -42,7 +42,7 @@ export async function getAdvertiserForCampaign(campaignId: string): Promise<Camp
       relations: ['campaign', 'wallet'],
     });
   } catch (err) {
-    Logger.error(`Error fetching advertiser for campaign: ${campaignId}`, err);
+    Logger.error(`Error fetching advertiser for campaign: ${campaignId} ` + err);
     throw new Error('Could not retrieve advertiser');
   }
 }
@@ -60,7 +60,7 @@ export async function getAllAffiliatesForCampaign(campaignId: string): Promise<C
       relations: ['campaign', 'wallet'],
     });
   } catch (err) {
-    Logger.error(`Error fetching affiliates for campaign: ${campaignId}`, err);
+    Logger.error(`Error fetching affiliates for campaign: ${campaignId} ` + err);
     throw new Error('Could not retrieve affiliates');
   }
 }
@@ -74,7 +74,7 @@ export async function updateCampaignRole(id: number, updates: Partial<CampaignRo
     Object.assign(role, updates);
     return await repo.save(role);
   } catch (err) {
-    Logger.error(`Error updating campaign role: ${id}`, err);
+    Logger.error(`Error updating campaign role: ${id} ` + err);
     throw new Error('Could not update campaign role');
   }
 }
@@ -85,7 +85,7 @@ export async function deleteCampaignRole(id: number): Promise<boolean> {
     const result = await repo.delete({ id });
     return result.affected !== 0;
   } catch (err) {
-    Logger.error(`Error deleting campaign role: ${id}`, err);
+    Logger.error(`Error deleting campaign role: ${id} ` + err);
     throw new Error('Could not delete campaign role');
   }
 }

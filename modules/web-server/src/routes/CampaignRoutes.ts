@@ -7,24 +7,81 @@ import {
   deleteCampaign,
 } from '../services/CampaignService';
 import { Logger } from '../utils/Logger';
+import { fetchPublicChatInfo } from '../telegram/TelegramService';
 
 const router = Router();
 
 /**
  * POST /campaigns
- * Create a new campaign
+ * Example of required fields:
+ *  {
+ *    "id": "onChainID_1234",          // from your blockchain
+ *    "walletId": 1,                   // or any valid wallet ID
+ *    "assetType": "CHANNEL",          // "CHANNEL", "GROUP", etc.
+ *    "telegramHandle": "MyPublicChan",
+ *    "category": "CRYPTO"             // or any other info
+ *  }
  */
 router.post('/', async (req, res) => {
   try {
-    Logger.debug('POST /campaigns - creating campaign');
-    const campaignData = req.body; // e.g. { id, walletId, assetType, assetName... }
-    const campaign = await createCampaign(campaignData);
-    res.status(201).json(campaign);
+    Logger.debug('POST /campaigns');
+
+    const {
+      id,
+      walletId,
+      assetType,
+      telegramHandle,
+      category,
+    } = req.body;
+
+    if (!id || !walletId || !assetType || !telegramHandle) {
+      res.status(400).json({
+        error: 'Missing required fields: id, walletId, assetType, telegramHandle',
+      });
+    } else {
+      let telegramAsset;
+      try {
+        telegramAsset = await fetchPublicChatInfo(telegramHandle);
+      } catch (err: any) {
+        Logger.error('Failed fetching Telegram info:', err);
+        res.status(400).json({ error: err.message });
+        // Stop further execution in this block by using else
+      }
+
+      // Only proceed if telegramAsset is successfully fetched
+      if (!telegramAsset) {
+        Logger.error('Could not fetch Telegram info');
+        res.status(400).json({ error: 'Could not fetch Telegram info' });
+      } else {
+        const campaignData = {
+          id,
+          walletId,
+          assetType,
+          assetCategory: category,
+          assetName: telegramAsset.name,
+          assetTitle: telegramAsset.name,
+          assetDescription: telegramAsset.description ?? undefined,
+          inviteLink: telegramAsset.url,
+          assetPhoto: telegramAsset.photo ? Buffer.from(telegramAsset.photo) : null,
+        };
+
+        Logger.debug('campaignData about to be created: ' + campaignData);
+
+        const newCampaign = await createCampaign(campaignData);
+
+        res.status(201).json(newCampaign);
+      }
+    }
   } catch (err: any) {
-    Logger.error('Error in POST /campaigns', err);
-    res.status(500).json({ error: err.message || 'Internal Server Error' });
+    Logger.error('Error in POST /campaigns:' + err);
+    res.status(500).json({ error: 'Internal Server Error' });
   }
 });
+
+
+  
+  
+  
 
 /**
  * GET /campaigns/:id

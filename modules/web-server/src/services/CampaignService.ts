@@ -12,7 +12,7 @@ export async function createCampaign(data: Partial<Campaign>): Promise<Campaign>
     const campaign = repo.create(data);
     return await repo.save(campaign);
   } catch (err) {
-    Logger.error('Error creating campaign', err);
+    Logger.error('Error creating campaign ' + err);
     throw new Error('Could not create campaign');
   }
 }
@@ -24,7 +24,7 @@ export async function getCampaignById(id: string): Promise<Campaign | null> {
       relations: ['wallet'],
     });
   } catch (err) {
-    Logger.error(`Error fetching campaign by ID: ${id}`, err);
+    Logger.error(`Error fetching campaign by ID: ${id}: ` + err);
     throw new Error('Could not retrieve campaign');
   }
 }
@@ -43,7 +43,7 @@ export async function getAllCampaignsForUser(userId: number): Promise<Campaign[]
       relations: ['wallet'],
     });
   } catch (err) {
-    Logger.error(`Error fetching campaigns for user: ${userId}`, err);
+    Logger.error(`Error fetching campaigns for user: ${userId} ` + err);
     throw new Error('Could not retrieve campaigns');
   }
 }
@@ -57,7 +57,7 @@ export async function updateCampaign(id: string, updates: Partial<Campaign>): Pr
     Object.assign(campaign, updates);
     return await repo.save(campaign);
   } catch (err) {
-    Logger.error(`Error updating campaign: ${id}`, err);
+    Logger.error(`Error updating campaign: ${id} ` + err);
     throw new Error('Could not update campaign');
   }
 }
@@ -68,7 +68,7 @@ export async function deleteCampaign(id: string): Promise<boolean> {
     const result = await repo.delete({ id });
     return result.affected !== 0;
   } catch (err) {
-    Logger.error(`Error deleting campaign: ${id}`, err);
+    Logger.error(`Error deleting campaign: ${id} ` + err);
     throw new Error('Could not delete campaign');
   }
 }

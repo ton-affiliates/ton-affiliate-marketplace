@@ -1,49 +1,53 @@
 import winston from 'winston';
 
-const bigIntFormat = winston.format((info) => {
-  // We call `convertBigInts` on `info` itself,
-  // ensuring that any nested BigInt is converted to string.
-  const converted = convertBigInts(info);
-
-  // We merge converted properties back into `info`.
-  // (Or you could just `return converted;` if needed.)
-  Object.assign(info, converted);
-  return info;
-});
-
+/**
+ * Recursively convert all BigInts within an object (or array) to strings.
+ */
 function convertBigInts(value: any): any {
-  if (value === null || value === undefined) {
-    return value;
-  }
+  if (value === null || value === undefined) return value;
+
   if (Array.isArray(value)) {
     return value.map(convertBigInts);
   }
+
   if (typeof value === 'object' && value.constructor === Object) {
     const newObj: Record<string, any> = {};
-    for (const [key, val] of Object.entries(value)) {
-      newObj[key] = convertBigInts(val);
+    for (const [k, v] of Object.entries(value)) {
+      newObj[k] = convertBigInts(v);
     }
     return newObj;
   }
+
   if (typeof value === 'bigint') {
     return value.toString();
   }
+
   return value;
 }
 
-const customFormats = winston.format.combine(
-  bigIntFormat(),
-  // You can add more formats here, e.g. timestamp, printf, json, etc.
-  winston.format.printf(({ level, message, ...meta }) => {
-    // Example: simple text log with JSON-serialized meta
-    const metaStr = Object.keys(meta).length ? JSON.stringify(meta) : '';
-    return `[${level.toUpperCase()}] ${message} ${metaStr}`;
-  })
-);
+/**
+ * Winston custom format to handle BigInts before printing.
+ */
+const bigIntFormat = winston.format((info) => {
+  Object.assign(info, convertBigInts(info));
+  return info;
+});
 
+/**
+ * Create and export a single Winston logger instance.
+ */
 export const Logger = winston.createLogger({
   level: 'info',
-  format: customFormats,
+  format: winston.format.combine(
+    // Add timestamps like 2025-01-12 14:43:43
+    winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
+    // Convert BigInts
+    bigIntFormat(),
+    // Final text output
+    winston.format.printf(({ level, message, timestamp }) => {
+      return `${timestamp} [${level.toUpperCase()}] ${message}`;
+    }),
+  ),
   transports: [
     new winston.transports.Console(),
   ],
