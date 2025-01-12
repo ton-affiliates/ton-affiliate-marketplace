@@ -16,6 +16,7 @@ loadCampaignCreatedEvent,
 AdvertiserWithdrawFundsEvent,
 loadAdvertiserWithdrawFundsEvent } from "../contracts/AffiliateMarketplace";
 import { Cell } from "@ton/core";
+import { Logger } from "../utils/Logger"; 
 
 // Event types from the ABI
 export const EVENT_TYPE_CAMPAIGN_CREATED = 2452245169;
@@ -146,7 +147,7 @@ export async function getLatestEvents(lastProcessedEventLt = BigInt(0)) {
                         const decodedEvent = decodeAdvertiserSignedCampaignDetailsEvent(bodyCell);
                         logs.push({ type: 'AdvertiserSignedCampaignDetailsEvent', createdAt, createdLt, data: decodedEvent });
                     } else {
-                        console.log("Unknown Event!");
+                        Logger.error("Unknown Event!");
                     }
                 }
             }

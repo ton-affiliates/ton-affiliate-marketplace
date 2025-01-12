@@ -1,32 +1,38 @@
-import { ProcessedOffset } from '../entity/ProcessedOffset';
-import { DataSource } from 'typeorm';
 import appDataSource from '../ormconfig';
+import { ProcessedOffset } from '../entity/ProcessedOffset';
+import { Logger } from '../utils/Logger';
 
-const offsetRepo = () => appDataSource.getRepository(ProcessedOffset);
-
-/**
- * Returns the last processed LT as a BigInt.
- */
-export async function getLastProcessedLt(): Promise<bigint> {
-  // Use findOneBy({}) instead of no args:
-  const record = await offsetRepo().findOneBy({});
-  if (!record) {
-    // Could create one or just return BigInt(0)
-    return BigInt(0);
-  }
-  return BigInt(record.lastLt);
+function offsetRepository() {
+  return appDataSource.getRepository(ProcessedOffset);
 }
 
-/**
- * Saves the last processed LT in the DB.
- */
-export async function saveLastProcessedLt(lt: bigint): Promise<void> {
-  // Also pass an empty object here:
-  let record = await offsetRepo().findOneBy({});
-  if (!record) {
-    record = offsetRepo().create({ lastLt: lt.toString() });
-  } else {
-    record.lastLt = lt.toString();
+export async function getLastProcessedLt(): Promise<bigint> {
+  try {
+    const record = await offsetRepository().findOneBy({});
+    if (!record) {
+      Logger.info('No existing record for last processed LT. Defaulting to 0.');
+      return BigInt(0); // Default to 0 if no record exists
+    }
+    Logger.info(`Fetched Last Processed LT: ${record.lastLt}`);
+    return BigInt(record.lastLt);
+  } catch (err) {
+    Logger.error('Error fetching last processed LT', err);
+    throw new Error('Could not retrieve last processed LT');
   }
-  await offsetRepo().save(record);
+}
+
+
+export async function saveLastProcessedLt(lt: bigint): Promise<void> {
+  try {
+    let record = await offsetRepository().findOneBy({});
+    if (!record) {
+      record = offsetRepository().create({ lastLt: lt.toString() });
+    } else {
+      record.lastLt = lt.toString();
+    }
+    await offsetRepository().save(record);
+  } catch (err) {
+    Logger.error('Error saving last processed LT', err);
+    throw new Error('Could not save last processed LT');
+  }
 }

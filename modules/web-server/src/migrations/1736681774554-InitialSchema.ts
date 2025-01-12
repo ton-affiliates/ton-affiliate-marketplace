@@ -70,10 +70,8 @@ export class InitialSchema1736681774554 implements MigrationInterface {
     await queryRunner.query(`
       CREATE TABLE IF NOT EXISTS "processed_offsets" (
         "id"        SERIAL PRIMARY KEY,
-        "network"   VARCHAR(50) NOT NULL,
         "last_lt"   VARCHAR(50) NOT NULL DEFAULT '0',
-        "updated_at" TIMESTAMP NOT NULL DEFAULT NOW(),
-        CONSTRAINT "uq_network" UNIQUE ("network")
+        "updated_at" TIMESTAMP NOT NULL DEFAULT NOW()
       );
     `);
   }

@@ -1,6 +1,7 @@
 import axios from 'axios';
 import { TelegramAsset, TelegramAssetType } from '@common/models';
 import dotenv from 'dotenv';
+import { Logger } from "../utils/Logger"; 
 
 dotenv.config();
 
@@ -13,9 +14,9 @@ export async function sendTelegramMessage(chatId: number, message: string): Prom
             chat_id: chatId,
             text: message,
         });
-        console.log(`Message sent to Telegram chat ID: ${chatId}`);
+        Logger.info(`Message sent to Telegram chat ID: ${chatId}`);
     } catch (error) {
-        console.error(`Failed to send Telegram message: ${error}`);
+        Logger.error(`Failed to send Telegram message: ${error}`);
     }
 }
 
@@ -87,7 +88,7 @@ interface ChatAdministrator {
  */
 export async function createTelegramAssetFromUrl(url: string): Promise<TelegramAsset | string> {
     try {
-        console.log(`Processing URL: ${url}`);
+        Logger.info(`Processing URL: ${url}`);
 
         // Regex patterns
         const inviteRegex = /t\.me\/\+([a-zA-Z0-9_-]+)/; // Private invite links
@@ -98,12 +99,12 @@ export async function createTelegramAssetFromUrl(url: string): Promise<TelegramA
 
         if (inviteRegex.test(url)) {
             inviteCode = url.match(inviteRegex)?.[1] || null;
-            console.log(`Invite code extracted: ${inviteCode}`);
+            Logger.info(`Invite code extracted: ${inviteCode}`);
         } else if (publicRegex.test(url)) {
             username = url.match(publicRegex)?.[1] || null;
-            console.log(`Public username extracted: ${username}`);
+            Logger.info(`Public username extracted: ${username}`);
         } else {
-            console.error(`Invalid URL format provided: ${url}`);
+            Logger.error(`Invalid URL format provided: ${url}`);
             return `Invalid channel or invite link provided: ${url}.`;
         }
 
@@ -115,14 +116,14 @@ export async function createTelegramAssetFromUrl(url: string): Promise<TelegramA
 
         if (inviteCode) {
             // Private channel handling
-            console.log('Fetching updates to resolve private chat ID...');
+            Logger.info('Fetching updates to resolve private chat ID...');
 
             const updatesResponse = await axios.get<TelegramApiResponse<Update[]>>(`${TELEGRAM_API_URL}/getUpdates`, {
                 params: { offset: '0', limit: 100, timeout: 0 },
             });
             const updates = updatesResponse.data.result;
 
-            console.log('Updates received:', JSON.stringify(updates, null, 2));
+            Logger.info('Updates received:', JSON.stringify(updates, null, 2));
 
             const chatUpdate = updates.reverse().find((update) => {
                 if (update.my_chat_member) {
@@ -138,14 +139,14 @@ export async function createTelegramAssetFromUrl(url: string): Promise<TelegramA
                 chatTitle = chatUpdate.my_chat_member.chat.title || 'Unknown';
                 isPublic = !!chatUpdate.my_chat_member.chat.username;
                 urlForChannel = isPublic ? `https://t.me/${chatUpdate.my_chat_member.chat.username}` : url;
-                console.log(`Chat ID resolved from updates: ${chatId}`);
+                Logger.info(`Chat ID resolved from updates: ${chatId}`);
             } else {
-                console.error('No matching chat updates found.');
+                Logger.error('No matching chat updates found.');
                 return `The bot cannot access the private channel with invite link: ${url}. Ensure the bot is added as an admin and has received recent updates.`;
             }
         } else if (username) {
             // Public channel handling
-            console.log(`Fetching details for public username: ${username}`);
+            Logger.info(`Fetching details for public username: ${username}`);
             const chatDetailsResponse = await axios.get<TelegramApiResponse<ChatDetails>>(`${TELEGRAM_API_URL}/getChat`, {
                 params: { chat_id: `@${username}` },
             });
@@ -155,14 +156,14 @@ export async function createTelegramAssetFromUrl(url: string): Promise<TelegramA
             chatTitle = chatDetails.title;
             isPublic = !!chatDetails.username;
             urlForChannel = isPublic ? `https://t.me/${username}` : url;
-            console.log(`Chat details fetched successfully: ${chatId}`);
+            Logger.info(`Chat details fetched successfully: ${chatId}`);
         }
 
         if (!chatId || !chatType) {
             return `Unable to resolve chat details for the provided URL: ${url}. Please ensure the bot is added as an admin.`;
         }
 
-        console.log('Verifying bot privileges...');
+        Logger.info('Verifying bot privileges...');
         const adminResponse = await axios.get<TelegramApiResponse<ChatAdministrator[]>>(`${TELEGRAM_API_URL}/getChatAdministrators`, {
             params: { chat_id: chatId },
         });
@@ -192,24 +193,24 @@ export async function createTelegramAssetFromUrl(url: string): Promise<TelegramA
             url: urlForChannel,
         };
 
-        console.log('TelegramAsset:', JSON.stringify(telegramAsset, null, 2));
+        Logger.info('TelegramAsset:', JSON.stringify(telegramAsset, null, 2));
         return telegramAsset;
     } catch (error: any) {
-        console.error(`Error processing URL: ${url}`, error);
+        Logger.error(`Error processing URL: ${url}`, error);
 
         if (error.response) {
-            console.error('Error Response Data:', error.response.data);
-            console.error('Error Response Status:', error.response.status);
-            console.error('Error Response Headers:', error.response.headers);
+            Logger.error('Error Response Data:', error.response.data);
+            Logger.error('Error Response Status:', error.response.status);
+            Logger.error('Error Response Headers:', error.response.headers);
             if (error.response.status === 403) {
                 return `The bot lacks permissions to access the chat associated with: ${url}.`;
             } else if (error.response.status === 400) {
                 return `Invalid URL provided: ${url}.`;
             }
         } else if (error.request) {
-            console.error('No response received:', error.request);
+            Logger.error('No response received:', error.request);
         } else {
-            console.error('Error Setting Up Request:', error.message);
+            Logger.error('Error Setting Up Request:', error.message);
         }
 
         return `An unexpected error occurred while processing the URL: ${url}.`;
