@@ -17,12 +17,14 @@ const router = Router();
 router.post('/', async (req, res) => {
   try {
     Logger.debug('POST /users - creating user');
-    const userData = req.body; // e.g. { id, telegramUsername, telegramLanguage }
+    const userData = req.body; 
     const user = await createUser(userData);
     res.status(201).json(user);
+    return;
   } catch (err: any) {
     Logger.error('Error in POST /users', err);
     res.status(500).json({ error: err.message || 'Internal Server Error' });
+    return;
   }
 });
 
@@ -37,11 +39,14 @@ router.get('/:id', async (req, res) => {
     const user = await getUserById(userId);
     if (!user) {
       res.status(404).json({ error: 'User not found' });
+      return;
     }
     res.json(user);
+    return;
   } catch (err: any) {
     Logger.error(`Error in GET /users/${req.params.id}`, err);
     res.status(500).json({ error: err.message || 'Internal Server Error' });
+    return;
   }
 });
 
@@ -56,11 +61,14 @@ router.get('/byWallet/:address', async (req, res) => {
     const user = await getUserByWalletAddress(address);
     if (!user) {
       res.status(404).json({ error: 'User not found' });
+      return;
     }
     res.json(user);
+    return;
   } catch (err: any) {
     Logger.error(`Error in GET /users/byWallet/${req.params.address}`, err);
     res.status(500).json({ error: err.message || 'Internal Server Error' });
+    return;
   }
 });
 
@@ -76,11 +84,14 @@ router.patch('/:id', async (req, res) => {
     const user = await updateUser(userId, updates);
     if (!user) {
       res.status(404).json({ error: 'User not found' });
+      return;
     }
     res.json(user);
+    return;
   } catch (err: any) {
     Logger.error(`Error in PATCH /users/${req.params.id} ` + err);
     res.status(500).json({ error: err.message || 'Internal Server Error' });
+    return;
   }
 });
 
@@ -95,11 +106,14 @@ router.delete('/:id', async (req, res) => {
     const success = await deleteUser(userId);
     if (!success) {
       res.status(404).json({ error: 'User not found' });
+      return;
     }
     res.status(204).send();
+    return;
   } catch (err: any) {
     Logger.error(`Error in DELETE /users/${req.params.id} ` + err);
     res.status(500).json({ error: err.message || 'Internal Server Error' });
+    return;
   }
 });
 

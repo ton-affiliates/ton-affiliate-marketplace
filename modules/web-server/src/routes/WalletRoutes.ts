@@ -17,12 +17,14 @@ const router = Router();
 router.post('/', async (req, res) => {
   try {
     Logger.debug('POST /wallets - creating wallet');
-    const walletData = req.body; // e.g. { userId, address, walletType }
+    const walletData = req.body;
     const wallet = await createWallet(walletData);
     res.status(201).json(wallet);
+    return;
   } catch (err: any) {
     Logger.error('Error in POST /wallets', err);
     res.status(500).json({ error: err.message || 'Internal Server Error' });
+    return;
   }
 });
 
@@ -37,11 +39,14 @@ router.get('/:id', async (req, res) => {
     const wallet = await getWalletById(walletId);
     if (!wallet) {
       res.status(404).json({ error: 'Wallet not found' });
+      return;
     }
     res.json(wallet);
+    return;
   } catch (err: any) {
     Logger.error(`Error in GET /wallets/${req.params.id}`, err);
     res.status(500).json({ error: err.message || 'Internal Server Error' });
+    return;
   }
 });
 
@@ -56,11 +61,14 @@ router.get('/byAddress/:address', async (req, res) => {
     const wallet = await getWalletByAddress(address);
     if (!wallet) {
       res.status(404).json({ error: 'Wallet not found' });
+      return;
     }
     res.json(wallet);
+    return;
   } catch (err: any) {
     Logger.error(`Error in GET /wallets/byAddress/${req.params.address} ` + err);
     res.status(500).json({ error: err.message || 'Internal Server Error' });
+    return;
   }
 });
 
@@ -76,11 +84,14 @@ router.patch('/:id', async (req, res) => {
     const wallet = await updateWallet(walletId, updates);
     if (!wallet) {
       res.status(404).json({ error: 'Wallet not found' });
+      return;
     }
     res.json(wallet);
+    return;
   } catch (err: any) {
     Logger.error(`Error in PATCH /wallets/${req.params.id} ` + err);
     res.status(500).json({ error: err.message || 'Internal Server Error' });
+    return;
   }
 });
 
@@ -95,11 +106,14 @@ router.delete('/:id', async (req, res) => {
     const success = await deleteWallet(walletId);
     if (!success) {
       res.status(404).json({ error: 'Wallet not found' });
+      return;
     }
     res.status(204).send();
+    return;
   } catch (err: any) {
     Logger.error(`Error in DELETE /wallets/${req.params.id} ` + err);
     res.status(500).json({ error: err.message || 'Internal Server Error' });
+    return;
   }
 });
 
