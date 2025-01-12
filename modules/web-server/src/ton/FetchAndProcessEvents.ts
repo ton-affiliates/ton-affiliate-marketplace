@@ -36,7 +36,7 @@ export const processBlockchainEvents = async (): Promise<void> => {
 
   try {
     const lastProcessedLt = await getLastProcessedLt();
-    Logger.info('Last Processed LT:' + lastProcessedLt);
+    Logger.debug('Last Processed LT:' + lastProcessedLt);
 
     const events: EmitLogEvent[] = await getLatestEvents(lastProcessedLt);
     if (events.length > 0) {
@@ -46,7 +46,7 @@ export const processBlockchainEvents = async (): Promise<void> => {
         lastProcessedLt
       );
       await saveLastProcessedLt(maxLt);
-      Logger.info('Updated Last Processed LT:' + maxLt);
+      Logger.debug('Updated Last Processed LT:' + maxLt);
     }
   } catch (error) {
     Logger.error('Error fetching or processing events:' + error);

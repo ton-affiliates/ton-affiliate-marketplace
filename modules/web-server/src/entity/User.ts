@@ -1,39 +1,30 @@
 import {
-    Entity,
-    PrimaryColumn,
-    Column,
-    OneToMany,
-    CreateDateColumn,
-    UpdateDateColumn,
-  } from 'typeorm';
-  import { Wallet } from './Wallet';
-  
-  @Entity()
-  export class User {
-    /**
-     * The Telegram user ID, which is unique and used as our primary key.
-     * If Telegram IDs can be negative, still store them in BIGINT (TypeORM uses 'number' in TS).
-     */
-    @PrimaryColumn({ type: 'bigint' })
-    id: number;
-  
-    @Column({ nullable: true })
-    telegramUsername: string;
-  
-    @Column({ nullable: true, length: 10 })
-    telegramLanguage: string;
-  
-    @CreateDateColumn()
-    createdAt: Date;
-  
-    @UpdateDateColumn()
-    updatedAt: Date;
-  
-    /**
-     * One user can have multiple wallets.
-     * The Wallet entity has a ManyToOne(User) reference.
-     */
-    @OneToMany(() => Wallet, (wallet) => wallet.user)
-    wallets: Wallet[];
-  }
-  
+  Entity,
+  PrimaryColumn,
+  Column,
+  OneToMany,
+  CreateDateColumn,
+  UpdateDateColumn,
+} from 'typeorm';
+import { Wallet } from './Wallet';
+
+@Entity('user')
+export class User {
+  @PrimaryColumn({ type: 'bigint', name: 'id' })
+  id: number;
+
+  @Column({ name: 'telegram_username', nullable: true })
+  telegramUsername: string;
+
+  @Column({ name: 'telegram_language', nullable: true, length: 10 })
+  telegramLanguage: string;
+
+  @CreateDateColumn({ name: 'created_at' })
+  createdAt: Date;
+
+  @UpdateDateColumn({ name: 'updated_at' })
+  updatedAt: Date;
+
+  @OneToMany(() => Wallet, (wallet) => wallet.user)
+  wallets: Wallet[];
+}

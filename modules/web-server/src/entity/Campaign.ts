@@ -1,62 +1,50 @@
 import {
-    Entity,
-    PrimaryColumn,
-    Column,
-    ManyToOne,
-    JoinColumn,
-    CreateDateColumn,
-    UpdateDateColumn,
-  } from 'typeorm';
-  import { Wallet } from './Wallet';
-  
-  @Entity()
-  export class Campaign {
-    /**
-     * A unique string from the blockchain, so we can use @PrimaryColumn (rather than auto-generated).
-     * e.g. contract address or on-chain ID.
-     */
-    @PrimaryColumn({ type: 'varchar', length: 255 })
-    id: string;
-  
-    @Column({ type: 'bigint' })
-    walletId: number; // references wallets(id)
-  
-    @Column({ length: 255, nullable: true })
-    assetType: string; // TelegramCategory
-  
-    @Column({ length: 255, nullable: true })
-    assetName: string; // e.g. public channel username
+  Entity,
+  PrimaryColumn,
+  Column,
+  ManyToOne,
+  JoinColumn,
+  CreateDateColumn,
+  UpdateDateColumn,
+} from 'typeorm';
+import { Wallet } from './Wallet';
 
-    @Column({ length: 255, nullable: true })
-    assetCategory: string; // e.g. "CHANNEL/GROUP/MINI-APP"
-  
-    @Column({ length: 255, nullable: true })
-    assetTitle: string; // e.g. channel's display title
-  
-    @Column({ type: 'text', nullable: true })
-    assetDescription: string;
-  
-    @Column({ length: 500, nullable: true })
-    inviteLink: string;
+@Entity('campaign')
+export class Campaign {
+  @PrimaryColumn({ type: 'varchar', length: 255, name: 'id' })
+  id: string;
 
-      /**
-   * Store the raw photo data as BYTEA if you're storing images directly in Postgres.
-   * Make sure your DB column is set to `BYTEA`.
-   */
-    @Column({ type: 'bytea', nullable: true })
-    assetPhoto: Buffer | null;
-  
-    @CreateDateColumn()
-    createdAt: Date;
-  
-    @UpdateDateColumn()
-    updatedAt: Date;
-  
-    /**
-     * The wallet that "owns" or created this campaign.
-     */
-    @ManyToOne(() => Wallet)
-    @JoinColumn({ name: 'walletId' })
-    wallet: Wallet;
-  }
-  
+  @Column({ type: 'bigint', name: 'wallet_id' })
+  walletId: number;
+
+  @Column({ length: 255, nullable: true, name: 'asset_type' })
+  assetType: string;
+
+  @Column({ length: 255, nullable: true, name: 'asset_name' })
+  assetName: string;
+
+  @Column({ length: 255, nullable: true, name: 'asset_category' })
+  assetCategory: string;
+
+  @Column({ length: 255, nullable: true, name: 'asset_title' })
+  assetTitle: string;
+
+  @Column({ type: 'text', nullable: true, name: 'asset_description' })
+  assetDescription: string;
+
+  @Column({ length: 500, nullable: true, name: 'invite_link' })
+  inviteLink: string;
+
+  @Column({ type: 'bytea', nullable: true, name: 'asset_photo' })
+  assetPhoto: Buffer | null;
+
+  @CreateDateColumn({ name: 'created_at' })
+  createdAt: Date;
+
+  @UpdateDateColumn({ name: 'updated_at' })
+  updatedAt: Date;
+
+  @ManyToOne(() => Wallet)
+  @JoinColumn({ name: 'wallet_id' })
+  wallet: Wallet;
+}

@@ -13,7 +13,7 @@ export async function getLastProcessedLt(): Promise<bigint> {
       Logger.info('No existing record for last processed LT. Defaulting to 0.');
       return BigInt(0); // Default to 0 if no record exists
     }
-    Logger.info(`Fetched Last Processed LT: ${record.lastLt}`);
+    Logger.debug(`Fetched Last Processed LT: ${record.lastLt}`);
     return BigInt(record.lastLt);
   } catch (err) {
     Logger.error('Error fetching last processed LT ' + err);

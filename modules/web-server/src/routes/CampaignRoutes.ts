@@ -38,6 +38,7 @@ router.post('/', async (req, res) => {
       res.status(400).json({
         error: 'Missing required fields: id, walletId, assetType, telegramHandle',
       });
+      return;
     } else {
       let telegramAsset;
       try {
@@ -45,6 +46,7 @@ router.post('/', async (req, res) => {
       } catch (err: any) {
         Logger.error('Failed fetching Telegram info:', err);
         res.status(400).json({ error: err.message });
+        return;
         // Stop further execution in this block by using else
       }
 
@@ -52,6 +54,7 @@ router.post('/', async (req, res) => {
       if (!telegramAsset) {
         Logger.error('Could not fetch Telegram info');
         res.status(400).json({ error: 'Could not fetch Telegram info' });
+        return;
       } else {
         const campaignData = {
           id,
@@ -70,11 +73,13 @@ router.post('/', async (req, res) => {
         const newCampaign = await createCampaign(campaignData);
 
         res.status(201).json(newCampaign);
+        return;
       }
     }
   } catch (err: any) {
     Logger.error('Error in POST /campaigns:' + err);
     res.status(500).json({ error: 'Internal Server Error' });
+    return;
   }
 });
 
@@ -94,11 +99,14 @@ router.get('/:id', async (req, res) => {
     const campaign = await getCampaignById(id);
     if (!campaign) {
       res.status(404).json({ error: 'Campaign not found' });
+      return;
     }
     res.json(campaign);
+    return;
   } catch (err: any) {
     Logger.error(`Error in GET /campaigns/${req.params.id}`, err);
     res.status(500).json({ error: err.message || 'Internal Server Error' });
+    return;
   }
 });
 
@@ -112,9 +120,11 @@ router.get('/forUser/:userId', async (req, res) => {
     const userId = Number(req.params.userId);
     const campaigns = await getAllCampaignsForUser(userId);
     res.json(campaigns);
+    return;
   } catch (err: any) {
     Logger.error(`Error in GET /campaigns/forUser/${req.params.userId}`, err);
     res.status(500).json({ error: err.message || 'Internal Server Error' });
+    return;
   }
 });
 
@@ -130,11 +140,14 @@ router.patch('/:id', async (req, res) => {
     const campaign = await updateCampaign(id, updates);
     if (!campaign) {
       res.status(404).json({ error: 'Campaign not found' });
+      return;
     }
     res.json(campaign);
+    return;
   } catch (err: any) {
     Logger.error(`Error in PATCH /campaigns/${req.params.id}`, err);
     res.status(500).json({ error: err.message || 'Internal Server Error' });
+    return;
   }
 });
 
@@ -149,11 +162,14 @@ router.delete('/:id', async (req, res) => {
     const success = await deleteCampaign(id);
     if (!success) {
       res.status(404).json({ error: 'Campaign not found' });
+      return;
     }
     res.status(204).send();
+    return;
   } catch (err: any) {
     Logger.error(`Error in DELETE /campaigns/${req.params.id}`, err);
     res.status(500).json({ error: err.message || 'Internal Server Error' });
+    return;
   }
 });
 
