@@ -2,12 +2,16 @@ import { MigrationInterface, QueryRunner } from 'typeorm';
 
 export class InitialSchema1736681774554 implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {
-    // 1) user TABLE
+    // 1) user TABLE with updated columns
     await queryRunner.query(`
       CREATE TABLE IF NOT EXISTS "user" (
         "id"                BIGINT PRIMARY KEY,
         "telegram_username" VARCHAR(255),
+        "first_name"        VARCHAR(255),  -- new column
+        "last_name"         VARCHAR(255),  -- new column
+        "photo_url"         VARCHAR(255),  -- new column
         "telegram_language" VARCHAR(10),
+        "auth_date"         TIMESTAMP,     -- new column
         "created_at"        TIMESTAMP NOT NULL DEFAULT NOW(),
         "updated_at"        TIMESTAMP NOT NULL DEFAULT NOW()
       );
@@ -71,7 +75,7 @@ export class InitialSchema1736681774554 implements MigrationInterface {
     await queryRunner.query(`
       CREATE TABLE IF NOT EXISTS "processed_offset" (
         "id"         SERIAL PRIMARY KEY,
-        "last_lt"     VARCHAR(50) NOT NULL DEFAULT '0',
+        "last_lt"    VARCHAR(50) NOT NULL DEFAULT '0',
         "updated_at" TIMESTAMP NOT NULL DEFAULT NOW()
       );
     `);

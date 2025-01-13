@@ -18,7 +18,7 @@ import CampaignRoleRoutes from './routes/CampaignRoleRoutes';
 dotenv.config();
 
 const PORT = process.env.PORT || 3000;
-const FETCH_INTERVAL = Number(process.env.FETCH_INTERVAL || 10*1000); //default to every 10 seconds
+const FETCH_INTERVAL = Number(process.env.FETCH_INTERVAL_BLOCKCHAIN_EVENTS || 10 * 1000); // Default: every 10 seconds
 
 const app = express();
 app.use(express.json());
@@ -34,18 +34,22 @@ appDataSource
     process.exit(1);
   });
 
-// Mount entity routers
-app.use('/users', UserRoutes);
-app.use('/wallets', WalletRoutes);
-app.use('/campaigns', CampaignRoutes);
-app.use('/campaign-roles', CampaignRoleRoutes);
+// Create a router and add all routes to it
+const apiRouter = express.Router();
+
+apiRouter.use('/users', UserRoutes);
+apiRouter.use('/wallets', WalletRoutes);
+apiRouter.use('/campaigns', CampaignRoutes);
+apiRouter.use('/campaign-roles', CampaignRoleRoutes);
 
 // Health endpoint
-app.get('/health', (req, res) => {
-  Logger.debug('GET /health - checking health');
+apiRouter.get('/health', (req, res) => {
+  Logger.debug('GET /api/v1/health - checking health');
   res.json({ status: 'OK' });
 });
 
+// Use the `/api/v1` prefix for all API routes
+app.use('/api/v1', apiRouter);
 
 // Create and start the HTTP server
 const httpServer = createServer(app);
