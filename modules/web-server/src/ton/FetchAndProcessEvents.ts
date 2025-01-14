@@ -1,7 +1,8 @@
-import { saveLastProcessedLt, getLastProcessedLt } from '../services/ProcessedOffsetService';
+import { saveLastProcessedLt, getLastProcessedLt } from '../services/ProcessedOffsetsService';
 import { getLatestEvents, EmitLogEvent } from './ListenToEvents';
 import { wss } from '../App'; // import the wss from app
 import { Logger } from "../utils/Logger"; 
+import { createEventEntity } from '../services/EventsService';
 
 async function processEvents(events: EmitLogEvent[]) {
   
@@ -11,6 +12,15 @@ async function processEvents(events: EmitLogEvent[]) {
     function bigintReplacer(_: string, value: any) {
         return typeof value === 'bigint' ? value.toString() : value;
     }
+    
+    // Convert "event.data" into a JSON string using bigintReplacer, then parse it back to an object.
+    const payload = JSON.parse(
+      JSON.stringify(event.data, (_, value) => (typeof value === 'bigint' ? value.toString() : value))
+    );
+
+    // Now payload has no BigInt
+    await createEventEntity(event.type, payload, event.createdLt?.toString());
+
 
     switch (event.type) {
       case 'CampaignCreatedEvent': {

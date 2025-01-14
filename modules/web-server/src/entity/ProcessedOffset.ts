@@ -5,7 +5,7 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 
-@Entity('processed_offset')
+@Entity('processed_offsets')
 export class ProcessedOffset {
   @PrimaryGeneratedColumn({ name: 'id' })
   id: number;

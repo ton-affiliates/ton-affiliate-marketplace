@@ -6,7 +6,7 @@ import {
   getAllAffiliatesForCampaign,
   updateCampaignRole,
   deleteCampaignRole,
-} from '../services/CampaignRoleService';
+} from '../services/CampaignRolesService';
 import { Logger } from '../utils/Logger';
 
 const router = Router();

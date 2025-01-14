@@ -9,7 +9,7 @@ import {
 } from 'typeorm';
 import { Wallet } from './Wallet';
 
-@Entity('campaign')
+@Entity('campaigns')
 export class Campaign {
   @PrimaryColumn({ type: 'varchar', length: 255, name: 'id' })
   id: string;

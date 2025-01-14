@@ -5,7 +5,7 @@ import {
   getUserByWalletAddress,
   updateUser,
   deleteUser,
-} from '../services/UserService';
+} from '../services/UsersService';
 import { Logger } from '../utils/Logger';
 
 const router = Router();

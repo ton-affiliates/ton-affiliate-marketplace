@@ -9,7 +9,7 @@ import {
 } from 'typeorm';
 import { User } from './User';
 
-@Entity('wallet')
+@Entity('wallets')
 export class Wallet {
   @PrimaryGeneratedColumn({ name: 'id' })
   id: number;

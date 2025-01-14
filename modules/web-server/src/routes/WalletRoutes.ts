@@ -5,7 +5,7 @@ import {
   getWalletByAddress,
   updateWallet,
   deleteWallet,
-} from '../services/WalletService';
+} from '../services/WalletsService';
 import { Logger } from '../utils/Logger';
 
 const router = Router();

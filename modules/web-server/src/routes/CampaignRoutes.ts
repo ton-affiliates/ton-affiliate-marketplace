@@ -5,7 +5,7 @@ import {
   getAllCampaignsForUser,
   updateCampaign,
   deleteCampaign,
-} from '../services/CampaignService';
+} from '../services/CampaignsService';
 import { Logger } from '../utils/Logger';
 import { fetchPublicChatInfo } from '../telegram/TelegramService';
 

@@ -10,7 +10,7 @@ import {
 import { Wallet } from './Wallet';
 import { Campaign } from './Campaign';
 
-@Entity('campaign_role')
+@Entity('campaign_roles')
 export class CampaignRole {
   @PrimaryGeneratedColumn({ name: 'id' })
   id: number;
