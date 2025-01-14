@@ -26,6 +26,21 @@ export async function createUser(userData: Partial<User>): Promise<User> {
   }
 }
 
+export async function upsertUser(userData: Partial<User>): Promise<User> {
+  const repo = userRepository();
+  const existingUser = await repo.findOne({ where: { id: userData.id } });
+
+  if (existingUser) {
+    // Merge the new fields onto the existing entity
+    const merged = repo.merge(existingUser, userData);
+    return await repo.save(merged);
+  } else {
+    // Create a new user
+    const newUser = repo.create(userData);
+    return await repo.save(newUser);
+  }
+}
+
 /**
  * Find a User by primary key (Telegram user ID).
  */

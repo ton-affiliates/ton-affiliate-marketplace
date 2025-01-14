@@ -50,8 +50,8 @@ This is the **Mini App Component** of the Ton Affiliate Marketplace project. The
    Create a `.env` file in the root of the `affiliate-center-miniapp` directory:
 
    ```env
-   SERVER_NAME=localhost
-   SERVER_PORT=80
+   VITE_SERVER_NAME=localhost
+   VITE_SERVER_PORT=80
    BACKEND_URL=http://web-server:3000
    TONCONNECT_MANIFEST_URL=https://yourdomain.com/tonconnect-manifest.json
    ```

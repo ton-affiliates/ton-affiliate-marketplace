@@ -13,6 +13,8 @@ import UserRoutes from './routes/UserRoutes';
 import WalletRoutes from './routes/WalletRoutes';
 import CampaignRoutes from './routes/CampaignRoutes';
 import CampaignRoleRoutes from './routes/CampaignRoleRoutes';
+import AuthRoutes from './routes/AuthRoutes';
+
 
 // Load environment variables
 dotenv.config();
@@ -41,6 +43,7 @@ apiRouter.use('/users', UserRoutes);
 apiRouter.use('/wallets', WalletRoutes);
 apiRouter.use('/campaigns', CampaignRoutes);
 apiRouter.use('/campaign-roles', CampaignRoleRoutes);
+apiRouter.use('/auth', AuthRoutes);
 
 // Health endpoint
 apiRouter.get('/health', (req, res) => {

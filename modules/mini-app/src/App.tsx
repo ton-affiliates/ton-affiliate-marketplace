@@ -10,13 +10,16 @@ import { TonConnectProvider } from './components/TonConnectProvider';
 import { TelegramProvider } from './components/TelegramContext';
 import { TelegramCampaignProvider } from './components/TelegramCampaignContext';
 import { ScreenTypes } from './components/ScreenNavigation'; // Reuse ScreenTypes
+import LoginScreen from './components/LoginScreen';
 
 const App: React.FC = () => {
   // State for managing the active screen
-  const [screen, setScreen] = useState<ScreenTypes>('main');
-  
+  // const [screen, setScreen] = useState<ScreenTypes>('main');
+  const [screen, setScreen] = useState<ScreenTypes>('login');
+
   // State for managing the campaignId
   const [campaignId, setCampaignId] = useState<string | null>(null);
+  const [_, setIsLoggedIn] = useState(false);
 
   const renderScreen = () => {
     switch (screen) {
@@ -32,6 +35,12 @@ const App: React.FC = () => {
         return <TelegramSetup setScreen={setScreen} campaignId={campaignId} />;
       case 'deployEmptyCampaign':
         return <DeployEmptyCampaign setScreen={setScreen} setCampaignId={setCampaignId} />;
+      case 'login':
+        return (
+          <LoginScreen 
+            setIsLoggedIn={setIsLoggedIn}
+          />
+        );
     }
   };
 

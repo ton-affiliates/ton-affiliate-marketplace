@@ -4,7 +4,8 @@ export type ScreenTypes =
   | "campaign"
   | "status"
   | "setupTelegram"
-  | "deployEmptyCampaign";
+  | "deployEmptyCampaign"
+  | "login";
 
 export interface ScreenProps {
   setScreen: React.Dispatch<React.SetStateAction<ScreenTypes>>;
