@@ -60,8 +60,6 @@ const TelegramSetup: React.FC<TelegramSetupProps> = ({ campaignId }) => {
         return TelegramAssetType.GROUP;
       case 'super_group':
         return TelegramAssetType.SUPER_GROUP;
-      case 'forum':
-        return TelegramAssetType.FORUM;
       case 'mini_app':
         return TelegramAssetType.MINI_APP;
       default:

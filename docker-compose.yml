@@ -1,4 +1,22 @@
 services:
+
+  mini-app:
+    build:
+      context: .
+      dockerfile: ./modules/mini-app/Dockerfile
+    ports:
+      - "5173:80"
+    volumes:
+      - ./modules/mini-app/nginx.conf:/etc/nginx/conf.d/nginx.conf.template
+      - ./modules/common:/app/src/common
+    networks:
+      - app-network
+    env_file:
+      - ./modules/mini-app/.env.${NODE_ENV}
+      - ./modules/common/.env.${NETWORK_ENV}
+    # entrypoint: /bin/sh
+    # command: -c "ls -la / && ls -la /start.sh && cat /start.sh && sleep 3600"
+
   web-server:
     build:
       context: .

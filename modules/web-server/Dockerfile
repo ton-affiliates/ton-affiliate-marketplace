@@ -18,8 +18,8 @@ COPY ./modules/web-server/src ./src
 COPY ./modules/common ./src/common
 
 # Copy Tact-generated TS files
-COPY build/AffiliateMarketplace/tact_AffiliateMarketplace.ts ./src/contracts/AffiliateMarketplace.ts
-COPY build/Campaign/tact_Campaign.ts ./src/contracts/Campaign.ts
+COPY ./build/AffiliateMarketplace/tact_AffiliateMarketplace.ts ./src/contracts/AffiliateMarketplace.ts
+COPY ./build/Campaign/tact_Campaign.ts ./src/contracts/Campaign.ts
 
 # Prepend // @ts-nocheck if needed
 RUN echo "// @ts-nocheck" | cat - ./src/contracts/AffiliateMarketplace.ts > temp && mv temp ./src/contracts/AffiliateMarketplace.ts

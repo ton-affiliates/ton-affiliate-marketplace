@@ -78,7 +78,7 @@ wss.on('connection', (ws) => {
 
 // Schedule blockchain event processor
 const intervalId = setInterval(async () => {
-  Logger.info('Running blockchain event processor...');
+  Logger.debug('Running blockchain event processor...');
   try {
     await processBlockchainEvents();
   } catch (error) {
