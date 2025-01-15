@@ -107,9 +107,7 @@ function mapChatTypeToAssetType(chatType: string): TelegramAssetType {
   }
 }
 
-/**
- * If you still want to keep sending messages somewhere the bot is a member
- */
+
 export async function sendTelegramMessage(chatId: number, message: string): Promise<void> {
   try {
     await axios.post(`${TELEGRAM_API_URL}/sendMessage`, {
@@ -117,7 +115,8 @@ export async function sendTelegramMessage(chatId: number, message: string): Prom
       text: message,
     });
     Logger.info(`Message sent to Telegram chat ID: ${chatId}`);
-  } catch (error) {
+  } catch (error: any) {
     Logger.error(`Failed to send Telegram message: ${error}`);
+    throw error;
   }
 }

@@ -3,6 +3,7 @@ import appDataSource from '../ormconfig';
 import { User } from '../entity/User';
 import { Wallet } from '../entity/Wallet';
 import { Logger } from '../utils/Logger'; // Example: a custom logger
+import { InsertResult } from 'typeorm';
 
 function userRepository() {
   return appDataSource.getRepository(User);
@@ -27,18 +28,55 @@ export async function createUser(userData: Partial<User>): Promise<User> {
 }
 
 export async function upsertUser(userData: Partial<User>): Promise<User> {
-  const repo = userRepository();
-  const existingUser = await repo.findOne({ where: { id: userData.id } });
+  const repo = appDataSource.getRepository(User);
 
-  if (existingUser) {
-    // Merge the new fields onto the existing entity
-    const merged = repo.merge(existingUser, userData);
-    return await repo.save(merged);
-  } else {
-    // Create a new user
-    const newUser = repo.create(userData);
-    return await repo.save(newUser);
+  // Convert userData into the object fields you want to insert/update
+  // e.g. "firstName", "lastName", etc.
+  // For simplicity, we assume userData has the correct property names.
+  const insertResult: InsertResult = await repo
+    .createQueryBuilder()
+    .insert()
+    .into(User)
+    .values(userData)
+    .onConflict(`
+      ("id") DO UPDATE SET
+        "first_name" = EXCLUDED."first_name",
+        "last_name" = EXCLUDED."last_name",
+        "telegram_username" = EXCLUDED."telegram_username",
+        "photo_url" = EXCLUDED."photo_url",
+        "auth_date" = EXCLUDED."auth_date"
+    `)
+    .returning('*') // So we can get the updated row back
+    .execute();
+
+  // insertResult.raw[0] will have the newly inserted or updated row
+  const updatedOrInsertedUser = insertResult.raw[0];
+  return updatedOrInsertedUser;
+}
+
+
+
+/**
+ * Attach (create) a wallet for a given user ID.
+ */
+export async function addUserWallet(
+  userId: number,
+  walletData: Partial<Wallet>
+): Promise<Wallet> {
+  // 1) Find the user
+  const user = await userRepository().findOneBy({ id: userId });
+  if (!user) {
+    throw new Error(`User with ID ${userId} not found`);
   }
+
+  // 2) Create the wallet and set its userId
+  const wallet = walletRepository().create({
+    ...walletData,
+    userId: user.id,
+  });
+
+  // 3) Save
+  return await walletRepository().save(wallet);
 }
 
 /**
@@ -75,7 +113,7 @@ export async function getUserByWalletAddress(address: string): Promise<User | nu
 }
 
 /**
- * Update a User.
+ * Update an existing User.
  */
 export async function updateUser(id: number, updates: Partial<User>): Promise<User | null> {
   try {

@@ -1,6 +1,6 @@
 import React, { useContext } from 'react';
 import { motion } from 'framer-motion';
-import { useUserRole } from "./UserRoleContext";
+import { useUserRole } from './UserRoleContext';
 import { TelegramContext } from './TelegramContext';
 import useScrollToTop from '../hooks/scrollToStart';
 import { ScreenProps } from './ScreenNavigation'; // Use centralized ScreenProps type
@@ -9,10 +9,10 @@ const MainScreen: React.FC<ScreenProps> = ({ setScreen }) => {
   const { setUserRole } = useUserRole();
   const { userInfo } = useContext(TelegramContext);
 
-  const handleRoleSelection = (role: "Advertiser" | "Affiliate") => {
+  const handleRoleSelection = (role: 'Advertiser' | 'Affiliate') => {
     setUserRole(role);
-    // Navigate to the corresponding screen
-    setScreen(role === "Advertiser" ? 'advertiser' : 'status');
+    // Go to 'login' so user can do the Telegram login flow
+    setScreen('login');
   };
 
   useScrollToTop();
@@ -27,18 +27,19 @@ const MainScreen: React.FC<ScreenProps> = ({ setScreen }) => {
       <div className="card">
         <h1>Hi {userInfo?.firstName || 'There'}!</h1>
         <p>
-          Are you an Affiliate looking for active campaigns, or an Advertiser looking to set up a referral campaign?
+          Are you an Affiliate looking for active campaigns, or an Advertiser looking to set up a
+          referral campaign?
         </p>
         <div className="button-group">
           <button
             className="custom-button"
-            onClick={() => handleRoleSelection("Advertiser")}
+            onClick={() => handleRoleSelection('Advertiser')}
           >
             Advertiser
           </button>
           <button
             className="custom-button"
-            onClick={() => handleRoleSelection("Affiliate")}
+            onClick={() => handleRoleSelection('Affiliate')}
           >
             Affiliate
           </button>

@@ -7,7 +7,7 @@ import {
   deleteCampaign,
 } from '../services/CampaignsService';
 import { Logger } from '../utils/Logger';
-import { fetchPublicChatInfo } from '../telegram/TelegramService';
+import { fetchPublicChatInfo } from '../services/TelegramService';
 
 const router = Router();
 
