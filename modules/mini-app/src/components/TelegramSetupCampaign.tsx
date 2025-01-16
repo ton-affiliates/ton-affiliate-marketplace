@@ -8,7 +8,7 @@ interface TelegramSetupProps extends ScreenProps {
   campaignId: string | null;
 }
 
-const TelegramSetup: React.FC<TelegramSetupProps> = ({ campaignId }) => {
+const TelegramSetup: React.FC<TelegramSetupProps> = ({ campaignId, setScreen }) => {
   const [campaignName, setCampaignName] = useState('');
   const [category, setCategory] = useState<TelegramCategory | ''>('');
   const [description, setDescription] = useState('');
@@ -17,12 +17,16 @@ const TelegramSetup: React.FC<TelegramSetupProps> = ({ campaignId }) => {
   const [isVerifying, setIsVerifying] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
+  // NEW: A success message or "null" if none yet
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
   // Get the user’s connected wallet from TonConnect
   const { userAccount } = useTonConnectFetchContext();
 
   const handleVerify = async () => {
     setIsVerifying(true);
     setErrorMessage(null);
+    setSuccessMessage(null); // clear any previous success
 
     console.log('handleVerify fields:', {
       campaignId,
@@ -55,7 +59,6 @@ const TelegramSetup: React.FC<TelegramSetupProps> = ({ campaignId }) => {
       });
 
       if (!response.ok) {
-        // Attempt to read an error message from the response body
         let serverError = 'Unknown server error';
         try {
           const errorBody = await response.json();
@@ -65,7 +68,6 @@ const TelegramSetup: React.FC<TelegramSetupProps> = ({ campaignId }) => {
             serverError = errorBody.message;
           }
         } catch (err) {
-          // If parsing fails, we keep the fallback message
           console.error('Failed to parse server error JSON:', err);
         }
         throw new Error(serverError);
@@ -73,8 +75,11 @@ const TelegramSetup: React.FC<TelegramSetupProps> = ({ campaignId }) => {
 
       const data = await response.json();
       console.log('Verification successful:', data);
-      // handle success (toast, navigate, etc.)
-      
+
+      // Show a success message in the UI
+      setSuccessMessage('Campaign created successfully!');
+      setScreen('blockchainCampaignSetup');
+
     } catch (error: any) {
       setErrorMessage(error.message || 'Failed to verify the Telegram URL. Please try again.');
     } finally {
@@ -186,9 +191,17 @@ const TelegramSetup: React.FC<TelegramSetupProps> = ({ campaignId }) => {
           />
         </div>
 
+        {/* If an error occurs, show it */}
         {errorMessage && (
           <div className="error-popup">
             <p style={{ color: 'red', whiteSpace: 'pre-line' }}>{errorMessage}</p>
+          </div>
+        )}
+
+        {/* If success occurs, show it */}
+        {successMessage && (
+          <div className="success-popup">
+            <p style={{ color: 'green', whiteSpace: 'pre-line' }}>{successMessage}</p>
           </div>
         )}
 

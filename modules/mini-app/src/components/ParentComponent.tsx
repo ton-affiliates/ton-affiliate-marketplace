@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import DeployCampaignButton from './DeployEmptyCampaign';
-import TelegramSetup from './TelegramSetup';
+import TelegramSetup from './TelegramSetupCampaign';
 import { ScreenTypes } from './ScreenNavigation'; // Import ScreenProps for consistency
 
 const ParentComponent: React.FC = () => {

@@ -2,15 +2,14 @@ import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import MainScreen from './components/MainScreen';
 import AdvertiserOptions from './components/AdvertiserOptions';
-import NewCampaign from './components/NewCampaign';
+import BlockchainSetupCampaign from './components/BlockchainSetupCampaign'; 
+// Or whatever you named the default export
 import DeployEmptyCampaign from './components/DeployEmptyCampaign';
-import TelegramSetup from './components/TelegramSetup';
+import TelegramSetup from './components/TelegramSetupCampaign';
 import { TonConnectButton } from '@tonconnect/ui-react';
 import { TonConnectProvider } from './components/TonConnectProvider';
 
-// This is the new/updated TelegramProvider storing userInfo
 import { TelegramProvider } from './components/TelegramContext';
-
 import { TelegramCampaignProvider } from './components/TelegramCampaignContext';
 import { ScreenTypes } from './components/ScreenNavigation';
 import LoginScreen from './components/LoginScreen';
@@ -18,8 +17,7 @@ import LoginScreen from './components/LoginScreen';
 const App: React.FC = () => {
   const [screen, setScreen] = useState<ScreenTypes>('main');
   const [campaignId, setCampaignId] = useState<string | null>(null);
-  // rename '_' to 'isLoggedIn'
-  const [_, setIsLoggedIn] = useState(false);
+  const [_, setIsLoggedIn] = useState(false); // rename '_' to 'isLoggedIn'
 
   const renderScreen = () => {
     switch (screen) {
@@ -27,8 +25,11 @@ const App: React.FC = () => {
         return <MainScreen setScreen={setScreen} />;
       case 'advertiser':
         return <AdvertiserOptions setScreen={setScreen} />;
+
+      // If you previously called "campaign" -> "NewCampaign", rename or keep it as you like
       case 'campaign':
-        return <NewCampaign setScreen={setScreen} />;
+        return <BlockchainSetupCampaign setScreen={setScreen} />;
+
       case 'status':
         return null;
       case 'setupTelegram':
@@ -37,6 +38,13 @@ const App: React.FC = () => {
         return <DeployEmptyCampaign setScreen={setScreen} setCampaignId={setCampaignId} />;
       case 'login':
         return <LoginScreen setIsLoggedIn={setIsLoggedIn} setScreen={setScreen} />;
+
+      // NEW SCREEN
+      case 'blockchainCampaignSetup':
+        return <BlockchainSetupCampaign setScreen={setScreen} />;
+
+      default:
+        return <MainScreen setScreen={setScreen} />;
     }
   };
 

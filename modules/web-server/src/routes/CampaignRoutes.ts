@@ -1,10 +1,29 @@
 import { Router } from 'express';
-import { createCampaign } from '../services/CampaignsService';
+import { createCampaign, getCampaignById } from '../services/CampaignsService';
 import { fetchPublicChatInfo } from '../services/TelegramService';
 import { Logger } from '../utils/Logger';
 import { getUserByWalletAddress } from '../services/UsersService'; 
 
 const router = Router();
+
+
+router.get('/:id', async (req, res) => {
+  try {
+    Logger.debug(`GET /campaigns/${req.params.id}`);
+    const { id } = req.params;
+    const campaign = await getCampaignById(id);
+    if (!campaign) {
+      res.status(404).json({ error: 'Campaign not found' });
+      return;
+    }
+    res.json(campaign);
+    return;
+  } catch (err) {
+    Logger.error('Error in GET /campaign/:id', err);
+    res.status(500).json({ error: 'Internal Server Error' });
+    return;
+  }
+});
 
 router.post('/', async (req, res) => {
   try {
