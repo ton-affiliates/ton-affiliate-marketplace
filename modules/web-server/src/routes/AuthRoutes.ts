@@ -50,7 +50,7 @@ router.post(
       const user = await upsertUser(userData);
 
       try {
-        await sendTelegramMessage(Number(id), 'Hello from TonAffiliates!');
+        await sendTelegramMessage(Number(id), userData.firstName + ', you successfuly logged in to TonAffiliates!');
         // If successful, we know the bot can message them
         res.json({ success: true, user, canMessage: true });
         return;

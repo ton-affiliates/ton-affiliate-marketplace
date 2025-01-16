@@ -137,7 +137,7 @@ const DeployEmptyCampaign: React.FC<DeployEmptyCampaignProps> = ({
               <TonConnectButton />
             </div>
             <div className="vertically-aligned">
-              <h1 className="headline">Deploy Empty Campaign</h1>
+              <h1 className="headline">Deploy New Campaign</h1>
               <p>Number of campaigns: {numCampaigns}</p>
               <button
                 className="nav-button"
@@ -153,7 +153,7 @@ const DeployEmptyCampaign: React.FC<DeployEmptyCampaignProps> = ({
         {waitingForTx && !txTimeout && (
           <div className="status-container">
             <Spinner />
-            <p>Waiting for transaction confirmation... (can take up to 1 minute)</p>
+            <p>Waiting for confirmation from server... (can take up to 1 minute)</p>
           </div>
         )}
 

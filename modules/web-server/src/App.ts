@@ -10,7 +10,6 @@ import { Logger } from './utils/Logger';
 import { processBlockchainEvents } from './ton/FetchAndProcessEvents';
 
 import UserRoutes from './routes/UserRoutes';
-import WalletRoutes from './routes/WalletRoutes';
 import CampaignRoutes from './routes/CampaignRoutes';
 import CampaignRoleRoutes from './routes/CampaignRoleRoutes';
 import AuthRoutes from './routes/AuthRoutes';
@@ -40,7 +39,6 @@ appDataSource
 const apiRouter = express.Router();
 
 apiRouter.use('/users', UserRoutes);
-apiRouter.use('/wallets', WalletRoutes);
 apiRouter.use('/campaigns', CampaignRoutes);
 apiRouter.use('/campaign-roles', CampaignRoleRoutes);
 apiRouter.use('/auth', AuthRoutes);

@@ -1,6 +1,6 @@
 import {
   Entity,
-  PrimaryGeneratedColumn,
+  PrimaryColumn,
   Column,
   ManyToOne,
   JoinColumn,
@@ -11,17 +11,18 @@ import { User } from './User';
 
 @Entity('wallets')
 export class Wallet {
-  @PrimaryGeneratedColumn({ name: 'id' })
-  id: number;
+  /** Make address the PRIMARY KEY */
+  @PrimaryColumn({ length: 255, name: 'address' })
+  address: string;
 
   @Column({ type: 'bigint', name: 'user_id' })
   userId: number;
 
-  @Column({ length: 255, name: 'address' })
-  address: string;
-
   @Column({ length: 50, nullable: true, name: 'wallet_type' })
   walletType: string;
+
+  @Column({ length: 255, nullable: true, name: 'public_key' })
+  publicKey?: string;
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;

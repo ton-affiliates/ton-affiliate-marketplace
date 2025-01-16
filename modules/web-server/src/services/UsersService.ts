@@ -13,20 +13,6 @@ function walletRepository() {
   return appDataSource.getRepository(Wallet);
 }
 
-/**
- * Create a new User.
- */
-export async function createUser(userData: Partial<User>): Promise<User> {
-  try {
-    const repo = userRepository();
-    const user = repo.create(userData);
-    return await repo.save(user);
-  } catch (err) {
-    Logger.error('Error creating user ' +  err);
-    throw new Error('Could not create user');
-  }
-}
-
 export async function upsertUser(userData: Partial<User>): Promise<User> {
   const repo = appDataSource.getRepository(User);
 
@@ -55,29 +41,59 @@ export async function upsertUser(userData: Partial<User>): Promise<User> {
 }
 
 
-
 /**
- * Attach (create) a wallet for a given user ID.
+ * Attach (create or update) a wallet for a given user ID.
+ * If the wallet 'address' already exists, we update userId, walletType, publicKey, etc.
+ * If not, we create a new record. 
  */
 export async function addUserWallet(
   userId: number,
   walletData: Partial<Wallet>
 ): Promise<Wallet> {
-  // 1) Find the user
+  // 1) Ensure the user exists
   const user = await userRepository().findOneBy({ id: userId });
   if (!user) {
     throw new Error(`User with ID ${userId} not found`);
   }
 
-  // 2) Create the wallet and set its userId
-  const wallet = walletRepository().create({
-    ...walletData,
-    userId: user.id,
+  // 2) Use queryBuilder + onConflict for upsert
+  //    If "address" already exists, update userId, wallet_type, public_key, etc.
+  const insertResult: InsertResult = await walletRepository()
+    .createQueryBuilder()
+    .insert()
+    .into(Wallet)
+    .values({
+      address: walletData.address,
+      userId: user.id,
+      walletType: walletData.walletType,
+      publicKey: walletData.publicKey,
+    })
+    .onConflict(`
+      ("address") DO UPDATE SET
+        "user_id" = EXCLUDED."user_id",
+        "wallet_type" = EXCLUDED."wallet_type",
+        "public_key" = EXCLUDED."public_key"
+    `)
+    // So we can read back the inserted/updated row
+    .returning('*')
+    .execute();
+
+  // 3) The row we just inserted or updated
+  const updatedWalletRow = insertResult.raw[0];
+
+  // If you want to return an actual Wallet entity object, do a quick find:
+  const updatedWallet = await walletRepository().findOne({
+    where: { address: updatedWalletRow.address },
   });
 
-  // 3) Save
-  return await walletRepository().save(wallet);
+  if (!updatedWallet) {
+    throw new Error(`Could not retrieve wallet after upsert. Address: ${walletData.address}`);
+  }
+
+  return updatedWallet;
 }
+
+
 
 /**
  * Find a User by primary key (Telegram user ID).
@@ -109,36 +125,5 @@ export async function getUserByWalletAddress(address: string): Promise<User | nu
   } catch (err) {
     Logger.error(`Error fetching user by wallet address: ${address} ` + err);
     throw new Error('Could not retrieve user');
-  }
-}
-
-/**
- * Update an existing User.
- */
-export async function updateUser(id: number, updates: Partial<User>): Promise<User | null> {
-  try {
-    const repo = userRepository();
-    const user = await repo.findOneBy({ id });
-    if (!user) return null;
-
-    Object.assign(user, updates);
-    return await repo.save(user);
-  } catch (err) {
-    Logger.error(`Error updating user: ${id} ` + err);
-    throw new Error('Could not update user');
-  }
-}
-
-/**
- * Delete a User by ID.
- */
-export async function deleteUser(id: number): Promise<boolean> {
-  try {
-    const repo = userRepository();
-    const result = await repo.delete({ id });
-    return result.affected !== 0;
-  } catch (err) {
-    Logger.error(`Error deleting user: ${id} ` + err);
-    throw new Error('Could not delete user');
   }
 }

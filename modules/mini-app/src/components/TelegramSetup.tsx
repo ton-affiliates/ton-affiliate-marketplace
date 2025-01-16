@@ -12,7 +12,8 @@ const TelegramSetup: React.FC<TelegramSetupProps> = ({ campaignId }) => {
   const [category, setCategory] = useState<TelegramCategory | ''>('');
   const [description, setDescription] = useState('');
   const [inviteLink, setInviteLink] = useState('');
-  const [telegramType, setTelegramType] = useState<TelegramAssetType | ''>(''); // Empty value fallback
+  /** Now telegramType is also a string enum, or '' if not chosen */
+  const [telegramType, setTelegramType] = useState<TelegramAssetType | ''>('');
   const [isVerifying, setIsVerifying] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -20,13 +21,22 @@ const TelegramSetup: React.FC<TelegramSetupProps> = ({ campaignId }) => {
     setIsVerifying(true);
     setErrorMessage(null);
 
+    console.log('handleVerify fields:', {
+      campaignName,
+      category,
+      inviteLink,
+      telegramType,
+      isVerifying,
+    });
+
     try {
       const response = await fetch(`/api/v1/telegram/verify-and-create`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ url: inviteLink }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          url: inviteLink,
+          // Could also send campaignName, category, telegramType, etc.
+        }),
       });
 
       if (!response.ok) {
@@ -35,6 +45,7 @@ const TelegramSetup: React.FC<TelegramSetupProps> = ({ campaignId }) => {
 
       const data = await response.json();
       console.log('Verification successful:', data);
+      // handle success (toast, navigate, etc.)
     } catch (error: any) {
       setErrorMessage(error.message || 'Failed to verify the Telegram URL. Please try again.');
     } finally {
@@ -42,30 +53,40 @@ const TelegramSetup: React.FC<TelegramSetupProps> = ({ campaignId }) => {
     }
   };
 
+  /**
+   * Convert the string from <select> into our string-based TelegramAssetType enum.
+   * Using uppercase matching is optional, but you can also just do if/else or direct assignment.
+   */
   const handleTelegramTypeChange = (value: string) => {
-    const mappedType = stringToTelegramAssetType(value);
-    if (mappedType !== undefined) {
-      setTelegramType(mappedType);
+    const mapped = stringToTelegramAssetType(value);
+    if (mapped) {
+      setTelegramType(mapped);
     } else {
       console.error(`Invalid TelegramType: ${value}`);
     }
   };
 
-  // Helper function to map strings to TelegramAssetType
   const stringToTelegramAssetType = (value: string): TelegramAssetType | undefined => {
-    switch (value.toLowerCase()) {
-      case 'channel':
+    switch (value.toUpperCase()) {
+      case 'CHANNEL':
         return TelegramAssetType.CHANNEL;
-      case 'group':
+      case 'GROUP':
         return TelegramAssetType.GROUP;
-      case 'super_group':
+      case 'SUPER_GROUP':
         return TelegramAssetType.SUPER_GROUP;
-      case 'mini_app':
+      case 'MINI_APP':
         return TelegramAssetType.MINI_APP;
       default:
         return undefined;
     }
   };
+
+  console.log('Current selection:', {
+    campaignName,
+    category,
+    telegramType,
+    inviteLink,
+  });
 
   return (
     <motion.div
@@ -79,6 +100,8 @@ const TelegramSetup: React.FC<TelegramSetupProps> = ({ campaignId }) => {
         <p>
           <strong>Campaign ID:</strong> {campaignId || 'No campaign ID provided'}
         </p>
+
+        {/* 1) Campaign Name */}
         <div className="form-group">
           <label htmlFor="campaignName">*Campaign Name:</label>
           <input
@@ -88,6 +111,8 @@ const TelegramSetup: React.FC<TelegramSetupProps> = ({ campaignId }) => {
             onChange={(e) => setCampaignName(e.target.value)}
           />
         </div>
+
+        {/* 2) Category */}
         <div className="form-group">
           <label htmlFor="category">*Category:</label>
           <select
@@ -95,9 +120,7 @@ const TelegramSetup: React.FC<TelegramSetupProps> = ({ campaignId }) => {
             value={category}
             onChange={(e) => setCategory(e.target.value as TelegramCategory)}
           >
-            <option value="" disabled>
-              Select a category
-            </option>
+            <option value="" disabled>Select a category</option>
             {Object.values(TelegramCategory).map((cat) => (
               <option key={cat} value={cat}>
                 {cat}
@@ -105,25 +128,25 @@ const TelegramSetup: React.FC<TelegramSetupProps> = ({ campaignId }) => {
             ))}
           </select>
         </div>
+
+        {/* 3) Telegram Type */}
         <div className="form-group">
           <label htmlFor="telegramType">*Telegram Type:</label>
           <select
             id="telegramType"
-            value={telegramType !== '' ? TelegramAssetType[telegramType as number] : ''}
+            value={telegramType}
             onChange={(e) => handleTelegramTypeChange(e.target.value)}
           >
-            <option value="" disabled>
-              Select Telegram Asset Type
-            </option>
-            {Object.values(TelegramAssetType)
-              .filter((value) => typeof value === 'number')
-              .map((type) => (
-                <option key={type} value={TelegramAssetType[type as number]}>
-                  {TelegramAssetType[type as number]}
-                </option>
-              ))}
+            <option value="" disabled>Select Telegram Asset Type</option>
+            {Object.values(TelegramAssetType).map((typeStr) => (
+              <option key={typeStr} value={typeStr}>
+                {typeStr}
+              </option>
+            ))}
           </select>
         </div>
+
+        {/* 4) Description (optional) */}
         <div className="form-group">
           <label htmlFor="description">Description:</label>
           <input
@@ -133,6 +156,8 @@ const TelegramSetup: React.FC<TelegramSetupProps> = ({ campaignId }) => {
             onChange={(e) => setDescription(e.target.value)}
           />
         </div>
+
+        {/* 5) Invite Link */}
         <div className="form-group">
           <label htmlFor="inviteLink">*Copy invite link to group/channel here:</label>
           <input
@@ -142,11 +167,23 @@ const TelegramSetup: React.FC<TelegramSetupProps> = ({ campaignId }) => {
             onChange={(e) => setInviteLink(e.target.value)}
           />
         </div>
-        {errorMessage && <div className="error-popup"><p>{errorMessage}</p></div>}
+
+        {errorMessage && (
+          <div className="error-popup">
+            <p>{errorMessage}</p>
+          </div>
+        )}
+
         <div className="buttons-container">
           <button
             className="telegram-campaign-button"
-            disabled={!campaignName || !category || !inviteLink || !telegramType || isVerifying}
+            disabled={
+              !campaignName ||
+              !category ||
+              !inviteLink ||
+              !telegramType ||
+              isVerifying
+            }
             onClick={handleVerify}
             title={
               !campaignName || !category || !inviteLink || !telegramType

@@ -20,7 +20,7 @@ export const useCampaignWebSocket = (
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
-    const socket = new WebSocket(`ws://${window.location.host}/api/ws`);
+    const socket = new WebSocket(`wss://${window.location.host}/api/ws`);
 
     socket.onopen = () => {
       console.log('WebSocket connected to Nginx-proxied WebSocket server');

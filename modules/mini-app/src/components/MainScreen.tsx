@@ -1,17 +1,18 @@
-import React, { useContext } from 'react';
+import React from 'react';
 import { motion } from 'framer-motion';
 import { useUserRole } from './UserRoleContext';
-import { TelegramContext } from './TelegramContext';
+// Instead of importing { TelegramContext }, import useTelegramContext:
+import { useTelegramContext } from './TelegramContext';
 import useScrollToTop from '../hooks/scrollToStart';
-import { ScreenProps } from './ScreenNavigation'; // Use centralized ScreenProps type
+import { ScreenProps } from './ScreenNavigation';
 
 const MainScreen: React.FC<ScreenProps> = ({ setScreen }) => {
   const { setUserRole } = useUserRole();
-  const { userInfo } = useContext(TelegramContext);
+  // Use your custom hook here:
+  const { userInfo } = useTelegramContext();
 
-  const handleRoleSelection = (role: 'Advertiser' | 'Affiliate') => {
+  const handleRoleSelection = (role: "Advertiser" | "Affiliate") => {
     setUserRole(role);
-    // Go to 'login' so user can do the Telegram login flow
     setScreen('login');
   };
 
@@ -27,20 +28,13 @@ const MainScreen: React.FC<ScreenProps> = ({ setScreen }) => {
       <div className="card">
         <h1>Hi {userInfo?.firstName || 'There'}!</h1>
         <p>
-          Are you an Affiliate looking for active campaigns, or an Advertiser looking to set up a
-          referral campaign?
+          Are you an Affiliate looking for active campaigns, or an Advertiser looking to set up a referral campaign?
         </p>
         <div className="button-group">
-          <button
-            className="custom-button"
-            onClick={() => handleRoleSelection('Advertiser')}
-          >
+          <button className="custom-button" onClick={() => handleRoleSelection("Advertiser")}>
             Advertiser
           </button>
-          <button
-            className="custom-button"
-            onClick={() => handleRoleSelection('Affiliate')}
-          >
+          <button className="custom-button" onClick={() => handleRoleSelection("Affiliate")}>
             Affiliate
           </button>
         </div>

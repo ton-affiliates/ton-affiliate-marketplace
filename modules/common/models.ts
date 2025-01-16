@@ -1,9 +1,10 @@
 export enum TelegramAssetType {
-    CHANNEL,
-    GROUP,
-    SUPER_GROUP,
-    MINI_APP
+    CHANNEL = 'CHANNEL',
+    GROUP = 'GROUP',
+    SUPER_GROUP = 'SUPER_GROUP',
+    MINI_APP = 'MINI_APP'
 }
+  
 
 export interface TelegramAsset {
     id: number; // Unique numeric identifier (e.g., "-1001234567890")

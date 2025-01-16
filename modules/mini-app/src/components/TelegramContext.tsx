@@ -1,64 +1,37 @@
-import React, { createContext, useEffect, useState, ReactNode } from "react";
+// src/components/TelegramContext.tsx
+import React, { createContext, useState, useContext } from 'react';
 
-interface TelegramUserInfo {
+interface TelegramUser {
   id: number;
-  firstName: string;
+  firstName?: string;
   lastName?: string;
   username?: string;
-  languageCode: string;
+  photoUrl?: string;
+  // anything else from your DB
 }
 
-interface TelegramContextProps {
-  userInfo: TelegramUserInfo | null;
-  initData: string | null;
-  initDataUnsafe: object | null;
+// This is what our context will provide
+interface TelegramContextType {
+  userInfo: TelegramUser | null;
+  setUserInfo: React.Dispatch<React.SetStateAction<TelegramUser | null>>;
 }
 
-export const TelegramContext = createContext<TelegramContextProps>({
-  userInfo: null,
-  initData: null,
-  initDataUnsafe: null,
-});
+export const TelegramContext = createContext<TelegramContextType | undefined>(undefined);
 
-export const TelegramProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [userInfo, setUserInfo] = useState<TelegramUserInfo | null>(null);
-  const [initData, setInitData] = useState<string | null>(null);
-  const [initDataUnsafe, setInitDataUnsafe] = useState<object | null>(null);
-
-  useEffect(() => {
-    if (window.Telegram?.WebApp) {
-      const tgWebApp = window.Telegram.WebApp;
-
-      // Initialize the Telegram Web App
-      tgWebApp.ready();
-
-      // Retrieve initial data and user information
-      setInitData(tgWebApp.initData);
-      setInitDataUnsafe(tgWebApp.initDataUnsafe);
-
-      // Set user info if available
-      if (tgWebApp.initDataUnsafe.user) {
-        const user = tgWebApp.initDataUnsafe.user;
-        setUserInfo({
-          id: user.id,
-          firstName: user.first_name,
-          lastName: user.last_name || undefined,
-          username: user.username || undefined,
-          languageCode: user.language_code,
-        });
-      }
-    }
-  }, []);
+export const TelegramProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [userInfo, setUserInfo] = useState<TelegramUser | null>(null);
 
   return (
-    <TelegramContext.Provider
-      value={{
-        userInfo,
-        initData,
-        initDataUnsafe,
-      }}
-    >
+    <TelegramContext.Provider value={{ userInfo, setUserInfo }}>
       {children}
     </TelegramContext.Provider>
   );
 };
+
+export function useTelegramContext() {
+  const context = useContext(TelegramContext);
+  if (!context) {
+    throw new Error('useTelegramContext must be used within a TelegramProvider');
+  }
+  return context;
+}
