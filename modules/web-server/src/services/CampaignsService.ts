@@ -47,28 +47,3 @@ export async function getAllCampaignsForUser(userId: number): Promise<Campaign[]
     throw new Error('Could not retrieve campaigns');
   }
 }
-
-export async function updateCampaign(id: string, updates: Partial<Campaign>): Promise<Campaign | null> {
-  try {
-    const repo = campaignRepository();
-    const campaign = await repo.findOneBy({ id });
-    if (!campaign) return null;
-
-    Object.assign(campaign, updates);
-    return await repo.save(campaign);
-  } catch (err) {
-    Logger.error(`Error updating campaign: ${id} ` + err);
-    throw new Error('Could not update campaign');
-  }
-}
-
-export async function deleteCampaign(id: string): Promise<boolean> {
-  try {
-    const repo = campaignRepository();
-    const result = await repo.delete({ id });
-    return result.affected !== 0;
-  } catch (err) {
-    Logger.error(`Error deleting campaign: ${id} ` + err);
-    throw new Error('Could not delete campaign');
-  }
-}

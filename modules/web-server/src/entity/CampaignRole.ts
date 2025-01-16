@@ -15,11 +15,16 @@ export class CampaignRole {
   @PrimaryGeneratedColumn({ name: 'id' })
   id: number;
 
+  // The campaign is still identified by a string ID (campaign_id):
   @Column({ type: 'varchar', length: 255, name: 'campaign_id' })
   campaignId: string;
 
-  @Column({ type: 'bigint', name: 'wallet_id' })
-  walletId: number;
+  /**
+   * Now referencing the wallet by its string 'address' (PK).
+   * So the column is type 'varchar(255)' to match `wallets(address)`.
+   */
+  @Column({ type: 'varchar', length: 255, name: 'wallet_id' })
+  walletAddress: string;
 
   @Column({ length: 50, name: 'role' })
   role: string;
@@ -33,11 +38,19 @@ export class CampaignRole {
   @UpdateDateColumn({ name: 'updated_at' })
   updatedAt: Date;
 
+  /**
+   * ManyToOne to the Campaign by "campaign_id"
+   * The local column is "campaign_id"; the remote PK is "campaigns.id".
+   */
   @ManyToOne(() => Campaign)
-  @JoinColumn({ name: 'campaign_id' })
+  @JoinColumn({ name: 'campaign_id', referencedColumnName: 'id' })
   campaign: Campaign;
 
+  /**
+   * ManyToOne to the Wallet by "walletAddress"
+   * The local column is "wallet_id"; the remote PK is "wallets.address".
+   */
   @ManyToOne(() => Wallet)
-  @JoinColumn({ name: 'wallet_id' })
+  @JoinColumn({ name: 'wallet_id', referencedColumnName: 'address' })
   wallet: Wallet;
 }

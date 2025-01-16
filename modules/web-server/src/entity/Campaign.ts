@@ -14,8 +14,12 @@ export class Campaign {
   @PrimaryColumn({ type: 'varchar', length: 255, name: 'id' })
   id: string;
 
-  @Column({ type: 'bigint', name: 'wallet_id' })
-  walletId: number;
+  /**
+   * Instead of 'wallet_id' as a BIGINT, we store the wallet's address (string) to match 
+   * the primary column in 'wallets'
+   */
+  @Column({ type: 'varchar', length: 255, name: 'wallet_address' })
+  walletAddress: string;
 
   @Column({ length: 255, nullable: true, name: 'asset_type' })
   assetType: string;
@@ -44,7 +48,11 @@ export class Campaign {
   @UpdateDateColumn({ name: 'updated_at' })
   updatedAt: Date;
 
+  /**
+   * Because 'wallets'.address is the PK, 
+   * we set the JoinColumn to map 'walletAddress' => 'address'
+   */
   @ManyToOne(() => Wallet)
-  @JoinColumn({ name: 'wallet_id' })
+  @JoinColumn({ name: 'wallet_address', referencedColumnName: 'address' })
   wallet: Wallet;
 }

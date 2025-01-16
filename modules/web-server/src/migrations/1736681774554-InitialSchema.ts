@@ -33,11 +33,11 @@ export class InitialSchema1736681774554 implements MigrationInterface {
     `);
 
     // 3) campaigns TABLE
-    //    Now "wallet_id" must be a VARCHAR(255) if it references wallets(address).
+    //    Now "wallet_address" must be a VARCHAR(255) if it references wallets(address).
     await queryRunner.query(`
       CREATE TABLE IF NOT EXISTS "campaigns" (
         "id"                VARCHAR(255) PRIMARY KEY,
-        "wallet_id"         VARCHAR(255) NOT NULL,               -- changed from BIGINT
+        "wallet_address"    VARCHAR(255) NOT NULL,       -- renamed from "wallet_id"
         "asset_type"        VARCHAR(255),
         "asset_name"        VARCHAR(255),
         "asset_category"    VARCHAR(255),
@@ -48,18 +48,18 @@ export class InitialSchema1736681774554 implements MigrationInterface {
         "created_at"        TIMESTAMP NOT NULL DEFAULT NOW(),
         "updated_at"        TIMESTAMP NOT NULL DEFAULT NOW(),
         CONSTRAINT "fk_wallet_campaign"
-          FOREIGN KEY ("wallet_id")
-          REFERENCES "wallets"("address")  -- changed from ("id")
+          FOREIGN KEY ("wallet_address")
+          REFERENCES "wallets"("address")  -- matching your entity's "wallet_address" => "wallets"."address"
       );
     `);
 
     // 4) campaign_roles TABLE
-    //    Similarly, change "wallet_id" to VARCHAR(255) referencing wallets(address).
+    //    Similarly, change "wallet_address" referencing wallets(address).
     await queryRunner.query(`
       CREATE TABLE IF NOT EXISTS "campaign_roles" (
         "id"            SERIAL PRIMARY KEY,
         "campaign_id"   VARCHAR(255) NOT NULL,
-        "wallet_id"     VARCHAR(255) NOT NULL,   -- changed from BIGINT
+        "wallet_address" VARCHAR(255) NOT NULL,  -- renamed from "wallet_id"
         "role"          VARCHAR(50) NOT NULL,
         "affiliate_id"  INT,
         "created_at"    TIMESTAMP NOT NULL DEFAULT NOW(),
@@ -68,8 +68,8 @@ export class InitialSchema1736681774554 implements MigrationInterface {
           FOREIGN KEY ("campaign_id")
           REFERENCES "campaigns"("id"),
         CONSTRAINT "fk_wallet"
-          FOREIGN KEY ("wallet_id")
-          REFERENCES "wallets"("address")  -- changed from ("id")
+          FOREIGN KEY ("wallet_address")
+          REFERENCES "wallets"("address")
       );
     `);
 

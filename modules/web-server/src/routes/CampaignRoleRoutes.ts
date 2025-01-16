@@ -18,7 +18,7 @@ const router = Router();
 router.post('/', async (req, res) => {
   try {
     Logger.debug('POST /campaign-roles - creating campaign role');
-    const roleData = req.body; // e.g. { campaignId, walletId, role, affiliateId }
+    const roleData = req.body; // e.g. { campaignId, walletAddress, role, affiliateId }
     const role = await createCampaignRole(roleData);
     res.status(201).json(role);
     return;

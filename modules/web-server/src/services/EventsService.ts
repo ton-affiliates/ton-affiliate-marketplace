@@ -65,38 +65,3 @@ export async function getAllEventEntities(
   }
 }
 
-/**
- * Update an existing EventEntity.
- * (Rarely used if EventEntities are immutable, but included for completeness.)
- */
-export async function updateEventEntity(
-  id: number,
-  updates: Partial<EventEntity>
-): Promise<EventEntity | null> {
-  try {
-    const repo = eventEntityRepository();
-    const existing = await repo.findOneBy({ id });
-    if (!existing) return null;
-
-    Object.assign(existing, updates);
-    return await repo.save(existing);
-  } catch (err) {
-    Logger.error(`Error updating EventEntity: ${id} ` + err);
-    throw new Error('Could not update EventEntity');
-  }
-}
-
-/**
- * Delete an EventEntity by ID.
- * (Again, immutability might make this unnecessary, but included for completeness.)
- */
-export async function deleteEventEntity(id: number): Promise<boolean> {
-  try {
-    const repo = eventEntityRepository();
-    const result = await repo.delete({ id });
-    return result.affected !== 0;
-  } catch (err) {
-    Logger.error(`Error deleting EventEntity: ${id} ` + err);
-    throw new Error('Could not delete EventEntity');
-  }
-}
