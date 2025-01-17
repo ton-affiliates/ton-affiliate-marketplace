@@ -56,6 +56,14 @@ export async function run(provider: NetworkProvider, args: string[]) {
         endpoint: Constants.TON_CLIENT_ENDPOINT,
         apiKey: Constants.TON_CLIENT_API_KEY
     });
+
+    // Function to calculate Jetton Wallet Address
+    async function getUSDTWalletAddress (ownerAddressStr: string, client: TonClient) {
+      let ownerAddress = Address.parse(ownerAddressStr);
+      const ownerAddressCell = beginCell().storeAddress(ownerAddress).endCell();
+      const result = await client.runMethod(USDT_MASTER_ADDRESS, 'get_wallet_address', [{ type: 'slice', cell: ownerAddressCell }]);
+      return result.stack.readAddress();
+    }
 	
 	// Calculate sender's Jetton Wallet Address (USDT Wallet)
 	let userAddressStr = provider.sender().address!.toString();
@@ -76,19 +84,6 @@ export async function run(provider: NetworkProvider, args: string[]) {
 		ui.write(`USDT amount must be a positive integer!`);
 		return;
 	}
-	
-	// const bufferNanoTON = calculateBufferInNanoTON(parsedUSDT);
-	
-	// ui.write(`Calculated buffer (TON): ${fromNano(bufferNanoTON)} TON`);
-	
-    // // Minimum buffer in TON (e.g., 1 TON)
-	// let contractTonBalance = campaignData.contractTonBalance;
-    // let minimumBufferNanoTON = contractTonBalance >= Constants.MIN_BUFFER_GAS_FEES ? toNano("0") : (Constants.MIN_BUFFER_GAS_FEES - contractTonBalance);
-	// minimumBufferNanoTON = minimumBufferNanoTON + toNano("0.02");
-    //const finalBufferNanoTON =  bufferNanoTON > minimumBufferNanoTON ? bufferNanoTON : minimumBufferNanoTON;
-
-    // Output final buffer in TON
-    //ui.write(`Final Buffer (TON): ${fromNano(finalBufferNanoTON)} TON`);
 	
 	// Generate random query ID
     const randomQueryId = BigInt('0x' + randomBytes(8).toString('hex'));
