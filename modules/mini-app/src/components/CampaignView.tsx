@@ -6,7 +6,10 @@ import { Address, fromNano } from '@ton/core';
 import { BOT_OP_CODE_USER_CLICK } from '@common/constants'; // e.g. 0 => user click
 import { useTonConnectFetchContext } from './TonConnectProvider';
 import { replenishWithTon } from '../blockchain/campaign/replenishWithTon';
+import { replenishWithUsdt } from 'blockchain/campaign/replenishWithUsdt';
 import { useTonWalletConnect } from '../hooks/useTonConnect';
+import { useTonClient } from '../hooks/useTonClient'; 
+
 
 function StatusDot({
   label,
@@ -60,6 +63,7 @@ export default function CampaignView() {
   const { userAccount } = useTonConnectFetchContext();
 
   const { sender } = useTonWalletConnect();
+  const client = useTonClient();
 
 
   // If you have a different hook or context, adapt as needed.
@@ -193,14 +197,15 @@ export default function CampaignView() {
     const userInput = prompt('Enter how many USDT to add to this campaign:');
     if (!userInput) return;
 
-    const amount = parseInt(userInput, 10);
+    const amount = parseFloat(userInput);
     if (isNaN(amount) || amount <= 0) {
       alert('Invalid USDT amount');
       return;
     }
     console.log(`[handleAddFundsUsdt] user wants to add ${amount} USDT...`);
-    // TODO: call your contract to replenish with USDT
-    // e.g. jetton transfer logic, using your blueprint scripts or direct tonconnect
+
+    await replenishWithUsdt(campaignContract, amount, sender, userAccount?.address, client);
+
     alert('Simulating USDT replenish. (Replace with real transaction logic!)');
   }
 

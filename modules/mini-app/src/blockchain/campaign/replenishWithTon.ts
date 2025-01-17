@@ -1,6 +1,6 @@
 import { toNano, OpenedContract, Sender } from '@ton/core';
 import { Campaign } from '../../contracts/Campaign';
-import { MAX_ATTEMPTS, MaxAttemptsError } from '@common/constants';
+import { MAX_ATTEMPTS } from '@common/constants';
 
 
 export async function replenishWithTon(
@@ -30,11 +30,7 @@ export async function replenishWithTon(
     const numReplenishAfter = (await campaignContract.getCampaignData()).numAdvertiserReplenishCampaign;
     if (numReplenishAfter !== numReplenishBefore) break;
 
-     if (attempt >= MAX_ATTEMPTS) {
-        throw new MaxAttemptsError();
-    }
-
-    if (++attempt > 10) throw new Error('Replenish attempt timed out.');
+    if (++attempt > MAX_ATTEMPTS) throw new Error('Replenish attempt timed out.');
     await new Promise((res) => setTimeout(res, 2000)); // Sleep 2 seconds
   }
 }
