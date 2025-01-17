@@ -1,25 +1,43 @@
-import { useEffect, useRef } from 'react';
-import { Address } from '@ton/core';
-import { ScreenTypes } from '../components/ScreenNavigation';
+// src/hooks/useCampaignWebSocket.ts
 
-function translateRawAddress(rawAddress: { workChain: number; hash: { type: string; data: number[] } }): Address {
+import { useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Address } from '@ton/core';
+
+/** 
+ * Convert raw address data from your message into an Address. 
+ */
+function translateRawAddress(rawAddress: {
+  workChain: number;
+  hash: { type: string; data: number[] };
+}): Address {
   const workChain = rawAddress.workChain;
   const hashBuffer = Buffer.from(rawAddress.hash.data);
   return Address.parseRaw(`${workChain}:${hashBuffer.toString('hex')}`);
 }
 
+/**
+ * A custom hook that listens to WebSocket events about campaign creation and triggers
+ * updates in your React state, then navigates to /telegram-setup upon success.
+ *
+ * @param userAccount     The user’s wallet account info, or null if not connected.
+ * @param setNumCampaigns A setter to update the local “number of campaigns”.
+ * @param setTxSuccess    A setter that toggles the “transaction success” state.
+ * @param setWaitingForTx A setter that toggles the “waiting” spinner.
+ * @param setTxFailed     A setter that toggles the “failed” state.
+ */
 export const useCampaignWebSocket = (
   userAccount: { address: string } | null,
   setNumCampaigns: React.Dispatch<React.SetStateAction<string>>,
-  setCampaignId: React.Dispatch<React.SetStateAction<string | null>>,
   setTxSuccess: React.Dispatch<React.SetStateAction<boolean>>,
   setWaitingForTx: React.Dispatch<React.SetStateAction<boolean>>,
-  setTxFailed: React.Dispatch<React.SetStateAction<boolean>>,
-  setScreen: React.Dispatch<React.SetStateAction<ScreenTypes>>
+  setTxFailed: React.Dispatch<React.SetStateAction<boolean>>
 ) => {
+  const navigate = useNavigate();
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
+    // Connect to your Nginx-proxied WebSocket endpoint
     const socket = new WebSocket(`wss://${window.location.host}/api/ws`);
 
     socket.onopen = () => {
@@ -28,28 +46,40 @@ export const useCampaignWebSocket = (
 
     socket.onmessage = (evt) => {
       const message = JSON.parse(evt.data);
-      if (message.type === "CampaignCreatedEvent") {
+
+      if (message.type === 'CampaignCreatedEvent') {
         const campaignId = BigInt(message.data.campaignId).toString();
         const eventAdvertiser = translateRawAddress(message.data.advertiser).toString();
-        const userAddress = userAccount ? Address.parse(userAccount.address).toString() : null;
-    
+        const userAddress = userAccount
+          ? Address.parse(userAccount.address).toString()
+          : null;
+
+        // If this new campaign was created by our user’s address
         if (eventAdvertiser === userAddress) {
-          if (timeoutRef.current) clearTimeout(timeoutRef.current);
+          console.log('[useCampaignWebSocket] Received CampaignCreatedEvent for our user:', {
+            campaignId,
+            eventAdvertiser,
+            userAddress,
+          });
+
+          // Clear any waiting timeout
+          if (timeoutRef.current) {
+            clearTimeout(timeoutRef.current);
+          }
+
+          // Update local states
           setNumCampaigns((prev) => (parseInt(prev, 10) + 1).toString());
-          setCampaignId(campaignId);
           setTxSuccess(true);
-          setWaitingForTx(false); // Stop spinner
-          setTxFailed(false);     // Reset failure state
-    
+          setWaitingForTx(false); // stop spinner
+          setTxFailed(false);
+
           setTimeout(() => {
-            setScreen("setupTelegram");
+            console.log('[useCampaignWebSocket] Navigating to /telegram-setup...');
+            navigate(`/telegram-setup/${campaignId}`); // Insert campaignId here
           }, 1000);
         }
       }
     };
-    
-    
-    
 
     socket.onerror = (error) => {
       console.error('WebSocket error:', error);
@@ -59,5 +89,12 @@ export const useCampaignWebSocket = (
       socket.close();
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
     };
-  }, [userAccount, setNumCampaigns, setCampaignId, setTxSuccess, setWaitingForTx, setTxFailed, setScreen]);
+  }, [
+    userAccount,
+    setNumCampaigns,
+    setTxSuccess,
+    setWaitingForTx,
+    setTxFailed,
+    navigate,
+  ]);
 };

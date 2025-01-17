@@ -48,6 +48,9 @@ router.post(
 
       // upsert user in DB
       const user = await upsertUser(userData);
+      // if (user.numLogins == 0) {
+
+      // }
 
       try {
         await sendTelegramMessage(Number(id), userData.firstName + ', you successfuly logged in to TonAffiliates!');

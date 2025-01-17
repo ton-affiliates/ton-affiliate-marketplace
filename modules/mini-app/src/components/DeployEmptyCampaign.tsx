@@ -1,3 +1,4 @@
+// src/components/DeployEmptyCampaign.tsx
 import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { TonConnectButton } from '@tonconnect/ui-react';
@@ -8,17 +9,12 @@ import { useAffiliateMarketplace } from '../hooks/useAffiliateMarketplace';
 import Spinner from './Spinner';
 import SuccessIcon from './SuccessIcon';
 import { useCampaignWebSocket } from '../hooks/useCampaignWebSocket';
-import { ScreenTypes } from './ScreenNavigation';
 
 interface DeployEmptyCampaignProps {
-  setScreen: React.Dispatch<React.SetStateAction<ScreenTypes>>;
-  setCampaignId: React.Dispatch<React.SetStateAction<string | null>>;
+  // We removed setScreen and setCampaignId, since we don't rely on them here.
 }
 
-const DeployEmptyCampaign: React.FC<DeployEmptyCampaignProps> = ({
-  setScreen,
-  setCampaignId,
-}) => {
+const DeployEmptyCampaign: React.FC<DeployEmptyCampaignProps> = () => {
   const affiliateMarketplace = useAffiliateMarketplace();
   const { connectedStatus, userAccount } = useTonConnectFetchContext();
   const { sender } = useTonWalletConnect();
@@ -27,25 +23,21 @@ const DeployEmptyCampaign: React.FC<DeployEmptyCampaignProps> = ({
   const [waitingForTx, setWaitingForTx] = useState(false);
   const [txSuccess, setTxSuccess] = useState(false);
   const [txFailed, setTxFailed] = useState(false);
+  const [txTimeout, setTxTimeout] = useState(false); // up to you if you keep a “timeout” state
 
-  /** NEW: Flag to indicate we timed out waiting for the transaction event */
-  const [txTimeout, setTxTimeout] = useState(false);
-
-  /** A ref to store the timeout ID, so we can clear it when needed */
   const timeoutRef = useRef<number | null>(null);
 
-  // Use the WebSocket hook to handle real-time campaign updates
+  // Real-time campaign updates via WebSocket:
+  // Now we call useCampaignWebSocket with 5 arguments.
   useCampaignWebSocket(
     userAccount,
     setNumCampaigns,
-    setCampaignId,
     setTxSuccess,
     setWaitingForTx,
-    setTxFailed,
-    setScreen
+    setTxFailed
   );
 
-  /** Fetch initial number of campaigns */
+  // Fetch initial number of campaigns
   useEffect(() => {
     const fetchNumCampaigns = async () => {
       if (!affiliateMarketplace) return;
@@ -59,7 +51,7 @@ const DeployEmptyCampaign: React.FC<DeployEmptyCampaignProps> = ({
     fetchNumCampaigns();
   }, [affiliateMarketplace]);
 
-  /** Cleanup on component unmount to avoid memory leaks */
+  // Cleanup if unmounted
   useEffect(() => {
     return () => {
       if (timeoutRef.current) {
@@ -71,13 +63,12 @@ const DeployEmptyCampaign: React.FC<DeployEmptyCampaignProps> = ({
   const handleDeployCampaign = async () => {
     if (!affiliateMarketplace || !userAccount) return;
 
-    setWaitingForTx(true);  // Show loading spinner
-    setTxSuccess(false);    // Reset success state
-    setTxFailed(false);     // Reset failure state
-    setTxTimeout(false);    // Reset timeout state
+    setWaitingForTx(true);
+    setTxSuccess(false);
+    setTxFailed(false);
+    setTxTimeout(false);
 
-    // Start a 60-second timer. If no campaign event arrives within 1 minute,
-    // we assume it timed out or user might have missed the event.
+    // Start a 60-second timer in case no event arrives
     timeoutRef.current = window.setTimeout(() => {
       setTxTimeout(true);
       setWaitingForTx(false);
@@ -94,32 +85,23 @@ const DeployEmptyCampaign: React.FC<DeployEmptyCampaignProps> = ({
       await txPromise;
 
       console.log('Transaction sent successfully!');
-      // Further updates will come via the WebSocket event (CampaignCreatedEvent).
+      // The WebSocket event (CampaignCreatedEvent) will handle setting txSuccess, etc.
     } catch (error) {
       console.error('Transaction failed or was canceled:', error);
+
+      setWaitingForTx(false);
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
 
       if (error instanceof Error) {
         if (error.message.includes('canceled')) {
           console.log('Transaction was canceled by the user.');
-          setTxFailed(true);
         } else {
           console.log('Transaction failed due to an error.');
-          setTxFailed(true);
         }
-      } else {
-        console.log('An unknown error occurred:', error);
-        setTxFailed(true);
       }
-
-      setWaitingForTx(false);
-      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+      setTxFailed(true);
     }
   };
-
-  /** If the WebSocket event arrives, you'll handle it in `useCampaignWebSocket`,
-   * presumably calling `setTxSuccess(true)`, `setWaitingForTx(false)`, and
-   * clearing the timeout there.
-   **/
 
   return (
     <motion.div

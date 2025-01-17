@@ -1,6 +1,6 @@
 import { useTonClient } from "./useTonClient";
 import { AffiliateMarketplace } from "../contracts/AffiliateMarketplace";
-import { AFFILIATE_MARKETPLACE_ADDRESS } from "../common/constants";
+import { AFFILIATE_MARKETPLACE_ADDRESS } from "@common/constants";
 
 export function useAffiliateMarketplace() {
   const client = useTonClient();

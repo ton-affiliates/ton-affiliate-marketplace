@@ -1,65 +1,72 @@
-import React, { useState } from 'react';
+// src/components/TelegramSetupCampaign.tsx
+
+import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { TelegramCategory, TelegramAssetType } from '@common/models';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useTonConnectFetchContext } from './TonConnectProvider';
-import { ScreenProps } from './ScreenNavigation';
+import { TelegramCategory, TelegramAssetType } from '@common/models';
 
-interface TelegramSetupProps extends ScreenProps {
-  campaignId: string | null;
-}
+function TelegramSetupCampaign() {
+  // 1) Grab the campaignId from the URL (e.g. /telegram-setup/123)
+  const { campaignId } = useParams<{ campaignId: string }>();
+  console.log('[TelegramSetupCampaign] rendered with campaignId:', campaignId);
 
-const TelegramSetup: React.FC<TelegramSetupProps> = ({ campaignId, setScreen }) => {
+  // 2) Local state for form inputs
   const [campaignName, setCampaignName] = useState('');
   const [category, setCategory] = useState<TelegramCategory | ''>('');
   const [description, setDescription] = useState('');
   const [inviteLink, setInviteLink] = useState('');
   const [telegramType, setTelegramType] = useState<TelegramAssetType | ''>('');
+
+  // 3) UI states
   const [isVerifying, setIsVerifying] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-
-  // NEW: A success message or "null" if none yet
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-  // Get the user’s connected wallet from TonConnect
+  // 4) Access the user’s TonConnect wallet address
   const { userAccount } = useTonConnectFetchContext();
 
-  const handleVerify = async () => {
+  // 5) React Router hook to navigate to the next page
+  const navigate = useNavigate();
+
+  // 6) Handler for the “Verify Setup” button
+  async function handleVerify() {
+    console.log('[TelegramSetupCampaign] handleVerify clicked!');
     setIsVerifying(true);
     setErrorMessage(null);
-    setSuccessMessage(null); // clear any previous success
+    setSuccessMessage(null);
 
-    console.log('handleVerify fields:', {
+    // Make sure user is connected
+    if (!userAccount?.address) {
+      console.warn('[TelegramSetupCampaign] No wallet address found');
+      setErrorMessage('No wallet address found. Please connect your wallet first.');
+      setIsVerifying(false);
+      return;
+    }
+
+    // Prepare the POST body
+    const bodyData = {
       campaignId,
+      walletAddress: userAccount.address,
       campaignName,
       category,
       inviteLink,
       description,
       telegramType,
-      userWalletAddress: userAccount?.address,
-    });
+    };
+
+    console.log('[TelegramSetupCampaign] Sending POST /api/v1/campaigns with data:', bodyData);
 
     try {
-      // Ensure there's a connected wallet address
-      if (!userAccount?.address) {
-        throw new Error('No wallet address found. Please connect your wallet first.');
-      }
-
-      const response = await fetch(`/api/v1/campaigns`, {
+      const response = await fetch('/api/v1/campaigns', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          campaignId,
-          walletAddress: userAccount.address,
-          campaignName,
-          category,
-          inviteLink,
-          description,
-          telegramType,
-        }),
+        body: JSON.stringify(bodyData),
       });
 
       if (!response.ok) {
         let serverError = 'Unknown server error';
+        // Attempt to parse JSON
         try {
           const errorBody = await response.json();
           if (errorBody.error) {
@@ -67,37 +74,37 @@ const TelegramSetup: React.FC<TelegramSetupProps> = ({ campaignId, setScreen }) 
           } else if (errorBody.message) {
             serverError = errorBody.message;
           }
-        } catch (err) {
-          console.error('Failed to parse server error JSON:', err);
+        } catch {
+          // If not valid JSON, ignore
         }
         throw new Error(serverError);
       }
 
+      // If successful
       const data = await response.json();
-      console.log('Verification successful:', data);
-
-      // Show a success message in the UI
+      console.log('[TelegramSetupCampaign] Verification successful:', data);
       setSuccessMessage('Campaign created successfully!');
-      setScreen('blockchainCampaignSetup');
 
-    } catch (error: any) {
-      setErrorMessage(error.message || 'Failed to verify the Telegram URL. Please try again.');
+      // If the server returns the final campaign ID in `data.id`, use that
+      const nextId = data.id || campaignId;
+      console.log('[TelegramSetupCampaign] Navigating to /blockchain-setup/', nextId);
+      navigate(`/blockchain-setup/${nextId}`);
+    } catch (err: any) {
+      console.error('[TelegramSetupCampaign] Error verifying telegram setup:', err);
+      setErrorMessage(err.message || 'Failed to verify the Telegram URL. Please try again.');
     } finally {
       setIsVerifying(false);
     }
-  };
+  }
 
-  // Convert user’s selected string to our TelegramAssetType enum
-  const handleTelegramTypeChange = (value: string) => {
+  // 7) If you want a select or input for “telegramType”
+  function handleTelegramTypeChange(value: string) {
     const mapped = stringToTelegramAssetType(value);
-    if (mapped) {
-      setTelegramType(mapped);
-    } else {
-      console.error(`Invalid TelegramType: ${value}`);
-    }
-  };
+    setTelegramType(mapped ?? '');
+  }
 
-  const stringToTelegramAssetType = (value: string): TelegramAssetType | undefined => {
+  // Helper
+  function stringToTelegramAssetType(value: string): TelegramAssetType | undefined {
     switch (value.toUpperCase()) {
       case 'CHANNEL':
         return TelegramAssetType.CHANNEL;
@@ -110,14 +117,13 @@ const TelegramSetup: React.FC<TelegramSetupProps> = ({ campaignId, setScreen }) 
       default:
         return undefined;
     }
-  };
+  }
 
   return (
     <motion.div
       className="screen-container"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
     >
       <div className="card">
         <h2>Set Up Your Telegram</h2>
@@ -125,6 +131,7 @@ const TelegramSetup: React.FC<TelegramSetupProps> = ({ campaignId, setScreen }) 
           <strong>Campaign ID:</strong> {campaignId || 'No campaign ID provided'}
         </p>
 
+        {/* Campaign Name */}
         <div className="form-group">
           <label htmlFor="campaignName">*Campaign Name:</label>
           <input
@@ -135,6 +142,7 @@ const TelegramSetup: React.FC<TelegramSetupProps> = ({ campaignId, setScreen }) 
           />
         </div>
 
+        {/* Category (dropdown) */}
         <div className="form-group">
           <label htmlFor="category">*Category:</label>
           <select
@@ -153,6 +161,7 @@ const TelegramSetup: React.FC<TelegramSetupProps> = ({ campaignId, setScreen }) 
           </select>
         </div>
 
+        {/* Telegram Type (dropdown) */}
         <div className="form-group">
           <label htmlFor="telegramType">*Telegram Type:</label>
           <select
@@ -171,6 +180,7 @@ const TelegramSetup: React.FC<TelegramSetupProps> = ({ campaignId, setScreen }) 
           </select>
         </div>
 
+        {/* Description (optional) */}
         <div className="form-group">
           <label htmlFor="description">Description:</label>
           <input
@@ -181,6 +191,7 @@ const TelegramSetup: React.FC<TelegramSetupProps> = ({ campaignId, setScreen }) 
           />
         </div>
 
+        {/* Invite Link (Required) */}
         <div className="form-group">
           <label htmlFor="inviteLink">*Copy invite link to group/channel here:</label>
           <input
@@ -191,43 +202,41 @@ const TelegramSetup: React.FC<TelegramSetupProps> = ({ campaignId, setScreen }) 
           />
         </div>
 
-        {/* If an error occurs, show it */}
+        {/* Error or success messages */}
         {errorMessage && (
           <div className="error-popup">
             <p style={{ color: 'red', whiteSpace: 'pre-line' }}>{errorMessage}</p>
           </div>
         )}
 
-        {/* If success occurs, show it */}
         {successMessage && (
           <div className="success-popup">
             <p style={{ color: 'green', whiteSpace: 'pre-line' }}>{successMessage}</p>
           </div>
         )}
 
-        <div className="buttons-container">
-          <button
-            className="telegram-campaign-button"
-            disabled={
-              !campaignName ||
-              !category ||
-              !inviteLink ||
-              !telegramType ||
-              isVerifying
-            }
-            onClick={handleVerify}
-            title={
-              !campaignName || !category || !inviteLink || !telegramType
-                ? 'Please fill all the mandatory fields marked with *'
-                : ''
-            }
-          >
-            {isVerifying ? 'Verifying...' : 'Verify Setup'}
-          </button>
-        </div>
+        {/* Verify Setup button */}
+        <button
+          className="telegram-campaign-button"
+          disabled={
+            !campaignName ||
+            !category ||
+            !inviteLink ||
+            !telegramType ||
+            isVerifying
+          }
+          onClick={handleVerify}
+          title={
+            !campaignName || !category || !inviteLink || !telegramType
+              ? 'Please fill all the mandatory fields marked with *'
+              : ''
+          }
+        >
+          {isVerifying ? 'Verifying...' : 'Verify Setup'}
+        </button>
       </div>
     </motion.div>
   );
-};
+}
 
-export default TelegramSetup;
+export default TelegramSetupCampaign;

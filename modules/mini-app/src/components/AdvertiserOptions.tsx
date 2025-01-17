@@ -1,9 +1,12 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { useTelegramContext } from './TelegramContext'; // wherever your context is
-import { ScreenProps } from './ScreenNavigation';
+import { useNavigate } from 'react-router-dom'; 
+import { useTelegramContext } from './TelegramContext'; 
+// We no longer import ScreenProps since we don't need setScreen.
 
-const AdvertiserOptions: React.FC<ScreenProps> = ({ setScreen }) => {
+const AdvertiserOptions: React.FC = () => {
+  // Instead of setScreen, useNavigate from React Router
+  const navigate = useNavigate();
   const { userInfo } = useTelegramContext();
 
   return (
@@ -23,21 +26,26 @@ const AdvertiserOptions: React.FC<ScreenProps> = ({ setScreen }) => {
         <div className="button-group">
           <button
             className="custom-button no-padding"
-            onClick={() => setScreen('deployEmptyCampaign')}
+            // Was: onClick={() => setScreen('deployEmptyCampaign')}
+            onClick={() => navigate('/deploy')}
           >
             Set up a new campaign
           </button>
+
           <button
             className="custom-button no-padding"
-            onClick={() => setScreen('status')}
+            // Was: onClick={() => setScreen('status')}
+            onClick={() => navigate('/status')}
           >
             Check live campaign status
           </button>
         </div>
+
         <div className="navigation-buttons">
           <button
             className="nav-button"
-            onClick={() => setScreen('main')}
+            // Was: onClick={() => setScreen('main')}
+            onClick={() => navigate('/')}
           >
             Go to Main Screen
           </button>

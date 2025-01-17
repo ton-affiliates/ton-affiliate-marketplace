@@ -1,19 +1,20 @@
+// src/components/MainScreen.tsx
 import React from 'react';
 import { motion } from 'framer-motion';
+import { useNavigate } from 'react-router-dom'; 
 import { useUserRole } from './UserRoleContext';
-// Instead of importing { TelegramContext }, import useTelegramContext:
 import { useTelegramContext } from './TelegramContext';
 import useScrollToTop from '../hooks/scrollToStart';
-import { ScreenProps } from './ScreenNavigation';
 
-const MainScreen: React.FC<ScreenProps> = ({ setScreen }) => {
+const MainScreen: React.FC = () => {
   const { setUserRole } = useUserRole();
-  // Use your custom hook here:
   const { userInfo } = useTelegramContext();
+  const navigate = useNavigate();
 
-  const handleRoleSelection = (role: "Advertiser" | "Affiliate") => {
+  const handleRoleSelection = (role: 'Advertiser' | 'Affiliate') => {
     setUserRole(role);
-    setScreen('login');
+    // Instead of setScreen('login'):
+    navigate('/login');
   };
 
   useScrollToTop();
@@ -31,10 +32,16 @@ const MainScreen: React.FC<ScreenProps> = ({ setScreen }) => {
           Are you an Affiliate looking for active campaigns, or an Advertiser looking to set up a referral campaign?
         </p>
         <div className="button-group">
-          <button className="custom-button" onClick={() => handleRoleSelection("Advertiser")}>
+          <button
+            className="custom-button"
+            onClick={() => handleRoleSelection('Advertiser')}
+          >
             Advertiser
           </button>
-          <button className="custom-button" onClick={() => handleRoleSelection("Affiliate")}>
+          <button
+            className="custom-button"
+            onClick={() => handleRoleSelection('Affiliate')}
+          >
             Affiliate
           </button>
         </div>
