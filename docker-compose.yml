@@ -1,6 +1,9 @@
-services:
+version: '3.8'
 
+services:
   mini-app:
+    # Tag your image for the mini-app
+    image: gcr.io/${PROJECT_ID}/mini-app:latest
     build:
       context: .
       dockerfile: ./modules/mini-app/Dockerfile
@@ -18,6 +21,8 @@ services:
       - ./modules/common/.env.${NETWORK_ENV}
 
   web-server:
+    # Tag your image for the web-server
+    image: gcr.io/${PROJECT_ID}/web-server:latest
     build:
       context: .
       dockerfile: ./modules/web-server/Dockerfile
@@ -29,7 +34,8 @@ services:
       - app-network
     env_file:
       - ./modules/web-server/.env.${NODE_ENV}
-      - ./modules/common/.env.${NETWORK_ENV}      # <-- Also load the "common" .env
+      - ./modules/common/.env.${NETWORK_ENV}
+
   db:
     image: postgres:15-alpine
     container_name: postgres_db

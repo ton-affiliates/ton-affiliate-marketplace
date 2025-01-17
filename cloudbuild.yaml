@@ -1,0 +1,43 @@
+steps:
+  # 1) Build all images using docker-compose (which references your Dockerfiles).
+  - name: 'docker/compose'
+    args:
+      - build
+      # Optionally: ['build', '--no-cache']
+
+  # 2) Push the newly built images to GCR
+  - name: 'docker/compose'
+    args:
+      - push
+
+  # 3) Deploy the mini-app service to Cloud Run
+  - name: 'gcr.io/cloud-builders/gcloud'
+    args:
+      - run
+      - deploy
+      - mini-app-service    # The name of your Cloud Run service
+      - '--image'
+      - 'gcr.io/$PROJECT_ID/mini-app:latest'
+      - '--region'
+      - 'us-central1'
+      - '--platform'
+      - 'managed'
+      # Possibly add: '--allow-unauthenticated' or environment variables, etc.
+
+  # 4) Deploy the web-server service to Cloud Run (separate service)
+  - name: 'gcr.io/cloud-builders/gcloud'
+    args:
+      - run
+      - deploy
+      - web-server-service  # The name of your separate Cloud Run service
+      - '--image'
+      - 'gcr.io/$PROJECT_ID/web-server:latest'
+      - '--region'
+      - 'us-central1'
+      - '--platform'
+      - 'managed'
+      # Possibly add: '--allow-unauthenticated' if you want it public
+
+images:
+  - 'gcr.io/$PROJECT_ID/mini-app:latest'
+  - 'gcr.io/$PROJECT_ID/web-server:latest'
