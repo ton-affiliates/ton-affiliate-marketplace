@@ -6,7 +6,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useTonConnectFetchContext } from './TonConnectProvider';
 import { useCampaignContract } from '../hooks/useCampaignContract';
 import { useTonWalletConnect } from '../hooks/useTonConnect';
-import { GAS_FEE, MAX_ATTEMPTS, MaxAttemptsError } from '@common/constants';
+import { GAS_FEE, MAX_ATTEMPTS, MaxAttemptsError, BOT_OP_CODE_USER_CLICK } from '@common/constants';
 
 // Utility sleep function
 function sleep(ms: number) {
@@ -68,7 +68,6 @@ function BlockchainSetupCampaign() {
 
       const regularUsersMap = Dictionary.empty<bigint, bigint>();
       const premiumUsersMap = Dictionary.empty<bigint, bigint>();
-      const BOT_OP_CODE_USER_CLICK = 0n;
 
       regularUsersMap.set(BOT_OP_CODE_USER_CLICK, userRefVal);
       premiumUsersMap.set(BOT_OP_CODE_USER_CLICK, premiumRefVal);

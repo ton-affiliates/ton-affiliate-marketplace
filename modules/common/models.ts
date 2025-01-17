@@ -53,19 +53,3 @@ export interface TelegramCampaign {
     category: TelegramCategory;
     telegramAsset: TelegramAsset;  
 }
-
-// Define the EventData type
-export interface EventData {
-    timestamp: number; // The timestamp when the event was logged
-    userId: number;    // The ID of the user associated with the event
-    chatId: number;    // The ID of the chat where the event occurred
-    eventType: string; // The type of the event (e.g., 'captcha_verified', 'joined')
-    additionalData: Record<string, any>; // Additional data specific to the event
-}
-
-
-// requests
-export interface SetCampaignDetailsBody {
-    advertiserTelegramId: number;
-    campaignInfo: Omit<TelegramCampaign, 'campaignId' | 'status'>;
-}
