@@ -29,3 +29,11 @@ export const AFFILIATE_FEE_PERCENTAGE = BigInt(process.env.AFFILIATE_FEE_PERCENT
 // Bot OpCodes
 export const BOT_OP_CODE_USER_CLICK = BigInt(0);
 export const BOT_OP_CODE_USER_RETAINED_TWO_WEEKS = BigInt(1);
+
+
+export class MaxAttemptsError extends Error {
+  constructor() {
+    super('Max attempts reached, contract state did not change in time!');
+    this.name = 'MaxAttemptsError';
+  }
+}

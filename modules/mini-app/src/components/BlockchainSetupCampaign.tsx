@@ -1,43 +1,36 @@
-import { useState } from 'react';
+// src/components/BlockchainSetupCampaign.tsx
+import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Dictionary } from '@ton/core';
+import { useParams, useNavigate } from 'react-router-dom';
 import { useTonConnectFetchContext } from './TonConnectProvider';
 import { useCampaignContract } from '../hooks/useCampaignContract';
 import { useTonWalletConnect } from '../hooks/useTonConnect';
-import { useParams, useNavigate } from 'react-router-dom';
-import { GAS_FEE } from '@common/constants';
+import { GAS_FEE, MAX_ATTEMPTS, MaxAttemptsError } from '@common/constants';
 
-/**
- * This component expects a route like: /blockchain-setup/:campaignId
- * Then it fetches the campaign contract and finalizes campaign details on-chain.
- */
+// Utility sleep function
+function sleep(ms: number) {
+  return new Promise<void>((resolve) => setTimeout(resolve, ms));
+}
+
 function BlockchainSetupCampaign() {
   const { campaignId } = useParams<{ campaignId: string }>();
-  console.log('[BlockchainSetupCampaign] rendered with campaignId:', campaignId);
+  const navigate = useNavigate();
 
-  // Commission fees
   const [commissionValues, setCommissionValues] = useState({
     userReferred: '0.1',
     premiumUserReferred: '0.1',
   });
-
-  // Boolean: isPublicCampaign (true => public, false => private)
   const [isPublicCampaign, setIsPublicCampaign] = useState(true);
-
-  // Payment method MUST be a bigint, so we store 0n for TON, 1n for USDT.
   const [paymentMethod, setPaymentMethod] = useState<bigint>(0n);
-
-  // Expiration date
   const [expirationDateEnabled, setExpirationDateEnabled] = useState(false);
-  const [expirationDate, setExpirationDate] = useState(''); // "YYYY-MM-DD"
+  const [expirationDate, setExpirationDate] = useState('');
 
-  // UI States
   const [txInProgress, setTxInProgress] = useState(false);
   const [txSuccess, setTxSuccess] = useState(false);
   const [txFailed, setTxFailed] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  // Contract data
   const { connectedStatus, userAccount } = useTonConnectFetchContext();
   const { sender } = useTonWalletConnect();
   const advertiserAddress = userAccount?.address || null;
@@ -48,11 +41,6 @@ function BlockchainSetupCampaign() {
     numericCampaignId
   );
 
-  const navigate = useNavigate();
-
-  /**
-   * Handler for “Finalize & View Campaign.”
-   */
   async function handleSubmit() {
     setTxInProgress(true);
     setTxFailed(false);
@@ -61,7 +49,7 @@ function BlockchainSetupCampaign() {
 
     try {
       if (!connectedStatus || !userAccount?.address) {
-        throw new Error('No wallet connected. Please connect your wallet.');
+        throw new Error('No wallet connected. Please connect your wallet first.');
       }
       if (!campaignContract) {
         throw new Error(error || 'Campaign contract not loaded yet.');
@@ -70,11 +58,11 @@ function BlockchainSetupCampaign() {
         throw new Error('Sender is not set. Could not send transaction.');
       }
 
-      // 1) Build the cost-per-action dictionaries
-      const userReferredVal = BigInt(
+      // Build cost-per-action dictionaries
+      const userRefVal = BigInt(
         Math.floor(parseFloat(commissionValues.userReferred) * 1e9)
       );
-      const premiumReferredVal = BigInt(
+      const premiumRefVal = BigInt(
         Math.floor(parseFloat(commissionValues.premiumUserReferred) * 1e9)
       );
 
@@ -82,10 +70,10 @@ function BlockchainSetupCampaign() {
       const premiumUsersMap = Dictionary.empty<bigint, bigint>();
       const BOT_OP_CODE_USER_CLICK = 0n;
 
-      regularUsersMap.set(BOT_OP_CODE_USER_CLICK, userReferredVal);
-      premiumUsersMap.set(BOT_OP_CODE_USER_CLICK, premiumReferredVal);
+      regularUsersMap.set(BOT_OP_CODE_USER_CLICK, userRefVal);
+      premiumUsersMap.set(BOT_OP_CODE_USER_CLICK, premiumRefVal);
 
-      // 2) Determine expiration in days, store as a bigint or null
+      // Determine expiration in days (null if not set)
       let campaignValidForNumDays: bigint | null = null;
       if (expirationDateEnabled && expirationDate) {
         const now = new Date();
@@ -97,45 +85,55 @@ function BlockchainSetupCampaign() {
         }
       }
 
-      // isPublicCampaign => boolean
-      // paymentMethod => our bigint (0n or 1n)
-      const requiresAdvertiserApprovalForWithdrawl = false;
-
-	  const stateBefore = (await campaignContract.getCampaignData()).state;
+      // Grab current state from on-chain data before we send
+      const dataBefore = await campaignContract.getCampaignData();
+      const stateBefore = dataBefore.state;
       if (stateBefore !== 0n) {
-		setErrorMessage('Error: campaign has already been initialized!');
+        setErrorMessage('Error: campaign has already been initialized!');
         return;
-	  }
+      }
 
-      // 3) Send the transaction to the contract
-      await campaignContract.send(
-        sender,
-        { value: GAS_FEE },
-        {
-          $$type: 'AdvertiserSetCampaignDetails',
-          campaignDetails: {
-            // EXACT shape that matches your CampaignDetails definition
-            $$type: 'CampaignDetails',
-            regularUsersCostPerAction: regularUsersMap,
-            premiumUsersCostPerAction: premiumUsersMap,
-            isPublicCampaign,
-            campaignValidForNumDays,
-            paymentMethod,
-            requiresAdvertiserApprovalForWithdrawl,
-          },
+      console.log("stateBefore: " + stateBefore);
+
+      await campaignContract.send(sender, { value: GAS_FEE }, {
+        $$type: 'AdvertiserSetCampaignDetails',
+        campaignDetails: {
+          $$type: 'CampaignDetails',
+          regularUsersCostPerAction: regularUsersMap,
+          premiumUsersCostPerAction: premiumUsersMap,
+          isPublicCampaign,
+          campaignValidForNumDays,
+          paymentMethod,
+          requiresAdvertiserApprovalForWithdrawl: false,
+        },
+      });
+
+      // Wait for on-chain state to change
+      let attempt = 1;
+      let stateAfter = (await campaignContract.getCampaignData()).state;
+
+      while (stateAfter === stateBefore) {
+
+        console.log("stateAfter: " + stateAfter);
+        if (attempt >= MAX_ATTEMPTS) {
+          throw new MaxAttemptsError();
         }
-      );
+        await sleep(2000);
+        stateAfter = (await campaignContract.getCampaignData()).state;
+        attempt++;
+      }
 
+      // If we reach here => success
       setTxSuccess(true);
 
-      // After 1.5s, navigate to final campaign page
+      // After 0.5s, navigate to final campaign page
       setTimeout(() => {
         if (campaignId) {
           navigate(`/campaign/${campaignId}`);
         } else {
           console.warn('No campaignId in URL, cannot navigate to /campaign/:id');
         }
-      }, 1500);
+      }, 500);
 
     } catch (err: any) {
       console.error('[BlockchainSetupCampaign] Transaction error:', err);
@@ -157,72 +155,57 @@ function BlockchainSetupCampaign() {
           <strong>Campaign ID:</strong> {campaignId || 'No campaign ID provided'}
         </p>
         {isLoading && <p>Loading Campaign Contract...</p>}
-        {error && <p style={{ color: 'red' }}>Error from useCampaignContract: {error}</p>}
+        {error && <p style={{ color: 'red' }}>Error: {error}</p>}
 
-        {/* 
-          Campaign Type: public/private 
-          => sets isPublicCampaign: boolean
-        */}
+        {/* Public/Private radio buttons */}
         <div className="card container-column" style={{ marginTop: '1rem' }}>
           <label>Campaign Type:</label>
-          <div>
-            <label>
-              <input
-                type="radio"
-                name="campaignType"
-                value="public"
-                checked={isPublicCampaign === true}
-                onChange={() => setIsPublicCampaign(true)}
-              />
-              Public (any affiliate can join)
-            </label>
-          </div>
-          <div>
-            <label>
-              <input
-                type="radio"
-                name="campaignType"
-                value="private"
-                checked={isPublicCampaign === false}
-                onChange={() => setIsPublicCampaign(false)}
-              />
-              Private (approval required)
-            </label>
-          </div>
+          <label>
+            <input
+              type="radio"
+              value="public"
+              checked={isPublicCampaign === true}
+              onChange={() => setIsPublicCampaign(true)}
+            />
+            Public
+          </label>
+          <label>
+            <input
+              type="radio"
+              value="private"
+              checked={isPublicCampaign === false}
+              onChange={() => setIsPublicCampaign(false)}
+            />
+            Private
+          </label>
         </div>
 
-        {/* Payment Method => 0n for TON, 1n for USDT */}
+        {/* Payment method => 0n or 1n */}
         <div className="card container-column" style={{ marginTop: '1rem' }}>
           <label>Payment Method:</label>
-          <div>
-            <label>
-              <input
-                type="radio"
-                name="paymentMethod"
-                value="0"
-                checked={paymentMethod === 0n}
-                onChange={() => setPaymentMethod(0n)}
-              />
-              TON
-            </label>
-          </div>
-          <div>
-            <label>
-              <input
-                type="radio"
-                name="paymentMethod"
-                value="1"
-                checked={paymentMethod === 1n}
-                onChange={() => setPaymentMethod(1n)}
-              />
-              USDT
-            </label>
-          </div>
+          <label>
+            <input
+              type="radio"
+              value="0"
+              checked={paymentMethod === 0n}
+              onChange={() => setPaymentMethod(0n)}
+            />
+            TON
+          </label>
+          <label>
+            <input
+              type="radio"
+              value="1"
+              checked={paymentMethod === 1n}
+              onChange={() => setPaymentMethod(1n)}
+            />
+            USDT
+          </label>
         </div>
 
         {/* Commission fields */}
         <div className="card container-column" style={{ marginTop: '1rem' }}>
-          <label>Commissionable Events Fees (human user*)</label>
+          <label>Commissionable Events Fees</label>
           <div style={{ display: 'flex', gap: '1rem', marginTop: '0.5rem' }}>
             <div>
               <label>User Referred:</label>
@@ -232,10 +215,10 @@ function BlockchainSetupCampaign() {
                 min="0"
                 value={commissionValues.userReferred}
                 onChange={(e) =>
-                  setCommissionValues((prev) => ({
-                    ...prev,
-                    userReferred: e.target.value,
-                  }))
+                  setCommissionValues({ 
+                    ...commissionValues, 
+                    userReferred: e.target.value 
+                  })
                 }
                 style={{ width: '5rem' }}
               />
@@ -248,60 +231,87 @@ function BlockchainSetupCampaign() {
                 min="0"
                 value={commissionValues.premiumUserReferred}
                 onChange={(e) =>
-                  setCommissionValues((prev) => ({
-                    ...prev,
-                    premiumUserReferred: e.target.value,
-                  }))
+                  setCommissionValues({ 
+                    ...commissionValues, 
+                    premiumUserReferred: e.target.value 
+                  })
                 }
                 style={{ width: '5rem' }}
               />
             </div>
           </div>
-          <p style={{ fontSize: '0.85em', marginTop: '0.5em' }}>
-            *We verify each referred user is human via captcha.
-          </p>
         </div>
 
-        {/* Expiration date checkbox + date input => sets campaignValidForNumDays */}
-        <div className="card container-column" style={{ marginTop: '1rem' }}>
-          <label>Campaign Expiration Date:</label>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-            <label>
-              <input
-                type="checkbox"
-                checked={expirationDateEnabled}
-                onChange={(e) => setExpirationDateEnabled(e.target.checked)}
-              />
-              <span style={{ marginLeft: '0.5rem' }}>Enable expiration date</span>
-            </label>
-            {expirationDateEnabled && (
-              <input
-                type="date"
-                value={expirationDate}
-                onChange={(e) => setExpirationDate(e.target.value)}
-              />
-            )}
-          </div>
-          <p style={{ fontSize: '0.85em', marginTop: '0.5em' }}>
-            We'll compute the difference in days from now. 
-            If it is set to 0, no expiration is used.
-          </p>
-        </div>
+        {/* Expiration date => sets a "campaignValidForNumDays" or null */}
+        <ExpirationDateSelector
+          expirationDateEnabled={expirationDateEnabled}
+          setExpirationDateEnabled={setExpirationDateEnabled}
+          expirationDate={expirationDate}
+          setExpirationDate={setExpirationDate}
+        />
 
-        {/* Display TX states */}
+        {/* If TX in progress, show a spinner or note */}
         {txInProgress && <p>Sending transaction...</p>}
+        {/* If TX fails, show error */}
         {txFailed && errorMessage && <p style={{ color: 'red' }}>Error: {errorMessage}</p>}
-        {txSuccess && <p style={{ color: 'green' }}>Campaign updated successfully! Redirecting...</p>}
+        {/* If TX success, show success note */}
+        {txSuccess && (
+          <p style={{ color: 'green' }}>
+            Campaign updated successfully! Navigating...
+          </p>
+        )}
 
         <button
-          style={{ marginTop: '1rem' }}
           onClick={handleSubmit}
           disabled={txInProgress || !campaignContract}
+          style={{ marginTop: '1rem' }}
         >
           Finalize & View Campaign
         </button>
       </div>
     </motion.div>
+  );
+}
+
+/**
+ * A sub-component for selecting an expiration date or disabling it.
+ * This is optional. If you prefer inline code, you can remove this.
+ */
+function ExpirationDateSelector({
+  expirationDateEnabled,
+  setExpirationDateEnabled,
+  expirationDate,
+  setExpirationDate,
+}: {
+  expirationDateEnabled: boolean;
+  setExpirationDateEnabled: React.Dispatch<React.SetStateAction<boolean>>;
+  expirationDate: string;
+  setExpirationDate: React.Dispatch<React.SetStateAction<string>>;
+}) {
+  return (
+    <div className="card container-column" style={{ marginTop: '1rem' }}>
+      <label>Campaign Expiration Date:</label>
+      <label>
+        <input
+          type="checkbox"
+          checked={expirationDateEnabled}
+          onChange={(e) => setExpirationDateEnabled(e.target.checked)}
+        />
+        <span style={{ marginLeft: '0.5rem' }}>Enable expiration date</span>
+      </label>
+      {expirationDateEnabled && (
+        <input
+          type="date"
+          value={expirationDate}
+          onChange={(e) => setExpirationDate(e.target.value)}
+          style={{ marginTop: '0.5rem' }}
+        />
+      )}
+      <p style={{ fontSize: '0.85em', marginTop: '0.5em' }}>
+        We compute days from now until the chosen date.
+        If it’s 0 or negative, we use “no expiration”.
+      </p>
+    </div>
   );
 }
 
