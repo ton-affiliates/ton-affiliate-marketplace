@@ -3,13 +3,24 @@ import { useParams } from 'react-router-dom';
 import { useCampaignContract } from '../hooks/useCampaignContract';
 import { CampaignData } from '../contracts/Campaign';
 import { Address, fromNano } from '@ton/core';
-import { BOT_OP_CODE_USER_CLICK } from '@common/constants'; // e.g. 0 => user click
+import { BOT_OP_CODE_USER_CLICK } from '@common/constants';
 import { useTonConnectFetchContext } from './TonConnectProvider';
-import { replenishWithTon } from '../blockchain/campaign/replenishWithTon';
-import { replenishWithUsdt } from 'blockchain/campaign/replenishWithUsdt';
-import { useTonWalletConnect } from '../hooks/useTonConnect';
-import { useTonClient } from '../hooks/useTonClient'; 
 
+// Replenish scripts
+import { replenishWithTon } from '../blockchain/campaign/advertiserReplenishWithTon';
+import { replenishWithUsdt } from '../blockchain/campaign/advertiserReplenishWithUsdt';
+import { replenishGasFeesForUsdtCampaign } from '../blockchain/campaign/advertiserReplenishCampaignGasFees';
+
+// Advertiser-only scripts
+import { advertiserWithdrawFunds } from '../blockchain/campaign/advertiserWithdrawFunds';
+import { advertiserApproveAffiliate } from '../blockchain/campaign/advertiserApproveAffiliate';
+import { advertiserRemoveAffiliate } from '../blockchain/campaign/advertiserRemoveAffiliate';
+
+import { useTonWalletConnect } from '../hooks/useTonConnect';
+import { useTonClient } from '../hooks/useTonClient';
+
+// Our generic TransactionButton
+import TransactionButton from '../components/TransactionButton';
 
 function StatusDot({
   label,
@@ -22,9 +33,6 @@ function StatusDot({
   invertColorForFalse?: boolean;
   big?: boolean;
 }) {
-  // Decide color:
-  // - Normally `true` => green, `false` => red
-  // - If invertColorForFalse is set, `true` => red, `false` => green
   let color = 'red';
   if (invertColorForFalse) {
     color = value ? 'red' : 'green';
@@ -32,7 +40,6 @@ function StatusDot({
     color = value ? 'green' : 'red';
   }
 
-  // Make dots a bit bigger so they aren’t squished:
   const dotSize = big ? '16px' : '12px';
   const fontSize = big ? '1.2rem' : '1rem';
 
@@ -59,16 +66,10 @@ export default function CampaignView() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Suppose you use the TonConnect UI React hook to get the user's wallet info:
   const { userAccount } = useTonConnectFetchContext();
-
   const { sender } = useTonWalletConnect();
   const client = useTonClient();
 
-
-  // If you have a different hook or context, adapt as needed.
-
-  // DB-level campaign data from your server:
   const [campaign, setCampaign] = useState<{
     id: string;
     walletAddress: string;
@@ -78,15 +79,13 @@ export default function CampaignView() {
     inviteLink?: string;
     createdAt?: string;
     updatedAt?: string;
-    // ... plus any other fields
   } | null>(null);
 
-  // On-chain data
   const [onChainData, setOnChainData] = useState<CampaignData | null>(null);
   const [chainLoading, setChainLoading] = useState(false);
   const [chainError, setChainError] = useState<string | null>(null);
 
-  // 1) Fetch from your DB
+  // 1) Fetch from DB
   useEffect(() => {
     if (!id) {
       setError('No campaign ID in URL!');
@@ -111,7 +110,7 @@ export default function CampaignView() {
     fetchFromAPI();
   }, [id]);
 
-  // 2) Hook up the on-chain contract
+  // 2) Hook up on-chain contract
   const advertiserAddr = campaign?.walletAddress || undefined;
   const campaignIdBigInt = campaign?.id ? BigInt(campaign.id) : undefined;
 
@@ -139,18 +138,15 @@ export default function CampaignView() {
     fetchOnChain();
   }, [campaignContract]);
 
-  // Helper: format TON-friendly address
   function formatTonFriendly(rawAddr: string): string {
     try {
       const addr = Address.parse(rawAddr);
-      // Return non-bounceable testnet form, for example:
       return addr.toString({ bounceable: false, testOnly: true });
     } catch {
-      return rawAddr; // fallback
+      return rawAddr;
     }
   }
 
-  // Helper: format date
   function formatDate(dStr?: string | null): string {
     if (!dStr) return '';
     const d = new Date(dStr);
@@ -161,55 +157,17 @@ export default function CampaignView() {
     });
   }
 
-  // Determine if user is the advertiser
   const isUserAdvertiser = React.useMemo(() => {
     if (!userAccount?.address || !advertiserAddr) return false;
     try {
-      // Compare them in raw form
-      const userAddrParsed = Address.parse(userAccount!.address);
-      console.log("[CampaignView.tsx] userAddrParsed: " + userAddrParsed);
+      const userAddrParsed = Address.parse(userAccount.address);
       const advertiserParsed = Address.parse(advertiserAddr);
-      console.log("[CampaignView.tsx] advertiserParsed: " + advertiserParsed);
-      return userAddrParsed.toString() == (advertiserParsed.toString());
+      return userAddrParsed.toString() === advertiserParsed.toString();
     } catch {
       return false;
     }
   }, [userAccount?.address, advertiserAddr]);
 
-  // Example placeholders for “Add Funds” actions:
-  // (You would integrate your own transaction logic or blueprint scripts.)
-  async function handleAddFundsTon() {
-    // e.g. ask user for how many TON to send
-    const userInput = prompt('Enter how many TON to add to this campaign:');
-    if (!userInput) return;
-
-    const amount = parseFloat(userInput);
-    if (isNaN(amount) || amount <= 0) {
-      alert('Invalid TON amount');
-      return;
-    }
-    console.log(`[handleAddFundsTon] user wants to add ${amount} TON...`);
-    await replenishWithTon(campaignContract, amount, sender);
-    alert('Funds replenished successfully!');
-  }
-
-  async function handleAddFundsUsdt() {
-    const userInput = prompt('Enter how many USDT to add to this campaign:');
-    if (!userInput) return;
-
-    const amount = parseFloat(userInput);
-    if (isNaN(amount) || amount <= 0) {
-      alert('Invalid USDT amount');
-      return;
-    }
-    console.log(`[handleAddFundsUsdt] user wants to add ${amount} USDT...`);
-
-    await replenishWithUsdt(campaignContract, amount, sender, userAccount?.address, client);
-
-    alert('Simulating USDT replenish. (Replace with real transaction logic!)');
-  }
-
-  // 4) Render states
   if (loading) return <div>Loading campaign data...</div>;
   if (error) return <div style={{ color: 'red' }}>{error}</div>;
   if (!campaign) return <div>No campaign found</div>;
@@ -257,7 +215,7 @@ export default function CampaignView() {
             gap: '1.5rem',
             alignItems: 'flex-start',
             marginTop: '1rem',
-            marginBottom: '2rem', // More gap at the bottom
+            marginBottom: '2rem',
           }}
         >
           {/* Column 1: Campaign Details (left side) */}
@@ -270,7 +228,6 @@ export default function CampaignView() {
             }}
           >
             <h3>Campaign Details</h3>
-            {/* Payment method first */}
             <p>
               <strong>Payment Method:</strong>{' '}
               {onChainData.campaignDetails.paymentMethod === 0n ? 'TON' : 'USDT'}
@@ -338,54 +295,83 @@ export default function CampaignView() {
           {/* Column 2: Campaign Status */}
           <div
             style={{
-              flex: '0 0 220px',
+              flex: '0 0 270px', // increased width from 220px to 270px
               borderRight: '1px solid #ccc',
               paddingRight: '1rem',
               marginRight: '1rem',
             }}
           >
             <h3>Campaign Status</h3>
+
+            {/* Active */}
             <StatusDot label="Active" value={onChainData.isCampaignActive} big />
-            <div style={{ display: 'flex', alignItems: 'center' }}>
-              <div style={{ marginRight: '0.5rem' }}>
-                <StatusDot
-                  label="Sufficient Funds for Max CPA"
-                  value={onChainData.campaignHasSufficientFundsToPayMaxCpa}
-                />
-              </div>
-              {/* If user is the advertiser, show "Add Funds" button */}
+
+            {/* Sufficient Funds row + Add Funds button */}
+            <div style={{ display: 'flex', alignItems: 'center', marginBottom: '0.5rem' }}>
+              <StatusDot
+                label="Sufficient Funds for Max CPA"
+                value={onChainData.campaignHasSufficientFundsToPayMaxCpa}
+              />
               {isUserAdvertiser && (
-                <button
-                  style={{
-                    marginLeft: 'auto',
-                    alignSelf: 'center',
-                    padding: '4px 8px',
-                    cursor: 'pointer',
-                  }}
-                  onClick={() => {
-                    if (onChainData.campaignDetails.paymentMethod === 0n) {
-                      // TON-based campaign
-                      handleAddFundsTon();
-                    } else {
-                      // USDT-based campaign
-                      handleAddFundsUsdt();
-                    }
-                  }}
-                >
-                  Add Funds
-                </button>
+                <div style={{ marginLeft: 'auto' }}>
+                  <TransactionButton
+                    buttonLabel="Add Funds"
+                    showAmountField
+                    defaultAmount={1}
+                    onTransaction={async (amount) => {
+                      if (!amount) throw new Error('Invalid amount');
+                      if (onChainData.campaignDetails.paymentMethod === 0n) {
+                        // TON-based
+                        await replenishWithTon(campaignContract, amount, sender);
+                      } else {
+                        // USDT-based
+                        await replenishWithUsdt(
+                          campaignContract,
+                          amount,
+                          sender,
+                          userAccount?.address,
+                          client
+                        );
+                      }
+                    }}
+                  />
+                </div>
               )}
             </div>
-            {/* invertColorForFalse => green if false */}
+
+            {/* Paused by Admin */}
             <StatusDot
               label="Paused by Admin"
               value={onChainData.isCampaignPausedByAdmin}
               invertColorForFalse
             />
-            <StatusDot
-              label="Sufficient Ton Gas Fees"
-              value={onChainData.campaignHasSufficientTonToPayGasFees}
-            />
+
+            {/* Sufficient Ton Gas Fees row + button */}
+            <div style={{ display: 'flex', alignItems: 'center', marginBottom: '0.5rem' }}>
+              <StatusDot
+                label="Sufficient Ton Gas Fees"
+                value={onChainData.campaignHasSufficientTonToPayGasFees}
+              />
+              {isUserAdvertiser && (
+                <div style={{ marginLeft: 'auto' }}>
+                  <TransactionButton
+                    buttonLabel="Add TON for Gas Fees"
+                    showAmountField
+                    defaultAmount={1}
+                    onTransaction={async (amount) => {
+                      if (!amount) throw new Error('Invalid amount');
+                      if (onChainData.campaignDetails.paymentMethod === 0n) {
+                        await replenishWithTon(campaignContract, amount, sender);
+                      } else {
+                        await replenishGasFeesForUsdtCampaign(campaignContract, amount, sender);
+                      }
+                    }}
+                  />
+                </div>
+              )}
+            </div>
+
+            {/* Expired */}
             <StatusDot
               label="Expired"
               value={onChainData.isCampaignExpired}
@@ -397,16 +383,13 @@ export default function CampaignView() {
           <div style={{ flex: 1 }}>
             <h3>Campaign Data</h3>
 
-            {/* Campaign Balance first */}
             {onChainData.campaignDetails.paymentMethod === 0n ? (
               <p>
-                <strong>Campaign Balance (TON):</strong>{' '}
-                {fromNano(onChainData.campaignBalance)}
+                <strong>Campaign Balance (TON):</strong> {fromNano(onChainData.campaignBalance)}
               </p>
             ) : (
               <p>
-                <strong>Campaign Balance (USDT):</strong>{' '}
-                {onChainData.campaignBalance.toString()}
+                <strong>Campaign Balance (USDT):</strong> {fromNano(onChainData.campaignBalance)}
               </p>
             )}
 
@@ -415,7 +398,11 @@ export default function CampaignView() {
             </p>
 
             <p>
-              <strong>Total Affiliate Earnings:</strong> {fromNano(onChainData.totalAffiliateEarnings)} TON
+              <strong>Campaign Contract Address:</strong>{' '}
+              {formatTonFriendly(onChainData.contractAddress.toString())}
+            </p>
+            <p>
+              <strong>Campaign Ton Balance:</strong> {fromNano(onChainData.contractTonBalance)}
             </p>
 
             {onChainData.campaignStartTimestamp !== 0n ? (
@@ -448,19 +435,16 @@ export default function CampaignView() {
               <strong># User Actions:</strong> {onChainData.numUserActions.toString()}
             </p>
 
-            {/* Show max CPA */}
             <p>
-              <strong>Max CPA Value:</strong>{' '}
-              {fromNano(onChainData.maxCpaValue)}
-              {onChainData.campaignDetails.paymentMethod === 0n ? ' TON' : ' (nanoUSDT?)'}
+              <strong>Max CPA Value:</strong> {fromNano(onChainData.maxCpaValue)}
+              {onChainData.campaignDetails.paymentMethod === 0n ? ' TON' : ' USDT'}
             </p>
 
-            {/* Fees */}
             <p>
               <strong>Advertiser Fee (%):</strong>{' '}
               {(Number(onChainData.advertiserFeePercentage) / 100).toFixed(2)}%
             </p>
-            <p style={{ marginBottom: '2rem' }}>
+            <p>
               <strong>Affiliate Fee (%):</strong>{' '}
               {(Number(onChainData.affiliateFeePercentage) / 100).toFixed(2)}%
             </p>
@@ -468,6 +452,94 @@ export default function CampaignView() {
         </div>
       ) : (
         !chainLoading && <p>No on-chain data yet.</p>
+      )}
+
+      {/* 5) ACTIONS SECTION */}
+      {isUserAdvertiser && onChainData && (
+        <div style={{ marginTop: '2rem' }}>
+          <h2>Actions</h2>
+
+          <div style={{ marginBottom: '1rem' }}>
+            <TransactionButton
+              buttonLabel="Add Funds"
+              showAmountField
+              defaultAmount={1}
+              onTransaction={async (amount) => {
+                if (!amount) throw new Error('Invalid amount');
+                if (onChainData.campaignDetails.paymentMethod === 0n) {
+                  await replenishWithTon(campaignContract, amount, sender);
+                } else {
+                  await replenishWithUsdt(
+                    campaignContract,
+                    amount,
+                    sender,
+                    userAccount?.address,
+                    client
+                  );
+                }
+              }}
+            />
+          </div>
+
+          <div style={{ marginBottom: '1rem' }}>
+            <TransactionButton
+              buttonLabel="Add TON for Gas Fees"
+              showAmountField
+              defaultAmount={1}
+              onTransaction={async (amount) => {
+                if (!amount) throw new Error('Invalid amount');
+                if (onChainData.campaignDetails.paymentMethod === 0n) {
+                  await replenishWithTon(campaignContract, amount, sender);
+                } else {
+                  await replenishGasFeesForUsdtCampaign(campaignContract, amount, sender);
+                }
+              }}
+            />
+          </div>
+
+          <div style={{ marginBottom: '1rem' }}>
+            <TransactionButton
+              buttonLabel="Withdraw Funds"
+              showAmountField
+              onTransaction={async (amount) => {
+                if (!amount) throw new Error('Invalid withdraw amount');
+                await advertiserWithdrawFunds(campaignContract, amount, sender);
+              }}
+            />
+          </div>
+
+          {/* Private campaign affiliate management */}
+          {!onChainData.campaignDetails.isPublicCampaign && (
+            <div style={{ marginTop: '1.5rem' }}>
+              <h4>Private Campaign Affiliate Management</h4>
+
+              <button
+                style={{ marginRight: '1rem' }}
+                onClick={async () => {
+                  const affIdStr = prompt('Enter affiliate ID to approve:');
+                  if (!affIdStr) return;
+                  const affIdBn = BigInt(affIdStr);
+                  await advertiserApproveAffiliate(campaignContract, affIdBn, sender);
+                  alert(`Approved affiliate ID: ${affIdStr}`);
+                }}
+              >
+                Approve Affiliate
+              </button>
+
+              <button
+                onClick={async () => {
+                  const affIdStr = prompt('Enter affiliate ID to remove:');
+                  if (!affIdStr) return;
+                  const affIdBn = BigInt(affIdStr);
+                  await advertiserRemoveAffiliate(campaignContract, affIdBn, sender);
+                  alert(`Removed affiliate ID: ${affIdStr}`);
+                }}
+              >
+                Remove Affiliate
+              </button>
+            </div>
+          )}
+        </div>
       )}
     </div>
   );
