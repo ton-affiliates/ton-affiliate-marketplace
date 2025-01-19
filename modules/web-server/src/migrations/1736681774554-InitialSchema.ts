@@ -17,7 +17,7 @@ export class InitialSchema1736681774554 implements MigrationInterface {
       );
     `);
 
-    // 2) wallets TABLE (address is the PK, user_id references users(id))
+    // 2) wallets TABLE
     await queryRunner.query(`
       CREATE TABLE IF NOT EXISTS "wallets" (
         "address"      VARCHAR(255) PRIMARY KEY,
@@ -33,11 +33,9 @@ export class InitialSchema1736681774554 implements MigrationInterface {
     `);
 
     // 3) campaigns TABLE
-    //    Now "wallet_address" must be a VARCHAR(255) if it references wallets(address).
     await queryRunner.query(`
       CREATE TABLE IF NOT EXISTS "campaigns" (
         "id"                VARCHAR(255) PRIMARY KEY,
-        "wallet_address"    VARCHAR(255) NOT NULL,       -- renamed from "wallet_id"
         "asset_type"        VARCHAR(255),
         "asset_name"        VARCHAR(255),
         "asset_category"    VARCHAR(255),
@@ -45,25 +43,37 @@ export class InitialSchema1736681774554 implements MigrationInterface {
         "asset_description" TEXT,
         "invite_link"       VARCHAR(500),
         "asset_photo"       BYTEA,
+        "is_empty"          BOOLEAN NOT NULL DEFAULT true,
         "created_at"        TIMESTAMP NOT NULL DEFAULT NOW(),
-        "updated_at"        TIMESTAMP NOT NULL DEFAULT NOW(),
-        CONSTRAINT "fk_wallet_campaign"
-          FOREIGN KEY ("wallet_address")
-          REFERENCES "wallets"("address")  -- matching your entity's "wallet_address" => "wallets"."address"
+        "updated_at"        TIMESTAMP NOT NULL DEFAULT NOW()
       );
     `);
 
-    // 4) campaign_roles TABLE
-    //    Similarly, change "wallet_address" referencing wallets(address).
+    // 4) Create an ENUM type in Postgres for "role_type"
+    await queryRunner.query(`
+      DO $$
+      BEGIN
+          CREATE TYPE role_type AS ENUM ('advertiser', 'affiliate');
+      EXCEPTION
+          WHEN duplicate_object THEN null;
+      END
+      $$;
+    `);
+
+    // 5) campaign_roles TABLE
+    //    Notice we changed:
+    //      - "role" to type "role_type"
+    //      - "is_empty" to "is_active" per your entity
     await queryRunner.query(`
       CREATE TABLE IF NOT EXISTS "campaign_roles" (
-        "id"            SERIAL PRIMARY KEY,
-        "campaign_id"   VARCHAR(255) NOT NULL,
-        "wallet_address" VARCHAR(255) NOT NULL,  -- renamed from "wallet_id"
-        "role"          VARCHAR(50) NOT NULL,
-        "affiliate_id"  INT,
-        "created_at"    TIMESTAMP NOT NULL DEFAULT NOW(),
-        "updated_at"    TIMESTAMP NOT NULL DEFAULT NOW(),
+        "id"             SERIAL PRIMARY KEY,
+        "campaign_id"    VARCHAR(255) NOT NULL,
+        "wallet_address" VARCHAR(255) NOT NULL,
+        "role"           role_type NOT NULL,
+        "affiliate_id"   INT,
+        "is_active"      BOOLEAN NOT NULL DEFAULT false,
+        "created_at"     TIMESTAMP NOT NULL DEFAULT NOW(),
+        "updated_at"     TIMESTAMP NOT NULL DEFAULT NOW(),
         CONSTRAINT "fk_campaign"
           FOREIGN KEY ("campaign_id")
           REFERENCES "campaigns"("id"),
@@ -73,7 +83,7 @@ export class InitialSchema1736681774554 implements MigrationInterface {
       );
     `);
 
-    // 5) processed_offsets TABLE
+    // 6) processed_offsets TABLE
     await queryRunner.query(`
       CREATE TABLE IF NOT EXISTS "processed_offsets" (
         "id"         SERIAL PRIMARY KEY,
@@ -82,7 +92,7 @@ export class InitialSchema1736681774554 implements MigrationInterface {
       );
     `);
 
-    // 6) events TABLE
+    // 7) events TABLE
     await queryRunner.query(`
       CREATE TABLE IF NOT EXISTS "events" (
         "id" SERIAL PRIMARY KEY,
@@ -92,15 +102,37 @@ export class InitialSchema1736681774554 implements MigrationInterface {
         "created_at" TIMESTAMP WITH TIME ZONE DEFAULT NOW()
       );
     `);
+
+    // 8) notifications TABLE
+    await queryRunner.query(`
+      CREATE TABLE IF NOT EXISTS "notifications" (
+        "id"          SERIAL PRIMARY KEY,
+        "user_id"     BIGINT NOT NULL,
+        "message"     TEXT NOT NULL,
+        "campaign_id" VARCHAR(255),
+        "created_at"  TIMESTAMP NOT NULL DEFAULT NOW(),
+        "updated_at"  TIMESTAMP NOT NULL DEFAULT NOW(),
+        "read_at"     TIMESTAMP,
+        CONSTRAINT "fk_user_notifications"
+          FOREIGN KEY ("user_id")
+          REFERENCES "users"("id"),
+        CONSTRAINT "fk_campaign_notifications"
+          FOREIGN KEY ("campaign_id")
+          REFERENCES "campaigns"("id")
+      );
+    `);
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
-    // Reverse the creation order
+    // Reverse creation in the opposite order
+    await queryRunner.query(`DROP TABLE IF EXISTS "notifications";`);
     await queryRunner.query(`DROP TABLE IF EXISTS "events";`);
     await queryRunner.query(`DROP TABLE IF EXISTS "processed_offsets";`);
     await queryRunner.query(`DROP TABLE IF EXISTS "campaign_roles";`);
     await queryRunner.query(`DROP TABLE IF EXISTS "campaigns";`);
     await queryRunner.query(`DROP TABLE IF EXISTS "wallets";`);
     await queryRunner.query(`DROP TABLE IF EXISTS "users";`);
+    // Optionally, drop the enum type if you want a fully clean rollback
+    await queryRunner.query(`DROP TYPE IF EXISTS role_type;`);
   }
 }

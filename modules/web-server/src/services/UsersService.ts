@@ -4,6 +4,7 @@ import { User } from '../entity/User';
 import { Wallet } from '../entity/Wallet';
 import { Logger } from '../utils/Logger'; // Example: a custom logger
 import { InsertResult } from 'typeorm';
+import { Address } from '@ton/core';
 
 function userRepository() {
   return appDataSource.getRepository(User);
@@ -48,7 +49,8 @@ export async function upsertUser(userData: Partial<User>): Promise<User> {
  */
 export async function addUserWallet(
   userId: number,
-  walletData: Partial<Wallet>
+  tonAddress: Address, // renamed so it's clear it's a Ton Address object
+  walletData: Partial<Omit<Wallet, 'address'>> // everything except 'address'
 ): Promise<Wallet> {
   // 1) Ensure the user exists
   const user = await userRepository().findOneBy({ id: userId });
@@ -56,14 +58,16 @@ export async function addUserWallet(
     throw new Error(`User with ID ${userId} not found`);
   }
 
-  // 2) Use queryBuilder + onConflict for upsert
-  //    If "address" already exists, update userId, wallet_type, public_key, etc.
+  // Convert Ton Address object => string
+  const addressString = tonAddress.toString();
+
+  // 2) Upsert
   const insertResult: InsertResult = await walletRepository()
     .createQueryBuilder()
     .insert()
     .into(Wallet)
     .values({
-      address: walletData.address,
+      address: addressString,
       userId: user.id,
       walletType: walletData.walletType,
       publicKey: walletData.publicKey,
@@ -74,20 +78,21 @@ export async function addUserWallet(
         "wallet_type" = EXCLUDED."wallet_type",
         "public_key" = EXCLUDED."public_key"
     `)
-    // So we can read back the inserted/updated row
     .returning('*')
     .execute();
 
-  // 3) The row we just inserted or updated
+  // 3) Read back the inserted or updated row
   const updatedWalletRow = insertResult.raw[0];
 
-  // If you want to return an actual Wallet entity object, do a quick find:
+  // 4) Optionally, re-fetch a full Wallet entity:
   const updatedWallet = await walletRepository().findOne({
     where: { address: updatedWalletRow.address },
   });
 
   if (!updatedWallet) {
-    throw new Error(`Could not retrieve wallet after upsert. Address: ${walletData.address}`);
+    throw new Error(
+      `Could not retrieve wallet after upsert. Address: ${addressString}`
+    );
   }
 
   return updatedWallet;
@@ -115,15 +120,18 @@ export async function getUserById(id: number): Promise<User | null> {
  * 1) Find the wallet by `address`.
  * 2) Then load the user that wallet references.
  */
-export async function getUserByWalletAddress(address: string): Promise<User | null> {
+export async function getUserByWalletAddress(
+  tonAddress: Address
+): Promise<User | null> {
   try {
+    const addressString = tonAddress.toString();
     const wallet = await walletRepository().findOne({
-      where: { address },
+      where: { address: addressString },
       relations: ['user'],
     });
     return wallet ? wallet.user : null;
   } catch (err) {
-    Logger.error(`Error fetching user by wallet address: ${address} ` + err);
+    Logger.error(`Error fetching user by wallet address: ${tonAddress} ` + err);
     throw new Error('Could not retrieve user');
   }
 }

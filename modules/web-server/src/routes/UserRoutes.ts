@@ -5,10 +5,9 @@ import {
   addUserWallet
 } from '../services/UsersService';
 import { Logger } from '../utils/Logger';
-
+import { Address } from '@ton/core';
 
 const router = Router();
-
 
 /**
  * GET /users/:id
@@ -46,7 +45,7 @@ router.post('/add', async (req, res) => {
       return;
     }
 
-    const wallet = await addUserWallet(userId, { address, walletType, publicKey });
+    const wallet = await addUserWallet(userId, Address.parse(address), { walletType, publicKey });
     res.json({ success: true, wallet });
     return;
   } catch (err: any) {
@@ -64,7 +63,7 @@ router.get('/byWallet/:address', async (req, res) => {
   try {
     Logger.debug(`GET /users/byWallet/${req.params.address} - fetching user by wallet address`);
     const { address } = req.params;
-    const user = await getUserByWalletAddress(address);
+    const user = await getUserByWalletAddress(Address.parse(address));
     if (!user) {
       res.status(404).json({ error: 'User not found' });
       return;

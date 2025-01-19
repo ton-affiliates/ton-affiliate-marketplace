@@ -1,8 +1,9 @@
 import { Router } from 'express';
-import { createCampaign, getCampaignById } from '../services/CampaignsService';
+import { createCampaign, getCampaignByIdWithAdvertiser } from '../services/CampaignsService';
 import { fetchPublicChatInfo } from '../services/TelegramService';
 import { Logger } from '../utils/Logger';
 import { getUserByWalletAddress } from '../services/UsersService'; 
+import { getUnreadNotificationsForUser } from '../services/NotificationsService';
 
 const router = Router();
 
@@ -11,7 +12,7 @@ router.get('/:id', async (req, res) => {
   try {
     Logger.debug(`GET /campaigns/${req.params.id}`);
     const { id } = req.params;
-    const campaign = await getCampaignById(id);
+    const campaign = await getCampaignByIdWithAdvertiser(id);
     if (!campaign) {
       res.status(404).json({ error: 'Campaign not found' });
       return;
@@ -20,6 +21,32 @@ router.get('/:id', async (req, res) => {
     return;
   } catch (err) {
     Logger.error('Error in GET /campaign/:id', err);
+    res.status(500).json({ error: 'Internal Server Error' });
+    return;
+  }
+});
+
+router.get('/:id/notifications', async (req, res) => {
+  try {
+    const { id } = req.params; // campaignId
+    const { userId } = req.query; // e.g. /campaigns/xxx/notifications?userId=123
+
+    if (!userId) {
+      res.status(400).json({ error: 'Missing userId query parameter' });
+      return;
+    }
+
+    const userIdNum = parseInt(userId.toString(), 10);
+    if (isNaN(userIdNum)) {
+      res.status(400).json({ error: 'Invalid userId parameter' });
+      return;
+    }
+
+    const notifications = await getUnreadNotificationsForUser(userIdNum, id);
+    res.json(notifications);
+    return;
+  } catch (err: any) {
+    Logger.error(`Error in GET /campaigns/${req.params.id}/notifications:`, err);
     res.status(500).json({ error: 'Internal Server Error' });
     return;
   }

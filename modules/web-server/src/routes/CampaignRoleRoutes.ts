@@ -3,9 +3,7 @@ import {
   createCampaignRole,
   getCampaignRoleById,
   getAdvertiserForCampaign,
-  getAllAffiliatesForCampaign,
-  updateCampaignRole,
-  deleteCampaignRole,
+  getAllAffiliatesForCampaign
 } from '../services/CampaignRolesService';
 import { Logger } from '../utils/Logger';
 
@@ -86,51 +84,6 @@ router.get('/affiliates/:campaignId', async (req, res) => {
     return;
   } catch (err: any) {
     Logger.error(`Error in GET /campaign-roles/affiliates/${req.params.campaignId} ` + err);
-    res.status(500).json({ error: err.message || 'Internal Server Error' });
-    return;
-  }
-});
-
-/**
- * PATCH /campaign-roles/:id
- * Update a campaign role
- */
-router.patch('/:id', async (req, res) => {
-  try {
-    Logger.debug(`PATCH /campaign-roles/${req.params.id} - updating campaign role`);
-    const id = Number(req.params.id);
-    const updates = req.body;
-    const role = await updateCampaignRole(id, updates);
-    if (!role) {
-      res.status(404).json({ error: 'Campaign role not found' });
-      return;
-    }
-    res.json(role);
-    return;
-  } catch (err: any) {
-    Logger.error(`Error in PATCH /campaign-roles/${req.params.id} ` + err);
-    res.status(500).json({ error: err.message || 'Internal Server Error' });
-    return;
-  }
-});
-
-/**
- * DELETE /campaign-roles/:id
- * Delete a campaign role
- */
-router.delete('/:id', async (req, res) => {
-  try {
-    Logger.debug(`DELETE /campaign-roles/${req.params.id} - deleting campaign role`);
-    const id = Number(req.params.id);
-    const success = await deleteCampaignRole(id);
-    if (!success) {
-      res.status(404).json({ error: 'Campaign role not found' });
-      return;
-    }
-    res.status(204).send();
-    return;
-  } catch (err: any) {
-    Logger.error(`Error in DELETE /campaign-roles/${req.params.id} ` + err);
     res.status(500).json({ error: err.message || 'Internal Server Error' });
     return;
   }

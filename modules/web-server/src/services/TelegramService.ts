@@ -4,6 +4,7 @@ import axios from 'axios';
 import dotenv from 'dotenv';
 import { Logger } from '../utils/Logger';
 import { TelegramAsset, TelegramAssetType } from '@common/models';
+import { getUserById, upsertUser} from '../services/UsersService'
 
 dotenv.config();
 
@@ -107,16 +108,36 @@ function mapChatTypeToAssetType(chatType: string): TelegramAssetType {
   }
 }
 
+export async function sendTelegramMessage(userId: number, text: string, parseMode: string | null  = null ) {
+  const user = await getUserById(userId);
+  if (!user || !user.canMessage) {
+    // Already can't message user or they don't exist
+    return;
+  }
 
-export async function sendTelegramMessage(chatId: number, message: string): Promise<void> {
   try {
-    await axios.post(`${TELEGRAM_API_URL}/sendMessage`, {
-      chat_id: chatId,
-      text: message,
-    });
-    Logger.info(`Message sent to Telegram chat ID: ${chatId}`);
-  } catch (error: any) {
-    Logger.error(`Failed to send Telegram message: ${error}`);
-    throw error;
+    if (parseMode) {
+      await axios.post(`${TELEGRAM_API_URL}/sendMessage`, {
+        chat_id: userId,
+        text: text,
+        parse_mode: parseMode
+      });
+    } else {
+      await axios.post(`${TELEGRAM_API_URL}/sendMessage`, {
+        chat_id: userId,
+        text: text
+      });
+    }
+   
+  } catch (err: any) {
+    // If the error indicates the user blocked the bot:
+    if (err.response?.error_code === 403) {
+      // Mark canMessage = false in DB
+      user.canMessage = false;
+      await upsertUser(user);
+    }
+    // Rethrow or log the error if you want
+    Logger.error(err);
   }
 }
+

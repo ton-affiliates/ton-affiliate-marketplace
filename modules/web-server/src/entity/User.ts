@@ -31,6 +31,9 @@ export class User {
   @Column({ name: 'auth_date', nullable: true })
   authDate: Date;
 
+  @Column({ name: 'can_message', type: 'boolean', default: false })
+  canMessage: boolean;
+
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 

@@ -1,6 +1,6 @@
 import appDataSource from '../ormconfig';
-import { CampaignRole } from '../entity/CampaignRole';
 import { Logger } from '../utils/Logger';
+import { CampaignRole, RoleType } from '../entity/CampaignRole';
 
 function campaignRoleRepository() {
   return appDataSource.getRepository(CampaignRole);
@@ -37,7 +37,7 @@ export async function getAdvertiserForCampaign(campaignId: string): Promise<Camp
     return await campaignRoleRepository().findOne({
       where: {
         campaignId,
-        role: 'ADVERTISER',
+        role: RoleType.ADVERTISER,
       },
       relations: ['campaign', 'wallet'],
     });
@@ -55,7 +55,7 @@ export async function getAllAffiliatesForCampaign(campaignId: string): Promise<C
     return await campaignRoleRepository().find({
       where: {
         campaignId,
-        role: 'AFFILIATE',
+        role: RoleType.AFFILIATE,
       },
       relations: ['campaign', 'wallet'],
     });
@@ -79,13 +79,22 @@ export async function updateCampaignRole(id: number, updates: Partial<CampaignRo
   }
 }
 
-export async function deleteCampaignRole(id: number): Promise<boolean> {
+export async function deleteCampaignRoleByCampaignAndWallet(
+  campaignId: string,
+  walletAddress: string
+): Promise<boolean> {
   try {
     const repo = campaignRoleRepository();
-    const result = await repo.delete({ id });
+    const result = await repo.delete({
+      campaignId: campaignId,
+      walletAddress: walletAddress,
+    });
     return result.affected !== 0;
   } catch (err) {
-    Logger.error(`Error deleting campaign role: ${id} ` + err);
+    Logger.error(
+      `Error deleting campaign role with campaignId=${campaignId} and walletAddress=${walletAddress}: ` + err
+    );
     throw new Error('Could not delete campaign role');
   }
 }
+

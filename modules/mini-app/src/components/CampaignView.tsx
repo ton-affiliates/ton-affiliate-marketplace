@@ -72,7 +72,7 @@ export default function CampaignView() {
 
   const [campaign, setCampaign] = useState<{
     id: string;
-    walletAddress: string;
+    advertiserAddress: string;
     assetType?: string;
     assetTitle?: string;
     assetDescription?: string;
@@ -111,7 +111,7 @@ export default function CampaignView() {
   }, [id]);
 
   // 2) Hook up on-chain contract
-  const advertiserAddr = campaign?.walletAddress || undefined;
+  const advertiserAddr = campaign?.advertiserAddress || undefined;
   const campaignIdBigInt = campaign?.id ? BigInt(campaign.id) : undefined;
 
   const {
@@ -176,7 +176,7 @@ export default function CampaignView() {
     <div style={{ margin: '1rem' }}>
       <h1 style={{ marginBottom: '1rem' }}>Campaign Page for ID: {campaign.id}</h1>
       <p>
-        <strong>Advertiser Address:</strong> {formatTonFriendly(campaign.walletAddress)}
+        <strong>Advertiser Address:</strong> {formatTonFriendly(campaign.advertiserAddress)}
       </p>
       <p>
         <strong>Asset Type:</strong> {campaign.assetType || 'N/A'}

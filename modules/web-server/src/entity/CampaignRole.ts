@@ -10,6 +10,11 @@ import {
 import { Wallet } from './Wallet';
 import { Campaign } from './Campaign';
 
+export enum RoleType {
+  ADVERTISER = 'advertiser',
+  AFFILIATE = 'affiliate',
+}
+
 @Entity('campaign_roles')
 export class CampaignRole {
   @PrimaryGeneratedColumn({ name: 'id' })
@@ -19,18 +24,21 @@ export class CampaignRole {
   @Column({ type: 'varchar', length: 255, name: 'campaign_id' })
   campaignId: string;
 
-  /**
-   * Now referencing the wallet by its string 'address' (PK).
-   * So the column is type 'varchar(255)' to match `wallets(address)`.
-   */
   @Column({ type: 'varchar', length: 255, name: 'wallet_id' })
   walletAddress: string;
 
-  @Column({ length: 50, name: 'role' })
-  role: string;
+  @Column({
+    type: 'enum',
+    enum: RoleType,
+    name: 'role',
+  })
+  role: RoleType;
 
   @Column({ type: 'int', nullable: true, name: 'affiliate_id' })
   affiliateId: number;
+
+  @Column({ type: 'boolean', name: 'is_active' })
+  isActive: boolean;
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
