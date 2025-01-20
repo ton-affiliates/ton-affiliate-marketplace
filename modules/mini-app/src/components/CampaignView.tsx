@@ -17,36 +17,70 @@ import { useTonWalletConnect } from '../hooks/useTonConnect';
 import { useTonClient } from '../hooks/useTonClient';
 import TransactionButton from '../components/TransactionButton';
 
+/** 
+ * We'll define a more "blinking" or "flashing" animation for the dot:
+ * It will alternate between two colors (green <-> lime) every 500ms for example.
+ */
+const blinkingAnimation = `
+  @keyframes blinkActive {
+    0%   { background-color: green; }
+    50%  { background-color: #4cff4c; }
+    100% { background-color: green; }
+  }
+`;
+
+function ActiveStatusDot({ isActive }: { isActive: boolean }) {
+  // If active, we apply the blinking animation; if not, a static red dot
+  const dotColor = isActive ? 'green' : 'red';
+  const dotAnimation = isActive ? 'blinkActive 1s infinite' : 'none';
+
+  return (
+    <div style={{ marginBottom: '1rem' }}>
+      <style>{blinkingAnimation}</style>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          fontSize: '1.2rem',
+          marginBottom: '0.4rem',
+        }}
+      >
+        <div
+          style={{
+            width: '20px',
+            height: '20px',
+            borderRadius: '50%',
+            marginRight: '0.5rem',
+            backgroundColor: dotColor,
+            animation: dotAnimation,
+          }}
+        />
+        <span>Active:</span>
+        <strong style={{ marginLeft: '0.25rem' }}>{String(isActive)}</strong>
+      </div>
+    </div>
+  );
+}
+
 function StatusDot({
   label,
   value,
-  invertColorForFalse = false,
-  big = false,
 }: {
   label: string;
   value: boolean;
-  invertColorForFalse?: boolean;
-  big?: boolean;
 }) {
-  let color = 'red';
-  if (invertColorForFalse) {
-    color = value ? 'red' : 'green';
-  } else {
-    color = value ? 'green' : 'red';
-  }
-
-  const dotSize = big ? '16px' : '12px';
-  const fontSize = big ? '1.2rem' : '1rem';
+  const dotColor = value ? 'green' : 'red';
+  const dotSize = '12px';
 
   return (
-    <div style={{ display: 'flex', alignItems: 'center', marginBottom: '0.4rem', fontSize }}>
+    <div style={{ display: 'flex', alignItems: 'center', marginBottom: '0.4rem' }}>
       <span
         style={{
           display: 'inline-block',
           width: dotSize,
           height: dotSize,
           borderRadius: '50%',
-          backgroundColor: color,
+          backgroundColor: dotColor,
           marginRight: '0.5rem',
           flexShrink: 0,
         }}
@@ -102,7 +136,7 @@ export default function CampaignView() {
   const [topAffiliatesData, setTopAffiliatesData] = useState<
     Array<{
       affiliateId: bigint;
-      affiliateAddr: string; // e.g. "EQDabc..."
+      affiliateAddr: string;
       totalEarnings: bigint;
       state: bigint;
     }>
@@ -249,34 +283,49 @@ export default function CampaignView() {
   if (error) return <div style={{ color: 'red' }}>{error}</div>;
   if (!campaign) return <div>No campaign found</div>;
 
-  // Render the main UI
+  // If the on-chain data is loaded, we can check paused/expired
+  const showPausedOrExpiredError =
+    onChainData &&
+    (onChainData.isCampaignPausedByAdmin === true || onChainData.isCampaignExpired === true);
+
+  let pausedOrExpiredMsg = '';
+  if (onChainData?.isCampaignPausedByAdmin) {
+    pausedOrExpiredMsg = 'This campaign is currently paused by an admin.';
+  } else if (onChainData?.isCampaignExpired) {
+    pausedOrExpiredMsg = 'This campaign has expired.';
+  }
+
   return (
     <div style={{ margin: '1rem' }}>
-      <h1 style={{ marginBottom: '1rem' }}>
+      {/* Show any top-level warnings if paused or expired */}
+      {showPausedOrExpiredError && (
+        <div style={{ backgroundColor: '#fdd', color: '#900', padding: '0.8rem', marginBottom: '1rem' }}>
+          <strong>{pausedOrExpiredMsg}</strong> It is therefore not active.
+        </div>
+      )}
+
+      <h1 style={{ marginBottom: '0.5rem' }}>
         Campaign Page for: {campaign.assetName || '(Unnamed)'}
       </h1>
       <h2 style={{ marginBottom: '1rem' }}>Campaign ID: {campaign.id}</h2>
 
-      {/* Top-level container with 2 columns:
-          LEFT: "CampaignOwner" data
-          RIGHT: The existing "3 columns" layout for details/status/data
+      {/*
+        Instead of having the "CampaignOwner" on a separate column row,
+        we can place the Owner + the campaign's main info side by side.
       */}
-      <div style={{ display: 'flex', gap: '1.5rem', alignItems: 'flex-start' }}>
-        {/* LEFT COLUMN: Advertiser / CampaignOwner data */}
-        <div
-          style={{
-            flex: '0 0 220px',
-            borderRight: '1px solid #ccc',
-            paddingRight: '1rem',
-          }}
-        >
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '2rem' }}>
+        {/* Campaign Owner (left) */}
+        <div style={{ flex: '0 0 300px' }}>
           <h3>Campaign Owner</h3>
           {loadingUser ? (
             <p>Loading owner data...</p>
           ) : advertiserUser ? (
-            <div>
+            <div style={{ border: '1px solid #ccc', padding: '0.5rem', borderRadius: '4px' }}>
               <p>
                 <strong>Telegram Username:</strong> {advertiserUser.telegramUsername}
+              </p>
+              <p>
+                <strong>Ton Address:</strong> {campaign.advertiserAddress}
               </p>
               <p>
                 <strong>First Name:</strong> {advertiserUser.firstName}
@@ -288,7 +337,13 @@ export default function CampaignView() {
                 <img
                   src={advertiserUser.photoUrl}
                   alt="Owner Avatar"
-                  style={{ width: '100px', height: '100px', objectFit: 'cover' }}
+                  style={{
+                    width: '100px',
+                    height: '100px',
+                    objectFit: 'cover',
+                    marginTop: '0.5rem',
+                    borderRadius: '4px',
+                  }}
                 />
               )}
             </div>
@@ -297,291 +352,300 @@ export default function CampaignView() {
           )}
         </div>
 
-        {/* RIGHT COLUMN: The “3 columns” (photo + campaign details, status, data) */}
+        {/* Main campaign info (right) */}
         <div style={{ flex: 1 }}>
-          {/* 1) Show image if present */}
-          {campaign.assetPhotoBase64 ? (
-            <div style={{ marginBottom: '1rem' }}>
-              <img
-                src={`data:image/png;base64,${campaign.assetPhotoBase64}`}
-                alt="Campaign"
-                style={{ maxWidth: '200px', maxHeight: '200px', objectFit: 'cover' }}
-              />
-            </div>
-          ) : (
-            <div style={{ marginBottom: '1rem' }}>
-              <img
-                src="/images/default-campaign.png"
-                alt="No campaign photo"
-                style={{ maxWidth: '200px', maxHeight: '200px', objectFit: 'cover' }}
-              />
-            </div>
-          )}
-
-          <p>
-            <strong>Description:</strong> {campaign.assetDescription || 'N/A'}
-          </p>
-          {campaign.inviteLink && (
-            <p>
-              <strong>Invite Link:</strong>{' '}
-              <a href={campaign.inviteLink} target="_blank" rel="noopener noreferrer">
-                {campaign.inviteLink}
-              </a>
-            </p>
-          )}
-
-          <p style={{ color: '#666', fontSize: '0.9rem' }}>
-            Created: {formatDate(campaign.createdAt)} | Updated: {formatDate(campaign.updatedAt)}
-          </p>
-
-          {/* If we have onChainData, show the 3 sub-columns */}
-          {chainHookLoading && <p>Loading contract hook...</p>}
-          {chainHookError && <p style={{ color: 'red' }}>Hook error: {chainHookError}</p>}
-          {chainLoading && <p>Fetching on-chain data...</p>}
-          {chainError && <p style={{ color: 'red' }}>{chainError}</p>}
-
-          {onChainData ? (
-            <>
-              <div
-                style={{
-                  display: 'flex',
-                  gap: '1.5rem',
-                  alignItems: 'flex-start',
-                  marginTop: '1rem',
-                  marginBottom: '2rem',
-                }}
-              >
-                {/* Column 1: Campaign Details */}
-                <div
+          <div style={{ display: 'flex', alignItems: 'center', gap: '2rem' }}>
+            {/* Campaign Image */}
+            <div>
+              {campaign.assetPhotoBase64 ? (
+                <img
+                  src={`data:image/png;base64,${campaign.assetPhotoBase64}`}
+                  alt="Campaign"
                   style={{
-                    flex: '0 0 220px',
-                    borderRight: '1px solid #ccc',
-                    paddingRight: '1rem',
+                    maxWidth: '200px',
+                    maxHeight: '200px',
+                    objectFit: 'cover',
+                    borderRadius: '4px',
                   }}
-                >
-                  <h3>Campaign Details</h3>
-                  <p>
-                    <strong>Payment Method:</strong>{' '}
-                    {onChainData.campaignDetails.paymentMethod === 0n ? 'TON' : 'USDT'}
-                  </p>
-
-                  <p>
-                    <strong>Campaign Type:</strong>{' '}
-                    {onChainData.campaignDetails.isPublicCampaign
-                      ? 'Public Campaign'
-                      : 'Private Campaign'}
-                  </p>
-
-                  {/* Valid For / Expiration */}
-                  {onChainData.campaignDetails.campaignValidForNumDays != null ? (
-                    (() => {
-                      const days = Number(onChainData.campaignDetails.campaignValidForNumDays);
-                      const startSec = Number(onChainData.campaignStartTimestamp);
-                      if (startSec > 0) {
-                        const expirationSec = startSec + days * 86400;
-                        const expireDate = new Date(expirationSec * 1000);
-                        return (
-                          <p>
-                            <strong>Valid For (days):</strong> {days}
-                            <br />
-                            <strong>Expires on:</strong>{' '}
-                            {expireDate.toLocaleDateString('en-US', {
-                              day: 'numeric',
-                              month: 'short',
-                              year: 'numeric',
-                            })}
-                          </p>
-                        );
-                      } else {
-                        return (
-                          <p>
-                            <strong>Valid For (days):</strong> {days} (hasn’t started yet)
-                          </p>
-                        );
-                      }
-                    })()
-                  ) : (
-                    <p>
-                      <strong>Valid For (days):</strong> No expiration
-                    </p>
-                  )}
-
-                  {/* Cost per action */}
-                  {(() => {
-                    const dictReg = onChainData.campaignDetails.regularUsersCostPerAction;
-                    const dictPrem = onChainData.campaignDetails.premiumUsersCostPerAction;
-                    const regCostBn = dictReg.get(BOT_OP_CODE_USER_CLICK) || 0n;
-                    const premCostBn = dictPrem.get(BOT_OP_CODE_USER_CLICK) || 0n;
-
-                    return (
-                      <div style={{ marginTop: '1rem' }}>
-                        <p>
-                          <strong>Regular CPC:</strong> {fromNano(regCostBn)} TON
-                        </p>
-                        <p>
-                          <strong>Premium CPC:</strong> {fromNano(premCostBn)} TON
-                        </p>
-                      </div>
-                    );
-                  })()}
-                </div>
-
-                {/* Column 2: Campaign Status */}
-                <div
+                />
+              ) : (
+                <img
+                  src="/images/default-campaign.png"
+                  alt="No campaign photo"
                   style={{
-                    flex: '0 0 270px',
-                    borderRight: '1px solid #ccc',
-                    paddingRight: '1rem',
+                    maxWidth: '200px',
+                    maxHeight: '200px',
+                    objectFit: 'cover',
+                    borderRadius: '4px',
                   }}
-                >
-                  <h3>Campaign Status</h3>
-                  <StatusDot label="Active" value={onChainData.isCampaignActive} big />
-                  <div style={{ display: 'flex', alignItems: 'center', marginBottom: '0.5rem' }}>
-                    <StatusDot
-                      label="Sufficient Funds for Max CPA"
-                      value={onChainData.campaignHasSufficientFundsToPayMaxCpa}
-                    />
-                    {isUserAdvertiser && (
-                      <div style={{ marginLeft: 'auto' }}>
-                        <TransactionButton
-                          buttonLabel="Add Funds"
-                          showAmountField
-                          defaultAmount={1}
-                          onTransaction={async (amount) => {
-                            if (!amount) throw new Error('Invalid amount');
-                            if (onChainData.campaignDetails.paymentMethod === 0n) {
-                              await replenishWithTon(campaignContract, amount, sender);
-                            } else {
-                              await replenishWithUsdt(
-                                campaignContract,
-                                amount,
-                                sender,
-                                userAccount?.address,
-                                client
-                              );
-                            }
-                          }}
-                        />
-                      </div>
-                    )}
-                  </div>
+                />
+              )}
+            </div>
 
-                  <StatusDot
-                    label="Paused by Admin"
-                    value={onChainData.isCampaignPausedByAdmin}
-                    invertColorForFalse
-                  />
-
-                  <div style={{ display: 'flex', alignItems: 'center', marginBottom: '0.5rem' }}>
-                    <StatusDot
-                      label="Sufficient Ton Gas Fees"
-                      value={onChainData.campaignHasSufficientTonToPayGasFees}
-                    />
-                    {isUserAdvertiser && (
-                      <div style={{ marginLeft: 'auto' }}>
-                        <TransactionButton
-                          buttonLabel="Add TON for Gas Fees"
-                          showAmountField
-                          defaultAmount={1}
-                          onTransaction={async (amount) => {
-                            if (!amount) throw new Error('Invalid amount');
-                            if (onChainData.campaignDetails.paymentMethod === 0n) {
-                              await replenishWithTon(campaignContract, amount, sender);
-                            } else {
-                              await replenishGasFeesForUsdtCampaign(
-                                campaignContract,
-                                amount,
-                                sender
-                              );
-                            }
-                          }}
-                        />
-                      </div>
-                    )}
-                  </div>
-
-                  <StatusDot
-                    label="Expired"
-                    value={onChainData.isCampaignExpired}
-                    invertColorForFalse
-                  />
-                </div>
-
-                {/* Column 3: Campaign Data */}
-                <div style={{ flex: 1 }}>
-                  <h3>Campaign Data</h3>
-                  {onChainData.campaignDetails.paymentMethod === 0n ? (
-                    <p>
-                      <strong>Campaign Balance (TON):</strong>{' '}
-                      {fromNano(onChainData.campaignBalance)}
-                    </p>
-                  ) : (
-                    <p>
-                      <strong>Campaign Balance (USDT):</strong>{' '}
-                      {fromNano(onChainData.campaignBalance)}
-                    </p>
-                  )}
-
-                  <p>
-                    <strong># Affiliates:</strong> {onChainData.numAffiliates.toString()}
-                  </p>
-
-                  <p>
-                    <strong>Campaign Contract Ton Balance:</strong>{' '}
-                    {fromNano(onChainData.contractTonBalance)}
-                  </p>
-
-                  {onChainData.campaignStartTimestamp !== 0n ? (
-                    <p>
-                      <strong>Campaign Start Date:</strong>{' '}
-                      {new Date(Number(onChainData.campaignStartTimestamp) * 1000).toLocaleDateString(
-                        'en-US',
-                        { day: 'numeric', month: 'short', year: 'numeric' }
-                      )}
-                    </p>
-                  ) : (
-                    <p>Campaign has not started yet</p>
-                  )}
-
-                  {onChainData.lastUserActionTimestamp === 0n ? (
-                    <p>
-                      <strong>Last User Action Date:</strong> No user actions yet
-                    </p>
-                  ) : (
-                    <p>
-                      <strong>Last User Action Date:</strong>{' '}
-                      {new Date(Number(onChainData.lastUserActionTimestamp) * 1000).toLocaleDateString(
-                        'en-US',
-                        { day: 'numeric', month: 'short', year: 'numeric' }
-                      )}
-                    </p>
-                  )}
-
-                  <p>
-                    <strong># User Actions:</strong> {onChainData.numUserActions.toString()}
-                  </p>
-
-                  <p>
-                    <strong>Max CPA Value:</strong> {fromNano(onChainData.maxCpaValue)}
-                    {onChainData.campaignDetails.paymentMethod === 0n ? ' TON' : ' USDT'}
-                  </p>
-
-                  <p>
-                    <strong>Advertiser Fee (%):</strong>{' '}
-                    {(Number(onChainData.advertiserFeePercentage) / 100).toFixed(2)}%
-                  </p>
-                  <p>
-                    <strong>Affiliate Fee (%):</strong>{' '}
-                    {(Number(onChainData.affiliateFeePercentage) / 100).toFixed(2)}%
-                  </p>
-                </div>
-              </div>
-            </>
-          ) : (
-            !chainLoading && <p>No on-chain data yet.</p>
-          )}
+            {/* Basic info text */}
+            <div>
+              <p style={{ marginBottom: '0.5rem' }}>
+                <strong>Description:</strong> {campaign.assetDescription || 'N/A'}
+              </p>
+              {campaign.inviteLink && (
+                <p style={{ marginBottom: '0.5rem' }}>
+                  <strong>Invite Link:</strong>{' '}
+                  <a href={campaign.inviteLink} target="_blank" rel="noopener noreferrer">
+                    {campaign.inviteLink}
+                  </a>
+                </p>
+              )}
+              <p style={{ color: '#666', fontSize: '0.9rem' }}>
+                Created: {formatDate(campaign.createdAt)} | Updated: {formatDate(campaign.updatedAt)}
+              </p>
+            </div>
+          </div>
         </div>
       </div>
+
+      {/* Horizontal divider */}
+      <hr style={{ margin: '2rem 0' }} />
+
+      {/* Now the 3 columns: Campaign Details, Campaign Status, Campaign Data */}
+      {chainHookLoading && <p>Loading contract hook...</p>}
+      {chainHookError && <p style={{ color: 'red' }}>Hook error: {chainHookError}</p>}
+      {chainLoading && <p>Fetching on-chain data...</p>}
+      {chainError && <p style={{ color: 'red' }}>{chainError}</p>}
+
+      {onChainData ? (
+        <div
+          style={{
+            display: 'flex',
+            gap: '1.5rem',
+            alignItems: 'flex-start',
+            marginTop: '1rem',
+            marginBottom: '2rem',
+          }}
+        >
+          {/* Column 1: Campaign Details */}
+          <div
+            style={{
+              flex: '0 0 220px',
+              border: '1px solid #ccc',
+              borderRadius: '4px',
+              padding: '0.8rem',
+            }}
+          >
+            <h3 style={{ marginBottom: '0.8rem' }}>Campaign Details</h3>
+            <p>
+              <strong>Payment Method:</strong>{' '}
+              {onChainData.campaignDetails.paymentMethod === 0n ? 'TON' : 'USDT'}
+            </p>
+
+            <p>
+              <strong>Campaign Type:</strong>{' '}
+              {onChainData.campaignDetails.isPublicCampaign ? 'Public Campaign' : 'Private Campaign'}
+            </p>
+
+            {/* Valid For / Expiration */}
+            {onChainData.campaignDetails.campaignValidForNumDays != null ? (
+              (() => {
+                const days = Number(onChainData.campaignDetails.campaignValidForNumDays);
+                const startSec = Number(onChainData.campaignStartTimestamp);
+                if (startSec > 0) {
+                  const expirationSec = startSec + days * 86400;
+                  const expireDate = new Date(expirationSec * 1000);
+                  return (
+                    <p>
+                      <strong>Valid For (days):</strong> {days}
+                      <br />
+                      <strong>Expires on:</strong>{' '}
+                      {expireDate.toLocaleDateString('en-US', {
+                        day: 'numeric',
+                        month: 'short',
+                        year: 'numeric',
+                      })}
+                    </p>
+                  );
+                } else {
+                  return (
+                    <p>
+                      <strong>Valid For (days):</strong> {days} (hasn’t started yet)
+                    </p>
+                  );
+                }
+              })()
+            ) : (
+              <p>
+                <strong>Valid For (days):</strong> No expiration
+              </p>
+            )}
+
+            {/* Cost per action */}
+            {(() => {
+              const dictReg = onChainData.campaignDetails.regularUsersCostPerAction;
+              const dictPrem = onChainData.campaignDetails.premiumUsersCostPerAction;
+              const regCostBn = dictReg.get(BOT_OP_CODE_USER_CLICK) || 0n;
+              const premCostBn = dictPrem.get(BOT_OP_CODE_USER_CLICK) || 0n;
+
+              return (
+                <div style={{ marginTop: '1rem' }}>
+                  <p>
+                    <strong>Regular CPC:</strong> {fromNano(regCostBn)} TON
+                  </p>
+                  <p>
+                    <strong>Premium CPC:</strong> {fromNano(premCostBn)} TON
+                  </p>
+                </div>
+              );
+            })()}
+          </div>
+
+          {/* Column 2: Campaign Status */}
+          <div
+            style={{
+              flex: '0 0 220px',
+              border: '1px solid #ccc',
+              borderRadius: '4px',
+              padding: '0.8rem',
+            }}
+          >
+            <h3 style={{ marginBottom: '0.8rem' }}>Campaign Status</h3>
+            <ActiveStatusDot
+              isActive={
+                onChainData.isCampaignActive &&
+                !onChainData.isCampaignPausedByAdmin &&
+                !onChainData.isCampaignExpired
+              }
+            />
+
+            {/* Sufficient Funds for Max CPA */}
+            <StatusDot
+              label="Sufficient Funds"
+              value={onChainData.campaignHasSufficientFundsToPayMaxCpa}
+            />
+            {/* Add Funds button */}
+            {isUserAdvertiser && (
+              <div style={{ marginLeft: '1rem', marginBottom: '1rem' }}>
+                <TransactionButton
+                  buttonLabel="Add Funds"
+                  showAmountField
+                  defaultAmount={1}
+                  onTransaction={async (amount) => {
+                    if (!amount) throw new Error('Invalid amount');
+                    if (onChainData.campaignDetails.paymentMethod === 0n) {
+                      await replenishWithTon(campaignContract, amount, sender);
+                    } else {
+                      await replenishWithUsdt(
+                        campaignContract,
+                        amount,
+                        sender,
+                        userAccount?.address,
+                        client
+                      );
+                    }
+                  }}
+                />
+              </div>
+            )}
+
+            {/* Sufficient Ton Gas Fees */}
+            <StatusDot
+              label="Sufficient Ton Gas Fees"
+              value={onChainData.campaignHasSufficientTonToPayGasFees}
+            />
+            {/* Add TON for Gas Fees button */}
+            {isUserAdvertiser && (
+              <div style={{ marginLeft: '1rem' }}>
+                <TransactionButton
+                  buttonLabel="Add TON for Gas Fees"
+                  showAmountField
+                  defaultAmount={1}
+                  onTransaction={async (amount) => {
+                    if (!amount) throw new Error('Invalid amount');
+                    if (onChainData.campaignDetails.paymentMethod === 0n) {
+                      await replenishWithTon(campaignContract, amount, sender);
+                    } else {
+                      await replenishGasFeesForUsdtCampaign(campaignContract, amount, sender);
+                    }
+                  }}
+                />
+              </div>
+            )}
+          </div>
+
+          {/* Column 3: Campaign Data */}
+          <div
+            style={{
+              flex: 1,
+              border: '1px solid #ccc',
+              borderRadius: '4px',
+              padding: '0.8rem',
+            }}
+          >
+            <h3 style={{ marginBottom: '0.8rem' }}>Campaign Data</h3>
+            {onChainData.campaignDetails.paymentMethod === 0n ? (
+              <p>
+                <strong>Campaign Balance (TON):</strong> {fromNano(onChainData.campaignBalance)}
+              </p>
+            ) : (
+              <p>
+                <strong>Campaign Balance (USDT):</strong> {fromNano(onChainData.campaignBalance)}
+              </p>
+            )}
+
+            <p>
+              <strong># Affiliates:</strong> {onChainData.numAffiliates.toString()}
+            </p>
+
+            <p>
+              <strong>Campaign Contract Ton Balance:</strong>{' '}
+              {fromNano(onChainData.contractTonBalance)}
+            </p>
+
+            {onChainData.campaignStartTimestamp !== 0n ? (
+              <p>
+                <strong>Campaign Start Date:</strong>{' '}
+                {new Date(Number(onChainData.campaignStartTimestamp) * 1000).toLocaleDateString(
+                  'en-US',
+                  { day: 'numeric', month: 'short', year: 'numeric' }
+                )}
+              </p>
+            ) : (
+              <p>Campaign has not started yet</p>
+            )}
+
+            {onChainData.lastUserActionTimestamp === 0n ? (
+              <p>
+                <strong>Last User Action Date:</strong> No user actions yet
+              </p>
+            ) : (
+              <p>
+                <strong>Last User Action Date:</strong>{' '}
+                {new Date(Number(onChainData.lastUserActionTimestamp) * 1000).toLocaleDateString(
+                  'en-US',
+                  { day: 'numeric', month: 'short', year: 'numeric' }
+                )}
+              </p>
+            )}
+
+            <p>
+              <strong># User Actions:</strong> {onChainData.numUserActions.toString()}
+            </p>
+
+            <p>
+              <strong>Max CPA Value:</strong> {fromNano(onChainData.maxCpaValue)}
+              {onChainData.campaignDetails.paymentMethod === 0n ? ' TON' : ' USDT'}
+            </p>
+
+            <p>
+              <strong>Advertiser Fee (%):</strong>{' '}
+              {(Number(onChainData.advertiserFeePercentage) / 100).toFixed(2)}%
+            </p>
+            <p>
+              <strong>Affiliate Fee (%):</strong>{' '}
+              {(Number(onChainData.affiliateFeePercentage) / 100).toFixed(2)}%
+            </p>
+          </div>
+        </div>
+      ) : (
+        !chainLoading && <p>No on-chain data yet.</p>
+      )}
 
       {/* HORIZONTAL LINE to separate from bottom section */}
       <hr style={{ margin: '2rem 0' }} />
@@ -593,8 +657,9 @@ export default function CampaignView() {
           <div
             style={{
               flex: '0 0 50%',
-              borderRight: '1px solid #ccc',
-              paddingRight: '1rem',
+              border: '1px solid #ccc',
+              borderRadius: '4px',
+              padding: '0.8rem',
             }}
           >
             <h2>Top Affiliates</h2>
@@ -632,7 +697,14 @@ export default function CampaignView() {
 
           {/* Right: Actions */}
           {isUserAdvertiser && (
-            <div style={{ flex: 1 }}>
+            <div
+              style={{
+                flex: 1,
+                border: '1px solid #ccc',
+                borderRadius: '4px',
+                padding: '0.8rem',
+              }}
+            >
               <h2>Actions</h2>
               <div style={{ marginBottom: '1rem' }}>
                 <TransactionButton
