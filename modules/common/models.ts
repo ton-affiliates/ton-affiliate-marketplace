@@ -1,7 +1,5 @@
 export enum TelegramAssetType {
     CHANNEL = 'CHANNEL',
-    GROUP = 'GROUP',
-    SUPER_GROUP = 'SUPER_GROUP',
     MINI_APP = 'MINI_APP'
 }
   

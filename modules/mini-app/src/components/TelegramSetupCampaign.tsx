@@ -14,7 +14,6 @@ function TelegramSetupCampaign() {
   // 2) Local state for form inputs
   const [campaignName, setCampaignName] = useState('');
   const [category, setCategory] = useState<TelegramCategory | ''>('');
-  const [description, setDescription] = useState('');
   const [inviteLink, setInviteLink] = useState('');
   const [telegramType, setTelegramType] = useState<TelegramAssetType | ''>('');
 
@@ -51,7 +50,6 @@ function TelegramSetupCampaign() {
       campaignName,
       category,
       inviteLink,
-      description,
       telegramType,
     };
 
@@ -108,10 +106,6 @@ function TelegramSetupCampaign() {
     switch (value.toUpperCase()) {
       case 'CHANNEL':
         return TelegramAssetType.CHANNEL;
-      case 'GROUP':
-        return TelegramAssetType.GROUP;
-      case 'SUPER_GROUP':
-        return TelegramAssetType.SUPER_GROUP;
       case 'MINI_APP':
         return TelegramAssetType.MINI_APP;
       default:
@@ -180,20 +174,9 @@ function TelegramSetupCampaign() {
           </select>
         </div>
 
-        {/* Description (optional) */}
-        <div className="form-group">
-          <label htmlFor="description">Description:</label>
-          <input
-            id="description"
-            type="text"
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-          />
-        </div>
-
         {/* Invite Link (Required) */}
         <div className="form-group">
-          <label htmlFor="inviteLink">*Copy invite link to group/channel here:</label>
+          <label htmlFor="handle">*Copy invite link to channel here:</label>
           <input
             id="inviteLink"
             type="text"

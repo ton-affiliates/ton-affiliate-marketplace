@@ -3,7 +3,7 @@ import { getLatestEvents, EmitLogEvent } from './ListenToEvents';
 import { wss } from '../App';
 import { Logger } from '../utils/Logger';
 import { createEventEntity } from '../services/EventsService';
-import { createCampaign } from '../services/CampaignsService';
+import { upsertCampaign } from '../services/CampaignsService';
 import {
   createCampaignRole,
   updateCampaignRoleByCampaignAndWalletAddress,
@@ -65,8 +65,8 @@ async function processEvents(events: EmitLogEvent[]) {
             `campaignContractAddress: ${campaignContractTon.toString()}`
           );
 
-          // 1a) Create or update a new "empty" campaign
-          await createCampaign({
+          // 1a) update campaign
+          await upsertCampaign({
             id: campaignId,
             isEmpty: true,
           });
@@ -109,7 +109,7 @@ async function processEvents(events: EmitLogEvent[]) {
           );
 
           // Mark campaign isEmpty=false
-          await createCampaign({
+          await upsertCampaign({
             id: campaignId,
             isEmpty: false,
           });

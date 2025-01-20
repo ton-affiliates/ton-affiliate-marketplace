@@ -12,6 +12,9 @@ export class Campaign {
   @PrimaryColumn({ type: 'varchar', length: 255, name: 'id' })
   id: string;
 
+  @Column({ length: 255, nullable: true, name: 'name' })
+  campaignName: string;
+
   @Column({ length: 255, nullable: true, name: 'asset_type' })
   assetType: string;
 
@@ -20,9 +23,6 @@ export class Campaign {
 
   @Column({ length: 255, nullable: true, name: 'asset_category' })
   assetCategory: string;
-
-  @Column({ length: 255, nullable: true, name: 'asset_title' })
-  assetTitle: string;
 
   @Column({ type: 'text', nullable: true, name: 'asset_description' })
   assetDescription: string;

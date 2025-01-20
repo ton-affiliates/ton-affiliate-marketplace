@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { createCampaign, getCampaignByIdWithAdvertiser } from '../services/CampaignsService';
+import { upsertCampaign, getCampaignByIdWithAdvertiser } from '../services/CampaignsService';
 import { fetchPublicChatInfo } from '../services/TelegramService';
 import { Logger } from '../utils/Logger';
 import { getUserByWalletAddress } from '../services/UsersService'; 
@@ -63,7 +63,6 @@ router.post('/', async (req, res) => {
       campaignName,
       category,
       inviteLink,
-      description,
       telegramType,
     } = req.body;
 
@@ -99,23 +98,25 @@ router.post('/', async (req, res) => {
       return;
     }
 
+    Logger.info(`inviteLink: ${inviteLink}, telegramAsset.url: ${telegramAsset.url}`);
+
     // 3) Prepare campaign data
     const campaignData = {
       id: campaignId,
+      campaignName: campaignName,
       walletAddress: walletAddress, // string PK referencing "wallets"."address"
       assetType: telegramType,
       assetCategory: category,
       assetName: telegramAsset.name,
-      assetTitle: campaignName,
-      assetDescription: description || telegramAsset.description,
-      inviteLink: inviteLink || telegramAsset.url,
+      assetDescription: telegramAsset.description,
+      inviteLink: telegramAsset.url,
       assetPhoto: telegramAsset.photo ? Buffer.from(telegramAsset.photo) : null,
     };
 
     Logger.debug('campaignData about to be created:', campaignData);
 
     // 4) Create campaign
-    const newCampaign = await createCampaign(campaignData);
+    const newCampaign = await upsertCampaign(campaignData);
     res.status(201).json(newCampaign);
     return;
 

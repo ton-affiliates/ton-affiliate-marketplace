@@ -37,10 +37,10 @@ export class InitialSchema1736681774554 implements MigrationInterface {
     await queryRunner.query(`
       CREATE TABLE IF NOT EXISTS "campaigns" (
         "id"                VARCHAR(255) PRIMARY KEY,
+        "name"              VARCHAR(255),
         "asset_type"        VARCHAR(255),
         "asset_name"        VARCHAR(255),
         "asset_category"    VARCHAR(255),
-        "asset_title"       VARCHAR(255),
         "asset_description" TEXT,
         "invite_link"       VARCHAR(500),
         "asset_photo"       BYTEA,

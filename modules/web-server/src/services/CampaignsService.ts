@@ -11,7 +11,7 @@ function campaignRoleRepository() {
   return appDataSource.getRepository(CampaignRole);
 }
 
-export async function createCampaign(data: Partial<Campaign>): Promise<Campaign> {
+export async function upsertCampaign(data: Partial<Campaign>): Promise<Campaign> {
   try {
     const repo = campaignRepository();
 
@@ -57,10 +57,17 @@ export async function getCampaignByIdWithAdvertiser(
       },
     });
 
+    // If the campaign has a photo in `assetPhoto`, convert it to base64
+    let assetPhotoBase64: string | undefined = undefined;
+    if (campaign.assetPhoto) {
+      assetPhotoBase64 = Buffer.from(campaign.assetPhoto).toString('base64');
+    }
+
     // 3) Attach it to the campaign result
     const campaignWithAdvertiser = {
       ...campaign,
       advertiserAddress: advertiserRole ? advertiserRole.walletAddress : undefined,
+      assetPhotoBase64
     };
 
     return campaignWithAdvertiser;

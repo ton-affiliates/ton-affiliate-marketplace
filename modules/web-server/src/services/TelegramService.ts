@@ -98,10 +98,8 @@ function mapChatTypeToAssetType(chatType: string): TelegramAssetType {
   switch (chatType) {
     case 'channel':
       return TelegramAssetType.CHANNEL;
-    case 'group':
-      return TelegramAssetType.GROUP;
-    case 'supergroup':
-      return TelegramAssetType.SUPER_GROUP;
+    case 'mini-app':
+      return TelegramAssetType.MINI_APP;
     default:
       // If we get something weird, we can default or throw
       throw new Error(`Unsupported chat type: ${chatType}`);

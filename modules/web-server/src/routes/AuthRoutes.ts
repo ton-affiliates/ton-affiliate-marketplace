@@ -35,6 +35,8 @@ router.post(
         return void res.status(401).json({ error: 'Invalid Telegram data signature' });
       }
 
+      Logger.info("Guy- photo url: " + photo_url)
+
       // 2) Upsert user in DB
       const userData = {
         id: Number(id),
@@ -48,9 +50,8 @@ router.post(
 
       // upsert user in DB
       const user = await upsertUser(userData);
-      // if (user.numLogins == 0) {
-
-      // }
+      
+      Logger.info("Guy after: " + user);
 
       try {
         await sendTelegramMessage(Number(id), userData.firstName + ', you successfuly logged in to TonAffiliates!');
