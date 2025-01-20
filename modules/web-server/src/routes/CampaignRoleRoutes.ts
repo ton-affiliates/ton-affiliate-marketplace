@@ -1,6 +1,5 @@
 import { Router } from 'express';
 import {
-  createCampaignRole,
   getCampaignRoleById,
   getAdvertiserForCampaign,
   getAllAffiliatesForCampaign
@@ -9,23 +8,6 @@ import { Logger } from '../utils/Logger';
 
 const router = Router();
 
-/**
- * POST /campaign-roles
- * Create a new campaign role
- */
-router.post('/', async (req, res) => {
-  try {
-    Logger.debug('POST /campaign-roles - creating campaign role');
-    const roleData = req.body; // e.g. { campaignId, walletAddress, role, affiliateId }
-    const role = await createCampaignRole(roleData);
-    res.status(201).json(role);
-    return;
-  } catch (err: any) {
-    Logger.error('Error in POST /campaign-roles ' + err);
-    res.status(500).json({ error: err.message || 'Internal Server Error' });
-    return;
-  }
-});
 
 /**
  * GET /campaign-roles/:id

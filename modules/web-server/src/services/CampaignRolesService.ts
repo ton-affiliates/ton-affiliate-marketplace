@@ -1,16 +1,44 @@
 import appDataSource from '../ormconfig';
 import { Logger } from '../utils/Logger';
 import { CampaignRole, RoleType } from '../entity/CampaignRole';
+import {Address} from "@ton/core";
 
 function campaignRoleRepository() {
   return appDataSource.getRepository(CampaignRole);
 }
 
-export async function createCampaignRole(data: Partial<CampaignRole>): Promise<CampaignRole> {
+
+interface CreateCampaignRoleInput {
+  campaignId: string;
+  tonAddress: Address;
+  role: RoleType;
+  affiliateId?: number;
+  isActive?: boolean;
+}
+
+/**
+ * Create a new CampaignRole by receiving a Ton Address object,
+ * converting it to a string internally.
+ */
+export async function createCampaignRole(data: CreateCampaignRoleInput): Promise<CampaignRole> {
+
   try {
     const repo = campaignRoleRepository();
-    const role = repo.create(data);
-    return await repo.save(role);
+
+    // Convert Ton Address => string
+    const walletAddress = data.tonAddress.toString();
+
+    // Build the partial data object for repository
+    const roleData: Partial<CampaignRole> = {
+      campaignId: data.campaignId,
+      walletAddress,
+      role: data.role,
+      affiliateId: data.affiliateId,
+      isActive: data.isActive ?? false,
+    };
+
+    const roleEntity = repo.create(roleData);
+    return await repo.save(roleEntity);
   } catch (err) {
     Logger.error('Error creating campaign role ' + err);
     throw new Error('Could not create campaign role');
@@ -65,16 +93,25 @@ export async function getAllAffiliatesForCampaign(campaignId: string): Promise<C
   }
 }
 
-export async function updateCampaignRole(id: number, updates: Partial<CampaignRole>): Promise<CampaignRole | null> {
+export async function updateCampaignRoleByCampaignAndWalletAddress(
+  campaignId: string,
+  tonAddress: Address,
+  updates: Partial<CampaignRole>
+): Promise<CampaignRole | null> {
   try {
     const repo = campaignRoleRepository();
-    const role = await repo.findOneBy({ id });
+    const walletAddress = tonAddress.toString();
+    // 1) Find the row
+    const role = await repo.findOne({
+      where: { campaignId, walletAddress},
+    });
     if (!role) return null;
 
+    // 2) Merge and save
     Object.assign(role, updates);
     return await repo.save(role);
   } catch (err) {
-    Logger.error(`Error updating campaign role: ${id} ` + err);
+    Logger.error(`Error updating campaign role for campaign=${campaignId}, wallet=${tonAddress}: ` + err);
     throw new Error('Could not update campaign role');
   }
 }

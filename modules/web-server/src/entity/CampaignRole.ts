@@ -24,7 +24,7 @@ export class CampaignRole {
   @Column({ type: 'varchar', length: 255, name: 'campaign_id' })
   campaignId: string;
 
-  @Column({ type: 'varchar', length: 255, name: 'wallet_id' })
+  @Column({ type: 'varchar', length: 255, name: 'wallet_address' })
   walletAddress: string;
 
   @Column({
@@ -59,6 +59,6 @@ export class CampaignRole {
    * The local column is "wallet_id"; the remote PK is "wallets.address".
    */
   @ManyToOne(() => Wallet)
-  @JoinColumn({ name: 'wallet_id', referencedColumnName: 'address' })
+  @JoinColumn({  name: 'wallet_address', referencedColumnName: 'address' })
   wallet: Wallet;
 }

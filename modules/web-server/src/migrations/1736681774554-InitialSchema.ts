@@ -12,6 +12,7 @@ export class InitialSchema1736681774554 implements MigrationInterface {
         "photo_url"         VARCHAR(255),
         "telegram_language" VARCHAR(10),
         "auth_date"         TIMESTAMP,
+        "can_message"       BOOLEAN NOT NULL DEFAULT false,
         "created_at"        TIMESTAMP NOT NULL DEFAULT NOW(),
         "updated_at"        TIMESTAMP NOT NULL DEFAULT NOW()
       );
