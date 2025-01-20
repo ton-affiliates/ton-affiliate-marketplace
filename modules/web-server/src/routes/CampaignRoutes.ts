@@ -4,6 +4,7 @@ import { fetchPublicChatInfo } from '../services/TelegramService';
 import { Logger } from '../utils/Logger';
 import { getUserByWalletAddress } from '../services/UsersService'; 
 import { getUnreadNotificationsForUser } from '../services/NotificationsService';
+import {Address} from "@ton/core";
 
 const router = Router();
 
@@ -66,8 +67,11 @@ router.post('/', async (req, res) => {
       telegramType,
     } = req.body;
 
+
+    const tonAddress = Address.parseRaw(walletAddress); 
+
     // Validate
-    if (!walletAddress) {
+    if (!tonAddress) {
       res.status(400).json({ error: 'Missing walletAddress' });
       return;
     }
@@ -79,10 +83,10 @@ router.post('/', async (req, res) => {
     }
 
     // 1) Confirm the wallet already exists in DB
-    const existingUser = await getUserByWalletAddress(walletAddress);
+    const existingUser = await getUserByWalletAddress(tonAddress);
     if (!existingUser) {
       res.status(404).json({
-        error: `No wallet found with address: ${walletAddress}. Please connect a wallet first.`,
+        error: `No wallet found with address: ${tonAddress}. Please connect a wallet first.`,
       });
       return;
     }
