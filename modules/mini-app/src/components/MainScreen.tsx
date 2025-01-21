@@ -29,14 +29,14 @@ const MainScreen: React.FC = () => {
       <div className="card">
         <h1>Hi {userInfo?.firstName || 'There'}!</h1>
         <p>
-          Are you an Affiliate looking for active campaigns, or an Advertiser looking to set up a referral campaign?
+          Are you an Affiliate looking for active campaigns, or a Merchant looking to set up a referral campaign?
         </p>
         <div className="button-group">
           <button
             className="custom-button"
             onClick={() => handleRoleSelection('Advertiser')}
           >
-            Advertiser
+            Merchant
           </button>
           <button
             className="custom-button"

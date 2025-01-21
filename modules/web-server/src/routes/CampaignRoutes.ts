@@ -1,10 +1,12 @@
 import { Router } from 'express';
-import { upsertCampaign, getCampaignByIdWithAdvertiser } from '../services/CampaignsService';
+import { upsertCampaign, getCampaignByIdWithAdvertiser, getAllCampaignsForWallet } from '../services/CampaignsService';
 import { fetchPublicChatInfo } from '../services/TelegramService';
 import { Logger } from '../utils/Logger';
 import { getUserByWalletAddress } from '../services/UsersService'; 
 import { getUnreadNotificationsForUser } from '../services/NotificationsService';
 import {Address} from "@ton/core";
+import { RoleType } from '../entity/CampaignRole';
+
 
 const router = Router();
 
@@ -50,6 +52,41 @@ router.get('/:id/notifications', async (req, res) => {
     Logger.error(`Error in GET /campaigns/${req.params.id}/notifications:`, err);
     res.status(500).json({ error: 'Internal Server Error' });
     return;
+  }
+});
+
+router.get('/byWallet/:address', async (req, res) => {
+  try {
+    const { address } = req.params;
+    const roleParam = req.query.role as string | undefined; 
+    // e.g. "advertiser" or "affiliate"
+
+    let roleType: RoleType | undefined;
+    if (roleParam) {
+      // Convert the incoming string to our RoleType enum
+      // If you have RoleType = { ADVERTISER = 'advertiser', AFFILIATE = 'affiliate' }
+      // then:
+      if (roleParam.toLowerCase() === 'advertiser') {
+        roleType = RoleType.ADVERTISER;
+      } else if (roleParam.toLowerCase() === 'affiliate') {
+        roleType = RoleType.AFFILIATE;
+      }
+    }
+
+    Logger.info(`GET /campaigns/byWallet/${address}?role=${roleParam}`);
+
+    // If roleType is undefined, decide whether to handle an error or default
+    if (!roleType) {
+      res.status(400).json({ error: 'Invalid or missing role query param' });
+      return;
+    }
+
+    // Now call your service with both the address and role
+    const campaigns = await getAllCampaignsForWallet(Address.parse(address), roleType);
+    res.json(campaigns);
+  } catch (err) {
+    Logger.error(`Error in GET /campaigns/byWallet/:address: ${err}`);
+    res.status(500).json({ error: 'Internal Server Error' });
   }
 });
 

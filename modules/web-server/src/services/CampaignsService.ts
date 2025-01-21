@@ -2,6 +2,7 @@ import appDataSource from '../ormconfig';
 import { Campaign } from '../entity/Campaign';
 import { Logger } from '../utils/Logger';
 import { CampaignRole, RoleType } from '../entity/CampaignRole';
+import {Address} from "@ton/core";
 
 function campaignRepository() {
   return appDataSource.getRepository(Campaign);
@@ -80,11 +81,11 @@ export async function getCampaignByIdWithAdvertiser(
 /**
  * Get all campaigns for a given wallet address.
  */
-export async function getAllCampaignsForWallet(walletAddress: string): Promise<Campaign[]> {
+export async function getAllCampaignsForWallet(walletAddress: Address, roleType: RoleType): Promise<Campaign[]> {
   try {
     // 1) Find all campaign roles for this wallet address, loading the related Campaign
     const roles = await campaignRoleRepository().find({
-      where: { walletAddress },
+      where: { walletAddress: walletAddress.toString(), role: roleType }, 
       relations: ['campaign'],
     });
 

@@ -333,7 +333,7 @@ export default function CampaignView() {
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: '2rem' }}>
         {/* Owner info */}
         <div style={{ flex: '0 0 300px' }}>
-          <h3>Campaign Owner</h3>
+          <h3>Merchant</h3>
           {loadingUser ? (
             <p>Loading owner data...</p>
           ) : advertiserUser ? (
@@ -651,7 +651,7 @@ export default function CampaignView() {
             </p>
 
             <p>
-              <strong>Advertiser Fee (%):</strong>{' '}
+              <strong>Merchant Fee (%):</strong>{' '}
               {(Number(onChainData.advertiserFeePercentage) / 100).toFixed(2)}%
             </p>
             <p>

@@ -1,11 +1,10 @@
+// src/components/AffiliateOptions.tsx
 import React from 'react';
 import { motion } from 'framer-motion';
-import { useNavigate } from 'react-router-dom'; 
-import { useTelegramContext } from './TelegramContext'; 
-// We no longer import ScreenProps since we don't need setScreen.
+import { useNavigate } from 'react-router-dom';
+import { useTelegramContext } from './TelegramContext';
 
-const AdvertiserOptions: React.FC = () => {
-  // Instead of setScreen, useNavigate from React Router
+const AffiliateOptions: React.FC = () => {
   const navigate = useNavigate();
   const { userInfo } = useTelegramContext();
 
@@ -19,30 +18,23 @@ const AdvertiserOptions: React.FC = () => {
       <div className="card">
         <p>
           <strong>
-            Hi {userInfo?.firstName || 'Merchant'}!
+            Hi {userInfo?.firstName || 'Affiliate'}!
           </strong>
         </p>
         <p>What would you like to do?</p>
-        <div className="button-group">
-          <button
-            className="custom-button no-padding"
-            onClick={() => navigate('/deploy')}
-          >
-            Set up a new campaign
-          </button>
 
+        <div className="button-group">
           <button
             className="custom-button no-padding"
             onClick={() => navigate('/campaigns')}
           >
-            Check live campaigns
+            View My Campaigns
           </button>
         </div>
 
         <div className="navigation-buttons">
           <button
             className="nav-button"
-            // Was: onClick={() => setScreen('main')}
             onClick={() => navigate('/')}
           >
             Go to Main Screen
@@ -53,4 +45,4 @@ const AdvertiserOptions: React.FC = () => {
   );
 };
 
-export default AdvertiserOptions;
+export default AffiliateOptions;
