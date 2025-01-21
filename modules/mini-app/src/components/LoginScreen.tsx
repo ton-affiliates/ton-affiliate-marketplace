@@ -64,7 +64,7 @@ const LoginScreen: React.FC = () => {
           if (dbResp.canMessage === false) {
             setErrorMessage(`
               We verified your Telegram info, but our bot can't message you yet. 
-              Please open Telegram and tap "Start" on @${botName}:
+              To recieve direct messages open Telegram and tap "Start" on @${botName}:
               https://t.me/${botName}
             `);
           }

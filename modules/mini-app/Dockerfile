@@ -52,11 +52,6 @@
     # Copy the built files from builder
     COPY --from=builder /app/modules/mini-app/dist /usr/share/nginx/html
     
-    # (Optional) Copy TonConnect manifest/icon
-    COPY --from=builder /app/modules/mini-app/public/tonconnect-manifest.json /usr/share/nginx/html/
-    RUN mkdir -p /usr/share/nginx/html/assets/
-    COPY --from=builder /app/modules/mini-app/public/assets/icon.png /usr/share/nginx/html/assets/
-    
     # Expose port 80
     EXPOSE 80
     

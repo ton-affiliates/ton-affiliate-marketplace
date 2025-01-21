@@ -1,4 +1,3 @@
-// Example: TelegramContext.tsx
 import React, { createContext, useState, useContext, useEffect } from 'react';
 
 interface TelegramUser {
@@ -13,6 +12,7 @@ interface TelegramUser {
 interface TelegramContextType {
   userInfo: TelegramUser | null;
   setUserInfo: React.Dispatch<React.SetStateAction<TelegramUser | null>>;
+  loading: boolean;
 }
 
 // Create the context
@@ -20,6 +20,7 @@ const TelegramContext = createContext<TelegramContextType | undefined>(undefined
 
 export const TelegramProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [userInfo, setUserInfo] = useState<TelegramUser | null>(null);
+  const [loading, setLoading] = useState(true);
 
   // On mount, check if we have a user in localStorage
   useEffect(() => {
@@ -32,6 +33,8 @@ export const TelegramProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         console.error('Error parsing user from localStorage:', err);
       }
     }
+    // We're done checking local storage
+    setLoading(false);
   }, []);
 
   // Whenever userInfo changes, we can update localStorage as well
@@ -44,7 +47,7 @@ export const TelegramProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   }, [userInfo]);
 
   return (
-    <TelegramContext.Provider value={{ userInfo, setUserInfo }}>
+    <TelegramContext.Provider value={{ userInfo, setUserInfo, loading }}>
       {children}
     </TelegramContext.Provider>
   );

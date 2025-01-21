@@ -8,15 +8,19 @@ interface ProtectedRouteProps {
 }
 
 export default function ProtectedRoute({ children }: ProtectedRouteProps) {
-  const { userInfo } = useTelegramContext(); 
-  // If no userInfo => not logged in
+  const { userInfo, loading } = useTelegramContext(); 
   const isLoggedIn = userInfo !== null;
 
+  // If we're still loading user info from local storage, don’t decide yet
+  if (loading) {
+    return <div>Loading...</div>; 
+  }
+
+  // If not logged in, redirect to /login
   if (!isLoggedIn) {
-    // Redirect to login
     return <Navigate to="/login" replace />;
   }
 
-  // Otherwise, render the child component
+  // Otherwise, render the protected content
   return <>{children}</>;
 }
