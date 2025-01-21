@@ -379,76 +379,90 @@ export default function CampaignView() {
          1) A "notifications bell" in the top-right corner, 
          with a badge for unread count 
       */}
-      <div style={{ position: 'absolute', top: 10, right: 10 }}>
-        <div
-          style={{
-            position: 'relative',
-            cursor: 'pointer',
-            fontSize: '1.5rem',
-            border: '1px solid #ccc',
-            borderRadius: '50%',
-            width: '40px',
-            height: '40px',
-            textAlign: 'center',
-            lineHeight: '40px',
-            backgroundColor: '#f5f5f5',
-          }}
-          onClick={handleToggleNotifications}
-        >
-          🔔
-          {notifications.length > 0 && (
-            <span
-              style={{
-                position: 'absolute',
-                top: '-4px',
-                right: '-4px',
-                backgroundColor: 'red',
-                color: '#fff',
-                borderRadius: '50%',
-                width: '20px',
-                height: '20px',
-                fontSize: '0.8rem',
-                lineHeight: '20px',
-                textAlign: 'center',
-              }}
-            >
-              {notifications.length}
-            </span>
-          )}
-        </div>
-
-        {/* If showNotifications is true, show a dropdown box */}
-        {showNotifications && (
-          <div style={{ /* dropdown styling */ }}>
-            {notifications.length === 0 ? (
-              <div style={{ padding: '0.5rem' }}>No new notifications</div>
-            ) : (
-              notifications.map((n) => (
-                <div
-                  key={n.id}
-                  style={{
-                    padding: '0.5rem',
-                    borderBottom: '1px solid #eee',
-                  }}
-                >
-                  <p style={{ margin: 0 }}>{n.message}</p>
-                  <small style={{ color: '#999' }}>
-                    {new Date(n.createdAt).toLocaleString()}
-                  </small>
-
-                  {/* Mark as Read */}
-                  <button
-                    style={{ marginLeft: '0.5rem' }}
-                    onClick={() => handleMarkAsRead(n.id)}
-                  >
-                    Mark as Read
-                  </button>
-                </div>
-              ))
-            )}
-          </div>
+       <div style={{ position: 'absolute', top: 10, left: 10 }}>
+      <div
+        style={{
+          position: 'relative',
+          cursor: 'pointer',
+          fontSize: '1.5rem',
+          border: '1px solid #ccc',
+          borderRadius: '50%',
+          width: '40px',
+          height: '40px',
+          textAlign: 'center',
+          lineHeight: '40px',
+          backgroundColor: '#f5f5f5',
+        }}
+        onClick={handleToggleNotifications}
+      >
+        🔔
+        {notifications.length > 0 && (
+          <span
+            style={{
+              position: 'absolute',
+              top: '-4px',
+              right: '-4px',
+              backgroundColor: 'red',
+              color: '#fff',
+              borderRadius: '50%',
+              width: '20px',
+              height: '20px',
+              fontSize: '0.8rem',
+              lineHeight: '20px',
+              textAlign: 'center',
+            }}
+          >
+            {notifications.length}
+          </span>
         )}
       </div>
+
+      {/* If showNotifications is true, show a dropdown box */}
+      {showNotifications && (
+        <div
+          style={{
+            position: 'absolute',
+            top: '50px',
+            left: 0,
+            width: '300px',
+            backgroundColor: '#fff',
+            border: '1px solid #ccc',
+            borderRadius: '4px',
+            boxShadow: '0 2px 6px rgba(0,0,0,0.2)',
+            zIndex: 999,
+            maxHeight: '300px',
+            overflowY: 'auto',
+          }}
+        >
+          {notifications.length === 0 ? (
+            <div style={{ padding: '0.5rem' }}>No new notifications</div>
+          ) : (
+            notifications.map((n) => (
+              <div
+                key={n.id}
+                style={{
+                  padding: '0.5rem',
+                  borderBottom: '1px solid #eee',
+                }}
+              >
+                <p style={{ margin: 0 }}>{n.message}</p>
+                <small style={{ color: '#999' }}>
+                  {new Date(n.createdAt).toLocaleString()}
+                </small>
+
+                {/* Mark as Read */}
+                <button
+                  style={{ marginLeft: '0.5rem' }}
+                  onClick={() => handleMarkAsRead(n.id)}
+                >
+                  Mark as Read
+                </button>
+              </div>
+            ))
+          )}
+        </div>
+      )}
+    </div>
 
       {/* Show top-level warnings if paused or expired */}
       {showPausedOrExpiredError && (

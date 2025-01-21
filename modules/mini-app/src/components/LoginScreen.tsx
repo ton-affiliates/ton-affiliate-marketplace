@@ -10,6 +10,10 @@ const LoginScreen: React.FC = () => {
 
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
+  // Get the bot name from environment variables
+  const botName = import.meta.env.VITE_TON_AFFILIATES_BOT;
+  console.log(`Bot name: ${botName}`);
+
   //
   // 1) Called once the server says the user can proceed
   //
@@ -60,8 +64,8 @@ const LoginScreen: React.FC = () => {
           if (dbResp.canMessage === false) {
             setErrorMessage(`
               We verified your Telegram info, but our bot can't message you yet. 
-              Please open Telegram and tap "Start" on @ton_affiliates_bot:
-              https://t.me/ton_affiliates_bot
+              Please open Telegram and tap "Start" on @${botName}:
+              https://t.me/${botName}
             `);
           }
           // Proceed to the next step
@@ -80,7 +84,7 @@ const LoginScreen: React.FC = () => {
     return () => {
       (window as any).onTelegramAuth = null;
     };
-  }, [setUserInfo, userRole, navigate]);
+  }, [setUserInfo, userRole, navigate, botName]);
 
   //
   // 3) Dynamically create the <script> for the Telegram widget
@@ -90,8 +94,8 @@ const LoginScreen: React.FC = () => {
     script.async = true;
     // The official widget script
     script.src = 'https://telegram.org/js/telegram-widget.js?15';
-    // Must match your bot name
-    script.setAttribute('data-telegram-login', 'ton_affiliates_bot');
+    // Use the bot name from the environment variable
+    script.setAttribute('data-telegram-login', botName);
     script.setAttribute('data-size', 'large');
     script.setAttribute('data-request-access', 'write');
     // Ties to our global callback name
@@ -104,7 +108,7 @@ const LoginScreen: React.FC = () => {
       // Remove the script if we leave this page
       script.remove();
     };
-  }, []);
+  }, [botName]);
 
   return (
     <div style={{ margin: 'auto', textAlign: 'center' }}>
