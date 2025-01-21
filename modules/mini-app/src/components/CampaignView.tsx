@@ -248,6 +248,7 @@ export default function CampaignView() {
     })();
   }, [campaignContract]);
 
+  // Helper to parse and format addresses
   function formatTonFriendly(rawAddr: string): string {
     try {
       const addr = Address.parse(rawAddr);
@@ -257,6 +258,7 @@ export default function CampaignView() {
     }
   }
 
+  // Helper to format date strings
   function formatDate(dStr?: string | null): string {
     if (!dStr) return '';
     const d = new Date(dStr);
@@ -267,6 +269,7 @@ export default function CampaignView() {
     });
   }
 
+  // Check if the currently connected user is the advertiser
   const isUserAdvertiser = React.useMemo(() => {
     if (!userAccount?.address || !advertiserAddr) return false;
     try {
@@ -295,6 +298,20 @@ export default function CampaignView() {
     pausedOrExpiredMsg = 'This campaign has expired.';
   }
 
+  const affiliateInviteUrl = window.location.href;
+
+  // Function to copy the affiliateInviteUrl to clipboard
+  function handleCopyInviteUrl() {
+    navigator.clipboard.writeText(affiliateInviteUrl).then(
+      () => {
+        alert('Copied invite link to clipboard!');
+      },
+      (err) => {
+        console.error('Failed to copy text: ', err);
+      }
+    );
+  }
+
   return (
     <div style={{ margin: '1rem' }}>
       {/* Show any top-level warnings if paused or expired */}
@@ -308,13 +325,13 @@ export default function CampaignView() {
         Campaign Page for: {campaign.assetName || '(Unnamed)'}
       </h1>
       <h2 style={{ marginBottom: '1rem' }}>Campaign ID: {campaign.id}</h2>
-
-      {/*
-        Instead of having the "CampaignOwner" on a separate column row,
-        we can place the Owner + the campaign's main info side by side.
+      <h2 style={{ marginBottom: '1rem' }}>Campaign Name: {campaign.campaignName}</h2>
+      
+      {/* 
+        The row with CampaignOwner on the left and main info on the right 
       */}
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: '2rem' }}>
-        {/* Campaign Owner (left) */}
+        {/* Owner info */}
         <div style={{ flex: '0 0 300px' }}>
           <h3>Campaign Owner</h3>
           {loadingUser ? (
@@ -406,7 +423,7 @@ export default function CampaignView() {
       {/* Horizontal divider */}
       <hr style={{ margin: '2rem 0' }} />
 
-      {/* Now the 3 columns: Campaign Details, Campaign Status, Campaign Data */}
+      {/* The 3 columns: Campaign Details, Campaign Status, Campaign Data */}
       {chainHookLoading && <p>Loading contract hook...</p>}
       {chainHookError && <p style={{ color: 'red' }}>Hook error: {chainHookError}</p>}
       {chainLoading && <p>Fetching on-chain data...</p>}
@@ -546,7 +563,7 @@ export default function CampaignView() {
 
             {/* Sufficient Ton Gas Fees */}
             <StatusDot
-              label="Sufficient Ton Gas Fees"
+              label="Sufficient Ton for Gas Fees"
               value={onChainData.campaignHasSufficientTonToPayGasFees}
             />
             {/* Add TON for Gas Fees button */}
@@ -650,7 +667,6 @@ export default function CampaignView() {
       {/* HORIZONTAL LINE to separate from bottom section */}
       <hr style={{ margin: '2rem 0' }} />
 
-      {/* BOTTOM SECTION: Two side-by-side columns: Top Affiliates | Actions */}
       {onChainData && (
         <div style={{ display: 'flex', gap: '2rem', alignItems: 'flex-start' }}>
           {/* Left: Top Affiliates */}
@@ -695,7 +711,7 @@ export default function CampaignView() {
             )}
           </div>
 
-          {/* Right: Actions */}
+          {/* Right: Actions & Invite Section */}
           {isUserAdvertiser && (
             <div
               style={{
@@ -758,7 +774,6 @@ export default function CampaignView() {
               {/* Private campaign affiliate management */}
               {!onChainData.campaignDetails.isPublicCampaign && (
                 <div style={{ marginTop: '1.5rem' }}>
-                  <h4>Private Campaign Affiliate Management</h4>
                   <button
                     style={{ marginRight: '1rem' }}
                     onClick={async () => {
@@ -785,6 +800,35 @@ export default function CampaignView() {
                   </button>
                 </div>
               )}
+
+              {/* 5) Invite New Affiliates Section */}
+              <div
+                style={{
+                  marginTop: '2rem',
+                  borderTop: '1px solid #ccc',
+                  paddingTop: '1rem',
+                }}
+              >
+                <h3>Invite New Affiliates</h3>
+                <p>
+                  Share this link with potential affiliates. When they visit, they can register as
+                  your affiliate:
+                </p>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <input
+                    type="text"
+                    readOnly
+                    style={{
+                      flex: 1,
+                      padding: '0.4rem',
+                      border: '1px solid #ccc',
+                      borderRadius: '4px',
+                    }}
+                    value={`\n${affiliateInviteUrl}`}
+                  />
+                  <button onClick={handleCopyInviteUrl}>Copy Link</button>
+                </div>
+              </div>
             </div>
           )}
         </div>
