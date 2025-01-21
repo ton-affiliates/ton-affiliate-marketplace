@@ -13,7 +13,7 @@ import { TonConnectProvider } from './components/TonConnectProvider';
 import { TelegramProvider } from './components/TelegramContext';
 import { TelegramCampaignProvider } from './components/TelegramCampaignContext';
 import AffiliateOptions from 'components/AffiliateOptions';
-
+import ProtectedRoute from './components/ProtectedRoute'
 
 function App() {
   console.log('[App] rendering with React Router...');
@@ -37,19 +37,30 @@ function App() {
  */
 function AppContent() {
   const location = useLocation();
-
-  // Hide TonConnect button on these paths:
   const hideTonConnectOn = ['/', '/login'];
   const shouldHideTonConnect = hideTonConnectOn.includes(location.pathname);
 
   return (
     <>
-      {/* Conditionally render the TonConnect button */}
-      {!shouldHideTonConnect && (
-        <div style={{ position: 'absolute', top: 10, right: 10 }}>
-          <TonConnectButton />
-        </div>
-      )}
+      {/* 
+        Instead of two separate absolute positions, 
+        make a single container at top/right with flex gap 
+      */}
+      <div
+        style={{
+          position: 'absolute',
+          top: 10,
+          right: 10,
+          display: 'flex',
+          alignItems: 'center',
+          gap: '1rem', /* Add some horizontal spacing */
+        }}
+      >
+        {!shouldHideTonConnect && <TonConnectButton />}
+
+        {/* Move your notifications bell in here. For instance: */}
+        {/* <NotificationBell /> or some <div onClick=...>🔔</div> */}
+      </div>
 
       <motion.div
         initial={{ opacity: 0 }}
@@ -58,15 +69,69 @@ function AppContent() {
         className="app-container"
       >
         <Routes>
+          {/* Public routes */}
           <Route path="/" element={<MainScreen />} />
-          <Route path="/merchant" element={<AdvertiserOptions />} />
-          <Route path="/affiliate" element={<AffiliateOptions />} />
           <Route path="/login" element={<LoginScreen />} />
-          <Route path="/deploy" element={<DeployEmptyCampaign />} />
-          <Route path="/telegram-setup/:campaignId" element={<TelegramSetupCampaign />} />
-          <Route path="/blockchain-setup/:campaignId" element={<BlockchainSetupCampaign />} />
-          <Route path="/campaign/:id" element={<CampaignView />} />
-          <Route path="/campaigns" element={<Campaigns />} />
+
+          {/* Protect these routes */}
+          <Route
+            path="/merchant"
+            element={
+              <ProtectedRoute>
+                <AdvertiserOptions />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/affiliate"
+            element={
+              <ProtectedRoute>
+                <AffiliateOptions />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/deploy"
+            element={
+              <ProtectedRoute>
+                <DeployEmptyCampaign />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/telegram-setup/:campaignId"
+            element={
+              <ProtectedRoute>
+                <TelegramSetupCampaign />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/blockchain-setup/:campaignId"
+            element={
+              <ProtectedRoute>
+                <BlockchainSetupCampaign />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/campaign/:id"
+            element={
+              <ProtectedRoute>
+                <CampaignView />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/campaigns"
+            element={
+              <ProtectedRoute>
+                <Campaigns />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Fallback */}
           <Route path="*" element={<MainScreen />} />
         </Routes>
       </motion.div>

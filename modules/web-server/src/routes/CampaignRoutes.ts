@@ -3,7 +3,7 @@ import { upsertCampaign, getCampaignByIdWithAdvertiser, getAllCampaignsForWallet
 import { fetchPublicChatInfo } from '../services/TelegramService';
 import { Logger } from '../utils/Logger';
 import { getUserByWalletAddress } from '../services/UsersService'; 
-import { getUnreadNotificationsForUser } from '../services/NotificationsService';
+import { getUnreadNotificationsForWallet, markNotificationAsRead } from '../services/NotificationsService';
 import {Address} from "@ton/core";
 import { RoleType } from '../entity/CampaignRole';
 
@@ -29,27 +29,39 @@ router.get('/:id', async (req, res) => {
   }
 });
 
+// e.g. /campaigns/:id/notifications?walletAddress=EQxyz
 router.get('/:id/notifications', async (req, res) => {
+  const { id } = req.params; // campaignId
+  const { walletAddress } = req.query;
+
+  if (!walletAddress) {
+    res.status(400).json({ error: 'Missing walletAddress query parameter' });
+    return;
+  }
+
+  // fetch
+  const tonAddress = Address.parse(walletAddress.toString());
+  const notifs = await getUnreadNotificationsForWallet(tonAddress, id);
+  res.json(notifs);
+  return;
+});
+
+
+router.patch('/:id/notifications/:notificationId/read', async (req, res) => {
   try {
-    const { id } = req.params; // campaignId
-    const { userId } = req.query; // e.g. /campaigns/xxx/notifications?userId=123
-
-    if (!userId) {
-      res.status(400).json({ error: 'Missing userId query parameter' });
+    const { notificationId } = req.params;
+    const notifIdNum = parseInt(notificationId, 10);
+    if (isNaN(notifIdNum)) {
+      res.status(400).json({ error: 'Invalid notificationId parameter' });
       return;
     }
 
-    const userIdNum = parseInt(userId.toString(), 10);
-    if (isNaN(userIdNum)) {
-      res.status(400).json({ error: 'Invalid userId parameter' });
-      return;
-    }
-
-    const notifications = await getUnreadNotificationsForUser(userIdNum, id);
-    res.json(notifications);
+    // Call your service function
+    const updatedNotif = await markNotificationAsRead(notifIdNum);
+    res.json(updatedNotif);
     return;
   } catch (err: any) {
-    Logger.error(`Error in GET /campaigns/${req.params.id}/notifications:`, err);
+    Logger.error(`Error in PATCH /campaigns/${req.params.id}/notifications/${req.params.notificationId}/read:`, err);
     res.status(500).json({ error: 'Internal Server Error' });
     return;
   }

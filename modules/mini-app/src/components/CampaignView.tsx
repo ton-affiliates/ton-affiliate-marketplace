@@ -17,10 +17,7 @@ import { useTonWalletConnect } from '../hooks/useTonConnect';
 import { useTonClient } from '../hooks/useTonClient';
 import TransactionButton from '../components/TransactionButton';
 
-/** 
- * We'll define a more "blinking" or "flashing" animation for the dot:
- * It will alternate between two colors (green <-> lime) every 500ms for example.
- */
+// Simple blink for "Active" dot
 const blinkingAnimation = `
   @keyframes blinkActive {
     0%   { background-color: green; }
@@ -30,7 +27,6 @@ const blinkingAnimation = `
 `;
 
 function ActiveStatusDot({ isActive }: { isActive: boolean }) {
-  // If active, we apply the blinking animation; if not, a static red dot
   const dotColor = isActive ? 'green' : 'red';
   const dotAnimation = isActive ? 'blinkActive 1s infinite' : 'none';
 
@@ -90,6 +86,16 @@ function StatusDot({
   );
 }
 
+//
+// Notification shape from your back end
+//
+interface Notification {
+  id: number;
+  message: string;
+  createdAt: string;
+  readAt?: string | null;
+}
+
 // The API shape for the campaign from /api/v1/campaigns/:id
 interface CampaignApiResponse {
   id: string;
@@ -105,7 +111,7 @@ interface CampaignApiResponse {
   assetPhotoBase64?: string;
 }
 
-// The shape of your User record from /users/byWallet/:address
+// The shape of your User record
 interface UserRecord {
   id: number;
   telegramUsername: string;
@@ -146,7 +152,14 @@ export default function CampaignView() {
   const [advertiserUser, setAdvertiserUser] = useState<UserRecord | null>(null);
   const [loadingUser, setLoadingUser] = useState<boolean>(false);
 
+  // (5) Notifications
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [showNotifications, setShowNotifications] = useState(false);
+
+
+  //
   // 1) Fetch the campaign from the DB
+  //
   useEffect(() => {
     if (!id) {
       setError('No campaign ID in URL!');
@@ -170,7 +183,9 @@ export default function CampaignView() {
     })();
   }, [id]);
 
+  //
   // 2) Hook up on-chain contract
+  //
   const advertiserAddr = campaign?.advertiserAddress;
   const campaignIdBigInt = campaign?.id ? BigInt(campaign.id) : undefined;
 
@@ -180,17 +195,17 @@ export default function CampaignView() {
     error: chainHookError,
   } = useCampaignContract(advertiserAddr, campaignIdBigInt);
 
+  //
   // 3) Once the campaign is loaded, fetch the advertiser user record
+  //
   useEffect(() => {
     if (!advertiserAddr) return;
     setLoadingUser(true);
 
     (async () => {
       try {
-        // /users/byWallet/EQABC...
         const resp = await fetch(`/api/v1/users/byWallet/${advertiserAddr}`);
         if (!resp.ok) {
-          // not necessarily an error, could be 404
           console.warn('No advertiser user found for address:', advertiserAddr);
           setLoadingUser(false);
           return;
@@ -205,7 +220,9 @@ export default function CampaignView() {
     })();
   }, [advertiserAddr]);
 
+  //
   // 4) Once contract is loaded, fetch on-chain data + top affiliates
+  //
   useEffect(() => {
     if (!campaignContract) return;
 
@@ -213,11 +230,10 @@ export default function CampaignView() {
       setChainLoading(true);
       setChainError(null);
       try {
-        // 4a) Get general campaign data
         const data = await campaignContract.getCampaignData();
         setOnChainData(data);
 
-        // 4b) Gather top affiliates
+        // Gather top affiliates
         const topAffiliatesDict: Dictionary<bigint, bigint> = data.topAffiliates;
         const affArray: Array<{
           affiliateId: bigint;
@@ -227,7 +243,6 @@ export default function CampaignView() {
         }> = [];
 
         for (const [affiliateId] of topAffiliatesDict) {
-          // For each affiliate ID, fetch more details
           const affData: AffiliateData | null = await campaignContract.getAffiliateData(affiliateId);
           if (affData) {
             affArray.push({
@@ -248,7 +263,38 @@ export default function CampaignView() {
     })();
   }, [campaignContract]);
 
-  // Helper to parse and format addresses
+  //
+  // 5) Fetch unread notifications if we have a user ID
+  //    Suppose your user ID is userAccount?.id or something similar
+  //
+  useEffect(() => {
+    const walletAddr = userAccount?.address;  // Or wherever your user ID is stored
+    if (!id || !walletAddr) return;
+
+    async function fetchNotifications() {
+      try {
+        const resp = await fetch(`/api/v1/campaigns/${id}/notifications?walletAddress=${walletAddr}`);
+        if (!resp.ok) {
+          console.warn('No notifications or error fetching them');
+          return;
+        }
+        const data = await resp.json();
+        setNotifications(data);
+
+      } catch (err) {
+        console.error('Error fetching notifications:', err);
+      }
+    }
+
+    fetchNotifications();
+  }, [id, userAccount?.address]);
+
+  // Toggle notifications dropdown
+  function handleToggleNotifications() {
+    setShowNotifications(!showNotifications);
+  }
+
+  // A small helper to parse addresses
   function formatTonFriendly(rawAddr: string): string {
     try {
       const addr = Address.parse(rawAddr);
@@ -258,7 +304,7 @@ export default function CampaignView() {
     }
   }
 
-  // Helper to format date strings
+  // Helper to format date
   function formatDate(dStr?: string | null): string {
     if (!dStr) return '';
     const d = new Date(dStr);
@@ -281,12 +327,11 @@ export default function CampaignView() {
     }
   }, [userAccount?.address, advertiserAddr]);
 
-  // Loading states
   if (loading) return <div>Loading campaign data...</div>;
   if (error) return <div style={{ color: 'red' }}>{error}</div>;
   if (!campaign) return <div>No campaign found</div>;
 
-  // If the on-chain data is loaded, we can check paused/expired
+  // Possibly paused or expired?
   const showPausedOrExpiredError =
     onChainData &&
     (onChainData.isCampaignPausedByAdmin === true || onChainData.isCampaignExpired === true);
@@ -299,22 +344,113 @@ export default function CampaignView() {
   }
 
   const affiliateInviteUrl = window.location.href;
-
-  // Function to copy the affiliateInviteUrl to clipboard
   function handleCopyInviteUrl() {
     navigator.clipboard.writeText(affiliateInviteUrl).then(
-      () => {
-        alert('Copied invite link to clipboard!');
-      },
-      (err) => {
-        console.error('Failed to copy text: ', err);
-      }
+      () => alert('Copied invite link to clipboard!'),
+      (err) => console.error('Failed to copy text: ', err)
     );
+  }
+
+  async function handleMarkAsRead(notifId: number) {
+    try {
+      // 1) Send PATCH request to the server
+      const resp = await fetch(`/api/v1/campaigns/${id}/notifications/${notifId}/read`, {
+        method: 'PATCH',
+      });
+      if (!resp.ok) {
+        throw new Error(`Failed to mark notification as read. Code: ${resp.status}`);
+      }
+      const updated = await resp.json();
+      console.log("Notification: " + notifId + " updates: " + updated);
+
+      // 2) Update local state. 
+      //    For example, remove from notifications array or update readAt locally.
+      setNotifications((prev) =>
+        prev.filter((n) => n.id !== notifId)
+      );
+    } catch (err) {
+      console.error('Error marking notification as read:', err);
+    }
   }
 
   return (
     <div style={{ margin: '1rem' }}>
-      {/* Show any top-level warnings if paused or expired */}
+      {/* 
+         1) A "notifications bell" in the top-right corner, 
+         with a badge for unread count 
+      */}
+      <div style={{ position: 'absolute', top: 10, right: 10 }}>
+        <div
+          style={{
+            position: 'relative',
+            cursor: 'pointer',
+            fontSize: '1.5rem',
+            border: '1px solid #ccc',
+            borderRadius: '50%',
+            width: '40px',
+            height: '40px',
+            textAlign: 'center',
+            lineHeight: '40px',
+            backgroundColor: '#f5f5f5',
+          }}
+          onClick={handleToggleNotifications}
+        >
+          🔔
+          {notifications.length > 0 && (
+            <span
+              style={{
+                position: 'absolute',
+                top: '-4px',
+                right: '-4px',
+                backgroundColor: 'red',
+                color: '#fff',
+                borderRadius: '50%',
+                width: '20px',
+                height: '20px',
+                fontSize: '0.8rem',
+                lineHeight: '20px',
+                textAlign: 'center',
+              }}
+            >
+              {notifications.length}
+            </span>
+          )}
+        </div>
+
+        {/* If showNotifications is true, show a dropdown box */}
+        {showNotifications && (
+          <div style={{ /* dropdown styling */ }}>
+            {notifications.length === 0 ? (
+              <div style={{ padding: '0.5rem' }}>No new notifications</div>
+            ) : (
+              notifications.map((n) => (
+                <div
+                  key={n.id}
+                  style={{
+                    padding: '0.5rem',
+                    borderBottom: '1px solid #eee',
+                  }}
+                >
+                  <p style={{ margin: 0 }}>{n.message}</p>
+                  <small style={{ color: '#999' }}>
+                    {new Date(n.createdAt).toLocaleString()}
+                  </small>
+
+                  {/* Mark as Read */}
+                  <button
+                    style={{ marginLeft: '0.5rem' }}
+                    onClick={() => handleMarkAsRead(n.id)}
+                  >
+                    Mark as Read
+                  </button>
+                </div>
+              ))
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Show top-level warnings if paused or expired */}
       {showPausedOrExpiredError && (
         <div style={{ backgroundColor: '#fdd', color: '#900', padding: '0.8rem', marginBottom: '1rem' }}>
           <strong>{pausedOrExpiredMsg}</strong> It is therefore not active.
@@ -326,7 +462,7 @@ export default function CampaignView() {
       </h1>
       <h2 style={{ marginBottom: '1rem' }}>Campaign ID: {campaign.id}</h2>
       <h2 style={{ marginBottom: '1rem' }}>Campaign Name: {campaign.campaignName}</h2>
-      
+
       {/* 
         The row with CampaignOwner on the left and main info on the right 
       */}
@@ -566,7 +702,6 @@ export default function CampaignView() {
               label="Sufficient Ton for Gas Fees"
               value={onChainData.campaignHasSufficientTonToPayGasFees}
             />
-            {/* Add TON for Gas Fees button */}
             {isUserAdvertiser && (
               <div style={{ marginLeft: '1rem' }}>
                 <TransactionButton
@@ -646,11 +781,6 @@ export default function CampaignView() {
             </p>
 
             <p>
-              <strong>Max CPA Value:</strong> {fromNano(onChainData.maxCpaValue)}
-              {onChainData.campaignDetails.paymentMethod === 0n ? ' TON' : ' USDT'}
-            </p>
-
-            <p>
               <strong>Merchant Fee (%):</strong>{' '}
               {(Number(onChainData.advertiserFeePercentage) / 100).toFixed(2)}%
             </p>
@@ -703,7 +833,9 @@ export default function CampaignView() {
                       <td style={{ border: '1px solid #ccc', padding: '4px' }}>
                         {fromNano(aff.totalEarnings)} TON
                       </td>
-                      <td style={{ border: '1px solid #ccc', padding: '4px' }}>{aff.state.toString()}</td>
+                      <td style={{ border: '1px solid #ccc', padding: '4px' }}>
+                        {aff.state.toString()}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -824,7 +956,8 @@ export default function CampaignView() {
                       border: '1px solid #ccc',
                       borderRadius: '4px',
                     }}
-                    value={`\n${affiliateInviteUrl}`}
+                    value={`
+${affiliateInviteUrl}`}
                   />
                   <button onClick={handleCopyInviteUrl}>Copy Link</button>
                 </div>

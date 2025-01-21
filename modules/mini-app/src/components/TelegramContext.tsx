@@ -1,5 +1,5 @@
-// src/components/TelegramContext.tsx
-import React, { createContext, useState, useContext } from 'react';
+// Example: TelegramContext.tsx
+import React, { createContext, useState, useContext, useEffect } from 'react';
 
 interface TelegramUser {
   id: number;
@@ -7,19 +7,41 @@ interface TelegramUser {
   lastName?: string;
   username?: string;
   photoUrl?: string;
-  // anything else from your DB
+  // etc...
 }
 
-// This is what our context will provide
 interface TelegramContextType {
   userInfo: TelegramUser | null;
   setUserInfo: React.Dispatch<React.SetStateAction<TelegramUser | null>>;
 }
 
-export const TelegramContext = createContext<TelegramContextType | undefined>(undefined);
+// Create the context
+const TelegramContext = createContext<TelegramContextType | undefined>(undefined);
 
 export const TelegramProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [userInfo, setUserInfo] = useState<TelegramUser | null>(null);
+
+  // On mount, check if we have a user in localStorage
+  useEffect(() => {
+    const stored = localStorage.getItem('telegramUser');
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored);
+        setUserInfo(parsed);
+      } catch (err) {
+        console.error('Error parsing user from localStorage:', err);
+      }
+    }
+  }, []);
+
+  // Whenever userInfo changes, we can update localStorage as well
+  useEffect(() => {
+    if (userInfo) {
+      localStorage.setItem('telegramUser', JSON.stringify(userInfo));
+    } else {
+      localStorage.removeItem('telegramUser');
+    }
+  }, [userInfo]);
 
   return (
     <TelegramContext.Provider value={{ userInfo, setUserInfo }}>

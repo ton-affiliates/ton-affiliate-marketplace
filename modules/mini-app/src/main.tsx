@@ -5,7 +5,7 @@ import { TonConnectUIProvider } from '@tonconnect/ui-react';
 import { UserRoleProvider } from './components/UserRoleContext';
 
 // Use a relative path for the manifest URL
-// const manifestUrl = '/tonconnect-manifest.json';  // Correct path
+// const manifestUrl = '/tonconnect-manifest.json';  // Correct path  TODO Guy - change this
 const manifestUrl = 'https://raw.githubusercontent.com/guyt-ds/RotNet/master/manifest.json';
 
 

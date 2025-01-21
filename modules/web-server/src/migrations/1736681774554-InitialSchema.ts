@@ -107,16 +107,16 @@ export class InitialSchema1736681774554 implements MigrationInterface {
     // 8) notifications TABLE
     await queryRunner.query(`
       CREATE TABLE IF NOT EXISTS "notifications" (
-        "id"          SERIAL PRIMARY KEY,
-        "user_id"     BIGINT NOT NULL,
-        "message"     TEXT NOT NULL,
-        "campaign_id" VARCHAR(255),
-        "created_at"  TIMESTAMP NOT NULL DEFAULT NOW(),
-        "updated_at"  TIMESTAMP NOT NULL DEFAULT NOW(),
-        "read_at"     TIMESTAMP,
-        CONSTRAINT "fk_user_notifications"
-          FOREIGN KEY ("user_id")
-          REFERENCES "users"("id"),
+        "id"             SERIAL PRIMARY KEY,
+        "wallet_address" VARCHAR(255) NOT NULL,
+        "message"        TEXT NOT NULL,
+        "campaign_id"    VARCHAR(255),
+        "created_at"     TIMESTAMP NOT NULL DEFAULT NOW(),
+        "updated_at"     TIMESTAMP NOT NULL DEFAULT NOW(),
+        "read_at"        TIMESTAMP,
+        CONSTRAINT "fk_wallet_notifications"
+          FOREIGN KEY ("wallet_address")
+          REFERENCES "wallets"("address"),
         CONSTRAINT "fk_campaign_notifications"
           FOREIGN KEY ("campaign_id")
           REFERENCES "campaigns"("id")

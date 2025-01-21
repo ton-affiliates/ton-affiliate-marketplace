@@ -174,7 +174,7 @@ async function processEvents(events: EmitLogEvent[]) {
             const text = `Affiliate [${affiliateUser.telegramUsername}](tg://user?id=${affiliateUser.id}) asked to join campaign:
               https://${process.env.MINI_APP_HOSTNAME}/${campaignId} as a new affiliate with id: ${affiliateId} `;
 
-            await createNotification(advertiserUser.id, text, campaignId.toString());
+            await createNotification(advertiserTon, text, campaignId.toString());
             await sendTelegramMessage(advertiserUser.id, text, 'Markdown');
           }
           break;
@@ -207,7 +207,7 @@ async function processEvents(events: EmitLogEvent[]) {
           const affiliateUser = await getUserByWalletAddress(affiliateTon);
           if (affiliateUser) {
             const text = `Congratulations! You have been approved for campaign https://${process.env.MINI_APP_HOSTNAME}/${campaignId}.`;
-            await createNotification(affiliateUser.id, text, campaignId.toString());
+            await createNotification(affiliateTon, text, campaignId.toString());
             await sendTelegramMessage(affiliateUser.id, text);
           }
 
@@ -249,7 +249,7 @@ async function processEvents(events: EmitLogEvent[]) {
           const affiliateUser = await getUserByWalletAddress(affiliateTon);
           if (affiliateUser) {
             const text = `You have been removed from campaign ${campaignId}.`;
-            await createNotification(affiliateUser.id, text, campaignId.toString());
+            await createNotification(affiliateTon, text, campaignId.toString());
             await sendTelegramMessage(affiliateUser.id, text);
           }
           break;
