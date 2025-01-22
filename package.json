@@ -43,6 +43,7 @@
         "socket.io": "^4.8.1",
         "svg-captcha": "^1.4.0",
         "telegraf": "^4.16.3",
-        "ton-core": "^0.53.0"
+        "ton-core": "^0.53.0",
+        "tweetnacl": "^1.0.3"
     }
 }

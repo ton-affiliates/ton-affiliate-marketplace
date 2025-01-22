@@ -17,6 +17,8 @@ import { useTonWalletConnect } from '../hooks/useTonConnect';
 import { useTonClient } from '../hooks/useTonClient';
 import TransactionButton from '../components/TransactionButton';
 
+import {NotificationApiResponse, CampaignApiResponse, UserApiResponse} from "../models/models";
+
 // Simple blink for "Active" dot
 const blinkingAnimation = `
   @keyframes blinkActive {
@@ -86,41 +88,6 @@ function StatusDot({
   );
 }
 
-//
-// Notification shape from your back end
-//
-interface Notification {
-  id: number;
-  message: string;
-  createdAt: string;
-  readAt?: string | null;
-}
-
-// The API shape for the campaign from /api/v1/campaigns/:id
-interface CampaignApiResponse {
-  id: string;
-  advertiserAddress: string;
-  campaignName: string;
-  assetName: string;
-  assetType?: string;
-  assetTitle?: string;
-  assetDescription?: string;
-  inviteLink?: string;
-  createdAt?: string;
-  updatedAt?: string;
-  assetPhotoBase64?: string;
-}
-
-// The shape of your User record
-interface UserRecord {
-  id: number;
-  telegramUsername: string;
-  firstName: string;
-  lastName: string;
-  photoUrl?: string;
-  // etc...
-}
-
 export default function CampaignView() {
   const { id } = useParams<{ id: string }>();
   const [error, setError] = useState<string | null>(null);
@@ -149,11 +116,11 @@ export default function CampaignView() {
   >([]);
 
   // (4) Advertiser user record
-  const [advertiserUser, setAdvertiserUser] = useState<UserRecord | null>(null);
+  const [advertiserUser, setAdvertiserUser] = useState<UserApiResponse | null>(null);
   const [loadingUser, setLoadingUser] = useState<boolean>(false);
 
   // (5) Notifications
-  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [notifications, setNotifications] = useState<NotificationApiResponse[]>([]);
   const [showNotifications, setShowNotifications] = useState(false);
 
 
@@ -210,7 +177,7 @@ export default function CampaignView() {
           setLoadingUser(false);
           return;
         }
-        const user: UserRecord = await resp.json();
+        const user: UserApiResponse = await resp.json();
         setAdvertiserUser(user);
       } catch (err) {
         console.error('Error fetching advertiser user:', err);

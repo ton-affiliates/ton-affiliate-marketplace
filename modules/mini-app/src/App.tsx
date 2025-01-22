@@ -13,7 +13,11 @@ import { TonConnectProvider } from './components/TonConnectProvider';
 import { TelegramProvider } from './components/TelegramContext';
 import { TelegramCampaignProvider } from './components/TelegramCampaignContext';
 import AffiliateOptions from 'components/AffiliateOptions';
-import ProtectedRoute from './components/ProtectedRoute'
+import ProtectedRoute from './components/ProtectedRoute';
+import { AffiliatePage } from './components/AffiliatePage';
+
+// 1) Import your AllAffiliatesPage:
+import { AllAffiliatesPage } from './components/AllAffiliatesPage';
 
 function App() {
   console.log('[App] rendering with React Router...');
@@ -31,10 +35,6 @@ function App() {
   );
 }
 
-/** 
- * We split out the main <AppContent /> so we can call useLocation(),
- * which must be used inside a <BrowserRouter> (as in the main App).
- */
 function AppContent() {
   const location = useLocation();
   const hideTonConnectOn = ['/', '/login'];
@@ -42,10 +42,6 @@ function AppContent() {
 
   return (
     <>
-      {/* 
-        Instead of two separate absolute positions, 
-        make a single container at top/right with flex gap 
-      */}
       <div
         style={{
           position: 'absolute',
@@ -53,13 +49,10 @@ function AppContent() {
           right: 10,
           display: 'flex',
           alignItems: 'center',
-          gap: '1rem', /* Add some horizontal spacing */
+          gap: '1rem',
         }}
       >
         {!shouldHideTonConnect && <TonConnectButton />}
-
-        {/* Move your notifications bell in here. For instance: */}
-        {/* <NotificationBell /> or some <div onClick=...>🔔</div> */}
       </div>
 
       <motion.div
@@ -73,7 +66,7 @@ function AppContent() {
           <Route path="/" element={<MainScreen />} />
           <Route path="/login" element={<LoginScreen />} />
 
-          {/* Protect these routes */}
+          {/* Protected routes */}
           <Route
             path="/merchant"
             element={
@@ -130,6 +123,25 @@ function AppContent() {
               </ProtectedRoute>
             }
           />
+
+          {/* 2) Add the new route for AllAffiliatesPage */}
+          <Route
+            path="/campaign/:campaignId/affiliates"
+            element={
+              <ProtectedRoute>
+                <AllAffiliatesPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+              path="/campaign/:campaignId/affiliate/:affiliateId"
+              element={
+                <ProtectedRoute>
+                  <AffiliatePage />
+                </ProtectedRoute>
+              }
+            />
 
           {/* Fallback */}
           <Route path="*" element={<MainScreen />} />

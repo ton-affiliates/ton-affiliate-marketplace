@@ -2,6 +2,7 @@ import appDataSource from '../ormconfig';
 import { Logger } from '../utils/Logger';
 import { CampaignRole, RoleType } from '../entity/CampaignRole';
 import {Address} from "@ton/core";
+import { User } from 'entity/User';
 
 function campaignRoleRepository() {
   return appDataSource.getRepository(CampaignRole);
@@ -45,54 +46,6 @@ export async function createCampaignRole(data: CreateCampaignRoleInput): Promise
   }
 }
 
-export async function getCampaignRoleById(id: number): Promise<CampaignRole | null> {
-  try {
-    return await campaignRoleRepository().findOne({
-      where: { id },
-      relations: ['campaign', 'wallet'],
-    });
-  } catch (err) {
-    Logger.error(`Error fetching campaign role by ID: ${id} ` + err);
-    throw new Error('Could not retrieve campaign role');
-  }
-}
-
-/**
- * Get the advertiser for a specific campaign.
- */
-export async function getAdvertiserForCampaign(campaignId: string): Promise<CampaignRole | null> {
-  try {
-    return await campaignRoleRepository().findOne({
-      where: {
-        campaignId,
-        role: RoleType.ADVERTISER,
-      },
-      relations: ['campaign', 'wallet'],
-    });
-  } catch (err) {
-    Logger.error(`Error fetching advertiser for campaign: ${campaignId} ` + err);
-    throw new Error('Could not retrieve advertiser');
-  }
-}
-
-/**
- * Get all affiliates for a campaign.
- */
-export async function getAllAffiliatesForCampaign(campaignId: string): Promise<CampaignRole[]> {
-  try {
-    return await campaignRoleRepository().find({
-      where: {
-        campaignId,
-        role: RoleType.AFFILIATE,
-      },
-      relations: ['campaign', 'wallet'],
-    });
-  } catch (err) {
-    Logger.error(`Error fetching affiliates for campaign: ${campaignId} ` + err);
-    throw new Error('Could not retrieve affiliates');
-  }
-}
-
 export async function updateCampaignRoleByCampaignAndWalletAddress(
   campaignId: string,
   tonAddress: Address,
@@ -121,10 +74,12 @@ export async function deleteCampaignRoleByCampaignAndWallet(
   walletAddress: string
 ): Promise<boolean> {
   try {
+    // we can only delete affiliates (never an advertiser)
     const repo = campaignRoleRepository();
     const result = await repo.delete({
       campaignId: campaignId,
       walletAddress: walletAddress,
+      role: RoleType.AFFILIATE
     });
     return result.affected !== 0;
   } catch (err) {
@@ -132,6 +87,99 @@ export async function deleteCampaignRoleByCampaignAndWallet(
       `Error deleting campaign role with campaignId=${campaignId} and walletAddress=${walletAddress}: ` + err
     );
     throw new Error('Could not delete campaign role');
+  }
+}
+
+
+export async function getAdvertiserUserForCampaign(
+  campaignId: string
+): Promise<User | null> {
+  try {
+    // 1) Fetch the ADVERTISER CampaignRole, including wallet & user
+    const role = await campaignRoleRepository().findOne({
+      where: {
+        campaignId,
+        role: RoleType.ADVERTISER,
+      },
+      relations: ['wallet', 'wallet.user'],
+    });
+
+    if (!role) {
+      return null; // No advertiser found for this campaign
+    }
+
+    // 2) The User is at role.wallet.user
+    return role.wallet?.user || null;
+  } catch (err) {
+    Logger.error(`Error fetching advertiser (User) for campaign: ${campaignId}. ${err}`);
+    throw new Error('Could not retrieve advertiser user');
+  }
+}
+
+
+export async function getSingleAffiliateUserForCampaign(
+  campaignId: string,
+  affiliateId: number
+): Promise<User | null> {
+  try {
+    // 1) Fetch the matching CampaignRole
+    const role = await campaignRoleRepository().findOne({
+      where: {
+        campaignId,
+        affiliateId,
+        role: RoleType.AFFILIATE,
+      },
+      relations: ['wallet', 'wallet.user'],
+    });
+
+    if (!role) {
+      return null; // No affiliate record found
+    }
+
+    // 2) Return the user from the nested relation
+    return role.wallet?.user || null;
+  } catch (err) {
+    Logger.error(
+      `Error fetching single affiliate (id=${affiliateId}) for campaign: ${campaignId}. ${err}`
+    );
+    throw new Error('Could not retrieve affiliate user');
+  }
+}
+
+/**
+ * Fetch affiliates for the specified campaign, with pagination.
+ *
+ * @param campaignId - The ID of the campaign to fetch affiliates from.
+ * @param offset     - How many records to skip (e.g. 0, 100, etc.).
+ * @param limit      - How many records to take (e.g. 100).
+ * @returns          - An array of CampaignRole objects.
+ */
+export async function getAffiliateUsersForCampaignPaged(
+  campaignId: string,
+  offset = 0,
+  limit = 100
+): Promise<User[]> {
+  try {
+    // 1) Fetch all AFFILIATE roles in this campaign, with wallet+user
+    const roles: CampaignRole[] = await campaignRoleRepository().find({
+      where: {
+        campaignId,
+        role: RoleType.AFFILIATE,
+      },
+      relations: ['wallet', 'wallet.user'],
+      skip: offset,
+      take: limit,
+    });
+
+    // 2) Map each role to role.wallet?.user, filtering out any null
+    const users = roles
+      .map((role) => role.wallet?.user || null)
+      .filter((user): user is User => user !== null);
+
+    return users;
+  } catch (err) {
+    Logger.error(`Error fetching affiliate users (paged) for campaign: ${campaignId}. ${err}`);
+    throw new Error('Could not retrieve affiliate users');
   }
 }
 

@@ -17,6 +17,8 @@ export async function run(provider: NetworkProvider, args: string[]) {
         ui.write(`Error: Contract at address ${campaignAddress} is not deployed!`);
         return;
     }
+
+    console.log("campaignAddress: " + campaignAddress);
 	
 	const campaign = provider.open(Campaign.fromAddress(campaignAddress));
 	const numAffiliatesBefore = (await campaign.getCampaignData()).numAffiliates;	

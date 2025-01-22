@@ -1,8 +1,7 @@
 import { Router } from 'express';
 import {
-  getCampaignRoleById,
-  getAdvertiserForCampaign,
-  getAllAffiliatesForCampaign
+  getSingleAffiliateUserForCampaign,
+  getAffiliateUsersForCampaignPaged
 } from '../services/CampaignRolesService';
 import { Logger } from '../utils/Logger';
 
@@ -10,65 +9,55 @@ const router = Router();
 
 
 /**
- * GET /campaign-roles/:id
- * Retrieve a campaign role by local ID
+ * GET /campaign-roles/affiliates/paged/:campaignId
+ * Retrieve affiliates for a campaign with pagination
  */
-router.get('/:id', async (req, res) => {
+router.get('/affiliates/paged/:campaignId', async (req, res) => {
   try {
-    Logger.debug(`GET /campaign-roles/${req.params.id} - fetching campaign role`);
-    const id = Number(req.params.id);
-    const role = await getCampaignRoleById(id);
-    if (!role) {
-      res.status(404).json({ error: 'Campaign role not found' });
-      return;
-    }
-    res.json(role);
-    return;
-  } catch (err: any) {
-    Logger.error(`Error in GET /campaign-roles/${req.params.id} ` + err);
-    res.status(500).json({ error: err.message || 'Internal Server Error' });
-    return;
-  }
-});
+    Logger.debug(`GET /campaign-roles/affiliates/paged/${req.params.campaignId} - fetching affiliates (paged)`);
 
-/**
- * GET /campaign-roles/advertiser/:campaignId
- * Retrieve the advertiser for a campaign
- */
-router.get('/advertiser/:campaignId', async (req, res) => {
-  try {
-    Logger.debug(`GET /campaign-roles/advertiser/${req.params.campaignId} - fetching advertiser`);
     const { campaignId } = req.params;
-    const advertiser = await getAdvertiserForCampaign(campaignId);
-    if (!advertiser) {
-      res.status(404).json({ error: 'Advertiser not found' });
-      return;
-    }
-    res.json(advertiser);
-    return;
-  } catch (err: any) {
-    Logger.error(`Error in GET /campaign-roles/advertiser/${req.params.campaignId} ` + err);
-    res.status(500).json({ error: err.message || 'Internal Server Error' });
-    return;
-  }
-});
 
-/**
- * GET /campaign-roles/affiliates/:campaignId
- * Retrieve all affiliates for a campaign
- */
-router.get('/affiliates/:campaignId', async (req, res) => {
-  try {
-    Logger.debug(`GET /campaign-roles/affiliates/${req.params.campaignId} - fetching affiliates`);
-    const { campaignId } = req.params;
-    const affiliates = await getAllAffiliatesForCampaign(campaignId);
+    // Use query params for offset & limit, or defaults if not provided
+    const offset = parseInt(req.query.offset as string) || 0;
+    const limit = parseInt(req.query.limit as string) || 100;
+
+    const affiliates = await getAffiliateUsersForCampaignPaged(campaignId, offset, limit);
     res.json(affiliates);
     return;
   } catch (err: any) {
-    Logger.error(`Error in GET /campaign-roles/affiliates/${req.params.campaignId} ` + err);
+    Logger.error(`Error in GET /campaign-roles/affiliates/paged/${req.params.campaignId}: ${err}`);
     res.status(500).json({ error: err.message || 'Internal Server Error' });
     return;
   }
 });
+
+
+
+router.get('/affiliates/:campaignId/:affiliateId', async (req, res) => {
+  try {
+    Logger.debug(
+      `GET /campaign-roles/affiliates/${req.params.campaignId}/${req.params.affiliateId} - fetching single affiliate`
+    );
+
+    const { campaignId, affiliateId } = req.params;
+    const affiliate = await getSingleAffiliateUserForCampaign(campaignId, parseInt(affiliateId as string));
+
+    if (!affiliate) {
+      res.status(404).json({ error: 'Affiliate not found' });
+      return;
+    }
+
+    res.json(affiliate);
+    return;
+  } catch (err: any) {
+    Logger.error(
+      `Error in GET /campaign-roles/affiliates/${req.params.campaignId}/${req.params.affiliateId}: ${err}`
+    );
+    res.status(500).json({ error: err.message || 'Internal Server Error' });
+    return;
+  }
+});
+
 
 export default router;
