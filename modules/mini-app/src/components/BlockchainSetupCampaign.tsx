@@ -1,16 +1,25 @@
 // src/components/BlockchainSetupCampaign.tsx
+
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useParams, useNavigate } from 'react-router-dom';
+
+// Hooks
 import { useTonConnectFetchContext } from './TonConnectProvider';
 import { useCampaignContract } from '../hooks/useCampaignContract';
 import { useTonWalletConnect } from '../hooks/useTonConnect';
+
+// Transaction logic
 import { advertiserSetCampaignDetails } from '../blockchain/campaign/advertiserSetCampaignDetails';
+
+// A reusable button for Ton transactions
+import TransactionButton from './TransactionButton';
 
 function BlockchainSetupCampaign() {
   const { campaignId } = useParams<{ campaignId: string }>();
   const navigate = useNavigate();
 
+  // Local form states
   const [commissionValues, setCommissionValues] = useState({
     userReferred: '0.1',
     premiumUserReferred: '0.1',
@@ -20,13 +29,16 @@ function BlockchainSetupCampaign() {
   const [expirationDateEnabled, setExpirationDateEnabled] = useState(false);
   const [expirationDate, setExpirationDate] = useState('');
 
-  const [txInProgress, setTxInProgress] = useState(false);
+  // Local UI states
   const [txSuccess, setTxSuccess] = useState(false);
   const [txFailed, setTxFailed] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
+  // TonConnect/wallet
   const { connectedStatus, userAccount } = useTonConnectFetchContext();
   const { sender } = useTonWalletConnect();
+
+  // The advertiser’s address
   const advertiserAddress = userAccount?.address || '';
   const numericCampaignId = campaignId ? BigInt(campaignId) : undefined;
 
@@ -36,54 +48,13 @@ function BlockchainSetupCampaign() {
     numericCampaignId
   );
 
-  async function handleSubmit() {
-    setTxInProgress(true);
-    setTxSuccess(false);
-    setTxFailed(false);
-    setErrorMessage(null);
-
-    try {
-      // Basic checks
-      if (!connectedStatus || !advertiserAddress) {
-        throw new Error('No wallet connected. Please connect your wallet first.');
-      }
-      if (!campaignContract) {
-        throw new Error(error || 'Campaign contract not loaded yet.');
-      }
-      if (!sender) {
-        throw new Error('Sender is not set. Could not send transaction.');
-      }
-
-      // Call our new blockchain script
-      await advertiserSetCampaignDetails(
-        campaignContract,
-        sender,
-        advertiserAddress,
-        commissionValues,
-        isPublicCampaign,
-        paymentMethod,
-        expirationDateEnabled,
-        expirationDate
-      );
-
-      // If we get here => success
-      setTxSuccess(true);
-
-      // After 0.5s, navigate to final campaign page
-      setTimeout(() => {
-        if (campaignId) {
-          navigate(`/campaign/${campaignId}`);
-        } else {
-          console.warn('No campaignId in URL, cannot navigate to /campaign/:id');
-        }
-      }, 500);
-    } catch (err: any) {
-      console.error('[BlockchainSetupCampaign] Transaction error:', err);
-      setTxFailed(true);
-      setErrorMessage(err.message || 'Transaction failed or canceled');
-    } finally {
-      setTxInProgress(false);
+  // Navigation after success
+  function navigateToCampaignPage() {
+    if (!campaignId) {
+      console.warn('No campaignId in URL, cannot navigate to /campaign/:id');
+      return;
     }
+    navigate(`/campaign/${campaignId}`);
   }
 
   return (
@@ -96,6 +67,7 @@ function BlockchainSetupCampaign() {
         <p>
           <strong>Campaign ID:</strong> {campaignId || 'No campaign ID provided'}
         </p>
+
         {isLoading && <p>Loading Campaign Contract...</p>}
         {error && <p style={{ color: 'red' }}>Error: {error}</p>}
 
@@ -157,9 +129,9 @@ function BlockchainSetupCampaign() {
                 min="0"
                 value={commissionValues.userReferred}
                 onChange={(e) =>
-                  setCommissionValues({ 
-                    ...commissionValues, 
-                    userReferred: e.target.value 
+                  setCommissionValues({
+                    ...commissionValues,
+                    userReferred: e.target.value,
                   })
                 }
                 style={{ width: '5rem' }}
@@ -173,9 +145,9 @@ function BlockchainSetupCampaign() {
                 min="0"
                 value={commissionValues.premiumUserReferred}
                 onChange={(e) =>
-                  setCommissionValues({ 
-                    ...commissionValues, 
-                    premiumUserReferred: e.target.value 
+                  setCommissionValues({
+                    ...commissionValues,
+                    premiumUserReferred: e.target.value,
                   })
                 }
                 style={{ width: '5rem' }}
@@ -192,26 +164,63 @@ function BlockchainSetupCampaign() {
           setExpirationDate={setExpirationDate}
         />
 
-        {/* If TX in progress, show a spinner or note */}
-        {txInProgress && <p>Sending transaction...</p>}
         {/* If TX fails, show error */}
         {txFailed && errorMessage && (
-          <p style={{ color: 'red' }}>Error: {errorMessage}</p>
-        )}
-        {/* If TX success, show success note */}
-        {txSuccess && (
-          <p style={{ color: 'green' }}>
-            Campaign updated successfully! Navigating...
+          <p style={{ color: 'red', marginTop: '1rem' }}>
+            Error: {errorMessage}
           </p>
         )}
 
-        <button
-          onClick={handleSubmit}
-          disabled={txInProgress || !campaignContract}
-          style={{ marginTop: '1rem' }}
-        >
-          Finalize & View Campaign
-        </button>
+        {/* If TX success, show success note */}
+        {txSuccess && (
+          <p style={{ color: 'green', marginTop: '1rem' }}>
+            Campaign updated successfully! Navigating to campaign page...
+          </p>
+        )}
+
+        {/**
+         * The TransactionButton:
+         * - "disabled" if the contract is not loaded
+         * - onTransaction calls the same logic we had before in handleSubmit
+         * - onSuccess sets txSuccess, then navigates
+         * - onError sets txFailed and errorMessage
+         */}
+        <TransactionButton
+          buttonLabel="Finalize & View Campaign"
+          disabled={isLoading || !campaignContract}
+          onTransaction={async () => {
+            if (!connectedStatus || !advertiserAddress) {
+              throw new Error('No wallet connected. Please connect your wallet first.');
+            }
+            if (!campaignContract) {
+              throw new Error(error || 'Campaign contract not loaded yet.');
+            }
+            if (!sender) {
+              throw new Error('Sender is not set. Could not send transaction.');
+            }
+
+            // Execute the blockchain logic
+            await advertiserSetCampaignDetails(
+              campaignContract,
+              sender,
+              advertiserAddress,
+              commissionValues,
+              isPublicCampaign,
+              paymentMethod,
+              expirationDateEnabled,
+              expirationDate
+            );
+          }}
+          onSuccess={() => {
+            setTxSuccess(true);
+            // Navigate after short delay
+            setTimeout(navigateToCampaignPage, 500);
+          }}
+          onError={(err) => {
+            setTxFailed(true);
+            setErrorMessage(err.message || 'Transaction failed or canceled');
+          }}
+        />
       </div>
     </motion.div>
   );

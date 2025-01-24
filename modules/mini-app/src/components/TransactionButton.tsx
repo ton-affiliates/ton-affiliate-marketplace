@@ -1,7 +1,7 @@
-// TransactionButton.tsx
+// src/components/TransactionButton.tsx
 import React, { useState, useEffect } from 'react';
-import Spinner from './Spinner';       // your spinner
-import SuccessIcon from './SuccessIcon'; // your success icon
+import Spinner from './Spinner';        // your spinner component
+import SuccessIcon from './SuccessIcon'; // your success icon component
 
 type TransactionButtonProps = {
   /**
@@ -30,6 +30,24 @@ type TransactionButtonProps = {
    * If omitted or 0, the icon stays until the user changes something or unmount.
    */
   autoHideSuccessSeconds?: number;
+
+  /**
+   * Allows you to disable the button externally.
+   * Merged with `isLoading` internally.
+   */
+  disabled?: boolean;
+
+  /**
+   * Called if the transaction finishes successfully (no exceptions).
+   * You can use this to set local "txSuccess" states or navigate away.
+   */
+  onSuccess?: () => void;
+
+  /**
+   * Called if the transaction throws an error.
+   * You can use this to set a local "errorMessage" or "txFailed" state.
+   */
+  onError?: (err: any) => void;
 };
 
 const TransactionButton: React.FC<TransactionButtonProps> = ({
@@ -38,41 +56,48 @@ const TransactionButton: React.FC<TransactionButtonProps> = ({
   showAmountField = false,
   defaultAmount = 0,
   autoHideSuccessSeconds = 3,
+  disabled = false,
+  onSuccess,
+  onError,
 }) => {
   const [amount, setAmount] = useState<number>(defaultAmount);
   const [isLoading, setIsLoading] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [error, setError] = useState('');
 
-  // Reset success when user changes the input
+  // Reset success if the user changes the amount
   useEffect(() => {
     if (isSuccess) setIsSuccess(false);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [amount]);
+  }, [amount, isSuccess]);
 
   const handleClick = async () => {
+    // Start the transaction
     setIsLoading(true);
     setIsSuccess(false);
     setError('');
 
     try {
-      // If we need an amount, pass it. Otherwise call with no argument.
+      // If we need an amount, pass it to onTransaction. Otherwise just call onTransaction().
       if (showAmountField) {
         await onTransaction(amount);
       } else {
         await onTransaction();
       }
 
+      // If no errors => success
       setIsSuccess(true);
+      onSuccess?.(); // call the prop callback if provided
 
-      // Auto-hide success if autoHideSuccessSeconds > 0
+      // If autoHideSuccessSeconds > 0, hide the success icon after that many seconds
       if (autoHideSuccessSeconds > 0) {
         setTimeout(() => {
           setIsSuccess(false);
         }, autoHideSuccessSeconds * 1000);
       }
     } catch (err: any) {
-      setError(err.message || 'Transaction failed');
+      const message = err.message || 'Transaction failed';
+      setError(message);
+      onError?.(err); // pass the error to the callback if provided
     } finally {
       setIsLoading(false);
     }
@@ -92,8 +117,8 @@ const TransactionButton: React.FC<TransactionButtonProps> = ({
         />
       )}
 
-      <button onClick={handleClick} disabled={isLoading}>
-        {buttonLabel}
+      <button onClick={handleClick} disabled={isLoading || disabled}>
+        {isLoading ? 'Processing...' : buttonLabel}
       </button>
 
       {isLoading && <Spinner />}
