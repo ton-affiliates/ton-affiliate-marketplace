@@ -6,9 +6,15 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 
+// Define the enum for campaign states
+export enum CampaignState {
+  DEPLOYED = 'DEPLOYED',
+  TELEGRAM_DETAILS_SET = 'TELEGRAM_DETAILS_SET',
+  BLOCKCHAIN_DETAILS_SET = 'BLOCKCHAIN_DETAILS_SET',
+}
+
 @Entity('campaigns')
 export class Campaign {
-  
   @PrimaryColumn({ type: 'varchar', length: 255, name: 'id' })
   id: string;
 
@@ -27,19 +33,22 @@ export class Campaign {
   @Column({ type: 'text', nullable: true, name: 'asset_description' })
   assetDescription: string;
 
-  // telegram link to channel/group/mini-app
+  // Telegram link to channel/group/mini-app
   @Column({ length: 500, nullable: true, name: 'invite_link' })
   inviteLink: string;
 
   @Column({ type: 'bytea', nullable: true, name: 'asset_photo' })
   assetPhoto: Buffer | null;
 
-  @Column({ type: 'boolean', name: 'is_empty', default: true })
-  isEmpty: boolean;
+  // State column to manage campaign states
+  @Column({
+    type: 'enum',
+    enum: CampaignState,
+    default: CampaignState.DEPLOYED,
+    name: 'state',
+  })
+  state: CampaignState;
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
-
-  @UpdateDateColumn({ name: 'updated_at' })
-  updatedAt: Date;
 }

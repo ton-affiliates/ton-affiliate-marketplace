@@ -6,6 +6,7 @@ import { getUserByWalletAddress } from '../services/UsersService';
 import { getUnreadNotificationsForWallet, markNotificationAsRead } from '../services/NotificationsService';
 import {Address} from "@ton/core";
 import { RoleType } from '../entity/CampaignRole';
+import { CampaignState } from '../entity/Campaign';
 
 
 const router = Router();
@@ -152,6 +153,7 @@ router.post('/', async (req, res) => {
     // 3) Prepare campaign data
     const campaignData = {
       id: campaignId,
+      state: CampaignState.TELEGRAM_DETAILS_SET,
       campaignName: campaignName,
       walletAddress: walletAddress, // string PK referencing "wallets"."address"
       assetType: telegramType,

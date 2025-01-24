@@ -14,6 +14,7 @@ import { getUserByWalletAddress } from '../services/UsersService';
 import { createNotification } from '../services/NotificationsService';
 import { RoleType } from '../entity/CampaignRole';
 import { Address } from '@ton/core';
+import { CampaignState } from '../entity/Campaign';
 
 // Helper to handle BigInts in the event data
 function bigintReplacer(_: string, value: any) {
@@ -68,7 +69,7 @@ async function processEvents(events: EmitLogEvent[]) {
           // 1a) update campaign
           await upsertCampaign({
             id: campaignId,
-            isEmpty: true,
+            state: CampaignState.DEPLOYED,
           });
 
           // 1b) Create a new "advertiser" role
@@ -110,7 +111,7 @@ async function processEvents(events: EmitLogEvent[]) {
 
           await upsertCampaign({
             id: campaignId,
-            isEmpty: false,
+            state: CampaignState.BLOCKCHAIN_DETAILS_SET,
           });
 
           Logger.info(`Campaign ${campaignId} is now marked isEmpty=false (signed by advertiser).`);

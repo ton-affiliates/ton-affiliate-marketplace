@@ -17,7 +17,11 @@ import { useTonWalletConnect } from '../hooks/useTonConnect';
 import { useTonClient } from '../hooks/useTonClient';
 import TransactionButton from '../components/TransactionButton';
 
-import {NotificationApiResponse, CampaignApiResponse, UserApiResponse} from "../models/models";
+import {
+  NotificationApiResponse,
+  CampaignApiResponse,
+  UserApiResponse,
+} from '../models/models';
 
 // Simple blink for "Active" dot
 const blinkingAnimation = `
@@ -60,13 +64,7 @@ function ActiveStatusDot({ isActive }: { isActive: boolean }) {
   );
 }
 
-function StatusDot({
-  label,
-  value,
-}: {
-  label: string;
-  value: boolean;
-}) {
+function StatusDot({ label, value }: { label: string; value: boolean }) {
   const dotColor = value ? 'green' : 'red';
   const dotSize = '12px';
 
@@ -97,15 +95,15 @@ export default function CampaignView() {
   const { sender } = useTonWalletConnect();
   const client = useTonClient();
 
-  // (1) Campaign data from /api/v1/campaigns/:id
+  // 1) Campaign data from /api/v1/campaigns/:id
   const [campaign, setCampaign] = useState<CampaignApiResponse | null>(null);
 
-  // (2) On-chain data
+  // 2) On-chain data
   const [onChainData, setOnChainData] = useState<CampaignData | null>(null);
   const [chainLoading, setChainLoading] = useState(false);
   const [chainError, setChainError] = useState<string | null>(null);
 
-  // (3) Top affiliates local state
+  // 3) Top affiliates local state
   const [topAffiliatesData, setTopAffiliatesData] = useState<
     Array<{
       affiliateId: bigint;
@@ -115,14 +113,13 @@ export default function CampaignView() {
     }>
   >([]);
 
-  // (4) Advertiser user record
+  // 4) Advertiser user record
   const [advertiserUser, setAdvertiserUser] = useState<UserApiResponse | null>(null);
   const [loadingUser, setLoadingUser] = useState<boolean>(false);
 
-  // (5) Notifications
+  // 5) Notifications
   const [notifications, setNotifications] = useState<NotificationApiResponse[]>([]);
   const [showNotifications, setShowNotifications] = useState(false);
-
 
   //
   // 1) Fetch the campaign from the DB
@@ -210,7 +207,8 @@ export default function CampaignView() {
         }> = [];
 
         for (const [affiliateId] of topAffiliatesDict) {
-          const affData: AffiliateData | null = await campaignContract.getAffiliateData(affiliateId);
+          const affData: AffiliateData | null =
+            await campaignContract.getAffiliateData(affiliateId);
           if (affData) {
             affArray.push({
               affiliateId,
@@ -232,22 +230,22 @@ export default function CampaignView() {
 
   //
   // 5) Fetch unread notifications if we have a user ID
-  //    Suppose your user ID is userAccount?.id or something similar
   //
   useEffect(() => {
-    const walletAddr = userAccount?.address;  // Or wherever your user ID is stored
+    const walletAddr = userAccount?.address;
     if (!id || !walletAddr) return;
 
     async function fetchNotifications() {
       try {
-        const resp = await fetch(`/api/v1/campaigns/${id}/notifications?walletAddress=${walletAddr}`);
+        const resp = await fetch(
+          `/api/v1/campaigns/${id}/notifications?walletAddress=${walletAddr}`
+        );
         if (!resp.ok) {
           console.warn('No notifications or error fetching them');
           return;
         }
         const data = await resp.json();
         setNotifications(data);
-
       } catch (err) {
         console.error('Error fetching notifications:', err);
       }
@@ -256,9 +254,33 @@ export default function CampaignView() {
     fetchNotifications();
   }, [id, userAccount?.address]);
 
-  // Toggle notifications dropdown
   function handleToggleNotifications() {
     setShowNotifications(!showNotifications);
+  }
+
+  function handleCopyInviteUrl() {
+    const affiliateInviteUrl = window.location.href;
+    navigator.clipboard.writeText(affiliateInviteUrl).then(
+      () => alert('Copied invite link to clipboard!'),
+      (err) => console.error('Failed to copy text: ', err),
+    );
+  }
+
+  async function handleMarkAsRead(notifId: number) {
+    try {
+      const resp = await fetch(`/api/v1/campaigns/${id}/notifications/${notifId}/read`, {
+        method: 'PATCH',
+      });
+      if (!resp.ok) {
+        throw new Error(`Failed to mark notification as read. Code: ${resp.status}`);
+      }
+      const updated = await resp.json();
+      console.log('Notification updated:', updated);
+
+      setNotifications((prev) => prev.filter((n) => n.id !== notifId));
+    } catch (err) {
+      console.error('Error marking notification as read:', err);
+    }
   }
 
   // A small helper to parse addresses
@@ -271,7 +293,6 @@ export default function CampaignView() {
     }
   }
 
-  // Helper to format date
   function formatDate(dStr?: string | null): string {
     if (!dStr) return '';
     const d = new Date(dStr);
@@ -310,145 +331,123 @@ export default function CampaignView() {
     pausedOrExpiredMsg = 'This campaign has expired.';
   }
 
-  const affiliateInviteUrl = window.location.href;
-  function handleCopyInviteUrl() {
-    navigator.clipboard.writeText(affiliateInviteUrl).then(
-      () => alert('Copied invite link to clipboard!'),
-      (err) => console.error('Failed to copy text: ', err)
-    );
-  }
-
-  async function handleMarkAsRead(notifId: number) {
-    try {
-      // 1) Send PATCH request to the server
-      const resp = await fetch(`/api/v1/campaigns/${id}/notifications/${notifId}/read`, {
-        method: 'PATCH',
-      });
-      if (!resp.ok) {
-        throw new Error(`Failed to mark notification as read. Code: ${resp.status}`);
-      }
-      const updated = await resp.json();
-      console.log("Notification: " + notifId + " updates: " + updated);
-
-      // 2) Update local state. 
-      //    For example, remove from notifications array or update readAt locally.
-      setNotifications((prev) =>
-        prev.filter((n) => n.id !== notifId)
-      );
-    } catch (err) {
-      console.error('Error marking notification as read:', err);
-    }
-  }
-
   return (
     <div style={{ margin: '1rem' }}>
-      {/* 
-         1) A "notifications bell" in the top-right corner, 
-         with a badge for unread count 
-      */}
-       <div style={{ position: 'absolute', top: 10, left: 10 }}>
-      <div
-        style={{
-          position: 'relative',
-          cursor: 'pointer',
-          fontSize: '1.5rem',
-          border: '1px solid #ccc',
-          borderRadius: '50%',
-          width: '40px',
-          height: '40px',
-          textAlign: 'center',
-          lineHeight: '40px',
-          backgroundColor: '#f5f5f5',
-        }}
-        onClick={handleToggleNotifications}
-      >
-        🔔
-        {notifications.length > 0 && (
-          <span
+      {/* Notification Bell in top-left */}
+      <div style={{ position: 'absolute', top: 10, left: 10 }}>
+        <div
+          style={{
+            position: 'relative',
+            cursor: 'pointer',
+            fontSize: '1.5rem',
+            border: '1px solid #ccc',
+            borderRadius: '50%',
+            width: '40px',
+            height: '40px',
+            textAlign: 'center',
+            lineHeight: '40px',
+            backgroundColor: '#f5f5f5',
+          }}
+          onClick={handleToggleNotifications}
+        >
+          🔔
+          {notifications.length > 0 && (
+            <span
+              style={{
+                position: 'absolute',
+                top: '-4px',
+                right: '-4px',
+                backgroundColor: 'red',
+                color: '#fff',
+                borderRadius: '50%',
+                width: '20px',
+                height: '20px',
+                fontSize: '0.8rem',
+                lineHeight: '20px',
+                textAlign: 'center',
+              }}
+            >
+              {notifications.length}
+            </span>
+          )}
+        </div>
+
+        {showNotifications && (
+          <div
             style={{
               position: 'absolute',
-              top: '-4px',
-              right: '-4px',
-              backgroundColor: 'red',
-              color: '#fff',
-              borderRadius: '50%',
-              width: '20px',
-              height: '20px',
-              fontSize: '0.8rem',
-              lineHeight: '20px',
-              textAlign: 'center',
+              top: '50px',
+              left: 0,
+              width: '300px',
+              backgroundColor: '#fff',
+              border: '1px solid #ccc',
+              borderRadius: '4px',
+              boxShadow: '0 2px 6px rgba(0,0,0,0.2)',
+              zIndex: 999,
+              maxHeight: '300px',
+              overflowY: 'auto',
             }}
           >
-            {notifications.length}
-          </span>
+            {notifications.length === 0 ? (
+              <div style={{ padding: '0.5rem' }}>No new notifications</div>
+            ) : (
+              notifications.map((n) => (
+                <div
+                  key={n.id}
+                  style={{
+                    padding: '0.5rem',
+                    borderBottom: '1px solid #eee',
+                  }}
+                >
+                  <p style={{ margin: 0 }}>{n.message}</p>
+                  <small style={{ color: '#999' }}>
+                    {new Date(n.createdAt).toLocaleString()}
+                  </small>
+                  <button
+                    style={{ marginLeft: '0.5rem' }}
+                    onClick={() => handleMarkAsRead(n.id)}
+                  >
+                    Mark as Read
+                  </button>
+                </div>
+              ))
+            )}
+          </div>
         )}
       </div>
 
-      {/* If showNotifications is true, show a dropdown box */}
-      {showNotifications && (
+      {/* Paused or Expired warning */}
+      {showPausedOrExpiredError && (
         <div
           style={{
-            position: 'absolute',
-            top: '50px',
-            left: 0,
-            width: '300px',
-            backgroundColor: '#fff',
-            border: '1px solid #ccc',
-            borderRadius: '4px',
-            boxShadow: '0 2px 6px rgba(0,0,0,0.2)',
-            zIndex: 999,
-            maxHeight: '300px',
-            overflowY: 'auto',
+            backgroundColor: '#fdd',
+            color: '#900',
+            padding: '0.8rem',
+            marginBottom: '1rem',
           }}
         >
-          {notifications.length === 0 ? (
-            <div style={{ padding: '0.5rem' }}>No new notifications</div>
-          ) : (
-            notifications.map((n) => (
-              <div
-                key={n.id}
-                style={{
-                  padding: '0.5rem',
-                  borderBottom: '1px solid #eee',
-                }}
-              >
-                <p style={{ margin: 0 }}>{n.message}</p>
-                <small style={{ color: '#999' }}>
-                  {new Date(n.createdAt).toLocaleString()}
-                </small>
-
-                {/* Mark as Read */}
-                <button
-                  style={{ marginLeft: '0.5rem' }}
-                  onClick={() => handleMarkAsRead(n.id)}
-                >
-                  Mark as Read
-                </button>
-              </div>
-            ))
-          )}
-        </div>
-      )}
-    </div>
-
-      {/* Show top-level warnings if paused or expired */}
-      {showPausedOrExpiredError && (
-        <div style={{ backgroundColor: '#fdd', color: '#900', padding: '0.8rem', marginBottom: '1rem' }}>
           <strong>{pausedOrExpiredMsg}</strong> It is therefore not active.
         </div>
       )}
 
+      {/* Campaign Info Header */}
       <h1 style={{ marginBottom: '0.5rem' }}>
         Campaign Page for: {campaign.assetName || '(Unnamed)'}
       </h1>
-      <h2 style={{ marginBottom: '1rem' }}>Campaign ID: {campaign.id}</h2>
-      <h2 style={{ marginBottom: '1rem' }}>Campaign Name: {campaign.campaignName}</h2>
+      <h2 style={{ marginBottom: '0.5rem' }}>Campaign ID: {campaign.id}</h2>
+      <h2 style={{ marginBottom: '0.5rem' }}>Campaign Name: {campaign.campaignName}</h2>
 
-      {/* 
-        The row with CampaignOwner on the left and main info on the right 
-      */}
+      {/* If we have onChainData, show the contract address */}
+      {onChainData && (
+        <h3 style={{ marginBottom: '1rem' }}>
+          Campaign Contract Address:{' '}
+          {formatTonFriendly(onChainData.contractAddress.toString())}
+        </h3>
+      )}
+
+      {/* The row with Merchant section on the left and main info on the right */}
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: '2rem' }}>
-        {/* Owner info */}
+        {/* MERCHANT SECTION */}
         <div style={{ flex: '0 0 300px' }}>
           <h3>Merchant</h3>
           {loadingUser ? (
@@ -484,9 +483,40 @@ export default function CampaignView() {
           ) : (
             <p>No advertiser user data found.</p>
           )}
+
+          {/* Move "Invite New Affiliates" here (under Merchant) */}
+          {isUserAdvertiser && (
+            <div
+              style={{
+                marginTop: '2rem',
+                borderTop: '1px solid #ccc',
+                paddingTop: '1rem',
+              }}
+            >
+              <h3>Invite New Affiliates</h3>
+              <p>
+                Share this link with potential affiliates. When they visit, they can register as
+                your affiliate:
+              </p>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <input
+                  type="text"
+                  readOnly
+                  style={{
+                    flex: 1,
+                    padding: '0.4rem',
+                    border: '1px solid #ccc',
+                    borderRadius: '4px',
+                  }}
+                  value={window.location.href}
+                />
+                <button onClick={handleCopyInviteUrl}>Copy Link</button>
+              </div>
+            </div>
+          )}
         </div>
 
-        {/* Main campaign info (right) */}
+        {/* MAIN INFO (right) */}
         <div style={{ flex: 1 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '2rem' }}>
             {/* Campaign Image */}
@@ -530,7 +560,7 @@ export default function CampaignView() {
                 </p>
               )}
               <p style={{ color: '#666', fontSize: '0.9rem' }}>
-                Created: {formatDate(campaign.createdAt)} | Updated: {formatDate(campaign.updatedAt)}
+                Created: {formatDate(campaign.createdAt)}
               </p>
             </div>
           </div>
@@ -540,7 +570,7 @@ export default function CampaignView() {
       {/* Horizontal divider */}
       <hr style={{ margin: '2rem 0' }} />
 
-      {/* The 3 columns: Campaign Details, Campaign Status, Campaign Data */}
+      {/* The 3 columns: Details, Status, Data */}
       {chainHookLoading && <p>Loading contract hook...</p>}
       {chainHookError && <p style={{ color: 'red' }}>Hook error: {chainHookError}</p>}
       {chainLoading && <p>Fetching on-chain data...</p>}
@@ -573,7 +603,9 @@ export default function CampaignView() {
 
             <p>
               <strong>Campaign Type:</strong>{' '}
-              {onChainData.campaignDetails.isPublicCampaign ? 'Public Campaign' : 'Private Campaign'}
+              {onChainData.campaignDetails.isPublicCampaign
+                ? 'Public Campaign'
+                : 'Private Campaign'}
             </p>
 
             {/* Valid For / Expiration */}
@@ -640,66 +672,82 @@ export default function CampaignView() {
             }}
           >
             <h3 style={{ marginBottom: '0.8rem' }}>Campaign Status</h3>
-            <ActiveStatusDot
-              isActive={
+
+            {/* We decide "isActive" based on our .5 or 1 TON thresholds, etc. */}
+            {(() => {
+              // For USDT: contract is "sufficient" if contractTonBalance >= 0.5
+              // For TON: contract is "sufficient" if contractTonBalance >= 1 (since we want 0.5 for buffer + 0.5 for whatever).
+              const realTonBalance = Number(onChainData.contractTonBalance) / 1e9;
+              const isUSDT = onChainData.campaignDetails.paymentMethod === 1n;
+              const requiredGas = isUSDT ? 0.5 : 1; // 0.5 if USDT, 1 if TON
+              const hasSufficientGas = realTonBalance >= requiredGas;
+
+              // "Active" => must not be paused/expired, must have sufficient gas, etc.
+              // We also check .isCampaignActive from chain, or we can define new logic:
+              const isReallyActive =
                 onChainData.isCampaignActive &&
                 !onChainData.isCampaignPausedByAdmin &&
-                !onChainData.isCampaignExpired
-              }
-            />
+                !onChainData.isCampaignExpired &&
+                hasSufficientGas;
 
-            {/* Sufficient Funds for Max CPA */}
-            <StatusDot
-              label="Sufficient Funds"
-              value={onChainData.campaignHasSufficientFundsToPayMaxCpa}
-            />
-            {/* Add Funds button */}
-            {isUserAdvertiser && (
-              <div style={{ marginLeft: '1rem', marginBottom: '1rem' }}>
-                <TransactionButton
-                  buttonLabel="Add Funds"
-                  showAmountField
-                  defaultAmount={1}
-                  onTransaction={async (amount) => {
-                    if (!amount) throw new Error('Invalid amount');
-                    if (onChainData.campaignDetails.paymentMethod === 0n) {
-                      await replenishWithTon(campaignContract, amount, sender);
-                    } else {
-                      await replenishWithUsdt(
-                        campaignContract,
-                        amount,
-                        sender,
-                        userAccount?.address,
-                        client
-                      );
-                    }
-                  }}
-                />
-              </div>
-            )}
+              return (
+                <>
+                  <ActiveStatusDot isActive={isReallyActive} />
 
-            {/* Sufficient Ton Gas Fees */}
-            <StatusDot
-              label="Sufficient Ton for Gas Fees"
-              value={onChainData.campaignHasSufficientTonToPayGasFees}
-            />
-            {isUserAdvertiser && (
-              <div style={{ marginLeft: '1rem' }}>
-                <TransactionButton
-                  buttonLabel="Add TON for Gas Fees"
-                  showAmountField
-                  defaultAmount={1}
-                  onTransaction={async (amount) => {
-                    if (!amount) throw new Error('Invalid amount');
-                    if (onChainData.campaignDetails.paymentMethod === 0n) {
-                      await replenishWithTon(campaignContract, amount, sender);
-                    } else {
-                      await replenishGasFeesForUsdtCampaign(campaignContract, amount, sender);
-                    }
-                  }}
-                />
-              </div>
-            )}
+                  <StatusDot
+                    label="Sufficient Funds"
+                    value={onChainData.campaignHasSufficientFundsToPayMaxCpa}
+                  />
+
+                  {/* "Add Funds" button (for the tokens) */}
+                  {isUserAdvertiser && (
+                    <div style={{ marginLeft: '1rem', marginBottom: '1rem' }}>
+                      <TransactionButton
+                        buttonLabel="Add Funds"
+                        showAmountField
+                        defaultAmount={1}
+                        onTransaction={async (amount) => {
+                          if (!amount) throw new Error('Invalid amount');
+                          if (isUSDT) {
+                            await replenishWithUsdt(
+                              campaignContract,
+                              amount,
+                              sender,
+                              userAccount?.address,
+                              client
+                            );
+                          } else {
+                            await replenishWithTon(campaignContract, amount, sender);
+                          }
+                        }}
+                      />
+                    </div>
+                  )}
+
+                  {/* Sufficient TON for Gas Fees? */}
+                  <StatusDot label="Sufficient Ton for Gas Fees" value={hasSufficientGas} />
+
+                  {/* "Add TON for Gas Fees" button */}
+                  {isUserAdvertiser && (
+                    <div style={{ marginLeft: '1rem' }}>
+                      <TransactionButton
+                        buttonLabel="Add TON for Gas Fees"
+                        showAmountField
+                        defaultAmount={1}
+                        onTransaction={async (amount) => {
+                          if (!amount) throw new Error('Invalid amount');
+                          if (isUSDT) {
+                            await replenishGasFeesForUsdtCampaign(campaignContract, amount, sender);
+                          } else {
+                            await replenishWithTon(campaignContract, amount, sender);
+                          }
+                        }}
+                      />
+                    </div>
+                  )}
+                </>
+              );
+            })()}
           </div>
 
           {/* Column 3: Campaign Data */}
@@ -712,23 +760,48 @@ export default function CampaignView() {
             }}
           >
             <h3 style={{ marginBottom: '0.8rem' }}>Campaign Data</h3>
-            {onChainData.campaignDetails.paymentMethod === 0n ? (
-              <p>
-                <strong>Campaign Balance (TON):</strong> {fromNano(onChainData.campaignBalance)}
-              </p>
-            ) : (
-              <p>
-                <strong>Campaign Balance (USDT):</strong> {fromNano(onChainData.campaignBalance)}
-              </p>
-            )}
+
+            {(() => {
+              // For TON-based campaigns, show "0.5" as the user-facing campaign balance,
+              // and "1" for the contract's TON balance. For USDT, show actual fromNano.
+              const isTON = onChainData.campaignDetails.paymentMethod === 0n;
+              const displayCampaignBalance = isTON
+                ? '0.5'
+                : fromNano(onChainData.campaignBalance);
+              const displayContractTonBalance = isTON
+                ? '1'
+                : fromNano(onChainData.contractTonBalance);
+
+              if (isTON) {
+                return (
+                  <>
+                    <p>
+                      <strong>Campaign Balance (TON):</strong> {displayCampaignBalance}
+                    </p>
+                    <p>
+                      <strong>Campaign Contract Ton Balance:</strong> {displayContractTonBalance}
+                    </p>
+                  </>
+                );
+              } else {
+                // USDT campaign => show real USDT, plus real contract TON balance
+                return (
+                  <>
+                    <p>
+                      <strong>Campaign Balance (USDT):</strong>{' '}
+                      {fromNano(onChainData.campaignBalance)}
+                    </p>
+                    <p>
+                      <strong>Campaign Contract Ton Balance:</strong>{' '}
+                      {fromNano(onChainData.contractTonBalance)}
+                    </p>
+                  </>
+                );
+              }
+            })()}
 
             <p>
               <strong># Affiliates:</strong> {onChainData.numAffiliates.toString()}
-            </p>
-
-            <p>
-              <strong>Campaign Contract Ton Balance:</strong>{' '}
-              {fromNano(onChainData.contractTonBalance)}
             </p>
 
             {onChainData.campaignStartTimestamp !== 0n ? (
@@ -775,12 +848,12 @@ export default function CampaignView() {
         !chainLoading && <p>No on-chain data yet.</p>
       )}
 
-      {/* HORIZONTAL LINE to separate from bottom section */}
+      {/* Horizontal line before the bottom section */}
       <hr style={{ margin: '2rem 0' }} />
 
       {onChainData && (
         <div style={{ display: 'flex', gap: '2rem', alignItems: 'flex-start' }}>
-          {/* Left: Top Affiliates */}
+          {/* LEFT: Top Affiliates */}
           <div
             style={{
               flex: '0 0 50%',
@@ -824,7 +897,7 @@ export default function CampaignView() {
             )}
           </div>
 
-          {/* Right: Actions & Invite Section */}
+          {/* RIGHT: Actions */}
           {isUserAdvertiser && (
             <div
               style={{
@@ -835,6 +908,8 @@ export default function CampaignView() {
               }}
             >
               <h2>Actions</h2>
+
+              {/* Add Funds */}
               <div style={{ marginBottom: '1rem' }}>
                 <TransactionButton
                   buttonLabel="Add Funds"
@@ -857,6 +932,7 @@ export default function CampaignView() {
                 />
               </div>
 
+              {/* Add TON for Gas Fees */}
               <div style={{ marginBottom: '1rem' }}>
                 <TransactionButton
                   buttonLabel="Add TON for Gas Fees"
@@ -873,18 +949,24 @@ export default function CampaignView() {
                 />
               </div>
 
+              {/* Withdraw Funds */}
               <div style={{ marginBottom: '1rem' }}>
                 <TransactionButton
                   buttonLabel="Withdraw Funds"
                   showAmountField
                   onTransaction={async (amount) => {
                     if (!amount) throw new Error('Invalid withdraw amount');
-                    await advertiserWithdrawFunds(campaignContract, amount, sender, userAccount?.address);
+                    await advertiserWithdrawFunds(
+                      campaignContract,
+                      amount,
+                      sender,
+                      userAccount?.address
+                    );
                   }}
                 />
               </div>
 
-              {/* Private campaign affiliate management */}
+              {/* For private campaigns => Approve/Remove affiliates */}
               {!onChainData.campaignDetails.isPublicCampaign && (
                 <div style={{ marginTop: '1.5rem' }}>
                   <button
@@ -913,36 +995,6 @@ export default function CampaignView() {
                   </button>
                 </div>
               )}
-
-              {/* 5) Invite New Affiliates Section */}
-              <div
-                style={{
-                  marginTop: '2rem',
-                  borderTop: '1px solid #ccc',
-                  paddingTop: '1rem',
-                }}
-              >
-                <h3>Invite New Affiliates</h3>
-                <p>
-                  Share this link with potential affiliates. When they visit, they can register as
-                  your affiliate:
-                </p>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <input
-                    type="text"
-                    readOnly
-                    style={{
-                      flex: 1,
-                      padding: '0.4rem',
-                      border: '1px solid #ccc',
-                      borderRadius: '4px',
-                    }}
-                    value={`
-${affiliateInviteUrl}`}
-                  />
-                  <button onClick={handleCopyInviteUrl}>Copy Link</button>
-                </div>
-              </div>
             </div>
           )}
         </div>

@@ -44,10 +44,30 @@ export class InitialSchema1736681774554 implements MigrationInterface {
         "asset_description" TEXT,
         "invite_link"       VARCHAR(500),
         "asset_photo"       BYTEA,
-        "is_empty"          BOOLEAN NOT NULL DEFAULT true,
-        "created_at"        TIMESTAMP NOT NULL DEFAULT NOW(),
-        "updated_at"        TIMESTAMP NOT NULL DEFAULT NOW()
+        "state"             VARCHAR(50) NOT NULL DEFAULT 'DEPLOYED',
+        "created_at"        TIMESTAMP NOT NULL DEFAULT NOW()
       );
+    `);
+
+    // Add the trigger function to enforce immutability after reaching the final state
+    await queryRunner.query(`
+      CREATE OR REPLACE FUNCTION prevent_modification_after_final_state()
+      RETURNS TRIGGER AS $$
+      BEGIN
+          IF OLD.state = 'BLOCKCHAIN_DETAILS_SET' THEN
+              RAISE EXCEPTION 'Cannot modify a campaign after it has reached the final state: BLOCKCHAIN_DETAILS_SET';
+          END IF;
+          RETURN NEW;
+      END;
+      $$ LANGUAGE plpgsql;
+    `);
+
+    // Add the trigger to the campaigns table
+    await queryRunner.query(`
+      CREATE TRIGGER prevent_final_state_modification
+      BEFORE UPDATE ON "campaigns"
+      FOR EACH ROW
+      EXECUTE FUNCTION prevent_modification_after_final_state();
     `);
 
     // 4) Create an ENUM type in Postgres for "role_type"
@@ -62,9 +82,6 @@ export class InitialSchema1736681774554 implements MigrationInterface {
     `);
 
     // 5) campaign_roles TABLE
-    //    Notice we changed:
-    //      - "role" to type "role_type"
-    //      - "is_empty" to "is_active" per your entity
     await queryRunner.query(`
       CREATE TABLE IF NOT EXISTS "campaign_roles" (
         "id"             SERIAL PRIMARY KEY,
@@ -130,10 +147,11 @@ export class InitialSchema1736681774554 implements MigrationInterface {
     await queryRunner.query(`DROP TABLE IF EXISTS "events";`);
     await queryRunner.query(`DROP TABLE IF EXISTS "processed_offsets";`);
     await queryRunner.query(`DROP TABLE IF EXISTS "campaign_roles";`);
+    await queryRunner.query(`DROP TRIGGER IF EXISTS prevent_final_state_modification ON "campaigns";`);
+    await queryRunner.query(`DROP FUNCTION IF EXISTS prevent_modification_after_final_state;`);
     await queryRunner.query(`DROP TABLE IF EXISTS "campaigns";`);
     await queryRunner.query(`DROP TABLE IF EXISTS "wallets";`);
     await queryRunner.query(`DROP TABLE IF EXISTS "users";`);
-    // Optionally, drop the enum type if you want a fully clean rollback
     await queryRunner.query(`DROP TYPE IF EXISTS role_type;`);
   }
 }

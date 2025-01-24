@@ -19,7 +19,6 @@ export interface NotificationApiResponse {
     assetDescription?: string;
     inviteLink?: string;
     createdAt?: string;
-    updatedAt?: string;
     assetPhotoBase64?: string;
   }
   
