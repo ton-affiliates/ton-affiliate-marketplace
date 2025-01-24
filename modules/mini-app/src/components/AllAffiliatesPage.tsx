@@ -48,14 +48,10 @@ export function AllAffiliatesPage() {
   const limit = parseInt(searchParams.get('limit') || '10', 10);
 
   // 3) Local state
-  //    - campaign: info fetched from /api/v1/campaigns/:id
-  //    - affiliates: array of DB user info
-  //    - chainData: array of on-chain affiliate data
   const [campaign, setCampaign] = useState<CampaignApiResponse | null>(null);
   const [affiliates, setAffiliates] = useState<UserApiResponse[]>([]);
   const [chainData, setChainData] = useState<AffiliateData[]>([]);
   const [onChainData, setOnChainData] = useState<CampaignData | null>(null);
-
 
   // Basic loading & error states
   const [loading, setLoading] = useState(false);
@@ -91,7 +87,6 @@ export function AllAffiliatesPage() {
   }, [campaignId]);
 
   // 5) Once we have the campaign, set up the on-chain contract
-  //    We'll parse the advertiserAddress & ID for the hook
   const advertiserAddr = campaign?.advertiserAddress;
   const campaignIdBig = campaign?.id ? BigInt(campaign.id) : undefined;
 
@@ -107,24 +102,17 @@ export function AllAffiliatesPage() {
       setError(null);
 
       try {
-        // (A) Fetch affiliates from the DB (paged)
+        // (A) Fetch affiliates from the DB
         const dbAffiliates = await fetchPagedAffiliates(campaignId!, offset, limit);
         setAffiliates(dbAffiliates);
 
-        // (B) Convert offset/limit to bigints for your on-chain indexing
+        // (B) On-chain range
         const fromIdx = BigInt(offset);
         const toIdx = BigInt(offset + limit - 1);
 
-        // (C) Call your on-chain function:
-        //     e.g. campaignContract.getAffiliatesDataInRange(fromIdx, toIdx)
-        const onChainDataDict = await campaignContract!.getAffiliatesDataInRange(
-          fromIdx,
-          toIdx
-        );
-
-        // If onChainDataDict is an object keyed by affiliateId,
-        // convert to an array:
-        const chainArray: AffiliateData[] = Object.values(onChainDataDict);
+        // (C) Fetch on-chain data
+        const onChainDataDict = await campaignContract!.getAffiliatesDataInRange(fromIdx, toIdx);
+        const chainArray = Object.values(onChainDataDict) as AffiliateData[];
         setChainData(chainArray);
 
         const data = await campaignContract!.getCampaignData();
@@ -143,20 +131,16 @@ export function AllAffiliatesPage() {
   // 7) Determine if the connected user is the advertiser
   const isUserAdvertiser = useMemo(() => {
     if (!userAccount?.address || !advertiserAddr) return false;
-    // Compare addresses in a normalized way
-    const userAddr = userAccount.address.toLowerCase();
-    const advAddr = advertiserAddr.toLowerCase();
-    return userAddr === advAddr;
+    return userAccount.address.toLowerCase() === advertiserAddr.toLowerCase();
   }, [userAccount?.address, advertiserAddr]);
 
   // 8) Button handlers
   async function handleApprove(affiliateUserId: number) {
     try {
       if (!campaignContract || !sender) throw new Error('Contract or sender not ready');
-      // The affiliateId on chain presumably matches userId
       await advertiserApproveAffiliate(campaignContract, BigInt(affiliateUserId), sender);
       alert(`Approved affiliate ID: ${affiliateUserId}`);
-      // Optionally re-fetch or refresh data
+      // Possibly re-fetch
     } catch (err) {
       console.error(err);
       alert(`Failed to approve affiliate: ${String(err)}`);
@@ -168,7 +152,7 @@ export function AllAffiliatesPage() {
       if (!campaignContract || !sender) throw new Error('Contract or sender not ready');
       await advertiserRemoveAffiliate(campaignContract, BigInt(affiliateUserId), sender);
       alert(`Removed affiliate ID: ${affiliateUserId}`);
-      // Optionally re-fetch or refresh data
+      // Possibly re-fetch
     } catch (err) {
       console.error(err);
       alert(`Failed to remove affiliate: ${String(err)}`);
@@ -179,12 +163,10 @@ export function AllAffiliatesPage() {
   if (!campaignId) {
     return <div>No campaignId in the URL!</div>;
   }
-
   if (error) {
     return <div style={{ color: 'red' }}>Error: {error}</div>;
   }
 
-  // If not loading, show table
   const loadingState = loading || contractLoading;
 
   return (
@@ -194,14 +176,6 @@ export function AllAffiliatesPage() {
       {loadingState && <p>Loading...</p>}
       {contractError && <p style={{ color: 'red' }}>{contractError}</p>}
 
-      {/* If the campaign is not public, we can manage affiliates.
-          We'll check: onChainData => isPublicCampaign?
-          But we only have chain data if the contract is loaded. So:
-       */}
-      {/* Not strictly needed here, but you might want onChainData in state. 
-          For brevity, we'll just assume you loaded it or you do it in the parent. 
-      */}
-
       {!loadingState && (
         <table style={{ borderCollapse: 'collapse', width: '100%' }}>
           <thead>
@@ -210,29 +184,39 @@ export function AllAffiliatesPage() {
               <th style={{ border: '1px solid #ccc', padding: '8px' }}>Name</th>
               <th style={{ border: '1px solid #ccc', padding: '8px' }}>On-Chain Earnings</th>
               <th style={{ border: '1px solid #ccc', padding: '8px' }}>State</th>
-              {/* If it’s private & user is advertiser, show a “Manage” column */}
               <th style={{ border: '1px solid #ccc', padding: '8px' }}>Manage</th>
             </tr>
           </thead>
           <tbody>
             {affiliates.map((user, idx) => {
-              // Attempt a naive 1:1 index mapping from DB user to chainData
               const chainItem = chainData[idx];
-              const affiliateState = chainItem?.state ?? -1n; // -1 => unknown
-              const affiliateLink = `/campaign/${campaignId}/affiliate/${user.id}`;
+              if (!chainItem) {
+                // If chainData is shorter or not aligned
+                return (
+                  <tr key={user.id}>
+                    <td colSpan={5} style={{ border: '1px solid #ccc', padding: '8px' }}>
+                      <Link to={`/campaign/${campaignId}/affiliate/${user.id}`}>
+                        {user.id} - {user.firstName ?? ''} {user.lastName ?? ''}
+                      </Link>{' '}
+                      (No on-chain data)
+                    </td>
+                  </tr>
+                );
+              }
 
-              // Convert to string for display
+              const affiliateState = chainItem.state ?? -1n;
               let stateLabel = affiliateState.toString();
               if (affiliateState === 0n) stateLabel = 'Pending Approval';
               if (affiliateState === 1n) stateLabel = 'Active';
 
+              const affiliateLink = `/campaign/${campaignId}/affiliate/${user.id}`;
               const showApproveButton =
                 affiliateState === 0n &&
                 isUserAdvertiser &&
-                onChainData!.campaignDetails.isPublicCampaign === false; 
+                onChainData?.campaignDetails.isPublicCampaign === false;
 
               const showRemoveButton =
-                isUserAdvertiser && onChainData!.campaignDetails.isPublicCampaign === false; 
+                isUserAdvertiser && onChainData?.campaignDetails.isPublicCampaign === false;
 
               return (
                 <tr key={user.id}>
@@ -245,13 +229,12 @@ export function AllAffiliatesPage() {
                     </Link>
                   </td>
                   <td style={{ border: '1px solid #ccc', padding: '8px' }}>
-                    {chainItem ? chainItem.totalEarnings.toString() : 'N/A'}
+                    {chainItem.totalEarnings?.toString() || 'N/A'}
                   </td>
                   <td style={{ border: '1px solid #ccc', padding: '8px' }}>
-                    {chainItem ? stateLabel : 'N/A'}
+                    {stateLabel}
                   </td>
                   <td style={{ border: '1px solid #ccc', padding: '8px' }}>
-                    {/* Show Approve/Remove if user is advertiser and campaign is private */}
                     {showApproveButton && (
                       <button
                         style={{ marginRight: '0.5rem' }}

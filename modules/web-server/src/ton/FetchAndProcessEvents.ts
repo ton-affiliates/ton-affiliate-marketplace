@@ -108,7 +108,6 @@ async function processEvents(events: EmitLogEvent[]) {
             `[AdvertiserSignedCampaignDetailsEvent] - campaignId: ${campaignId}, advertiser: ${advertiserTon.toString()}`
           );
 
-          // Mark campaign isEmpty=false
           await upsertCampaign({
             id: campaignId,
             isEmpty: false,

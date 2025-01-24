@@ -7,7 +7,7 @@ services:
       args:
         NODE_ENV: ${NODE_ENV}
     ports:
-      - "5173:80"
+      - "80:80"
     volumes:
       - ./modules/mini-app/nginx.conf:/etc/nginx/conf.d/nginx.conf.template
       - ./modules/common:/app/src/common

@@ -879,7 +879,7 @@ export default function CampaignView() {
                   showAmountField
                   onTransaction={async (amount) => {
                     if (!amount) throw new Error('Invalid withdraw amount');
-                    await advertiserWithdrawFunds(campaignContract, amount, sender);
+                    await advertiserWithdrawFunds(campaignContract, amount, sender, userAccount?.address);
                   }}
                 />
               </div>

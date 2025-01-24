@@ -1,36 +1,42 @@
+// replenishWithTon.ts
 import { toNano, OpenedContract, Sender } from '@ton/core';
 import { Campaign } from '../../contracts/Campaign';
-import { MAX_ATTEMPTS } from '@common/constants';
-
+import { pollUntil } from './pollUntil';
 
 export async function replenishWithTon(
   campaignContract: OpenedContract<Campaign> | null,
   tonAmount: number,
-  sender: Sender
+  sender: Sender,
+  userAccountAddress?: string
 ): Promise<void> {
-  
   if (!campaignContract) {
     throw new Error('Campaign contract is not initialized or null.');
   }
 
-  console.log("[replenishWithTon] relpnishing TON: " + tonAmount);
+  console.log('[replenishWithTon] Replenishing TON:', tonAmount);
   const amountInNano = toNano(tonAmount.toString());
-  const numReplenishBefore = (await campaignContract.getCampaignData()).numAdvertiserReplenishCampaign;
 
+  // Get "before" count
+  const { numAdvertiserReplenishCampaign: numReplenishBefore } =
+    await campaignContract.getCampaignData();
+
+  // Send the transaction
   await campaignContract.send(
     sender,
-    {
-      value: amountInNano,
-    },
+    { value: amountInNano },
     { $$type: 'AdvertiserReplenish' }
   );
 
-  let attempt = 0;
-  while (true) {
-    const numReplenishAfter = (await campaignContract.getCampaignData()).numAdvertiserReplenishCampaign;
-    if (numReplenishAfter !== numReplenishBefore) break;
+  // Poll until numAdvertiserReplenishCampaign increments
+  await pollUntil(
+    async () => {
+      const { numAdvertiserReplenishCampaign: numReplenishAfter } =
+        await campaignContract.getCampaignData();
+      return numReplenishAfter !== numReplenishBefore;
+    },
+    campaignContract,
+    userAccountAddress
+  );
 
-    if (++attempt > MAX_ATTEMPTS) throw new Error('Replenish attempt timed out.');
-    await new Promise((res) => setTimeout(res, 2000)); // Sleep 2 seconds
-  }
+  console.log('Replenish successful!');
 }

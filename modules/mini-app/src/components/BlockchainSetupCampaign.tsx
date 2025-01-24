@@ -1,17 +1,11 @@
 // src/components/BlockchainSetupCampaign.tsx
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Dictionary } from '@ton/core';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTonConnectFetchContext } from './TonConnectProvider';
 import { useCampaignContract } from '../hooks/useCampaignContract';
 import { useTonWalletConnect } from '../hooks/useTonConnect';
-import { GAS_FEE, MAX_ATTEMPTS, MaxAttemptsError, BOT_OP_CODE_USER_CLICK } from '@common/constants';
-
-// Utility sleep function
-function sleep(ms: number) {
-  return new Promise<void>((resolve) => setTimeout(resolve, ms));
-}
+import { advertiserSetCampaignDetails } from '../blockchain/campaign/advertiserSetCampaignDetails';
 
 function BlockchainSetupCampaign() {
   const { campaignId } = useParams<{ campaignId: string }>();
@@ -33,22 +27,24 @@ function BlockchainSetupCampaign() {
 
   const { connectedStatus, userAccount } = useTonConnectFetchContext();
   const { sender } = useTonWalletConnect();
-  const advertiserAddress = userAccount?.address || null;
+  const advertiserAddress = userAccount?.address || '';
   const numericCampaignId = campaignId ? BigInt(campaignId) : undefined;
 
+  // Load the campaign contract
   const { campaignContract, isLoading, error } = useCampaignContract(
-    advertiserAddress || undefined,
+    advertiserAddress,
     numericCampaignId
   );
 
   async function handleSubmit() {
     setTxInProgress(true);
-    setTxFailed(false);
     setTxSuccess(false);
+    setTxFailed(false);
     setErrorMessage(null);
 
     try {
-      if (!connectedStatus || !userAccount?.address) {
+      // Basic checks
+      if (!connectedStatus || !advertiserAddress) {
         throw new Error('No wallet connected. Please connect your wallet first.');
       }
       if (!campaignContract) {
@@ -58,71 +54,19 @@ function BlockchainSetupCampaign() {
         throw new Error('Sender is not set. Could not send transaction.');
       }
 
-      // Build cost-per-action dictionaries
-      const userRefVal = BigInt(
-        Math.floor(parseFloat(commissionValues.userReferred) * 1e9)
+      // Call our new blockchain script
+      await advertiserSetCampaignDetails(
+        campaignContract,
+        sender,
+        advertiserAddress,
+        commissionValues,
+        isPublicCampaign,
+        paymentMethod,
+        expirationDateEnabled,
+        expirationDate
       );
-      const premiumRefVal = BigInt(
-        Math.floor(parseFloat(commissionValues.premiumUserReferred) * 1e9)
-      );
 
-      const regularUsersMap = Dictionary.empty<bigint, bigint>();
-      const premiumUsersMap = Dictionary.empty<bigint, bigint>();
-
-      regularUsersMap.set(BOT_OP_CODE_USER_CLICK, userRefVal);
-      premiumUsersMap.set(BOT_OP_CODE_USER_CLICK, premiumRefVal);
-
-      // Determine expiration in days (null if not set)
-      let campaignValidForNumDays: bigint | null = null;
-      if (expirationDateEnabled && expirationDate) {
-        const now = new Date();
-        const chosenDate = new Date(expirationDate + 'T00:00:00');
-        const diffMs = chosenDate.getTime() - now.getTime();
-        const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
-        if (diffDays > 0) {
-          campaignValidForNumDays = BigInt(diffDays);
-        }
-      }
-
-      // Grab current state from on-chain data before we send
-      const dataBefore = await campaignContract.getCampaignData();
-      const stateBefore = dataBefore.state;
-      if (stateBefore !== 0n) {
-        setErrorMessage('Error: campaign has already been initialized!');
-        return;
-      }
-
-      console.log("stateBefore: " + stateBefore);
-
-      await campaignContract.send(sender, { value: GAS_FEE }, {
-        $$type: 'AdvertiserSetCampaignDetails',
-        campaignDetails: {
-          $$type: 'CampaignDetails',
-          regularUsersCostPerAction: regularUsersMap,
-          premiumUsersCostPerAction: premiumUsersMap,
-          isPublicCampaign,
-          campaignValidForNumDays,
-          paymentMethod,
-          requiresAdvertiserApprovalForWithdrawl: false,
-        },
-      });
-
-      // Wait for on-chain state to change
-      let attempt = 1;
-      let stateAfter = (await campaignContract.getCampaignData()).state;
-
-      while (stateAfter === stateBefore) {
-
-        console.log("stateAfter: " + stateAfter);
-        if (attempt >= MAX_ATTEMPTS) {
-          throw new MaxAttemptsError();
-        }
-        await sleep(2000);
-        stateAfter = (await campaignContract.getCampaignData()).state;
-        attempt++;
-      }
-
-      // If we reach here => success
+      // If we get here => success
       setTxSuccess(true);
 
       // After 0.5s, navigate to final campaign page
@@ -133,7 +77,6 @@ function BlockchainSetupCampaign() {
           console.warn('No campaignId in URL, cannot navigate to /campaign/:id');
         }
       }, 500);
-
     } catch (err: any) {
       console.error('[BlockchainSetupCampaign] Transaction error:', err);
       setTxFailed(true);
@@ -163,7 +106,7 @@ function BlockchainSetupCampaign() {
             <input
               type="radio"
               value="public"
-              checked={isPublicCampaign === true}
+              checked={isPublicCampaign}
               onChange={() => setIsPublicCampaign(true)}
             />
             Public
@@ -172,7 +115,7 @@ function BlockchainSetupCampaign() {
             <input
               type="radio"
               value="private"
-              checked={isPublicCampaign === false}
+              checked={!isPublicCampaign}
               onChange={() => setIsPublicCampaign(false)}
             />
             Private
@@ -252,7 +195,9 @@ function BlockchainSetupCampaign() {
         {/* If TX in progress, show a spinner or note */}
         {txInProgress && <p>Sending transaction...</p>}
         {/* If TX fails, show error */}
-        {txFailed && errorMessage && <p style={{ color: 'red' }}>Error: {errorMessage}</p>}
+        {txFailed && errorMessage && (
+          <p style={{ color: 'red' }}>Error: {errorMessage}</p>
+        )}
         {/* If TX success, show success note */}
         {txSuccess && (
           <p style={{ color: 'green' }}>
@@ -273,8 +218,8 @@ function BlockchainSetupCampaign() {
 }
 
 /**
- * A sub-component for selecting an expiration date or disabling it.
- * This is optional. If you prefer inline code, you can remove this.
+ * Sub-component for selecting an expiration date or disabling it.
+ * (Identical to your code, just left intact.)
  */
 function ExpirationDateSelector({
   expirationDateEnabled,

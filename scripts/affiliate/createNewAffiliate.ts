@@ -36,6 +36,7 @@ export async function run(provider: NetworkProvider, args: string[]) {
     ui.write('Waiting for campaign to update numAffiliates...');
 
     let numAffiliatesAfter = (await campaign.getCampaignData()).numAffiliates;
+    console.log("numAffiliatesBefore: " + numAffiliatesBefore);
     let attempt = 1;
     while(numAffiliatesBefore === numAffiliatesAfter) {
         
@@ -44,6 +45,9 @@ export async function run(provider: NetworkProvider, args: string[]) {
 			ui.write(`Error: TX failed or timedout!`);
 			return;
 		}
+
+        console.log("numAffiliatesBefore: " + numAffiliatesBefore);
+        console.log("numAffiliatesAfter: " + numAffiliatesAfter);
 		
 		ui.setActionPrompt(`Attempt ${attempt}`);
         await sleep(2000);
