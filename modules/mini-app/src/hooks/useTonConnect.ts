@@ -8,6 +8,17 @@ export function useTonWalletConnect(): { sender: Sender; connected: boolean } {
     sender: {
       send: async (args: SenderArguments) => {
         try {
+          // Prompt user to agree to the Terms of Service before sending a transaction
+          const userAgreed = window.confirm(
+            "By proceeding, you agree to the Terms of Service. Read them here: https://tonaffiliates.com/terms"
+          );
+
+          if (!userAgreed) {
+            console.log("User did not agree to the Terms of Service.");
+            throw new Error("Terms of Service not agreed to");
+          }
+
+          // Proceed with the transaction if the user agrees
           await tonConnectUI.sendTransaction({
             messages: [
               {
@@ -16,7 +27,7 @@ export function useTonWalletConnect(): { sender: Sender; connected: boolean } {
                 payload: args.body?.toBoc().toString('base64'),
               },
             ],
-            validUntil: Date.now() + 5 * 60 * 1000,
+            validUntil: Date.now() + 5 * 60 * 1000, // Set transaction validity
           });
         } catch (error) {
           if (error instanceof Error && error.message.includes("canceled")) {

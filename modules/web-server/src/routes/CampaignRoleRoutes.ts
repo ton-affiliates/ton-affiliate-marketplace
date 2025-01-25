@@ -1,9 +1,11 @@
 import { Router } from 'express';
 import {
   getSingleAffiliateUserForCampaign,
-  getAffiliateUsersForCampaignPaged
+  getAffiliateUsersForCampaignPaged,
+  getAffiliatesByWallet
 } from '../services/CampaignRolesService';
 import { Logger } from '../utils/Logger';
+import { Address } from '@ton/core';
 
 const router = Router();
 
@@ -33,8 +35,7 @@ router.get('/affiliates/paged/:campaignId', async (req, res) => {
 });
 
 
-
-router.get('/affiliates/:campaignId/:affiliateId', async (req, res) => {
+router.get('/affiliates/:campaignId(\\d+)/:affiliateId(\\d+)', async (req, res) => {
   try {
     Logger.debug(
       `GET /campaign-roles/affiliates/${req.params.campaignId}/${req.params.affiliateId} - fetching single affiliate`
@@ -59,5 +60,35 @@ router.get('/affiliates/:campaignId/:affiliateId', async (req, res) => {
   }
 });
 
+
+/**
+ * GET /campaign-roles/affiliates/by-wallet/:walletAddress
+ * Retrieve all affiliates associated with a specific wallet address
+ */
+router.get('/affiliates/by-wallet/:walletAddress', async (req, res) => {
+  try {
+    Logger.debug(`GET /campaign-roles/affiliates/by-wallet/${req.params.walletAddress} - fetching affiliates by wallet`);
+
+    const { walletAddress } = req.params;
+
+    // Parse the wallet address into a TON Address object
+    const tonAddress = Address.parse(walletAddress);
+
+    // Fetch all affiliates associated with the wallet
+    const affiliates = await getAffiliatesByWallet(tonAddress);
+
+    if (affiliates.length === 0) {
+      res.status(404).json({ error: 'No affiliates found for the provided wallet address' });
+      return;
+    }
+
+    res.json(affiliates);
+    return;
+  } catch (err: any) {
+    Logger.error(`Error in GET /campaign-roles/affiliates/by-wallet/${req.params.walletAddress}: ${err}`);
+    res.status(500).json({ error: err.message || 'Internal Server Error' });
+    return;
+  }
+});
 
 export default router;

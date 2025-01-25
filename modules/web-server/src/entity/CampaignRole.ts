@@ -37,9 +37,6 @@ export class CampaignRole {
   @Column({ type: 'int', nullable: true, name: 'affiliate_id' })
   affiliateId: number;
 
-  @Column({ type: 'boolean', name: 'is_active' })
-  isActive: boolean;
-
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 

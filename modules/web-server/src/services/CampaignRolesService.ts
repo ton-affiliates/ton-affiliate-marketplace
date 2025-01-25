@@ -14,7 +14,6 @@ interface CreateCampaignRoleInput {
   tonAddress: Address;
   role: RoleType;
   affiliateId?: number;
-  isActive?: boolean;
 }
 
 /**
@@ -34,8 +33,7 @@ export async function createCampaignRole(data: CreateCampaignRoleInput): Promise
       campaignId: data.campaignId,
       walletAddress,
       role: data.role,
-      affiliateId: data.affiliateId,
-      isActive: data.isActive ?? false,
+      affiliateId: data.affiliateId
     };
 
     const roleEntity = repo.create(roleData);
@@ -182,4 +180,37 @@ export async function getAffiliateUsersForCampaignPaged(
     throw new Error('Could not retrieve affiliate users');
   }
 }
+
+
+/**
+ * Fetch all affiliate roles by wallet address.
+ *
+ * @param tonAddress - The wallet address to search for.
+ * @returns - An array of CampaignRole objects associated with the wallet address.
+ */
+export async function getAffiliatesByWallet(
+  tonAddress: Address
+): Promise<CampaignRole[]> {
+  try {
+    const repo = campaignRoleRepository();
+    const walletAddress = tonAddress.toString();
+
+    // Find all roles where the wallet address matches and the role is AFFILIATE
+    const affiliates = await repo.find({
+      where: {
+        walletAddress: walletAddress,
+        role: RoleType.AFFILIATE,
+      },
+      relations: ['campaign'], // Include the related campaign data if needed
+    });
+
+    return affiliates;
+  } catch (err) {
+    Logger.error(
+      `Error fetching affiliates for wallet address: ${tonAddress}. ${err}`
+    );
+    throw new Error('Could not retrieve affiliates for wallet address');
+  }
+}
+
 

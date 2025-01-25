@@ -89,7 +89,6 @@ export class InitialSchema1736681774554 implements MigrationInterface {
         "wallet_address" VARCHAR(255) NOT NULL,
         "role"           role_type NOT NULL,
         "affiliate_id"   INT,
-        "is_active"      BOOLEAN NOT NULL DEFAULT false,
         "created_at"     TIMESTAMP NOT NULL DEFAULT NOW(),
         "updated_at"     TIMESTAMP NOT NULL DEFAULT NOW(),
         CONSTRAINT "fk_campaign"

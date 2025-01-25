@@ -139,8 +139,7 @@ async function processEvents(events: EmitLogEvent[]) {
             campaignId,
             tonAddress: affiliateTon,
             role: RoleType.AFFILIATE,
-            affiliateId: affiliateId,
-            isActive: state == 0 ? true : false,
+            affiliateId: affiliateId
           });
 
           if (state == 0n) {
@@ -199,8 +198,7 @@ async function processEvents(events: EmitLogEvent[]) {
           // 4a) Mark or update the affiliate’s campaign role to “active.”
           await updateCampaignRoleByCampaignAndWalletAddress(campaignId.toString(), affiliateTon, {
             affiliateId: affiliateId,
-            role: RoleType.AFFILIATE,
-            isActive: true,
+            role: RoleType.AFFILIATE
           });
 
           // 4b) Notify the affiliate
