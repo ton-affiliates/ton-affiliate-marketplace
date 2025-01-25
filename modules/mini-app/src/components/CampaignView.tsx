@@ -607,6 +607,11 @@ export default function CampaignView() {
                 />
                 <button onClick={handleCopyInviteUrl}>Copy Link</button>
               </div>
+
+              {/*  ADDED "View All Affiliates" LINK  */}
+              <p style={{ marginTop: '1rem' }}>
+                <Link to={`/campaign/${campaign.id}/affiliates`}>View All Affiliates</Link>
+              </p>
             </div>
           )}
 

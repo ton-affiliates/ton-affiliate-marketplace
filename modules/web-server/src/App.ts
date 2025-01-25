@@ -1,8 +1,9 @@
+// src/server.ts
 import 'reflect-metadata';
 import 'module-alias/register';
 
 import dotenv from 'dotenv';
-import express from 'express';
+import express, { NextFunction, Request, Response } from 'express';
 import WebSocket from 'ws';
 import { createServer } from 'http';
 import appDataSource from './ormconfig';
@@ -14,17 +15,17 @@ import CampaignRoutes from './routes/CampaignRoutes';
 import CampaignRoleRoutes from './routes/CampaignRoleRoutes';
 import AuthRoutes from './routes/AuthRoutes';
 
-
-// Load environment variables
+// 1) Load environment variables
 dotenv.config();
 
 const PORT = process.env.PORT || 3000;
-const FETCH_INTERVAL = Number(process.env.FETCH_INTERVAL_BLOCKCHAIN_EVENTS || 10 * 1000); // Default: every 10 seconds
+const FETCH_INTERVAL = Number(process.env.FETCH_INTERVAL_BLOCKCHAIN_EVENTS || 10 * 1000); // Default: 10 seconds
 
+// 2) Create Express app & parse JSON
 const app = express();
 app.use(express.json());
 
-// Initialize DB
+// 3) Initialize DB
 appDataSource
   .initialize()
   .then(() => {
@@ -35,7 +36,7 @@ appDataSource
     process.exit(1);
   });
 
-// Create a router and add all routes to it
+// 4) Create a router and add all routes
 const apiRouter = express.Router();
 
 apiRouter.use('/users', UserRoutes);
@@ -43,33 +44,41 @@ apiRouter.use('/campaigns', CampaignRoutes);
 apiRouter.use('/campaign-roles', CampaignRoleRoutes);
 apiRouter.use('/auth', AuthRoutes);
 
-// Health endpoint
+// 5) Health endpoint
 apiRouter.get('/health', (req, res) => {
   Logger.debug('GET /api/v1/health - checking health');
   res.json({ status: 'OK' });
+  return;
 });
 
-// Use the `/api/v1` prefix for all API routes
+// 6) Prefix all routes with /api/v1
 app.use('/api/v1', apiRouter);
 
-// Create and start the HTTP server
+// 7) Global error handler for Express (must be last middleware):
+app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
+  Logger.error('Express error handler caught an error:', err);
+  res.status(500).json({ error: 'Internal server error' });
+  return ;
+});
+
+// 8) Create & start the HTTP server
 const httpServer = createServer(app);
 httpServer.listen(PORT, () => {
   Logger.info(`Server is running on port ${PORT}`);
 });
 
-// Set up WebSocket server
-const wss = new WebSocket.Server({ server: httpServer });
+// 9) Setup WebSocket server
+export const wss = new WebSocket.Server({ server: httpServer });
 wss.on('connection', (ws) => {
   Logger.info('WebSocket client connected.');
 
   ws.on('message', (message) => {
     Logger.debug('WebSocket message received', { message });
-    // Add WebSocket message handling logic here
+    // Add any extra handling here
   });
 
   ws.on('error', (error) => {
-    Logger.error('WebSocket error', error);
+    Logger.error('WebSocket error:', error);
   });
 
   ws.on('close', () => {
@@ -77,33 +86,38 @@ wss.on('connection', (ws) => {
   });
 });
 
-// Schedule blockchain event processor
+// 10) Schedule blockchain event processor
 const intervalId = setInterval(async () => {
   Logger.debug('Running blockchain event processor...');
   try {
     await processBlockchainEvents();
   } catch (error) {
-    Logger.error('Error processing blockchain events', error);
+    Logger.error('Error processing blockchain events:', error);
   }
 }, FETCH_INTERVAL);
 
-// Graceful shutdown
-process.on('SIGINT', async () => {
-  Logger.info('Received SIGINT. Shutting down gracefully...');
+// 11) Graceful shutdown handlers
+async function shutdownGracefully(signal: string) {
+  Logger.info(`Received ${signal}. Shutting down gracefully...`);
   clearInterval(intervalId);
   wss.close();
   await appDataSource.destroy();
   Logger.info('Graceful shutdown complete.');
   process.exit(0);
+}
+
+process.on('SIGINT', () => shutdownGracefully('SIGINT'));
+process.on('SIGTERM', () => shutdownGracefully('SIGTERM'));
+
+// 12) Catch unhandled errors that could crash the server
+process.on('uncaughtException', (err) => {
+  Logger.error('Uncaught Exception:', err);
+  // Optionally attempt graceful shutdown or let your process manager (PM2, Docker, etc.) restart.
+  // For safety, we can exit to allow a restart:
+  process.exit(1);
 });
 
-process.on('SIGTERM', async () => {
-  Logger.info('Received SIGTERM. Shutting down gracefully...');
-  clearInterval(intervalId);
-  wss.close();
-  await appDataSource.destroy();
-  Logger.info('Graceful shutdown complete.');
-  process.exit(0);
+process.on('unhandledRejection', (reason, promise) => {
+  Logger.error('Unhandled Rejection at:', promise, 'reason:', reason);
+  // Same logic: either do something or exit. Often letting the app crash is safer than continuing in an unknown state.
 });
-
-export { wss };

@@ -200,9 +200,8 @@ async function processEvents(events: EmitLogEvent[]) {
           const affiliateUser = await getUserByWalletAddress(affiliateTon);
           if (affiliateUser) {
             const text = `Congratulations! You have been approved for campaign:\n` +
-              `https://${process.env.MINI_APP_HOSTNAME}/${campaignId}`;
+                              `https://${process.env.MINI_APP_HOSTNAME}/${campaignId}`;
             const link = `https://${process.env.MINI_APP_HOSTNAME}/${campaignId}/affiliate/${affiliateId}`;
-
             await createNotification(affiliateTon, text, campaignId.toString(), link);
             await sendTelegramMessage(affiliateUser.id, text);
           }
