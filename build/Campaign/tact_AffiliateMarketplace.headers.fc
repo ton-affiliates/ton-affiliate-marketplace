@@ -1,0 +1,301 @@
+;;
+;; Header files for AffiliateMarketplace
+;; NOTE: declarations are sorted for optimal order
+;;
+
+;; __tact_verify_address
+slice __tact_verify_address(slice address) impure inline;
+
+;; __tact_load_address
+(slice, slice) __tact_load_address(slice cs) inline;
+
+;; __tact_store_address
+builder __tact_store_address(builder b, slice address) inline;
+
+;; __tact_create_address
+slice __tact_create_address(int chain, int hash) inline;
+
+;; __tact_compute_contract_address
+slice __tact_compute_contract_address(int chain, cell code, cell data) inline;
+
+;; __tact_not_null
+forall X -> X __tact_not_null(X x) impure inline;
+
+;; __tact_context_get
+(int, slice, int, slice) __tact_context_get() inline;
+
+;; __tact_context_get_sender
+slice __tact_context_get_sender() inline;
+
+;; __tact_prepare_random
+() __tact_prepare_random() impure inline;
+
+;; __tact_store_bool
+builder __tact_store_bool(builder b, int v) inline;
+
+;; __tact_dict_min_slice_int
+(slice, int, int) __tact_dict_min_slice_int(cell d, int kl, int vl) inline;
+
+;; __tact_dict_next_slice_int
+(slice, int, int) __tact_dict_next_slice_int(cell d, int kl, slice pivot, int vl) inline;
+
+;; __tact_slice_eq_bits
+int __tact_slice_eq_bits(slice a, slice b) inline;
+
+;; __tact_dict_set_code
+cell __tact_dict_set_code(cell dict, int id, cell code) inline;
+
+;; __tact_dict_get_code
+cell __tact_dict_get_code(cell dict, int id) inline;
+
+;; $Deploy$_load
+(slice, ((int))) $Deploy$_load(slice sc_0) inline;
+
+;; $DeployOk$_store
+builder $DeployOk$_store(builder build_0, (int) v) inline;
+
+;; $DeployOk$_store_cell
+cell $DeployOk$_store_cell((int) v) inline;
+
+;; $AdminWithdraw$_load
+(slice, ((int, cell))) $AdminWithdraw$_load(slice sc_0) inline;
+
+;; $AdminUpdateFeeBalance$_load
+(slice, ((int, int))) $AdminUpdateFeeBalance$_load(slice sc_0) inline;
+
+;; $AdminReplenish$_load
+(slice, (tuple)) $AdminReplenish$_load(slice sc_0) inline;
+
+;; $AdminStopCampaign$_load
+(slice, ((int, slice))) $AdminStopCampaign$_load(slice sc_0) inline;
+
+;; $AdminResumeCampaign$_load
+(slice, ((int, slice))) $AdminResumeCampaign$_load(slice sc_0) inline;
+
+;; $AdminSeizeCampaignBalance$_load
+(slice, ((int, slice))) $AdminSeizeCampaignBalance$_load(slice sc_0) inline;
+
+;; $AdminJettonNotificationMessageFailure$_load
+(slice, ((int, slice, int))) $AdminJettonNotificationMessageFailure$_load(slice sc_0) inline;
+
+;; $AdminWithdrawUSDTToPayout$_load
+(slice, ((int, slice, int))) $AdminWithdrawUSDTToPayout$_load(slice sc_0) inline;
+
+;; $AdminPayAffiliateUSDTBounced$_load
+(slice, ((int, slice, int, int))) $AdminPayAffiliateUSDTBounced$_load(slice sc_0) inline;
+
+;; $AdvertiserWithdrawFundsEvent$_store
+builder $AdvertiserWithdrawFundsEvent$_store(builder build_0, (int, slice, int) v) inline;
+
+;; $AdvertiserWithdrawFundsEvent$_store_cell
+cell $AdvertiserWithdrawFundsEvent$_store_cell((int, slice, int) v) inline;
+
+;; $CampaignCreatedEvent$_store
+builder $CampaignCreatedEvent$_store(builder build_0, (int, slice, slice) v) inline;
+
+;; $CampaignCreatedEvent$_store_cell
+cell $CampaignCreatedEvent$_store_cell((int, slice, slice) v) inline;
+
+;; $AdvertiserSignedCampaignDetailsEvent$_store
+builder $AdvertiserSignedCampaignDetailsEvent$_store(builder build_0, (int, slice) v) inline;
+
+;; $AdvertiserSignedCampaignDetailsEvent$_store_cell
+cell $AdvertiserSignedCampaignDetailsEvent$_store_cell((int, slice) v) inline;
+
+;; $AffiliateCreatedEvent$_store
+builder $AffiliateCreatedEvent$_store(builder build_0, (int, slice, int, slice, int) v) inline;
+
+;; $AffiliateCreatedEvent$_store_cell
+cell $AffiliateCreatedEvent$_store_cell((int, slice, int, slice, int) v) inline;
+
+;; $AdvertiserRemovedAffiliateEvent$_store
+builder $AdvertiserRemovedAffiliateEvent$_store(builder build_0, (int, slice, int, slice) v) inline;
+
+;; $AdvertiserRemovedAffiliateEvent$_store_cell
+cell $AdvertiserRemovedAffiliateEvent$_store_cell((int, slice, int, slice) v) inline;
+
+;; $AdvertiserApprovedAffiliateListEvent$_store
+builder $AdvertiserApprovedAffiliateListEvent$_store(builder build_0, (int, slice, int, slice) v) inline;
+
+;; $AdvertiserApprovedAffiliateListEvent$_store_cell
+cell $AdvertiserApprovedAffiliateListEvent$_store_cell((int, slice, int, slice) v) inline;
+
+;; $AdvertiserDeployNewCampaign$_load
+(slice, (tuple)) $AdvertiserDeployNewCampaign$_load(slice sc_0) inline;
+
+;; $ParentToChildDeployCampaign$_store
+builder $ParentToChildDeployCampaign$_store(builder build_0, (int, slice) v) inline;
+
+;; $ParentToChildDeployCampaign$_store_cell
+cell $ParentToChildDeployCampaign$_store_cell((int, slice) v) inline;
+
+;; $ParentToChildSeizeCampaign$_store
+builder $ParentToChildSeizeCampaign$_store(builder build_0, tuple v) inline;
+
+;; $ParentToChildSeizeCampaign$_store_cell
+cell $ParentToChildSeizeCampaign$_store_cell(tuple v) inline;
+
+;; $ParentToChildJettonNotificationMessageFailure$_store
+builder $ParentToChildJettonNotificationMessageFailure$_store(builder build_0, (int) v) inline;
+
+;; $ParentToChildJettonNotificationMessageFailure$_store_cell
+cell $ParentToChildJettonNotificationMessageFailure$_store_cell((int) v) inline;
+
+;; $ParentToChildWithdrawUSDTToPayout$_store
+builder $ParentToChildWithdrawUSDTToPayout$_store(builder build_0, (int) v) inline;
+
+;; $ParentToChildWithdrawUSDTToPayout$_store_cell
+cell $ParentToChildWithdrawUSDTToPayout$_store_cell((int) v) inline;
+
+;; $ParentToChildPayAffiliateUSDTBounced$_store
+builder $ParentToChildPayAffiliateUSDTBounced$_store(builder build_0, (int, int) v) inline;
+
+;; $ParentToChildPayAffiliateUSDTBounced$_store_cell
+cell $ParentToChildPayAffiliateUSDTBounced$_store_cell((int, int) v) inline;
+
+;; $ChildToParentCampaignDeployedSuccessfully$_load
+(slice, ((int, slice))) $ChildToParentCampaignDeployedSuccessfully$_load(slice sc_0) inline;
+
+;; $ChildToParentAffiliateCreated$_load
+(slice, ((int, int, slice, slice, int))) $ChildToParentAffiliateCreated$_load(slice sc_0) inline;
+
+;; $ChildToParentAdvertiserSignedCampaignDetails$_load
+(slice, ((int, slice))) $ChildToParentAdvertiserSignedCampaignDetails$_load(slice sc_0) inline;
+
+;; $ChildToParentAdvertiserWithdrawFunds$_load
+(slice, ((int, slice, int))) $ChildToParentAdvertiserWithdrawFunds$_load(slice sc_0) inline;
+
+;; $ChildToParentAdvertiserApprovedAffiliate$_load
+(slice, ((int, slice, int, slice))) $ChildToParentAdvertiserApprovedAffiliate$_load(slice sc_0) inline;
+
+;; $ChildToParentAdvertiserRemovedAffiliate$_load
+(slice, ((int, slice, int, slice))) $ChildToParentAdvertiserRemovedAffiliate$_load(slice sc_0) inline;
+
+;; $AffiliateMarketplace$_store
+builder $AffiliateMarketplace$_store(builder build_0, (slice, int, slice, int, slice, cell, int, int) v) inline;
+
+;; $AffiliateMarketplace$_load
+(slice, ((slice, int, slice, int, slice, cell, int, int))) $AffiliateMarketplace$_load(slice sc_0) inline;
+
+;; $StateInit$_not_null
+((cell, cell)) $StateInit$_not_null(tuple v) inline;
+
+;; $Context$_get_value
+_ $Context$_get_value((int, slice, int, slice) v) inline;
+
+;; $Campaign$init$_store
+builder $Campaign$init$_store(builder build_0, (slice, int, slice, slice, slice, slice, cell, int, int) v) inline;
+
+;; $AffiliateMarketplace$init$_load
+(slice, ((slice, slice, cell, int, int))) $AffiliateMarketplace$init$_load(slice sc_0) inline;
+
+;; $AffiliateMarketplace$_contract_init
+(slice, int, slice, int, slice, cell, int, int) $AffiliateMarketplace$_contract_init(slice $bot, slice $usdtMasterAddress, cell $usdtWalletBytecode, int $advertiserFeePercentage, int $affiliateFeePercentage) impure inline_ref;
+
+;; $AffiliateMarketplace$_contract_load
+(slice, int, slice, int, slice, cell, int, int) $AffiliateMarketplace$_contract_load() impure inline_ref;
+
+;; $AffiliateMarketplace$_contract_store
+() $AffiliateMarketplace$_contract_store((slice, int, slice, int, slice, cell, int, int) v) impure inline;
+
+;; $global_random
+int $global_random(int $min, int $max) impure inline;
+
+;; $global_contractAddress
+slice $global_contractAddress((cell, cell) $s) impure inline;
+
+;; $global_send
+int $global_send((int, slice, int, int, cell, cell, cell) $params) impure inline_ref;
+
+;; $global_emit
+() $global_emit(cell $body) impure inline;
+
+;; $Campaign$_init_child
+(cell, cell) $Campaign$_init_child(cell sys', slice $owner, int $campaignId, slice $advertiser, slice $payout, slice $bot, slice $usdtMasterAddress, cell $usdtWalletBytecode, int $advertiserFeePercentage, int $affiliateFeePercentage) inline_ref;
+
+;; $SendParameters$_constructor_bounce_to_value_mode_body_code_data
+((int, slice, int, int, cell, cell, cell)) $SendParameters$_constructor_bounce_to_value_mode_body_code_data(int $bounce, slice $to, int $value, int $mode, cell $body, cell $code, cell $data) inline;
+
+;; $AffiliateMarketplace$_fun_balance
+((slice, int, slice, int, slice, cell, int, int), int) $AffiliateMarketplace$_fun_balance((slice, int, slice, int, slice, cell, int, int) $self) impure inline_ref;
+
+;; $AffiliateMarketplace$_fun_bot
+((slice, int, slice, int, slice, cell, int, int), slice) $AffiliateMarketplace$_fun_bot((slice, int, slice, int, slice, cell, int, int) $self) impure inline_ref;
+
+;; $AffiliateMarketplace$_fun_numCampaigns
+((slice, int, slice, int, slice, cell, int, int), int) $AffiliateMarketplace$_fun_numCampaigns((slice, int, slice, int, slice, cell, int, int) $self) impure inline_ref;
+
+;; $AffiliateMarketplace$_fun_campaignContractStateInit
+((slice, int, slice, int, slice, cell, int, int), (cell, cell)) $AffiliateMarketplace$_fun_campaignContractStateInit((slice, int, slice, int, slice, cell, int, int) $self, int $campaignId, slice $advertiser) impure inline_ref;
+
+;; $AffiliateMarketplace$_fun_campaignContractAddress
+((slice, int, slice, int, slice, cell, int, int), slice) $AffiliateMarketplace$_fun_campaignContractAddress((slice, int, slice, int, slice, cell, int, int) $self, int $campaignId, slice $advertiser) impure inline_ref;
+
+;; $AffiliateMarketplace$_fun_forward
+((slice, int, slice, int, slice, cell, int, int), ()) $AffiliateMarketplace$_fun_forward((slice, int, slice, int, slice, cell, int, int) $self, slice $to, cell $body, int $bounce, tuple $init) impure inline_ref;
+
+;; $AffiliateMarketplace$_fun_reply
+((slice, int, slice, int, slice, cell, int, int), ()) $AffiliateMarketplace$_fun_reply((slice, int, slice, int, slice, cell, int, int) $self, cell $body) impure inline;
+
+;; $AffiliateMarketplace$_fun_notify
+((slice, int, slice, int, slice, cell, int, int), ()) $AffiliateMarketplace$_fun_notify((slice, int, slice, int, slice, cell, int, int) $self, cell $body) impure inline;
+
+;; $AffiliateMarketplace$_fun_requireNotStopped
+((slice, int, slice, int, slice, cell, int, int), ()) $AffiliateMarketplace$_fun_requireNotStopped((slice, int, slice, int, slice, cell, int, int) $self) impure inline_ref;
+
+;; $AffiliateMarketplace$_fun_requireStopped
+((slice, int, slice, int, slice, cell, int, int), ()) $AffiliateMarketplace$_fun_requireStopped((slice, int, slice, int, slice, cell, int, int) $self) impure inline_ref;
+
+;; $AffiliateMarketplace$_fun_stopped
+((slice, int, slice, int, slice, cell, int, int), int) $AffiliateMarketplace$_fun_stopped((slice, int, slice, int, slice, cell, int, int) $self) impure inline_ref;
+
+;; $AffiliateMarketplace$_fun_requireOwner
+((slice, int, slice, int, slice, cell, int, int), ()) $AffiliateMarketplace$_fun_requireOwner((slice, int, slice, int, slice, cell, int, int) $self) impure inline_ref;
+
+;; $AffiliateMarketplace$_fun_owner
+((slice, int, slice, int, slice, cell, int, int), slice) $AffiliateMarketplace$_fun_owner((slice, int, slice, int, slice, cell, int, int) $self) impure inline_ref;
+
+;; $SendParameters$_constructor_to_bounce_value_mode
+((int, slice, int, int, cell, cell, cell)) $SendParameters$_constructor_to_bounce_value_mode(slice $to, int $bounce, int $value, int $mode) inline;
+
+;; $SendParameters$_constructor_to_body_value_mode
+((int, slice, int, int, cell, cell, cell)) $SendParameters$_constructor_to_body_value_mode(slice $to, cell $body, int $value, int $mode) inline;
+
+;; $ParentToChildSeizeCampaign$_constructor_
+(tuple) $ParentToChildSeizeCampaign$_constructor_() inline;
+
+;; $ParentToChildPayAffiliateUSDTBounced$_constructor_affiliateId_amount
+((int, int)) $ParentToChildPayAffiliateUSDTBounced$_constructor_affiliateId_amount(int $affiliateId, int $amount) inline;
+
+;; $ParentToChildJettonNotificationMessageFailure$_constructor_amount
+((int)) $ParentToChildJettonNotificationMessageFailure$_constructor_amount(int $amount) inline;
+
+;; $ParentToChildWithdrawUSDTToPayout$_constructor_amount
+((int)) $ParentToChildWithdrawUSDTToPayout$_constructor_amount(int $amount) inline;
+
+;; $AdvertiserApprovedAffiliateListEvent$_constructor_campaignId_advertiser_affiliateId_affiliate
+((int, slice, int, slice)) $AdvertiserApprovedAffiliateListEvent$_constructor_campaignId_advertiser_affiliateId_affiliate(int $campaignId, slice $advertiser, int $affiliateId, slice $affiliate) inline;
+
+;; $AdvertiserRemovedAffiliateEvent$_constructor_campaignId_advertiser_affiliateId_affiliate
+((int, slice, int, slice)) $AdvertiserRemovedAffiliateEvent$_constructor_campaignId_advertiser_affiliateId_affiliate(int $campaignId, slice $advertiser, int $affiliateId, slice $affiliate) inline;
+
+;; $AdvertiserWithdrawFundsEvent$_constructor_campaignId_advertiser_amount
+((int, slice, int)) $AdvertiserWithdrawFundsEvent$_constructor_campaignId_advertiser_amount(int $campaignId, slice $advertiser, int $amount) inline;
+
+;; $AdvertiserSignedCampaignDetailsEvent$_constructor_campaignId_advertiser
+((int, slice)) $AdvertiserSignedCampaignDetailsEvent$_constructor_campaignId_advertiser(int $campaignId, slice $advertiser) inline;
+
+;; $AffiliateCreatedEvent$_constructor_campaignId_affiliateId_advertiser_affiliate_state
+((int, slice, int, slice, int)) $AffiliateCreatedEvent$_constructor_campaignId_affiliateId_advertiser_affiliate_state(int $campaignId, int $affiliateId, slice $advertiser, slice $affiliate, int $state) inline;
+
+;; $SendParameters$_constructor_to_value_code_data_body_mode
+((int, slice, int, int, cell, cell, cell)) $SendParameters$_constructor_to_value_code_data_body_mode(slice $to, int $value, cell $code, cell $data, cell $body, int $mode) inline;
+
+;; $ParentToChildDeployCampaign$_constructor_campaignId_advertiser
+((int, slice)) $ParentToChildDeployCampaign$_constructor_campaignId_advertiser(int $campaignId, slice $advertiser) inline;
+
+;; $CampaignCreatedEvent$_constructor_campaignId_advertiser_campaignContractAddress
+((int, slice, slice)) $CampaignCreatedEvent$_constructor_campaignId_advertiser_campaignContractAddress(int $campaignId, slice $advertiser, slice $campaignContractAddress) inline;
+
+;; $DeployOk$_constructor_queryId
+((int)) $DeployOk$_constructor_queryId(int $queryId) inline;

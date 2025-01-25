@@ -10,7 +10,7 @@ services:
       args:
         NODE_ENV: ${NODE_ENV}
     ports:
-      - "5173:80"
+      - "8080:8080"
     volumes:
       - ./modules/mini-app/nginx.conf:/etc/nginx/conf.d/nginx.conf.template
       - ./modules/common:/app/src/common
@@ -27,7 +27,7 @@ services:
       context: .
       dockerfile: ./modules/web-server/Dockerfile
     ports:
-      - "3000:3000"
+      - "8080:8080"
     depends_on:
       - db
     networks:

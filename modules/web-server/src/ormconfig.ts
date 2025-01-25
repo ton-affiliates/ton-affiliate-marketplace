@@ -6,20 +6,15 @@ import { CampaignRole } from './entity/CampaignRole';
 import { ProcessedOffset } from './entity/ProcessedOffset';
 import { EventEntity } from './entity/EventEntity';
 
-//psql -h db -U my_user -d my_database
 export default new DataSource({
   type: 'postgres',
-  host: process.env.DB_HOST || 'db',
-  port: Number(process.env.DB_PORT) || 5432,
-  username: process.env.POSTGRES_USER || 'my_user',
-  password: process.env.POSTGRES_PASSWORD || 'my_password',
-  database: process.env.POSTGRES_DB || 'my_database',
+  host: process.env.DB_HOST || '/cloudsql/affiliate-center-447418:us-central1:affiliate-marketplace-db',
+  port: Number(process.env.DB_PORT) || 5432, // Port 5432 is the default for PostgreSQL
+  username: process.env.POSTGRES_USER || 'postgres',
+  password: process.env.POSTGRES_PASSWORD || '6AAInxH\Irjq|7|v',
+  database: process.env.POSTGRES_DB || 'postgres',
   entities: [User, Wallet, Campaign, CampaignRole, ProcessedOffset, EventEntity],
-  /**
-   * Let TypeORM discover compiled migration files
-   * in the s/ directory.
-   */
   migrations: ["dist/migrations/*.js"],
   synchronize: false,
-  logging: false
+  logging: false,
 });

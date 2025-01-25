@@ -1,0 +1,3964 @@
+PROGRAM{
+  DECLPROC __tact_verify_address
+  DECLPROC __tact_load_address
+  DECLPROC __tact_store_address
+  DECLPROC __tact_create_address
+  DECLPROC __tact_compute_contract_address
+  DECLPROC __tact_not_null
+  DECLPROC __tact_context_get
+  DECLPROC __tact_context_get_sender
+  DECLPROC __tact_prepare_random
+  DECLPROC __tact_store_bool
+  DECLPROC __tact_dict_set_int_int
+  DECLPROC __tact_dict_get_int_int
+  DECLPROC __tact_dict_min_int_int
+  DECLPROC __tact_dict_next_int_int
+  DECLPROC __tact_dict_set_int_cell
+  DECLPROC __tact_dict_get_int_cell
+  DECLPROC __tact_dict_min_int_cell
+  DECLPROC __tact_dict_next_int_cell
+  DECLPROC __tact_slice_eq_bits
+  DECLPROC $ParentToChildDeployCampaign$_load
+  DECLPROC $ParentToChildSeizeCampaign$_load
+  DECLPROC $ParentToChildJettonNotificationMessageFailure$_load
+  DECLPROC $ParentToChildWithdrawUSDTToPayout$_load
+  DECLPROC $ParentToChildPayAffiliateUSDTBounced$_load
+  DECLPROC $BotUserAction$_load
+  DECLPROC $PayAffiliate$_store
+  DECLPROC $PayAffiliate$_store_cell
+  DECLPROC $PayAffiliate$_load
+  DECLPROC $AffiliateCreateNewAffiliate$_load
+  DECLPROC $AffiliateWithdrawEarnings$_load
+  DECLPROC $AdvertiserWithdrawFunds$_load
+  DECLPROC $AdvertiserAddNewUserOpCode$_load
+  DECLPROC $CampaignDetails$_store
+  DECLPROC $CampaignDetails$_load
+  DECLPROC $AdvertiserSetCampaignDetails$_load
+  DECLPROC $AdvertiserUserAction$_load
+  DECLPROC $AdvertiserRemoveAffiliate$_load
+  DECLPROC $AdvertiserApproveAffiliate$_load
+  DECLPROC $AdvertiserReplenish$_load
+  DECLPROC $AdvertiserReplenishGasFeesForUSDTCampaign$_load
+  DECLPROC $AdvertiserSignOffWithdraw$_load
+  DECLPROC $ChildToParentCampaignDeployedSuccessfully$_store
+  DECLPROC $ChildToParentCampaignDeployedSuccessfully$_store_cell
+  DECLPROC $ChildToParentAffiliateCreated$_store
+  DECLPROC $ChildToParentAffiliateCreated$_store_cell
+  DECLPROC $ChildToParentAdvertiserSignedCampaignDetails$_store
+  DECLPROC $ChildToParentAdvertiserSignedCampaignDetails$_store_cell
+  DECLPROC $ChildToParentAdvertiserWithdrawFunds$_store
+  DECLPROC $ChildToParentAdvertiserWithdrawFunds$_store_cell
+  DECLPROC $ChildToParentAdvertiserApprovedAffiliate$_store
+  DECLPROC $ChildToParentAdvertiserApprovedAffiliate$_store_cell
+  DECLPROC $ChildToParentAdvertiserRemovedAffiliate$_store
+  DECLPROC $ChildToParentAdvertiserRemovedAffiliate$_store_cell
+  DECLPROC $JettonTransferNotification$_load
+  DECLPROC $TokenExcesses$_load
+  DECLPROC $UserActionStats$_store
+  DECLPROC $UserActionStats$_store_cell
+  DECLPROC $UserActionStats$_load
+  DECLPROC $UserActionStats$_as_optional
+  DECLPROC $UserActionStats$_load_opt
+  DECLPROC $AffiliateData$_store
+  DECLPROC $AffiliateData$_store_cell
+  DECLPROC $AffiliateData$_not_null
+  DECLPROC $AffiliateData$_store_opt
+  DECLPROC $AffiliateData$_load
+  DECLPROC $AffiliateData$_as_optional
+  DECLPROC $AffiliateData$_load_opt
+  DECLPROC $JettonWalletData$_store
+  DECLPROC $JettonWalletData$_store_cell
+  DECLPROC $Campaign$_store
+  DECLPROC $Campaign$_load
+  DECLPROC $StateInit$_not_null
+  DECLPROC $Context$_get_value
+  DECLPROC $UserActionStats$_not_null
+  DECLPROC $AffiliateData$_to_tuple
+  DECLPROC $AffiliateData$_to_opt_tuple
+  DECLPROC $AffiliateData$_to_opt_external
+  DECLPROC $CampaignData$_to_external
+  DECLPROC $Campaign$init$_load
+  DECLPROC $CampaignDetails$_constructor_regularUsersCostPerAction_premiumUsersCostPerAction_isPublicCampaign_campaignValidForNumDays_paymentMethod_requiresAdvertiserApprovalForWithdrawl
+  DECLPROC $JettonWalletData$_constructor_status_balance_ownerAddress_jettonMasterAddress
+  DECLPROC $global_contractAddress
+  DECLPROC $StateInit$_constructor_code_data
+  DECLPROC $global_calculateUSDTWalletAddress
+  DECLPROC $Campaign$_contract_init
+  DECLPROC $Campaign$_contract_load
+  DECLPROC $Campaign$_contract_store
+  DECLPROC $global_random
+  DECLPROC $global_send
+  DECLPROC $Campaign$_fun_calcCampaignBalance
+  DECLPROC $Campaign$_fun_isCampaignExpired
+  DECLPROC $Campaign$_fun_campaignHasSufficientFundsToPayMaxCpa
+  DECLPROC $SendParameters$_constructor_to_value_body_mode
+  DECLPROC $Campaign$_fun_transferJettonUSDT
+  DECLPROC $Campaign$_fun_updateMaxCpaValue
+  DECLPROC $UserActionStats$_constructor_numActions_lastUserActionTimestamp
+  DECLPROC $Campaign$_fun_updateUserStat
+  DECLPROC $Campaign$_fun_campaignHasSufficientTonToPayGasFees
+  DECLPROC $Campaign$_fun_isCampaignActive
+  DECLPROC $Campaign$_fun_updateTopAffiliates
+  DECLPROC $Campaign$_fun_applyUserAction
+  DECLPROC $Campaign$_fun_bouncedPayment
+  DECLPROC $CampaignData$_constructor_campaignId_advertiser_owner_payout_campaignDetails_numAffiliates_totalAffiliateEarnings_campaignStartTimestamp_lastUserActionTimestamp_numAdvertiserWithdrawls_numUserActions_numAdvertiserSignOffs_numAdvertiserReplenishCampaign_numAdvertiserReplenishGasFees_state_campaignBalance_maxCpaValue_contractTonBalance_contractAddress_contractUSDTBalance_contractUsdtWallet_advertiserFeePercentage_affiliateFeePercentage_campaignHasSufficientFundsToPayMaxCpa_isCampaignExpired_isCampaignPausedByAdmin_campaignHasSufficientTonToPayGasFees_isCampaignActive_topAffiliates
+  DECLPROC $Campaign$_fun_campaignData
+  DECLPROC $Campaign$_fun_affiliateData
+  DECLPROC $Campaign$_fun_affiliatesData
+  DECLPROC $Campaign$_fun_affiliatesDataInRange
+  DECLPROC $Campaign$_fun_balance
+  DECLPROC $SendParameters$_constructor_bounce_to_value_mode_body_code_data
+  DECLPROC $Campaign$_fun_forward
+  DECLPROC $Campaign$_fun_reply
+  DECLPROC $Campaign$_fun_requireNotStopped
+  DECLPROC $Campaign$_fun_requireStopped
+  DECLPROC $Campaign$_fun_stopped
+  DECLPROC $Campaign$_fun_requireOwner
+  DECLPROC $Campaign$_fun_owner
+  DECLPROC $SendParameters$_constructor_to_body_value_mode
+  DECLPROC $ChildToParentCampaignDeployedSuccessfully$_constructor_campaignId_advertiser
+  DECLPROC $SendParameters$_constructor_to_value_bounce_mode
+  DECLPROC $SendParameters$_constructor_to_value_bounce_body_mode
+  DECLPROC $PayAffiliate$_constructor_affiliateId_amount
+  DECLPROC $SendParameters$_constructor_to_value_mode
+  DECLPROC $ChildToParentAdvertiserSignedCampaignDetails$_constructor_campaignId_advertiser
+  DECLPROC $AffiliateData$_constructor_affiliate_state_userActionsStats_premiumUserActionsStats_pendingApprovalEarnings_totalEarnings_withdrawEarnings
+  DECLPROC $ChildToParentAffiliateCreated$_constructor_campaignId_advertiser_affiliateId_affiliate_state
+  DECLPROC $ChildToParentAdvertiserApprovedAffiliate$_constructor_campaignId_advertiser_affiliateId_affiliate
+  DECLPROC $ChildToParentAdvertiserRemovedAffiliate$_constructor_campaignId_advertiser_affiliateId_affiliate
+  DECLPROC $ChildToParentAdvertiserWithdrawFunds$_constructor_campaignId_advertiser_amount
+  DECLPROC $Campaign$_internal_binary_ParentToChildDeployCampaign
+  DECLPROC $Campaign$_internal_binary_TokenExcesses
+  DECLPROC $Campaign$_internal_binary_JettonTransferNotification
+  DECLPROC $Campaign$_internal_binary_AffiliateWithdrawEarnings
+  DECLPROC $Campaign$_internal_binary_AdvertiserSignOffWithdraw
+  DECLPROC $Campaign$_internal_binary_ParentToChildSeizeCampaign
+  DECLPROC $Campaign$_internal_binary_AdvertiserSetCampaignDetails
+  DECLPROC $Campaign$_internal_binary_AdvertiserReplenish
+  DECLPROC $Campaign$_internal_binary_AdvertiserReplenishGasFeesForUSDTCampaign
+  DECLPROC $Campaign$_internal_binary_AffiliateCreateNewAffiliate
+  DECLPROC $Campaign$_internal_binary_AdvertiserApproveAffiliate
+  DECLPROC $Campaign$_internal_binary_AdvertiserRemoveAffiliate
+  DECLPROC $Campaign$_internal_binary_AdvertiserWithdrawFunds
+  DECLPROC $Campaign$_internal_binary_BotUserAction
+  DECLPROC $Campaign$_internal_binary_AdvertiserAddNewUserOpCode
+  DECLPROC $Campaign$_internal_binary_AdvertiserUserAction
+  DECLPROC $Campaign$_internal_binary_ParentToChildJettonNotificationMessageFailure
+  DECLPROC $Campaign$_internal_binary_ParentToChildWithdrawUSDTToPayout
+  DECLPROC $Campaign$_internal_binary_ParentToChildPayAffiliateUSDTBounced
+  DECLPROC $Campaign$_receive_binary_bounce_PayAffiliate
+  DECLPROC $Campaign$_internal_text_6c8f44f45fedb4cdfed4de8db14aa5b13ad55d430f759d0669210b74c48fe3df
+  DECLPROC $Campaign$_internal_text_bcfaf776907c719cc8d379d8f194aaaa27e8ca2871cd591781721f215a454501
+  84946 DECLMETHOD %campaignData
+  106530 DECLMETHOD %affiliateData
+  89929 DECLMETHOD %affiliatesData
+  80660 DECLMETHOD %affiliatesDataInRange
+  104128 DECLMETHOD %balance
+  74107 DECLMETHOD %stopped
+  83229 DECLMETHOD %owner
+  115390 DECLMETHOD lazy_deployment_completed
+  DECLPROC $Campaign$_contract_router_internal
+  DECLPROC recv_internal
+  DECLGLOBVAR __tact_context
+  DECLGLOBVAR __tact_context_sender
+  DECLGLOBVAR __tact_context_sys
+  DECLGLOBVAR __tact_randomized
+  __tact_verify_address PROCINLINE:<{
+    DUP
+    SBITS
+    267 PUSHINT
+    EQUAL
+    136 THROWIFNOT
+    DUP
+    11 PLDU
+    DUP
+    1279 PUSHINT
+    EQUAL
+    137 THROWIF
+    10 PUSHPOW2
+    EQUAL
+    136 THROWIFNOT
+  }>
+  __tact_load_address PROCINLINE:<{
+    LDMSGADDR
+    SWAP
+    __tact_verify_address INLINECALLDICT
+  }>
+  __tact_store_address PROCINLINE:<{
+    __tact_verify_address INLINECALLDICT
+    STSLICER
+  }>
+  __tact_create_address PROCINLINE:<{
+    NEWC
+    2 PUSHINT
+    SWAP
+    2 STU
+    0 PUSHINT
+    SWAP
+    1 STU
+    s1 s2 XCHG
+    8 STI
+    256 STU
+    ENDC
+    CTOS
+    __tact_verify_address INLINECALLDICT
+  }>
+  __tact_compute_contract_address PROCINLINE:<{
+    NEWC
+    0 PUSHINT
+    SWAP
+    2 STU
+    3 PUSHINT
+    SWAP
+    2 STU
+    0 PUSHINT
+    SWAP
+    1 STU
+    s1 s2 XCHG
+    STREF
+    STREF
+    ENDC
+    HASHCU
+    __tact_create_address INLINECALLDICT
+  }>
+  __tact_not_null PROCINLINE:<{
+    DUP
+    ISNULL
+    128 THROWIF
+  }>
+  __tact_context_get PROCINLINE:<{
+    __tact_context GETGLOB
+    4 UNTUPLE
+  }>
+  __tact_context_get_sender PROCINLINE:<{
+    __tact_context_sender GETGLOB
+  }>
+  __tact_prepare_random PROCINLINE:<{
+    __tact_randomized GETGLOB
+    ISNULL
+    IF:<{
+      LTIME
+      ADDRAND
+      TRUE
+      __tact_randomized SETGLOB
+    }>
+  }>
+  __tact_store_bool PROCINLINE:<{
+    SWAP
+    1 STI
+  }>
+  __tact_dict_set_int_int PROCINLINE:<{
+    OVER
+    ISNULL
+    IF:<{
+      2DROP
+      -ROT
+      DICTIDEL
+      DROP
+    }>ELSE<{
+      NEWC
+      SWAP
+      STIX
+      s1 s3 s3 XCHG3
+      DICTISETB
+    }>
+  }>
+  __tact_dict_get_int_int PROCINLINE:<{
+    s1 s3 s3 XCHG3
+    DICTIGET
+    NULLSWAPIFNOT
+    IF:<{
+      SWAP
+      LDIX
+      DROP
+    }>ELSE<{
+      2DROP
+      PUSHNULL
+    }>
+  }>
+  __tact_dict_min_int_int PROCINLINE:<{
+    -ROT
+    DICTIMIN
+    NULLSWAPIFNOT2
+    DUP
+    IF:<{
+      s2 s3 XCHG2
+      LDIX
+      DROP
+      ROT
+    }>ELSE<{
+      2 1 BLKDROP2
+      PUSHNULL
+      s2 POP
+      PUSHNULL
+      SWAP
+    }>
+  }>
+  __tact_dict_next_int_int PROCINLINE:<{
+    s1 s3 s3 XCHG3
+    DICTIGETNEXT
+    NULLSWAPIFNOT2
+    DUP
+    IF:<{
+      s2 s3 XCHG2
+      LDIX
+      DROP
+      ROT
+    }>ELSE<{
+      2 1 BLKDROP2
+      PUSHNULL
+      s2 POP
+      PUSHNULL
+      SWAP
+    }>
+  }>
+  __tact_dict_set_int_cell PROCINLINE:<{
+    DUP
+    ISNULL
+    IF:<{
+      DROP
+      -ROT
+      DICTIDEL
+      DROP
+    }>ELSE<{
+      s1 s3 s3 XCHG3
+      DICTISETREF
+    }>
+  }>
+  __tact_dict_get_int_cell PROCINLINE:<{
+    -ROT
+    DICTIGETREF
+    NULLSWAPIFNOT
+    IF:<{
+    }>ELSE<{
+      DROP
+      PUSHNULL
+    }>
+  }>
+  __tact_dict_min_int_cell PROCINLINE:<{
+    DICTIMINREF
+    NULLSWAPIFNOT2
+    DUP
+    IF:<{
+      s1 s2 XCHG
+    }>ELSE<{
+      NIP
+      PUSHNULL
+      s2 POP
+      PUSHNULL
+      SWAP
+    }>
+  }>
+  __tact_dict_next_int_cell PROCINLINE:<{
+    -ROT
+    DICTIGETNEXT
+    NULLSWAPIFNOT2
+    DUP
+    IF:<{
+      s0 s2 XCHG
+      LDREF
+      DROP
+      ROT
+    }>ELSE<{
+      NIP
+      PUSHNULL
+      s2 POP
+      PUSHNULL
+      SWAP
+    }>
+  }>
+  __tact_slice_eq_bits PROCINLINE:<{
+    SDEQ
+  }>
+  $ParentToChildDeployCampaign$_load PROCINLINE:<{
+    32 LDU
+    SWAP
+    1292517596 PUSHINT
+    EQUAL
+    129 THROWIFNOT
+    32 LDU
+    __tact_load_address INLINECALLDICT
+    s1 s2 XCHG
+  }>
+  $ParentToChildSeizeCampaign$_load PROCINLINE:<{
+    32 LDU
+    SWAP
+    340595563 PUSHINT
+    EQUAL
+    129 THROWIFNOT
+    PUSHNULL
+  }>
+  $ParentToChildJettonNotificationMessageFailure$_load PROCINLINE:<{
+    32 LDU
+    SWAP
+    1354800261 PUSHINT
+    EQUAL
+    129 THROWIFNOT
+    LDVARUINT16
+    SWAP
+  }>
+  $ParentToChildWithdrawUSDTToPayout$_load PROCINLINE:<{
+    32 LDU
+    SWAP
+    2232130989 PUSHINT
+    EQUAL
+    129 THROWIFNOT
+    LDVARUINT16
+    SWAP
+  }>
+  $ParentToChildPayAffiliateUSDTBounced$_load PROCINLINE:<{
+    32 LDU
+    SWAP
+    2591643766 PUSHINT
+    EQUAL
+    129 THROWIFNOT
+    64 LDU
+    LDVARUINT16
+    -ROT
+  }>
+  $BotUserAction$_load PROCINLINE:<{
+    32 LDU
+    SWAP
+    1940543113 PUSHINT
+    EQUAL
+    129 THROWIFNOT
+    32 LDU
+    32 LDU
+    1 LDI
+    3 -ROLL
+  }>
+  $PayAffiliate$_store PROCINLINE:<{
+    2310656706 PUSHINT
+    s0 s3 XCHG2
+    32 STU
+    32 STU
+    SWAP
+    STVARUINT16
+  }>
+  $PayAffiliate$_store_cell PROCINLINE:<{
+    NEWC
+    -ROT
+    $PayAffiliate$_store INLINECALLDICT
+    ENDC
+  }>
+  $PayAffiliate$_load PROCINLINE:<{
+    32 LDU
+    SWAP
+    2310656706 PUSHINT
+    EQUAL
+    129 THROWIFNOT
+    32 LDU
+    LDVARUINT16
+    -ROT
+  }>
+  $AffiliateCreateNewAffiliate$_load PROCINLINE:<{
+    32 LDU
+    SWAP
+    820291840 PUSHINT
+    EQUAL
+    129 THROWIFNOT
+    PUSHNULL
+  }>
+  $AffiliateWithdrawEarnings$_load PROCINLINE:<{
+    32 LDU
+    SWAP
+    2309430758 PUSHINT
+    EQUAL
+    129 THROWIFNOT
+    32 LDU
+    SWAP
+  }>
+  $AdvertiserWithdrawFunds$_load PROCINLINE:<{
+    32 LDU
+    SWAP
+    3579069153 PUSHINT
+    EQUAL
+    129 THROWIFNOT
+    LDVARUINT16
+    SWAP
+  }>
+  $AdvertiserAddNewUserOpCode$_load PROCINLINE:<{
+    32 LDU
+    SWAP
+    237456654 PUSHINT
+    EQUAL
+    129 THROWIFNOT
+    32 LDU
+    1 LDI
+    LDVARUINT16
+    3 -ROLL
+  }>
+  $CampaignDetails$_store PROCREF:<{
+    s5 s6 XCHG2
+    STDICT
+    s1 s3 XCHG
+    STDICT
+    1 STI
+    OVER
+    ISNULL
+    NOT
+    IF:<{
+      TRUE
+      SWAP
+      1 STI
+      32 STU
+    }>ELSE<{
+      FALSE
+      s2 POP
+      1 STI
+    }>
+    32 STU
+    1 STI
+  }>
+  $CampaignDetails$_load PROCREF:<{
+    LDDICT
+    LDDICT
+    1 LDI
+    1 LDI
+    SWAP
+    IF:<{
+      32 LDU
+    }>ELSE<{
+      PUSHNULL
+      SWAP
+    }>
+    32 LDU
+    1 LDI
+    6 -ROLL
+  }>
+  $AdvertiserSetCampaignDetails$_load PROCINLINE:<{
+    32 LDU
+    SWAP
+    1253088072 PUSHINT
+    EQUAL
+    129 THROWIFNOT
+    $CampaignDetails$_load INLINECALLDICT
+  }>
+  $AdvertiserUserAction$_load PROCINLINE:<{
+    32 LDU
+    SWAP
+    3231438857 PUSHINT
+    EQUAL
+    129 THROWIFNOT
+    32 LDU
+    32 LDU
+    1 LDI
+    3 -ROLL
+  }>
+  $AdvertiserRemoveAffiliate$_load PROCINLINE:<{
+    32 LDU
+    SWAP
+    2637094481 PUSHINT
+    EQUAL
+    129 THROWIFNOT
+    32 LDU
+    SWAP
+  }>
+  $AdvertiserApproveAffiliate$_load PROCINLINE:<{
+    32 LDU
+    SWAP
+    1560570076 PUSHINT
+    EQUAL
+    129 THROWIFNOT
+    32 LDU
+    SWAP
+  }>
+  $AdvertiserReplenish$_load PROCINLINE:<{
+    32 LDU
+    SWAP
+    1319387318 PUSHINT
+    EQUAL
+    129 THROWIFNOT
+    PUSHNULL
+  }>
+  $AdvertiserReplenishGasFeesForUSDTCampaign$_load PROCINLINE:<{
+    32 LDU
+    SWAP
+    3170273034 PUSHINT
+    EQUAL
+    129 THROWIFNOT
+    PUSHNULL
+  }>
+  $AdvertiserSignOffWithdraw$_load PROCINLINE:<{
+    32 LDU
+    SWAP
+    2469363792 PUSHINT
+    EQUAL
+    129 THROWIFNOT
+    LDDICT
+    SWAP
+  }>
+  $ChildToParentCampaignDeployedSuccessfully$_store PROCINLINE:<{
+    370750836 PUSHINT
+    s0 s3 XCHG2
+    32 STU
+    32 STU
+    SWAP
+    __tact_store_address INLINECALLDICT
+  }>
+  $ChildToParentCampaignDeployedSuccessfully$_store_cell PROCINLINE:<{
+    NEWC
+    -ROT
+    $ChildToParentCampaignDeployedSuccessfully$_store INLINECALLDICT
+    ENDC
+  }>
+  $ChildToParentAffiliateCreated$_store PROCINLINE:<{
+    3477708169 PUSHINT
+    s0 s6 XCHG2
+    32 STU
+    s1 s4 XCHG
+    32 STU
+    s1 s2 XCHG
+    32 STU
+    SWAP
+    __tact_store_address INLINECALLDICT
+    SWAP
+    __tact_store_address INLINECALLDICT
+    8 STU
+  }>
+  $ChildToParentAffiliateCreated$_store_cell PROCINLINE:<{
+    NEWC
+    5 -ROLL
+    $ChildToParentAffiliateCreated$_store INLINECALLDICT
+    ENDC
+  }>
+  $ChildToParentAdvertiserSignedCampaignDetails$_store PROCINLINE:<{
+    1248894233 PUSHINT
+    s0 s3 XCHG2
+    32 STU
+    32 STU
+    SWAP
+    __tact_store_address INLINECALLDICT
+  }>
+  $ChildToParentAdvertiserSignedCampaignDetails$_store_cell PROCINLINE:<{
+    NEWC
+    -ROT
+    $ChildToParentAdvertiserSignedCampaignDetails$_store INLINECALLDICT
+    ENDC
+  }>
+  $ChildToParentAdvertiserWithdrawFunds$_store PROCINLINE:<{
+    2584288256 PUSHINT
+    s0 s4 XCHG2
+    32 STU
+    s1 s2 XCHG
+    32 STU
+    SWAP
+    __tact_store_address INLINECALLDICT
+    SWAP
+    STVARUINT16
+  }>
+  $ChildToParentAdvertiserWithdrawFunds$_store_cell PROCINLINE:<{
+    NEWC
+    3 -ROLL
+    $ChildToParentAdvertiserWithdrawFunds$_store INLINECALLDICT
+    ENDC
+  }>
+  $ChildToParentAdvertiserApprovedAffiliate$_store PROCINLINE:<{
+    1498234406 PUSHINT
+    s0 s5 XCHG2
+    32 STU
+    s1 s3 XCHG
+    32 STU
+    SWAP
+    __tact_store_address INLINECALLDICT
+    32 STU
+    SWAP
+    __tact_store_address INLINECALLDICT
+  }>
+  $ChildToParentAdvertiserApprovedAffiliate$_store_cell PROCINLINE:<{
+    NEWC
+    4 -ROLL
+    $ChildToParentAdvertiserApprovedAffiliate$_store INLINECALLDICT
+    ENDC
+  }>
+  $ChildToParentAdvertiserRemovedAffiliate$_store PROCINLINE:<{
+    2190513838 PUSHINT
+    s0 s5 XCHG2
+    32 STU
+    s1 s3 XCHG
+    32 STU
+    SWAP
+    __tact_store_address INLINECALLDICT
+    32 STU
+    SWAP
+    __tact_store_address INLINECALLDICT
+  }>
+  $ChildToParentAdvertiserRemovedAffiliate$_store_cell PROCINLINE:<{
+    NEWC
+    4 -ROLL
+    $ChildToParentAdvertiserRemovedAffiliate$_store INLINECALLDICT
+    ENDC
+  }>
+  $JettonTransferNotification$_load PROCINLINE:<{
+    32 LDU
+    SWAP
+    1935855772 PUSHINT
+    EQUAL
+    129 THROWIFNOT
+    64 LDU
+    LDVARUINT16
+    __tact_load_address INLINECALLDICT
+    s3 s0 s3 XC2PU
+    s2 s3 XCHG
+  }>
+  $TokenExcesses$_load PROCINLINE:<{
+    32 LDU
+    SWAP
+    3576854235 PUSHINT
+    EQUAL
+    129 THROWIFNOT
+    64 LDU
+    SWAP
+  }>
+  $UserActionStats$_store PROCINLINE:<{
+    s0 s2 XCHG
+    32 STU
+    32 STU
+  }>
+  $UserActionStats$_store_cell PROCINLINE:<{
+    NEWC
+    -ROT
+    $UserActionStats$_store INLINECALLDICT
+    ENDC
+  }>
+  $UserActionStats$_load PROCINLINE:<{
+    32 LDU
+    32 LDU
+    -ROT
+  }>
+  $UserActionStats$_as_optional PROCINLINE:<{
+        2 TUPLE
+  }>
+  $UserActionStats$_load_opt PROCINLINE:<{
+    DUP
+    ISNULL
+    IF:<{
+      DROP
+      PUSHNULL
+    }>ELSE<{
+      CTOS
+      $UserActionStats$_load INLINECALLDICT
+      1 2 BLKDROP2
+      $UserActionStats$_as_optional INLINECALLDICT
+    }>
+  }>
+  $AffiliateData$_store PROCREF:<{
+    s7 s6 XCHG2
+    __tact_store_address INLINECALLDICT
+    s1 s4 XCHG
+    8 STU
+    s1 s2 XCHG
+    STDICT
+    STDICT
+    SWAP
+    STVARUINT16
+    ROT
+    STVARUINT16
+    SWAP
+    STVARUINT16
+  }>
+  $AffiliateData$_store_cell PROCINLINE:<{
+    NEWC
+    7 -ROLL
+    $AffiliateData$_store INLINECALLDICT
+    ENDC
+  }>
+  $AffiliateData$_not_null PROCINLINE:<{
+    DUP
+    ISNULL
+    128 THROWIF
+        7 UNTUPLE
+  }>
+  $AffiliateData$_store_opt PROCINLINE:<{
+    DUP
+    ISNULL
+    IF:<{
+      DROP
+      PUSHNULL
+    }>ELSE<{
+      $AffiliateData$_not_null INLINECALLDICT
+      $AffiliateData$_store_cell INLINECALLDICT
+    }>
+  }>
+  $AffiliateData$_load PROCREF:<{
+    __tact_load_address INLINECALLDICT
+    SWAP
+    8 LDU
+    LDDICT
+    LDDICT
+    LDVARUINT16
+    LDVARUINT16
+    LDVARUINT16
+    7 -ROLL
+  }>
+  $AffiliateData$_as_optional PROCINLINE:<{
+        7 TUPLE
+  }>
+  $AffiliateData$_load_opt PROCINLINE:<{
+    DUP
+    ISNULL
+    IF:<{
+      DROP
+      PUSHNULL
+    }>ELSE<{
+      CTOS
+      $AffiliateData$_load INLINECALLDICT
+      1 7 BLKDROP2
+      $AffiliateData$_as_optional INLINECALLDICT
+    }>
+  }>
+  $JettonWalletData$_store PROCINLINE:<{
+    s3 s4 XCHG2
+    4 STU
+    SWAP
+    STVARUINT16
+    SWAP
+    __tact_store_address INLINECALLDICT
+    SWAP
+    __tact_store_address INLINECALLDICT
+  }>
+  $JettonWalletData$_store_cell PROCINLINE:<{
+    NEWC
+    4 -ROLL
+    $JettonWalletData$_store INLINECALLDICT
+    ENDC
+  }>
+  $Campaign$_store PROCINLINE:<{
+    s1 29 s() XCHG
+    s0 28 s() XCHG
+    __tact_store_address INLINECALLDICT
+    s1 26 s() XCHG
+    1 STI
+    s1 24 s() XCHG
+    32 STU
+    SWAP
+    s0 22 s() XCHG
+    __tact_store_address INLINECALLDICT
+    SWAP
+    s0 20 s() XCHG
+    __tact_store_address INLINECALLDICT
+    NEWC
+    s0 s6 XCHG
+    s5 19 s() XCHG
+    s4 18 s() XCHG
+    s3 17 s() XCHG
+    s2 16 s() XCHG
+    s15 s14 XCHG2
+    $CampaignDetails$_store INLINECALLDICT
+    s0 s7 XCHG2
+    __tact_store_address INLINECALLDICT
+    s1 s5 XCHG
+    32 STU
+    s1 s3 XCHG
+    STDICT
+    32 STU
+    32 STU
+    32 STU
+    32 STU
+    32 STU
+    s1 s5 XCHG
+    32 STU
+    s1 s3 XCHG
+    32 STU
+    32 STU
+    SWAP
+    STVARUINT16
+    ROT
+    STVARUINT16
+    s1 s2 XCHG
+    32 STU
+    s1 s2 XCHG
+    32 STU
+    s0 s2 XCHG
+    NEWC
+    STDICT
+    s0 s4 XCHG2
+    STVARUINT16
+    ROT
+    __tact_store_address INLINECALLDICT
+    ENDC
+    SWAP
+    STREF
+    ENDC
+    SWAP
+    STREF
+  }>
+  $Campaign$_load PROCINLINE:<{
+    __tact_load_address INLINECALLDICT
+    SWAP
+    1 LDI
+    32 LDU
+    __tact_load_address INLINECALLDICT
+    SWAP
+    __tact_load_address INLINECALLDICT
+    SWAP
+    LDREF
+    SWAP
+    CTOS
+    $CampaignDetails$_load INLINECALLDICT
+    s0 s6 XCHG
+    __tact_load_address INLINECALLDICT
+    SWAP
+    32 LDU
+    LDDICT
+    32 LDU
+    32 LDU
+    32 LDU
+    32 LDU
+    32 LDU
+    32 LDU
+    32 LDU
+    32 LDU
+    LDVARUINT16
+    LDVARUINT16
+    32 LDU
+    32 LDU
+    LDREF
+    DROP
+    CTOS
+    LDDICT
+    LDVARUINT16
+    __tact_load_address INLINECALLDICT
+    NIP
+    24 s() 29 s() XCHG
+    24 s() 28 s() XCHG
+    24 s() 27 s() XCHG
+    24 s() 26 s() XCHG
+    24 s() 25 s() XCHG
+    22 s() 23 s() XCHG
+    21 s() 22 s() XCHG
+    20 s() 21 s() XCHG
+    19 s() 20 s() XCHG
+    18 s() 19 s() XCHG
+  }>
+  $StateInit$_not_null PROCINLINE:<{
+    DUP
+    ISNULL
+    128 THROWIF
+        2 UNTUPLE
+  }>
+  $Context$_get_value PROCINLINE:<{
+    s1 s3 XCHG
+    3 BLKDROP
+  }>
+  $UserActionStats$_not_null PROCINLINE:<{
+    DUP
+    ISNULL
+    128 THROWIF
+        2 UNTUPLE
+  }>
+  $AffiliateData$_to_tuple PROCINLINE:<{
+        7 TUPLE
+  }>
+  $AffiliateData$_to_opt_tuple PROCINLINE:<{
+    DUP
+    ISNULL
+    IF:<{
+      DROP
+      PUSHNULL
+    }>ELSE<{
+      $AffiliateData$_not_null INLINECALLDICT
+      $AffiliateData$_to_tuple INLINECALLDICT
+    }>
+  }>
+  $AffiliateData$_to_opt_external PROCINLINE:<{
+    $AffiliateData$_to_opt_tuple INLINECALLDICT
+    DUP
+    ISNULL
+    IF:<{
+      DROP
+      PUSHNULL
+    }>ELSE<{
+    }>
+  }>
+  $CampaignData$_to_external PROCINLINE:<{
+  }>
+  $Campaign$init$_load PROCREF:<{
+    __tact_load_address INLINECALLDICT
+    SWAP
+    257 PUSHINT
+    LDIX
+    __tact_load_address INLINECALLDICT
+    SWAP
+    LDREF
+    SWAP
+    CTOS
+    __tact_load_address INLINECALLDICT
+    SWAP
+    __tact_load_address INLINECALLDICT
+    SWAP
+    __tact_load_address INLINECALLDICT
+    SWAP
+    LDREF
+    LDREF
+    DROP
+    CTOS
+    257 PUSHINT
+    LDIX
+    257 PUSHINT
+    LDIX
+    DROP
+    s6 s9 XCHG
+    s6 s8 XCHG
+    s6 s7 XCHG
+  }>
+  $CampaignDetails$_constructor_regularUsersCostPerAction_premiumUsersCostPerAction_isPublicCampaign_campaignValidForNumDays_paymentMethod_requiresAdvertiserApprovalForWithdrawl PROCINLINE:<{
+  }>
+  $JettonWalletData$_constructor_status_balance_ownerAddress_jettonMasterAddress PROCINLINE:<{
+  }>
+  $global_contractAddress PROCINLINE:<{
+    0 PUSHINT
+    -ROT
+    __tact_compute_contract_address INLINECALLDICT
+  }>
+  $StateInit$_constructor_code_data PROCINLINE:<{
+  }>
+  $global_calculateUSDTWalletAddress PROCREF:<{
+    0 PUSHINT
+    s0 s3 s1 XC2PU
+    s0 s3 XCHG
+    $JettonWalletData$_constructor_status_balance_ownerAddress_jettonMasterAddress INLINECALLDICT
+    $JettonWalletData$_store_cell INLINECALLDICT
+    $StateInit$_constructor_code_data INLINECALLDICT
+    $global_contractAddress INLINECALLDICT
+  }>
+  $Campaign$_contract_init PROCREF:<{
+    50865 PUSHINT
+    __tact_context_get_sender INLINECALLDICT
+    s10 s(-1) PUXC
+    __tact_slice_eq_bits INLINECALLDICT
+    THROWANYIFNOT
+    FALSE
+    0 PUSHINT
+    PUSHNULL
+    PUSHNULL
+    PUSHNULL
+    TRUE
+    PUSHNULL
+    s5 PUSH
+    FALSE
+    $CampaignDetails$_constructor_regularUsersCostPerAction_premiumUsersCostPerAction_isPublicCampaign_campaignValidForNumDays_paymentMethod_requiresAdvertiserApprovalForWithdrawl INLINECALLDICT
+    s7 s7 s7 PUSH3
+    s0 s0 s0 PUSH3
+    s0 s0 s0 PUSH3
+    DUP
+    PUSHNULL
+    OVER
+        MYADDR
+    s0 s2 XCHG
+    s1 25 s() XCHG
+    s0 24 s() XCHG
+    $global_calculateUSDTWalletAddress INLINECALLDICT
+    19 s() 27 s() XCHG
+    19 s() 26 s() XCHG
+    19 s() 24 s() XCHG
+    16 s() 23 s() XCHG
+    s15 22 s() XCHG
+    s14 21 s() XCHG
+    s13 20 s() XCHG
+    s12 19 s() XCHG
+    s11 18 s() XCHG
+    s12 17 s() XCHG
+    s11 16 s() XCHG
+    s12 s15 XCHG
+    s10 s14 XCHG
+    s8 s13 XCHG
+    s9 s12 XCHG
+    s7 s11 XCHG
+    s6 s10 XCHG
+    s5 s9 XCHG
+    s4 s8 XCHG
+    s3 s7 XCHG
+    s6 s5 s0 XCHG3
+    s1 s3 s0 XCHG3
+  }>
+  $Campaign$_contract_load PROCREF:<{
+    c4 PUSH
+    CTOS
+    LDREF
+    SWAP
+    __tact_context_sys SETGLOB
+    1 LDI
+    SWAP
+    IFJMP:<{
+      $Campaign$_load INLINECALLDICT
+      29 s() POP
+      27 s() 28 s() XCHG
+      26 s() 27 s() XCHG
+      25 s() 26 s() XCHG
+      24 s() 25 s() XCHG
+      23 s() 24 s() XCHG
+      22 s() 23 s() XCHG
+      21 s() 22 s() XCHG
+      20 s() 21 s() XCHG
+      19 s() 20 s() XCHG
+      18 s() 19 s() XCHG
+      17 s() 18 s() XCHG
+      16 s() 17 s() XCHG
+      s15 16 s() XCHG
+      15 ROLL
+    }>
+    MYADDR
+    11 PLDU
+    10 PUSHPOW2
+    EQUAL
+    137 THROWIFNOT
+    $Campaign$init$_load INLINECALLDICT
+    s0 s9 XCHG
+    ENDS
+    8 ROLL
+    $Campaign$_contract_init INLINECALLDICT
+  }>
+  $Campaign$_contract_store PROCINLINE:<{
+    NEWC
+    __tact_context_sys GETGLOB
+    SWAP
+    STREF
+    TRUE
+    SWAP
+    1 STI
+    s0 29 s() XCHG
+    s0 28 s() XCHG
+    s0 27 s() XCHG
+    s0 26 s() XCHG
+    s0 25 s() XCHG
+    s0 24 s() XCHG
+    s0 23 s() XCHG
+    s0 22 s() XCHG
+    s0 21 s() XCHG
+    s0 20 s() XCHG
+    s0 19 s() XCHG
+    s0 18 s() XCHG
+    s0 17 s() XCHG
+    s0 16 s() XCHG
+    15 -ROLL
+    $Campaign$_store INLINECALLDICT
+    ENDC
+    c4 POP
+  }>
+  $global_random PROCINLINE:<{
+    __tact_prepare_random INLINECALLDICT
+    OVER
+    SUB
+        RAND
+    ADD
+  }>
+  $global_send PROCREF:<{
+        NEWC
+    1 PUSHINT
+    SWAP
+    2 STI
+    s0 s7 XCHG2
+    __tact_store_bool INLINECALLDICT
+    0 PUSHINT
+    SWAP
+    3 STI
+    s0 s5 XCHG2
+    __tact_store_address INLINECALLDICT
+    s0 s3 XCHG2
+        STVARUINT16
+    0 PUSHINT
+    SWAP
+    105 STI
+    s3 PUSH
+    ISNULL
+    NOT
+    IF:<{
+      TRUE
+    }>ELSE<{
+      s4 PUSH
+      ISNULL
+      NOT
+    }>
+    IF:<{
+      TRUE
+      __tact_store_bool INLINECALLDICT
+          NEWC
+      FALSE
+      __tact_store_bool INLINECALLDICT
+      FALSE
+      __tact_store_bool INLINECALLDICT
+      s4 PUSH
+      ISNULL
+      NOT
+      IF:<{
+        TRUE
+        __tact_store_bool INLINECALLDICT
+        s0 s4 XCHG
+        __tact_not_null INLINECALLDICT
+        s0 s4 XCHG2
+            STREF
+      }>ELSE<{
+        s4 POP
+        s0 s3 XCHG
+        FALSE
+        __tact_store_bool INLINECALLDICT
+      }>
+      s4 PUSH
+      ISNULL
+      NOT
+      IF:<{
+        TRUE
+        __tact_store_bool INLINECALLDICT
+        s0 s4 XCHG
+        __tact_not_null INLINECALLDICT
+        s0 s4 XCHG2
+            STREF
+      }>ELSE<{
+        s4 POP
+        s0 s3 XCHG
+        FALSE
+        __tact_store_bool INLINECALLDICT
+      }>
+      FALSE
+      __tact_store_bool INLINECALLDICT
+      s0 s2 XCHG
+      TRUE
+      __tact_store_bool INLINECALLDICT
+      s0 s2 XCHG
+          ENDC
+      ROT
+          STREF
+    }>ELSE<{
+      s3 POP
+      s3 POP
+      SWAP
+      FALSE
+      __tact_store_bool INLINECALLDICT
+    }>
+    OVER
+    ISNULL
+    NOT
+    IF:<{
+      TRUE
+      __tact_store_bool INLINECALLDICT
+      SWAP
+      __tact_not_null INLINECALLDICT
+      SWAP
+          STREF
+    }>ELSE<{
+      NIP
+      FALSE
+      __tact_store_bool INLINECALLDICT
+    }>
+        ENDC
+    SWAP
+        SENDMSG
+  }>
+  $Campaign$_fun_calcCampaignBalance PROCREF:<{
+    19 s() PUSH
+    0 EQINT
+    IFJMP:<{
+          BALANCE FIRST
+      500000000 PUSHINT
+      SUB
+      s7 PUSH
+      SUB
+      0 PUSHINT
+          MAX
+    }>
+    s1 s6 PUSH2
+    SUB
+  }>
+  $Campaign$_fun_isCampaignExpired PROCREF:<{
+    20 s() PUSH
+    ISNULL
+    IFJMP:<{
+      FALSE
+    }>
+        NOW
+    s14 PUSH
+    SUB
+    21 s() PUSH
+    __tact_not_null INLINECALLDICT
+    86400 PUSHINT
+    MUL
+    GREATER
+  }>
+  $Campaign$_fun_campaignHasSufficientFundsToPayMaxCpa PROCREF:<{
+    $Campaign$_fun_calcCampaignBalance INLINECALLDICT
+    s6 PUSH
+    GREATER
+  }>
+  $SendParameters$_constructor_to_value_body_mode PROCINLINE:<{
+    TRUE
+    s0 s4 XCHG
+    s3 s1 s3 XCHG3
+    PUSHNULL
+    PUSHNULL
+  }>
+  $Campaign$_fun_transferJettonUSDT PROCREF:<{
+    s3 s0 PUSH2
+    GEQ
+    1919 THROWIFNOT
+    DUP
+    1000 PUSHINT
+    DIV
+        NEWC
+    0 PUSHINT
+    SWAP
+    32 STU
+        B{b5ee9c72410101010014000024555344542066726f6d2063616d706169676e2fa8d824} B>boc <s PUSHSLICE
+        STSLICER
+        ENDC
+    10000000 PUSHINT
+    0 PUSHINT
+    18446744073709551614 PUSHINT
+    $global_random INLINECALLDICT
+        NEWC
+    260734629 PUSHINT
+    SWAP
+    32 STU
+    64 STU
+    s0 s3 XCHG2
+        STVARUINT16
+    s0 s4 XCHG2
+    __tact_store_address INLINECALLDICT
+        MYADDR
+    __tact_store_address INLINECALLDICT
+    FALSE
+    __tact_store_bool INLINECALLDICT
+    SWAP
+        STVARUINT16
+    TRUE
+    __tact_store_bool INLINECALLDICT
+    s1 s2 XCHG
+        STREF
+        ENDC
+    30000000 PUSHINT
+    s3 PUSH
+    s0 s2 XCHG
+    3 PUSHINT
+    $SendParameters$_constructor_to_value_body_mode INLINECALLDICT
+    $global_send INLINECALLDICT
+    DROP
+    s1 s2 XCHG
+    SUB
+    SWAP
+  }>
+  $Campaign$_fun_updateMaxCpaValue PROCREF:<{
+    s1 s6 XCHG
+        MAX
+    s0 s5 XCHG
+  }>
+  $UserActionStats$_constructor_numActions_lastUserActionTimestamp PROCINLINE:<{
+  }>
+  $Campaign$_fun_updateUserStat PROCREF:<{
+    0 PUSHINT
+    DUP
+    $UserActionStats$_constructor_numActions_lastUserActionTimestamp INLINECALLDICT
+    DROP
+    s2 PUSH
+    ISNULL
+    NOT
+    IF:<{
+      DROP
+      SWAP
+      $UserActionStats$_not_null INLINECALLDICT
+      DROP
+      SWAP
+    }>ELSE<{
+      s2 POP
+    }>
+    SWAP
+    INC
+    SWAP
+  }>
+  $Campaign$_fun_campaignHasSufficientTonToPayGasFees PROCREF:<{
+        BALANCE FIRST
+    500000000 PUSHINT
+    GEQ
+  }>
+  $Campaign$_fun_isCampaignActive PROCREF:<{
+    s14 PUSH
+    1 NEQINT
+    IFJMP:<{
+      FALSE
+    }>
+    27 s() PUSH
+    IFJMP:<{
+      FALSE
+    }>
+    $Campaign$_fun_isCampaignExpired INLINECALLDICT
+    IFJMP:<{
+      FALSE
+    }>
+    $Campaign$_fun_campaignHasSufficientFundsToPayMaxCpa INLINECALLDICT
+    NOT
+    IFJMP:<{
+      FALSE
+    }>
+    $Campaign$_fun_campaignHasSufficientTonToPayGasFees INLINECALLDICT
+    NOT
+    IFJMP:<{
+      FALSE
+    }>
+    TRUE
+  }>
+  $Campaign$_fun_updateTopAffiliates PROCREF:<{
+    257 PUSHINT
+    s5 s(-1) s(-1) PUXCPU
+    s4 s(-1) PUXC
+    __tact_dict_get_int_int INLINECALLDICT
+    ISNULL
+    NOT
+    IFJMP:<{
+      257 PUSHINT
+      DUP
+      s4 s6 XCHG
+      s3 s3 s0 XCHG3
+      __tact_dict_set_int_int INLINECALLDICT
+      s0 s2 XCHG
+    }>
+    PUSHNULL
+    0 PUSHINT
+    DUP
+    257 PUSHINT
+    s8 s(-1) s(-1) PUXCPU
+    __tact_dict_min_int_int INLINECALLDICT
+    WHILE:<{
+    }>DO<{
+      s0 s2 XCHG
+      INC
+      s4 PUSH
+      ISNULL
+      IF:<{
+        TRUE
+      }>ELSE<{
+        s4 PUSH
+        __tact_not_null INLINECALLDICT
+        s3 s(-1) PUXC
+        LESS
+      }>
+      IF:<{
+        s3 POP
+        s3 POP
+        s2 s2 s1 XC2PU
+      }>ELSE<{
+        s2 POP
+      }>
+      257 PUSHINT
+      s0 s9 PUSH2
+      s3 s3 XCHG2
+      __tact_dict_next_int_int INLINECALLDICT
+    }>
+    2DROP
+    3 LESSINT
+    IFJMP:<{
+      2DROP
+      257 PUSHINT
+      DUP
+      s4 s6 XCHG
+      s3 s3 s0 XCHG3
+      __tact_dict_set_int_int INLINECALLDICT
+      s0 s2 XCHG
+    }>
+    OVER
+    ISNULL
+    NOT
+    IF:<{
+      SWAP
+      __tact_not_null INLINECALLDICT
+      s2 s(-1) PUXC
+      GREATER
+    }>ELSE<{
+      NIP
+      FALSE
+    }>
+    IF:<{
+      s0 s5 XCHG2
+      257 PUSHINT
+          DICTIDEL
+      DROP
+      257 PUSHINT
+      s3 s2 s2 XC2PU
+      s1 s6 s0 XCHG3
+      __tact_dict_set_int_int INLINECALLDICT
+      s0 s2 XCHG
+    }>ELSE<{
+      3 BLKDROP
+    }>
+  }>
+  $Campaign$_fun_applyUserAction PROCREF:<{
+    27 s() 31 s() XCHG
+    26 s() 30 s() XCHG
+    25 s() 29 s() XCHG
+    24 s() 28 s() XCHG
+    23 s() 31 s() XCHG
+    22 s() 30 s() XCHG
+    21 s() 29 s() XCHG
+    20 s() 28 s() XCHG
+    19 s() 31 s() XCHG
+    18 s() 30 s() XCHG
+    17 s() 29 s() XCHG
+    16 s() 28 s() XCHG
+    s15 31 s() XCHG
+    s14 30 s() XCHG
+    s13 29 s() XCHG
+    s12 28 s() XCHG
+    s11 31 s() XCHG
+    s10 30 s() XCHG
+    s9 29 s() XCHG
+    s8 28 s() XCHG
+    s7 31 s() XCHG
+    s6 30 s() XCHG
+    s5 29 s() XCHG
+    s4 28 s() XCHG
+    s3 31 s() XCHG
+    s2 30 s() XCHG
+    s1 29 s() XCHG
+    s0 28 s() XCHG
+    24142 PUSHINT
+    s0 32 s() XCHG
+    $Campaign$_fun_isCampaignActive INLINECALLDICT
+    s1 33 s() XCHG
+    THROWANYIFNOT
+    s14 PUSH
+    257 PUSHINT
+    31 s() PUSH
+    __tact_dict_get_int_cell INLINECALLDICT
+    $AffiliateData$_load_opt INLINECALLDICT
+    53456 PUSHINT
+    OVER
+    ISNULL
+    NOT
+    THROWANYIFNOT
+    $AffiliateData$_not_null INLINECALLDICT
+    43147 PUSHINT
+    s6 PUSH
+    1 EQINT
+    THROWANYIFNOT
+    35 s() PUSH
+    IF:<{
+      257 PUSHINT
+      DUP
+      30 s() PUSH
+      -ROT
+      40 s() PUSH
+      SWAP
+      __tact_dict_get_int_int INLINECALLDICT
+    }>ELSE<{
+      257 PUSHINT
+      DUP
+      31 s() PUSH
+      -ROT
+      40 s() PUSH
+      SWAP
+      __tact_dict_get_int_int INLINECALLDICT
+    }>
+    14486 PUSHINT
+    OVER
+    ISNULL
+    NOT
+    THROWANYIFNOT
+    __tact_not_null INLINECALLDICT
+        NOW
+    s0 37 s() XCHG
+    IF:<{
+      s4 PUSH
+      257 PUSHINT
+      40 s() PUSH
+      __tact_dict_get_int_cell INLINECALLDICT
+      $UserActionStats$_load_opt INLINECALLDICT
+      29 s() 36 s() XCHG
+      28 s() 35 s() XCHG
+      27 s() 34 s() XCHG
+      26 s() 33 s() XCHG
+      25 s() 32 s() XCHG
+      24 s() 31 s() XCHG
+      23 s() 30 s() XCHG
+      22 s() 36 s() XCHG
+      21 s() 35 s() XCHG
+      20 s() 34 s() XCHG
+      19 s() 33 s() XCHG
+      18 s() 32 s() XCHG
+      17 s() 31 s() XCHG
+      16 s() 30 s() XCHG
+      s15 36 s() XCHG
+      s14 35 s() XCHG
+      s13 34 s() XCHG
+      s12 33 s() XCHG
+      s11 32 s() XCHG
+      s10 31 s() XCHG
+      s9 30 s() XCHG
+      s8 36 s() XCHG
+      s7 35 s() XCHG
+      s6 34 s() XCHG
+      s5 33 s() XCHG
+      s4 32 s() XCHG
+      s3 31 s() XCHG
+      s2 30 s() XCHG
+      s1 40 s() XCHG
+      37 s() PUSH
+      $Campaign$_fun_updateUserStat INLINECALLDICT
+      257 PUSHINT
+      s15 POP
+      $UserActionStats$_store_cell INLINECALLDICT
+      s3 33 s() XCHG
+      s2 s13 XCHG
+      s1 39 s() XCHG
+      __tact_dict_set_int_cell INLINECALLDICT
+    }>ELSE<{
+      s5 PUSH
+      257 PUSHINT
+      40 s() PUSH
+      __tact_dict_get_int_cell INLINECALLDICT
+      $UserActionStats$_load_opt INLINECALLDICT
+      29 s() 36 s() XCHG
+      28 s() 35 s() XCHG
+      27 s() 34 s() XCHG
+      26 s() 33 s() XCHG
+      25 s() 32 s() XCHG
+      24 s() 31 s() XCHG
+      23 s() 30 s() XCHG
+      22 s() 36 s() XCHG
+      21 s() 35 s() XCHG
+      20 s() 34 s() XCHG
+      19 s() 33 s() XCHG
+      18 s() 32 s() XCHG
+      17 s() 31 s() XCHG
+      16 s() 30 s() XCHG
+      s15 36 s() XCHG
+      s14 35 s() XCHG
+      s13 34 s() XCHG
+      s12 33 s() XCHG
+      s11 32 s() XCHG
+      s10 31 s() XCHG
+      s9 30 s() XCHG
+      s8 36 s() XCHG
+      s7 35 s() XCHG
+      s6 34 s() XCHG
+      s5 33 s() XCHG
+      s4 32 s() XCHG
+      s3 31 s() XCHG
+      s2 30 s() XCHG
+      s1 40 s() XCHG
+      37 s() PUSH
+      $Campaign$_fun_updateUserStat INLINECALLDICT
+      257 PUSHINT
+      s15 POP
+      $UserActionStats$_store_cell INLINECALLDICT
+      s3 34 s() XCHG
+      s2 s13 XCHG
+      s1 39 s() XCHG
+      __tact_dict_set_int_cell INLINECALLDICT
+      s0 31 s() XCHG
+      s0 30 s() XCHG
+    }>
+    16 s() PUSH
+    IF:<{
+      s0 29 s() XCHG
+      37 s() PUSH
+      ADD
+    }>ELSE<{
+      s0 27 s() XCHG
+      37 s() PUSH
+      ADD
+      s0 27 s() XCHG
+      s0 29 s() XCHG
+    }>
+    s0 28 s() XCHG
+    37 s() PUSH
+    ADD
+    s4 33 s() XCHG
+    s3 32 s() XCHG
+    s2 31 s() XCHG
+    s1 29 s() XCHG
+    s0 28 s() XCHG
+    28 s() PUSH
+    257 PUSHINT
+    s0 29 s() XCHG
+    $AffiliateData$_store_cell INLINECALLDICT
+    s2 s9 XCHG
+    s1 23 s() XCHG
+    31 s() PUSH
+    SWAP
+    __tact_dict_set_int_cell INLINECALLDICT
+    s0 21 s() XCHG
+    INC
+    s1 27 s() XCHG
+    s0 31 s() XCHG
+    ADD
+    19 s() 30 s() XCHG
+    18 s() 29 s() XCHG
+    17 s() 28 s() XCHG
+    16 s() 27 s() XCHG
+    s15 26 s() XCHG
+    s14 25 s() XCHG
+    s13 24 s() XCHG
+    s12 23 s() XCHG
+    s11 22 s() XCHG
+    s10 21 s() XCHG
+    s9 20 s() XCHG
+    s8 19 s() XCHG
+    s7 18 s() XCHG
+    s9 17 s() XCHG
+    s5 16 s() XCHG
+    s4 s15 XCHG
+    s5 s14 XCHG
+    s13 s12 s0 XCHG3
+    s4 s11 XCHG
+    s6 s10 XCHG
+    s0 s8 XCHG
+    s0 s9 XCHG
+    s5 s7 XCHG
+    s6 s0 s4 XCHG3
+    s5 s1 s5 XCHG3
+    $Campaign$_fun_updateTopAffiliates INLINECALLDICT
+  }>
+  $Campaign$_fun_bouncedPayment PROCREF:<{
+    17 s() PUSH
+    257 PUSHINT
+    s3 PUSH
+    __tact_dict_get_int_cell INLINECALLDICT
+    $AffiliateData$_load_opt INLINECALLDICT
+    48069 PUSHINT
+    OVER
+    ISNULL
+    NOT
+    THROWANYIFNOT
+    $AffiliateData$_not_null INLINECALLDICT
+    s7 PUSH
+    ADD
+    6 -ROLL
+    257 PUSHINT
+    s0 s7 XCHG
+    $AffiliateData$_store_cell INLINECALLDICT
+    s3 19 s() XCHG
+    s1 s2 XCHG
+    s1 19 s() XCHG
+    __tact_dict_set_int_cell INLINECALLDICT
+    s0 16 s() XCHG
+    s1 s7 XCHG
+    ADD
+    s0 s6 XCHG
+  }>
+  $CampaignData$_constructor_campaignId_advertiser_owner_payout_campaignDetails_numAffiliates_totalAffiliateEarnings_campaignStartTimestamp_lastUserActionTimestamp_numAdvertiserWithdrawls_numUserActions_numAdvertiserSignOffs_numAdvertiserReplenishCampaign_numAdvertiserReplenishGasFees_state_campaignBalance_maxCpaValue_contractTonBalance_contractAddress_contractUSDTBalance_contractUsdtWallet_advertiserFeePercentage_affiliateFeePercentage_campaignHasSufficientFundsToPayMaxCpa_isCampaignExpired_isCampaignPausedByAdmin_campaignHasSufficientTonToPayGasFees_isCampaignActive_topAffiliates PROCINLINE:<{
+    s14 21 s() XCHG
+    s14 20 s() XCHG
+    s14 19 s() XCHG
+    s14 18 s() XCHG
+  }>
+  $Campaign$_fun_campaignData PROCREF:<{
+    26 s() PUSH
+    25 s() PUSH
+    30 s() PUSH
+    28 s() PUSH
+    27 s() PUSH
+    27 s() PUSH
+    27 s() PUSH
+    27 s() PUSH
+    27 s() PUSH
+    27 s() PUSH
+    26 s() PUSH
+    17 s() PUSH
+    25 s() PUSH
+    25 s() PUSH
+    25 s() PUSH
+    22 s() PUSH
+    26 s() PUSH
+    26 s() PUSH
+    26 s() PUSH
+    33 s() PUSH
+    28 s() 48 s() XCHG
+    27 s() 47 s() XCHG
+    26 s() 46 s() XCHG
+    25 s() 45 s() XCHG
+    24 s() 44 s() XCHG
+    23 s() 43 s() XCHG
+    22 s() 42 s() XCHG
+    21 s() 41 s() XCHG
+    20 s() 40 s() XCHG
+    19 s() 39 s() XCHG
+    18 s() 38 s() XCHG
+    17 s() 37 s() XCHG
+    16 s() 36 s() XCHG
+    s15 35 s() XCHG
+    s14 34 s() XCHG
+    s13 33 s() XCHG
+    s12 32 s() XCHG
+    s11 31 s() XCHG
+    s10 30 s() XCHG
+    s9 29 s() XCHG
+    s8 48 s() XCHG
+    s7 47 s() XCHG
+    s6 46 s() XCHG
+    s5 45 s() XCHG
+    s4 44 s() XCHG
+    s3 43 s() XCHG
+    s2 42 s() XCHG
+    s1 41 s() XCHG
+    s0 40 s() XCHG
+    $Campaign$_fun_calcCampaignBalance INLINECALLDICT
+    s6 PUSH
+        BALANCE FIRST
+        MYADDR
+    s5 s4 s7 PUSH3
+    s11 PUSH
+    28 s() 36 s() XCHG
+    27 s() 35 s() XCHG
+    26 s() 34 s() XCHG
+    25 s() 33 s() XCHG
+    24 s() 32 s() XCHG
+    23 s() 31 s() XCHG
+    22 s() 30 s() XCHG
+    21 s() 29 s() XCHG
+    20 s() 36 s() XCHG
+    19 s() 35 s() XCHG
+    18 s() 34 s() XCHG
+    17 s() 33 s() XCHG
+    16 s() 32 s() XCHG
+    s15 31 s() XCHG
+    s14 30 s() XCHG
+    s13 29 s() XCHG
+    s12 36 s() XCHG
+    s11 35 s() XCHG
+    s10 34 s() XCHG
+    s9 33 s() XCHG
+    s8 32 s() XCHG
+    s7 31 s() XCHG
+    s6 30 s() XCHG
+    s5 29 s() XCHG
+    s4 36 s() XCHG
+    s3 35 s() XCHG
+    s2 34 s() XCHG
+    s1 33 s() XCHG
+    s0 32 s() XCHG
+    $Campaign$_fun_campaignHasSufficientFundsToPayMaxCpa INLINECALLDICT
+    28 s() 29 s() XCHG
+    27 s() 29 s() XCHG
+    26 s() 29 s() XCHG
+    25 s() 29 s() XCHG
+    24 s() 29 s() XCHG
+    23 s() 29 s() XCHG
+    22 s() 29 s() XCHG
+    21 s() 29 s() XCHG
+    20 s() 29 s() XCHG
+    19 s() 29 s() XCHG
+    18 s() 29 s() XCHG
+    17 s() 29 s() XCHG
+    16 s() 29 s() XCHG
+    s15 29 s() XCHG
+    s14 29 s() XCHG
+    s13 29 s() XCHG
+    s12 29 s() XCHG
+    s11 29 s() XCHG
+    s10 29 s() XCHG
+    s9 29 s() XCHG
+    s0 29 s() XCHG
+    s0 s8 XCHG
+    s0 s7 XCHG
+    s0 s6 XCHG
+    5 -ROLL
+    $Campaign$_fun_isCampaignExpired INLINECALLDICT
+    28 s() PUSH
+    28 s() 30 s() XCHG
+    27 s() 29 s() XCHG
+    26 s() 30 s() XCHG
+    25 s() 29 s() XCHG
+    24 s() 30 s() XCHG
+    23 s() 29 s() XCHG
+    22 s() 30 s() XCHG
+    21 s() 29 s() XCHG
+    20 s() 30 s() XCHG
+    19 s() 29 s() XCHG
+    18 s() 30 s() XCHG
+    17 s() 29 s() XCHG
+    16 s() 30 s() XCHG
+    s15 29 s() XCHG
+    s14 30 s() XCHG
+    s13 29 s() XCHG
+    s12 30 s() XCHG
+    s11 29 s() XCHG
+    s10 30 s() XCHG
+    s9 29 s() XCHG
+    s8 30 s() XCHG
+    s7 29 s() XCHG
+    s6 30 s() XCHG
+    s5 29 s() XCHG
+    s4 30 s() XCHG
+    s3 29 s() XCHG
+    s2 30 s() XCHG
+    s1 29 s() XCHG
+    s0 30 s() XCHG
+    $Campaign$_fun_campaignHasSufficientTonToPayGasFees INLINECALLDICT
+    28 s() 29 s() XCHG
+    27 s() 29 s() XCHG
+    26 s() 29 s() XCHG
+    25 s() 29 s() XCHG
+    24 s() 29 s() XCHG
+    23 s() 29 s() XCHG
+    22 s() 29 s() XCHG
+    21 s() 29 s() XCHG
+    20 s() 29 s() XCHG
+    19 s() 29 s() XCHG
+    18 s() 29 s() XCHG
+    17 s() 29 s() XCHG
+    16 s() 29 s() XCHG
+    s15 29 s() XCHG
+    s14 29 s() XCHG
+    s13 29 s() XCHG
+    s12 29 s() XCHG
+    s11 29 s() XCHG
+    s10 29 s() XCHG
+    s9 29 s() XCHG
+    s0 29 s() XCHG
+    s0 s8 XCHG
+    s0 s7 XCHG
+    s0 s6 XCHG
+    5 -ROLL
+    $Campaign$_fun_isCampaignActive INLINECALLDICT
+    32 s() 52 s() XCHG
+    31 s() 51 s() XCHG
+    30 s() 50 s() XCHG
+    29 s() 49 s() XCHG
+    28 s() 48 s() XCHG
+    27 s() 47 s() XCHG
+    26 s() 46 s() XCHG
+    25 s() 45 s() XCHG
+    24 s() 44 s() XCHG
+    23 s() 43 s() XCHG
+    22 s() 42 s() XCHG
+    21 s() 61 s() XCHG
+    20 s() 60 s() XCHG
+    19 s() 59 s() XCHG
+    18 s() 58 s() XCHG
+    17 s() 57 s() XCHG
+    16 s() 56 s() XCHG
+    s15 55 s() XCHG
+    s14 54 s() XCHG
+    s13 53 s() XCHG
+    s12 36 s() XCHG
+    s11 35 s() XCHG
+    s10 34 s() XCHG
+    s9 41 s() XCHG
+    s8 40 s() XCHG
+    s7 39 s() XCHG
+    s6 38 s() XCHG
+    s5 37 s() XCHG
+    s4 33 s() XCHG
+    s3 51 s() XCHG
+    s2 52 s() XCHG
+    s1 50 s() XCHG
+    51 s() PUSH
+    $CampaignData$_constructor_campaignId_advertiser_owner_payout_campaignDetails_numAffiliates_totalAffiliateEarnings_campaignStartTimestamp_lastUserActionTimestamp_numAdvertiserWithdrawls_numUserActions_numAdvertiserSignOffs_numAdvertiserReplenishCampaign_numAdvertiserReplenishGasFees_state_campaignBalance_maxCpaValue_contractTonBalance_contractAddress_contractUSDTBalance_contractUsdtWallet_advertiserFeePercentage_affiliateFeePercentage_campaignHasSufficientFundsToPayMaxCpa_isCampaignExpired_isCampaignPausedByAdmin_campaignHasSufficientTonToPayGasFees_isCampaignActive_topAffiliates INLINECALLDICT
+    50 s() 62 s() XCHG
+    49 s() 61 s() XCHG
+    48 s() 60 s() XCHG
+    47 s() 59 s() XCHG
+    46 s() 58 s() XCHG
+    45 s() 57 s() XCHG
+    44 s() 56 s() XCHG
+    43 s() 55 s() XCHG
+    50 s() 54 s() XCHG
+    49 s() 53 s() XCHG
+    48 s() 52 s() XCHG
+    47 s() 51 s() XCHG
+    46 s() 50 s() XCHG
+    45 s() 49 s() XCHG
+    44 s() 48 s() XCHG
+    43 s() 47 s() XCHG
+    37 s() 45 s() XCHG
+    36 s() 44 s() XCHG
+    35 s() 43 s() XCHG
+    34 s() 37 s() XCHG
+    34 s() 35 s() XCHG
+  }>
+  $Campaign$_fun_affiliateData PROCREF:<{
+    257 PUSHINT
+    17 s() PUSH
+    s0 s2 XCHG
+    __tact_dict_get_int_cell INLINECALLDICT
+    $AffiliateData$_load_opt INLINECALLDICT
+  }>
+  $Campaign$_fun_affiliatesData PROCREF:<{
+    s15 PUSH
+  }>
+  $Campaign$_fun_affiliatesDataInRange PROCREF:<{
+    44215 PUSHINT
+    s1 s2 PUSH2
+    GREATER
+    THROWANYIFNOT
+    PUSHNULL
+    0 PUSHINT
+    s2 s3 XCPU
+    SUB
+    REPEAT:<{
+      257 PUSHINT
+      2OVER
+      ADD
+      20 s() PUSH
+      -ROT
+      __tact_dict_get_int_cell INLINECALLDICT
+      $AffiliateData$_load_opt INLINECALLDICT
+      ISNULL
+      NOT
+      IF:<{
+        257 PUSHINT
+        2OVER
+        ADD
+        s1 s4 s3 PUSH3
+        ADD
+        22 s() PUSH
+        -ROT
+        __tact_dict_get_int_cell INLINECALLDICT
+        $AffiliateData$_load_opt INLINECALLDICT
+        $AffiliateData$_store_opt INLINECALLDICT
+        __tact_dict_set_int_cell INLINECALLDICT
+      }>
+      SWAP
+      INC
+      SWAP
+    }>
+    2 1 BLKDROP2
+  }>
+  $Campaign$_fun_balance PROCREF:<{
+        BALANCE FIRST
+  }>
+  $SendParameters$_constructor_bounce_to_value_mode_body_code_data PROCINLINE:<{
+  }>
+  $Campaign$_fun_forward PROCREF:<{
+    PUSHNULL
+    PUSHNULL
+    s2 PUSH
+    ISNULL
+    NOT
+    IF:<{
+      2DROP
+      $StateInit$_not_null INLINECALLDICT
+      SWAP
+    }>ELSE<{
+      s2 POP
+    }>
+    s2 s4 XCHG
+    0 PUSHINT
+    s0 s3 XCHG
+    s0 s4 XCHG
+    66 PUSHINT
+    s2 s3 XCHG2
+    $SendParameters$_constructor_bounce_to_value_mode_body_code_data INLINECALLDICT
+    $global_send INLINECALLDICT
+    DROP
+  }>
+  $Campaign$_fun_reply PROCINLINE:<{
+    __tact_context_get_sender INLINECALLDICT
+    SWAP
+    TRUE
+    PUSHNULL
+    $Campaign$_fun_forward INLINECALLDICT
+  }>
+  $Campaign$_fun_requireNotStopped PROCREF:<{
+    40368 PUSHINT
+    28 s() PUSH
+    NOT
+    THROWANYIFNOT
+  }>
+  $Campaign$_fun_requireStopped PROCREF:<{
+    53296 PUSHINT
+    28 s() PUSH
+    THROWANYIFNOT
+  }>
+  $Campaign$_fun_stopped PROCREF:<{
+    27 s() PUSH
+  }>
+  $Campaign$_fun_requireOwner PROCREF:<{
+    __tact_context_get_sender INLINECALLDICT
+    29 s() PUSH
+    SWAP
+    __tact_slice_eq_bits INLINECALLDICT
+    132 THROWIFNOT
+  }>
+  $Campaign$_fun_owner PROCREF:<{
+    28 s() PUSH
+  }>
+  $SendParameters$_constructor_to_body_value_mode PROCINLINE:<{
+    TRUE
+    s0 s4 XCHG
+    s0 s3 XCHG
+    PUSHNULL
+    PUSHNULL
+  }>
+  $ChildToParentCampaignDeployedSuccessfully$_constructor_campaignId_advertiser PROCINLINE:<{
+  }>
+  $SendParameters$_constructor_to_value_bounce_mode PROCINLINE:<{
+    s3 s3 s0 XCHG3
+    PUSHNULL
+    PUSHNULL
+    PUSHNULL
+  }>
+  $SendParameters$_constructor_to_value_bounce_body_mode PROCINLINE:<{
+    s2 s4 XCHG
+    s3 s0 s0 XCHG3
+    PUSHNULL
+    PUSHNULL
+  }>
+  $PayAffiliate$_constructor_affiliateId_amount PROCINLINE:<{
+  }>
+  $SendParameters$_constructor_to_value_mode PROCINLINE:<{
+    TRUE
+    3 -ROLL
+    PUSHNULL
+    PUSHNULL
+    PUSHNULL
+  }>
+  $ChildToParentAdvertiserSignedCampaignDetails$_constructor_campaignId_advertiser PROCINLINE:<{
+  }>
+  $AffiliateData$_constructor_affiliate_state_userActionsStats_premiumUserActionsStats_pendingApprovalEarnings_totalEarnings_withdrawEarnings PROCINLINE:<{
+  }>
+  $ChildToParentAffiliateCreated$_constructor_campaignId_advertiser_affiliateId_affiliate_state PROCINLINE:<{
+    s2 s3 XCHG
+  }>
+  $ChildToParentAdvertiserApprovedAffiliate$_constructor_campaignId_advertiser_affiliateId_affiliate PROCINLINE:<{
+  }>
+  $ChildToParentAdvertiserRemovedAffiliate$_constructor_campaignId_advertiser_affiliateId_affiliate PROCINLINE:<{
+  }>
+  $ChildToParentAdvertiserWithdrawFunds$_constructor_campaignId_advertiser_amount PROCINLINE:<{
+  }>
+  $Campaign$_internal_binary_ParentToChildDeployCampaign PROCINLINE:<{
+    $ChildToParentCampaignDeployedSuccessfully$_constructor_campaignId_advertiser INLINECALLDICT
+    $ChildToParentCampaignDeployedSuccessfully$_store_cell INLINECALLDICT
+    29 s() PUSH
+    SWAP
+    10000000 PUSHINT
+    1 PUSHINT
+    $SendParameters$_constructor_to_body_value_mode INLINECALLDICT
+    $global_send INLINECALLDICT
+    DROP
+  }>
+  $Campaign$_internal_binary_TokenExcesses PROCINLINE:<{
+    DROP
+    59035 PUSHINT
+    __tact_context_get_sender INLINECALLDICT
+    s2 s(-1) PUXC
+    __tact_slice_eq_bits INLINECALLDICT
+    THROWANYIFNOT
+    2272 PUSHINT
+    20 s() PUSH
+    1 EQINT
+    THROWANYIFNOT
+  }>
+  $Campaign$_internal_binary_JettonTransferNotification PROCINLINE:<{
+    DROP
+    s2 POP
+    59035 PUSHINT
+    __tact_context_get_sender INLINECALLDICT
+    s4 s(-1) PUXC
+    __tact_slice_eq_bits INLINECALLDICT
+    THROWANYIFNOT
+    26 s() PUSH
+    40755 PUSHINT
+    s0 s3 XCHG
+    __tact_slice_eq_bits INLINECALLDICT
+    s1 s2 XCHG
+    THROWANYIFNOT
+    26205 PUSHINT
+    21 s() PUSH
+    1 EQINT
+    THROWANYIFNOT
+    s0 s10 XCHG
+    INC
+    s0 s10 XCHG
+    1000 PUSHINT
+    MUL
+    s0 s4 PUSH2
+    MUL
+    9999 PUSHINT
+    ADD
+    10000 PUSHINT
+    DIV
+    TUCK
+    SUB
+    OVER
+    0 GTINT
+    IF:<{
+      29 s() 30 s() XCHG
+      28 s() 30 s() XCHG
+      27 s() 30 s() XCHG
+      30 s() PUSH
+      s0 27 s() XCHG
+      s0 26 s() XCHG
+      s0 25 s() XCHG
+      s0 24 s() XCHG
+      s0 23 s() XCHG
+      s0 22 s() XCHG
+      s0 21 s() XCHG
+      s0 20 s() XCHG
+      s0 19 s() XCHG
+      s0 18 s() XCHG
+      s0 17 s() XCHG
+      s0 16 s() XCHG
+      s0 s15 XCHG
+      s0 s14 XCHG
+      s0 s13 XCHG
+      s0 s12 XCHG
+      s0 s11 XCHG
+      s0 s10 XCHG
+      s0 s9 XCHG
+      s0 s8 XCHG
+      s0 s7 XCHG
+      s0 s6 XCHG
+      s0 s5 XCHG
+      s0 s4 XCHG
+      s3 s1 s3 XCHG3
+      s1 31 s() XCHG
+      $Campaign$_fun_transferJettonUSDT INLINECALLDICT
+      28 s() 29 s() XCHG
+      27 s() 28 s() XCHG
+      26 s() 27 s() XCHG
+      25 s() 26 s() XCHG
+      24 s() 25 s() XCHG
+      23 s() 24 s() XCHG
+      22 s() 23 s() XCHG
+      21 s() 22 s() XCHG
+      20 s() 21 s() XCHG
+      19 s() 20 s() XCHG
+      18 s() 19 s() XCHG
+      17 s() 18 s() XCHG
+      16 s() 17 s() XCHG
+      s15 16 s() XCHG
+      15 ROLL
+    }>ELSE<{
+      NIP
+    }>
+    s1 s2 XCHG
+    ADD
+    SWAP
+  }>
+  $Campaign$_internal_binary_AffiliateWithdrawEarnings PROCINLINE:<{
+    28 s() 29 s() XCHG
+    27 s() 29 s() XCHG
+    26 s() 29 s() XCHG
+    25 s() 29 s() XCHG
+    24 s() 29 s() XCHG
+    23 s() 29 s() XCHG
+    22 s() 29 s() XCHG
+    21 s() 29 s() XCHG
+    20 s() 29 s() XCHG
+    19 s() 29 s() XCHG
+    18 s() 29 s() XCHG
+    17 s() 29 s() XCHG
+    16 s() 29 s() XCHG
+    s15 29 s() XCHG
+    s14 29 s() XCHG
+    s13 29 s() XCHG
+    s12 29 s() XCHG
+    s11 29 s() XCHG
+    s10 29 s() XCHG
+    s9 29 s() XCHG
+    s0 29 s() XCHG
+    s0 s8 XCHG
+    s0 s7 XCHG
+    s0 s6 XCHG
+    5 -ROLL
+    $Campaign$_fun_requireNotStopped INLINECALLDICT
+    45028 PUSHINT
+    __tact_context_get INLINECALLDICT
+    $Context$_get_value INLINECALLDICT
+    20000000 PUSHINT
+    GEQ
+    THROWANYIFNOT
+    s15 PUSH
+    257 PUSHINT
+    31 s() PUSH
+    __tact_dict_get_int_cell INLINECALLDICT
+    $AffiliateData$_load_opt INLINECALLDICT
+    53456 PUSHINT
+    OVER
+    ISNULL
+    NOT
+    THROWANYIFNOT
+    $AffiliateData$_not_null INLINECALLDICT
+    26953 PUSHINT
+    __tact_context_get_sender INLINECALLDICT
+    s8 s(-1) PUXC
+    __tact_slice_eq_bits INLINECALLDICT
+    THROWANYIFNOT
+    10630 PUSHINT
+    OVER
+    0 GTINT
+    THROWANYIFNOT
+    0 PUSHINT
+    257 PUSHINT
+    s8 PUSH
+    s0 s6 XCHG
+    s5 s8 XCHG
+    s4 s7 XCHG
+    s0 s3 XCHG
+    s8 s7 s8 XCHG3
+    $AffiliateData$_store_cell INLINECALLDICT
+    s2 19 s() XCHG
+    33 s() PUSH
+    SWAP
+    __tact_dict_set_int_cell INLINECALLDICT
+    s0 s8 XCHG
+    17 s() PUSH
+    SUB
+    17 s() PUSH
+    s7 PUSH
+    MUL
+    9999 PUSHINT
+    ADD
+    10000 PUSHINT
+    DIV
+    s0 18 s() XCHG
+    18 s() PUSH
+    SUB
+    22 s() PUSH
+    0 EQINT
+    IF:<{
+      28 s() PUSH
+      SWAP
+      s0 19 s() XCHG
+      TRUE
+      3 PUSHINT
+      $SendParameters$_constructor_to_value_bounce_mode INLINECALLDICT
+      $global_send INLINECALLDICT
+      DROP
+      TRUE
+      s0 32 s() XCHG
+      18 s() PUSH
+      $PayAffiliate$_constructor_affiliateId_amount INLINECALLDICT
+      $PayAffiliate$_store_cell INLINECALLDICT
+      s2 s3 XCHG
+      s2 18 s() XCHG
+      s1 32 s() XCHG
+      3 PUSHINT
+      $SendParameters$_constructor_to_value_bounce_body_mode INLINECALLDICT
+      $global_send INLINECALLDICT
+      DROP
+    }>ELSE<{
+      32 s() POP
+      29 s() 30 s() XCHG
+      28 s() 30 s() XCHG
+      27 s() 30 s() XCHG
+      30 s() PUSH
+      s0 27 s() XCHG
+      s0 26 s() XCHG
+      s0 25 s() XCHG
+      s0 24 s() XCHG
+      s0 23 s() XCHG
+      s0 22 s() XCHG
+      s0 21 s() XCHG
+      s0 20 s() XCHG
+      s0 19 s() XCHG
+      s0 18 s() XCHG
+      s9 17 s() XCHG
+      s9 16 s() XCHG
+      s9 s15 XCHG
+      s9 s14 XCHG
+      s9 s13 XCHG
+      s9 s12 XCHG
+      s9 s11 XCHG
+      s9 s10 XCHG
+      s1 s8 XCHG
+      s1 s7 XCHG
+      s1 s6 XCHG
+      s1 s5 XCHG
+      s1 s4 XCHG
+      s3 s3 s0 XCHG3
+      s1 31 s() XCHG
+      $Campaign$_fun_transferJettonUSDT INLINECALLDICT
+      28 s() 30 s() XCHG
+      27 s() 29 s() XCHG
+      26 s() 28 s() XCHG
+      25 s() 27 s() XCHG
+      24 s() 26 s() XCHG
+      23 s() 25 s() XCHG
+      22 s() 24 s() XCHG
+      21 s() 23 s() XCHG
+      20 s() 22 s() XCHG
+      19 s() 21 s() XCHG
+      18 s() 20 s() XCHG
+      17 s() 19 s() XCHG
+      16 s() 18 s() XCHG
+      s15 17 s() XCHG
+      s14 16 s() XCHG
+      2 14 BLKSWAP
+      $Campaign$_fun_transferJettonUSDT INLINECALLDICT
+      s6 28 s() XCHG
+      s6 27 s() XCHG
+      s6 26 s() XCHG
+      s6 25 s() XCHG
+      s6 24 s() XCHG
+      s6 23 s() XCHG
+      s6 22 s() XCHG
+      s6 21 s() XCHG
+      s6 20 s() XCHG
+      s6 19 s() XCHG
+      s6 18 s() XCHG
+      s6 17 s() XCHG
+      s6 16 s() XCHG
+      s6 s15 XCHG
+      14 -ROLL
+    }>
+    27 s() 28 s() XCHG
+    26 s() 27 s() XCHG
+    25 s() 26 s() XCHG
+    24 s() 25 s() XCHG
+    23 s() 24 s() XCHG
+    22 s() 23 s() XCHG
+    21 s() 22 s() XCHG
+    20 s() 21 s() XCHG
+    19 s() 20 s() XCHG
+    18 s() 19 s() XCHG
+    17 s() 18 s() XCHG
+    16 s() 17 s() XCHG
+    s15 16 s() XCHG
+    s5 s15 XCHG
+    14 ROLL
+  }>
+  $Campaign$_internal_binary_AdvertiserSignOffWithdraw PROCINLINE:<{
+    28 s() 29 s() XCHG
+    27 s() 29 s() XCHG
+    26 s() 29 s() XCHG
+    25 s() 29 s() XCHG
+    24 s() 29 s() XCHG
+    23 s() 29 s() XCHG
+    22 s() 29 s() XCHG
+    21 s() 29 s() XCHG
+    20 s() 29 s() XCHG
+    19 s() 29 s() XCHG
+    18 s() 29 s() XCHG
+    17 s() 29 s() XCHG
+    16 s() 29 s() XCHG
+    s15 29 s() XCHG
+    s14 29 s() XCHG
+    s13 29 s() XCHG
+    s12 29 s() XCHG
+    s11 29 s() XCHG
+    s10 29 s() XCHG
+    s9 29 s() XCHG
+    s0 29 s() XCHG
+    s0 s8 XCHG
+    s0 s7 XCHG
+    s0 s6 XCHG
+    5 -ROLL
+    $Campaign$_fun_requireNotStopped INLINECALLDICT
+    27 s() 28 s() XCHG
+    26 s() 28 s() XCHG
+    25 s() 28 s() XCHG
+    24 s() 28 s() XCHG
+    23 s() 28 s() XCHG
+    22 s() 28 s() XCHG
+    21 s() 28 s() XCHG
+    20 s() 28 s() XCHG
+    19 s() 28 s() XCHG
+    18 s() 28 s() XCHG
+    17 s() 28 s() XCHG
+    16 s() 28 s() XCHG
+    s15 28 s() XCHG
+    s14 28 s() XCHG
+    s13 28 s() XCHG
+    s12 28 s() XCHG
+    s11 28 s() XCHG
+    s10 28 s() XCHG
+    s9 28 s() XCHG
+    s0 28 s() XCHG
+    s0 s8 XCHG
+    s0 s7 XCHG
+    s0 s6 XCHG
+    5 -ROLL
+    24142 PUSHINT
+    s0 29 s() XCHG
+    $Campaign$_fun_isCampaignActive INLINECALLDICT
+    s1 30 s() XCHG
+    THROWANYIFNOT
+    28586 PUSHINT
+    18 s() PUSH
+    THROWANYIFNOT
+    s14 PUSH
+    257 PUSHINT
+    __tact_dict_min_int_cell INLINECALLDICT
+    WHILE:<{
+    }>DO<{
+      $AffiliateData$_load_opt INLINECALLDICT
+      $AffiliateData$_not_null INLINECALLDICT
+      257 PUSHINT
+      DUP
+      39 s() PUSH
+      s2 s10 s2 XCPUXC
+      __tact_dict_get_int_int INLINECALLDICT
+      DUP
+      ISNULL
+      NOT
+      IF:<{
+        __tact_not_null INLINECALLDICT
+        9125 PUSHINT
+        s1 s4 PUSH2
+        LEQ
+        THROWANYIFNOT
+        s3 s(-1) PUXC
+        SUB
+        s3 s3 XCPU
+        SUB
+        s2 s3 XCPU
+        SUB
+        s14 s3 XCHG2
+        SUB
+        s2 s13 XCHG2
+      }>ELSE<{
+        DROP
+      }>
+      ROT
+      ADD
+      s1 s5 XCHG
+      s1 s4 XCHG
+      s3 s3 s0 XCHG3
+      0 PUSHINT
+      s0 s6 XCHG2
+      257 PUSHINT
+      s0 s7 XCHG
+      $AffiliateData$_store_cell INLINECALLDICT
+      s2 17 s() XCHG
+      17 s() PUSH
+      SWAP
+      __tact_dict_set_int_cell INLINECALLDICT
+      257 PUSHINT
+      OVER
+      s0 17 s() XCHG
+      __tact_dict_next_int_cell INLINECALLDICT
+    }>
+    2DROP
+    29 s() POP
+    s0 s8 XCHG
+    INC
+    22 s() PUSH
+    0 PUSHINT
+    64 PUSHINT
+    $SendParameters$_constructor_to_value_mode INLINECALLDICT
+    $global_send INLINECALLDICT
+    DROP
+    26 s() 28 s() XCHG
+    25 s() 27 s() XCHG
+    24 s() 26 s() XCHG
+    23 s() 25 s() XCHG
+    22 s() 24 s() XCHG
+    21 s() 23 s() XCHG
+    20 s() 22 s() XCHG
+    19 s() 21 s() XCHG
+    18 s() 20 s() XCHG
+    17 s() 19 s() XCHG
+    16 s() 18 s() XCHG
+    s15 17 s() XCHG
+    s14 16 s() XCHG
+    s13 s15 XCHG
+    s12 s14 XCHG
+    s11 s13 XCHG
+    s10 s12 XCHG
+    s9 s11 XCHG
+    s0 s10 XCHG
+    s7 s9 XCHG
+    s6 s8 XCHG
+    s5 s7 XCHG
+    s4 s6 XCHG
+    s3 s5 XCHG
+    s4 s0 s3 XCHG3
+  }>
+  $Campaign$_internal_binary_ParentToChildSeizeCampaign PROCINLINE:<{
+    DROP
+    $Campaign$_fun_requireOwner INLINECALLDICT
+    OVER
+    0 GTINT
+    IF:<{
+      25 s() PUSH
+      s2 PUSH
+      $Campaign$_fun_transferJettonUSDT INLINECALLDICT
+    }>
+    25 s() PUSH
+    0 PUSHINT
+    7 PUSHPOW2
+    $SendParameters$_constructor_to_value_mode INLINECALLDICT
+    $global_send INLINECALLDICT
+    DROP
+  }>
+  $Campaign$_internal_binary_AdvertiserSetCampaignDetails PROCINLINE:<{
+    57567 PUSHINT
+    __tact_context_get_sender INLINECALLDICT
+    32 s() PUSH
+    SWAP
+    __tact_slice_eq_bits INLINECALLDICT
+    THROWANYIFNOT
+    57313 PUSHINT
+    21 s() PUSH
+    0 EQINT
+    THROWANYIFNOT
+    5136 PUSHINT
+    s2 PUSH
+    0 EQINT
+    IF:<{
+      TRUE
+    }>ELSE<{
+      s2 PUSH
+      1 EQINT
+    }>
+    THROWANYIFNOT
+    63944 PUSHINT
+    s3 PUSH
+    ISNULL
+    IF:<{
+      TRUE
+    }>ELSE<{
+      s3 PUSH
+      __tact_not_null INLINECALLDICT
+      0 GTINT
+    }>
+    THROWANYIFNOT
+    257 PUSHINT
+    s6 s(-1) s(-1) PUXCPU
+    __tact_dict_min_int_int INLINECALLDICT
+    WHILE:<{
+    }>DO<{
+      29 s() 36 s() XCHG
+      28 s() 35 s() XCHG
+      27 s() 34 s() XCHG
+      26 s() 33 s() XCHG
+      25 s() 32 s() XCHG
+      24 s() 31 s() XCHG
+      23 s() 30 s() XCHG
+      22 s() 36 s() XCHG
+      21 s() 35 s() XCHG
+      20 s() 34 s() XCHG
+      19 s() 33 s() XCHG
+      18 s() 32 s() XCHG
+      17 s() 31 s() XCHG
+      16 s() 30 s() XCHG
+      s15 36 s() XCHG
+      s14 35 s() XCHG
+      s13 34 s() XCHG
+      s12 33 s() XCHG
+      s11 32 s() XCHG
+      s10 31 s() XCHG
+      s9 30 s() XCHG
+      s8 36 s() XCHG
+      s7 35 s() XCHG
+      s6 34 s() XCHG
+      s5 33 s() XCHG
+      s4 32 s() XCHG
+      s3 31 s() XCHG
+      s2 30 s() XCHG
+      s1 36 s() XCHG
+      $Campaign$_fun_updateMaxCpaValue INLINECALLDICT
+      257 PUSHINT
+      DUP
+      36 s() PUSH
+      s0 s3 XCHG
+      s0 38 s() XCHG
+      SWAP
+      __tact_dict_next_int_int INLINECALLDICT
+      30 s() 37 s() XCHG
+      29 s() 36 s() XCHG
+      28 s() 35 s() XCHG
+      27 s() 34 s() XCHG
+      26 s() 33 s() XCHG
+      25 s() 32 s() XCHG
+      24 s() 31 s() XCHG
+      23 s() 30 s() XCHG
+      22 s() 29 s() XCHG
+      21 s() 28 s() XCHG
+      20 s() 27 s() XCHG
+      19 s() 26 s() XCHG
+      18 s() 25 s() XCHG
+      17 s() 24 s() XCHG
+      16 s() 23 s() XCHG
+      s15 22 s() XCHG
+      s14 21 s() XCHG
+      s13 20 s() XCHG
+      s12 19 s() XCHG
+      s11 18 s() XCHG
+      s10 17 s() XCHG
+      s9 16 s() XCHG
+      s8 s15 XCHG
+      s7 s14 XCHG
+      s6 s13 XCHG
+      s5 s12 XCHG
+      s4 s11 XCHG
+      s3 s10 XCHG
+    }>
+    2DROP
+    257 PUSHINT
+    s5 s(-1) s(-1) PUXCPU
+    __tact_dict_min_int_int INLINECALLDICT
+    WHILE:<{
+    }>DO<{
+      29 s() 36 s() XCHG
+      28 s() 35 s() XCHG
+      27 s() 34 s() XCHG
+      26 s() 33 s() XCHG
+      25 s() 32 s() XCHG
+      24 s() 31 s() XCHG
+      23 s() 30 s() XCHG
+      22 s() 36 s() XCHG
+      21 s() 35 s() XCHG
+      20 s() 34 s() XCHG
+      19 s() 33 s() XCHG
+      18 s() 32 s() XCHG
+      17 s() 31 s() XCHG
+      16 s() 30 s() XCHG
+      s15 36 s() XCHG
+      s14 35 s() XCHG
+      s13 34 s() XCHG
+      s12 33 s() XCHG
+      s11 32 s() XCHG
+      s10 31 s() XCHG
+      s9 30 s() XCHG
+      s8 36 s() XCHG
+      s7 35 s() XCHG
+      s6 34 s() XCHG
+      s5 33 s() XCHG
+      s4 32 s() XCHG
+      s3 31 s() XCHG
+      s2 30 s() XCHG
+      s1 36 s() XCHG
+      $Campaign$_fun_updateMaxCpaValue INLINECALLDICT
+      257 PUSHINT
+      DUP
+      35 s() PUSH
+      s0 s3 XCHG
+      s0 38 s() XCHG
+      SWAP
+      __tact_dict_next_int_int INLINECALLDICT
+      30 s() 37 s() XCHG
+      29 s() 36 s() XCHG
+      28 s() 35 s() XCHG
+      27 s() 34 s() XCHG
+      26 s() 33 s() XCHG
+      25 s() 32 s() XCHG
+      24 s() 31 s() XCHG
+      23 s() 30 s() XCHG
+      22 s() 29 s() XCHG
+      21 s() 28 s() XCHG
+      20 s() 27 s() XCHG
+      19 s() 26 s() XCHG
+      18 s() 25 s() XCHG
+      17 s() 24 s() XCHG
+      16 s() 23 s() XCHG
+      s15 22 s() XCHG
+      s14 21 s() XCHG
+      s13 20 s() XCHG
+      s12 19 s() XCHG
+      s11 18 s() XCHG
+      s10 17 s() XCHG
+      s9 16 s() XCHG
+      s8 s15 XCHG
+      s7 s14 XCHG
+      s6 s13 XCHG
+      s5 s12 XCHG
+      s4 s11 XCHG
+      s3 s10 XCHG
+    }>
+    2DROP
+    19 s() POP
+    19 s() POP
+    22 s() POP
+    22 s() POP
+    22 s() POP
+    22 s() POP
+    22 s() POP
+    22 s() POP
+        NOW
+    1 PUSHINT
+    26 s() PUSH
+    25 s() PUSH
+    $ChildToParentAdvertiserSignedCampaignDetails$_constructor_campaignId_advertiser INLINECALLDICT
+    $ChildToParentAdvertiserSignedCampaignDetails$_store_cell INLINECALLDICT
+    29 s() PUSH
+    SWAP
+    0 PUSHINT
+    64 PUSHINT
+    $SendParameters$_constructor_to_body_value_mode INLINECALLDICT
+    $global_send INLINECALLDICT
+    DROP
+    21 s() 23 s() XCHG
+    20 s() 22 s() XCHG
+    19 s() 21 s() XCHG
+    18 s() 20 s() XCHG
+    s14 19 s() XCHG
+    s13 18 s() XCHG
+    s14 s14 XCHG2
+    s0 s13 XCHG
+  }>
+  $Campaign$_internal_binary_AdvertiserReplenish PROCINLINE:<{
+    DROP
+    12969 PUSHINT
+    s15 PUSH
+    1 EQINT
+    THROWANYIFNOT
+    53205 PUSHINT
+    __tact_context_get_sender INLINECALLDICT
+    26 s() PUSH
+    SWAP
+    __tact_slice_eq_bits INLINECALLDICT
+    THROWANYIFNOT
+    s0 s9 XCHG
+    INC
+    __tact_context_get INLINECALLDICT
+    $Context$_get_value INLINECALLDICT
+    s0 s4 PUSH2
+    MUL
+    NIP
+    9999 PUSHINT
+    ADD
+    10000 PUSHINT
+    DIV
+    DUP
+    0 GTINT
+    IF:<{
+      26 s() PUSH
+      SWAP
+      TRUE
+      3 PUSHINT
+      $SendParameters$_constructor_to_value_bounce_mode INLINECALLDICT
+      $global_send INLINECALLDICT
+      DROP
+    }>ELSE<{
+      DROP
+    }>
+    s0 s9 XCHG
+  }>
+  $Campaign$_internal_binary_AdvertiserReplenishGasFeesForUSDTCampaign PROCINLINE:<{
+    DROP
+    53205 PUSHINT
+    __tact_context_get_sender INLINECALLDICT
+    26 s() PUSH
+    SWAP
+    __tact_slice_eq_bits INLINECALLDICT
+    THROWANYIFNOT
+    12969 PUSHINT
+    s15 PUSH
+    1 EQINT
+    THROWANYIFNOT
+    60504 PUSHINT
+    20 s() PUSH
+    1 EQINT
+    THROWANYIFNOT
+    s0 s8 XCHG
+    INC
+    s0 s8 XCHG
+  }>
+  $Campaign$_internal_binary_AffiliateCreateNewAffiliate PROCINLINE:<{
+    DROP
+    27 s() 28 s() XCHG
+    26 s() 28 s() XCHG
+    25 s() 28 s() XCHG
+    24 s() 28 s() XCHG
+    23 s() 28 s() XCHG
+    22 s() 28 s() XCHG
+    21 s() 28 s() XCHG
+    20 s() 28 s() XCHG
+    19 s() 28 s() XCHG
+    18 s() 28 s() XCHG
+    17 s() 28 s() XCHG
+    16 s() 28 s() XCHG
+    s15 28 s() XCHG
+    s14 28 s() XCHG
+    s13 28 s() XCHG
+    s12 28 s() XCHG
+    s11 28 s() XCHG
+    s10 28 s() XCHG
+    s9 28 s() XCHG
+    s0 28 s() XCHG
+    s0 s8 XCHG
+    s0 s7 XCHG
+    s0 s6 XCHG
+    5 -ROLL
+    24142 PUSHINT
+    s0 29 s() XCHG
+    $Campaign$_fun_isCampaignActive INLINECALLDICT
+    s1 30 s() XCHG
+    THROWANYIFNOT
+    8805 PUSHINT
+    __tact_context_get INLINECALLDICT
+    $Context$_get_value INLINECALLDICT
+    40000000 PUSHINT
+    GEQ
+    THROWANYIFNOT
+    s15 PUSH
+    46629 PUSHINT
+    SWAP
+    10000 PUSHINT
+    LEQ
+    THROWANYIFNOT
+    s15 PUSH
+    INC
+    21 s() PUSH
+    IF:<{
+      1 PUSHINT
+    }>ELSE<{
+      0 PUSHINT
+    }>
+    257 PUSHINT
+    __tact_context_get_sender INLINECALLDICT
+    PUSHNULL
+    PUSHNULL
+    0 PUSHINT
+    s0 s0 s5 PUSH3
+    5 -ROLL
+    $AffiliateData$_constructor_affiliate_state_userActionsStats_premiumUserActionsStats_pendingApprovalEarnings_totalEarnings_withdrawEarnings INLINECALLDICT
+    $AffiliateData$_store_cell INLINECALLDICT
+    s2 18 s() XCHG
+    19 s() PUSH
+    SWAP
+    __tact_dict_set_int_cell INLINECALLDICT
+    __tact_context_get_sender INLINECALLDICT
+    28 s() PUSH
+    s0 s3 XCHG
+    27 s() PUSH
+    s0 s3 XCHG
+    s2 20 s() XCHG
+    s1 20 s() XCHG
+    s0 19 s() XCHG
+    $ChildToParentAffiliateCreated$_constructor_campaignId_advertiser_affiliateId_affiliate_state INLINECALLDICT
+    $ChildToParentAffiliateCreated$_store_cell INLINECALLDICT
+    28 s() PUSH
+    SWAP
+    0 PUSHINT
+    64 PUSHINT
+    $SendParameters$_constructor_to_body_value_mode INLINECALLDICT
+    $global_send INLINECALLDICT
+    DROP
+    27 s() 28 s() XCHG
+    26 s() 27 s() XCHG
+    25 s() 26 s() XCHG
+    24 s() 25 s() XCHG
+    23 s() 24 s() XCHG
+    22 s() 23 s() XCHG
+    21 s() 22 s() XCHG
+    20 s() 21 s() XCHG
+    19 s() 20 s() XCHG
+    18 s() 19 s() XCHG
+    17 s() 18 s() XCHG
+    16 s() 17 s() XCHG
+    s15 16 s() XCHG
+    15 ROLL
+  }>
+  $Campaign$_internal_binary_AdvertiserApproveAffiliate PROCINLINE:<{
+    19587 PUSHINT
+    __tact_context_get_sender INLINECALLDICT
+    27 s() PUSH
+    SWAP
+    __tact_slice_eq_bits INLINECALLDICT
+    THROWANYIFNOT
+    43069 PUSHINT
+    23 s() PUSH
+    NOT
+    THROWANYIFNOT
+    16 s() PUSH
+    257 PUSHINT
+    s2 PUSH
+    __tact_dict_get_int_cell INLINECALLDICT
+    $AffiliateData$_load_opt INLINECALLDICT
+    53456 PUSHINT
+    OVER
+    ISNULL
+    NOT
+    THROWANYIFNOT
+    $AffiliateData$_not_null INLINECALLDICT
+    32702 PUSHINT
+    s0 s6 XCHG
+    0 EQINT
+    s1 s6 XCHG
+    THROWANYIFNOT
+    s5 PUSH
+    s4 s1 s4 XCHG3
+    1 PUSHINT
+    s4 s1 s4 XCHG3
+    257 PUSHINT
+    s0 s7 XCHG
+    $AffiliateData$_store_cell INLINECALLDICT
+    s2 19 s() XCHG
+    s3 s(-1) PUXC
+    __tact_dict_set_int_cell INLINECALLDICT
+    28 s() PUSH
+    s0 s2 XCHG
+    27 s() PUSH
+    s0 s2 XCHG
+    s0 19 s() XCHG
+    $ChildToParentAdvertiserApprovedAffiliate$_constructor_campaignId_advertiser_affiliateId_affiliate INLINECALLDICT
+    $ChildToParentAdvertiserApprovedAffiliate$_store_cell INLINECALLDICT
+    29 s() PUSH
+    SWAP
+    10000000 PUSHINT
+    1 PUSHINT
+    $SendParameters$_constructor_to_body_value_mode INLINECALLDICT
+    $global_send INLINECALLDICT
+    DROP
+  }>
+  $Campaign$_internal_binary_AdvertiserRemoveAffiliate PROCINLINE:<{
+    19587 PUSHINT
+    __tact_context_get_sender INLINECALLDICT
+    27 s() PUSH
+    SWAP
+    __tact_slice_eq_bits INLINECALLDICT
+    THROWANYIFNOT
+    16 s() PUSH
+    257 PUSHINT
+    s2 PUSH
+    __tact_dict_get_int_cell INLINECALLDICT
+    $AffiliateData$_load_opt INLINECALLDICT
+    53456 PUSHINT
+    OVER
+    ISNULL
+    NOT
+    THROWANYIFNOT
+    $AffiliateData$_not_null INLINECALLDICT
+    6 BLKDROP
+    s1 s(-1) PUXC
+    s0 18 s() XCHG
+    257 PUSHINT
+        DICTIDEL
+    DROP
+    28 s() PUSH
+    s0 s2 XCHG
+    27 s() PUSH
+    s0 s2 XCHG
+    s0 19 s() XCHG
+    $ChildToParentAdvertiserRemovedAffiliate$_constructor_campaignId_advertiser_affiliateId_affiliate INLINECALLDICT
+    $ChildToParentAdvertiserRemovedAffiliate$_store_cell INLINECALLDICT
+    29 s() PUSH
+    SWAP
+    10000000 PUSHINT
+    1 PUSHINT
+    $SendParameters$_constructor_to_body_value_mode INLINECALLDICT
+    $global_send INLINECALLDICT
+    DROP
+  }>
+  $Campaign$_internal_binary_AdvertiserWithdrawFunds PROCINLINE:<{
+    28 s() 29 s() XCHG
+    27 s() 29 s() XCHG
+    26 s() 29 s() XCHG
+    25 s() 29 s() XCHG
+    24 s() 29 s() XCHG
+    23 s() 29 s() XCHG
+    22 s() 29 s() XCHG
+    21 s() 29 s() XCHG
+    20 s() 29 s() XCHG
+    19 s() 29 s() XCHG
+    18 s() 29 s() XCHG
+    17 s() 29 s() XCHG
+    16 s() 29 s() XCHG
+    s15 29 s() XCHG
+    s14 29 s() XCHG
+    s13 29 s() XCHG
+    s12 29 s() XCHG
+    s11 29 s() XCHG
+    s10 29 s() XCHG
+    s9 29 s() XCHG
+    s0 29 s() XCHG
+    s0 s8 XCHG
+    s0 s7 XCHG
+    s0 s6 XCHG
+    5 -ROLL
+    $Campaign$_fun_requireNotStopped INLINECALLDICT
+    12969 PUSHINT
+    s15 PUSH
+    1 EQINT
+    THROWANYIFNOT
+    36363 PUSHINT
+    __tact_context_get_sender INLINECALLDICT
+    26 s() PUSH
+    SWAP
+    __tact_slice_eq_bits INLINECALLDICT
+    THROWANYIFNOT
+    $Campaign$_fun_calcCampaignBalance INLINECALLDICT
+    22985 PUSHINT
+    SWAP
+    31 s() PUSH
+    GEQ
+    THROWANYIFNOT
+    s0 s11 XCHG
+    INC
+    26 s() PUSH
+    25 s() PUSH
+    31 s() PUSH
+    $ChildToParentAdvertiserWithdrawFunds$_constructor_campaignId_advertiser_amount INLINECALLDICT
+    $ChildToParentAdvertiserWithdrawFunds$_store_cell INLINECALLDICT
+    29 s() PUSH
+    SWAP
+    10000000 PUSHINT
+    3 PUSHINT
+    $SendParameters$_constructor_to_body_value_mode INLINECALLDICT
+    $global_send INLINECALLDICT
+    DROP
+    19 s() PUSH
+    0 EQINT
+    IF:<{
+      24 s() PUSH
+      SWAP
+      s0 30 s() XCHG
+      1 PUSHINT
+      $SendParameters$_constructor_to_value_mode INLINECALLDICT
+      $global_send INLINECALLDICT
+      DROP
+    }>ELSE<{
+      28 s() 29 s() XCHG
+      27 s() 28 s() XCHG
+      26 s() 27 s() XCHG
+      25 s() 26 s() XCHG
+      24 s() PUSH
+      s0 26 s() XCHG
+      24 s() 25 s() XCHG
+      23 s() 24 s() XCHG
+      22 s() 23 s() XCHG
+      21 s() 22 s() XCHG
+      20 s() 21 s() XCHG
+      19 s() 20 s() XCHG
+      18 s() 19 s() XCHG
+      17 s() 18 s() XCHG
+      16 s() 17 s() XCHG
+      s15 16 s() XCHG
+      s14 s15 XCHG
+      s1 s13 XCHG
+      s1 s14 XCHG
+      s11 s12 XCHG
+      s10 s11 XCHG
+      s9 s10 XCHG
+      s8 s9 XCHG
+      s7 s8 XCHG
+      s6 s7 XCHG
+      s5 s6 XCHG
+      s4 s5 XCHG
+      s3 s4 XCHG
+      s2 s3 XCHG
+      $Campaign$_fun_transferJettonUSDT INLINECALLDICT
+      s11 28 s() XCHG
+      s11 27 s() XCHG
+      s11 26 s() XCHG
+      s11 25 s() XCHG
+      s11 24 s() XCHG
+      s11 23 s() XCHG
+      s11 22 s() XCHG
+      s11 21 s() XCHG
+      s11 20 s() XCHG
+      s11 19 s() XCHG
+      s11 18 s() XCHG
+      s11 17 s() XCHG
+      s11 16 s() XCHG
+      s11 s15 XCHG
+      s11 s14 XCHG
+      s11 s13 XCHG
+      s11 s12 XCHG
+      10 -ROLL
+    }>
+    27 s() 28 s() XCHG
+    26 s() 27 s() XCHG
+    25 s() 26 s() XCHG
+    24 s() 25 s() XCHG
+    23 s() 24 s() XCHG
+    22 s() 23 s() XCHG
+    21 s() 22 s() XCHG
+    20 s() 21 s() XCHG
+    19 s() 20 s() XCHG
+    18 s() 19 s() XCHG
+    17 s() 18 s() XCHG
+    16 s() 17 s() XCHG
+    s15 16 s() XCHG
+    s14 s15 XCHG
+    s13 s14 XCHG
+    s12 s13 XCHG
+    s11 s12 XCHG
+    10 ROLL
+  }>
+  $Campaign$_internal_binary_BotUserAction PROCINLINE:<{
+    42372 PUSHINT
+    __tact_context_get_sender INLINECALLDICT
+    22 s() PUSH
+    SWAP
+    __tact_slice_eq_bits INLINECALLDICT
+    THROWANYIFNOT
+    7354 PUSHINT
+    s2 PUSH
+    20000 PUSHINT
+    LEQ
+    THROWANYIFNOT
+    20411 PUSHINT
+        BALANCE FIRST
+    __tact_context_get INLINECALLDICT
+    $Context$_get_value INLINECALLDICT
+    10000000 PUSHINT
+    ADD
+    GEQ
+    THROWANYIFNOT
+    s1 s2 XCHG
+    $Campaign$_fun_applyUserAction INLINECALLDICT
+    __tact_context_get INLINECALLDICT
+    $Context$_get_value INLINECALLDICT
+    18 s() PUSH
+    SWAP
+    1 PUSHINT
+    $SendParameters$_constructor_to_value_mode INLINECALLDICT
+    $global_send INLINECALLDICT
+    DROP
+  }>
+  $Campaign$_internal_binary_AdvertiserAddNewUserOpCode PROCINLINE:<{
+    27356 PUSHINT
+    __tact_context_get_sender INLINECALLDICT
+    29 s() PUSH
+    SWAP
+    __tact_slice_eq_bits INLINECALLDICT
+    THROWANYIFNOT
+    27 s() 31 s() XCHG
+    26 s() 30 s() XCHG
+    25 s() 29 s() XCHG
+    24 s() 28 s() XCHG
+    23 s() 31 s() XCHG
+    22 s() 30 s() XCHG
+    21 s() 29 s() XCHG
+    20 s() 28 s() XCHG
+    19 s() 31 s() XCHG
+    18 s() 30 s() XCHG
+    17 s() 29 s() XCHG
+    16 s() 28 s() XCHG
+    s15 31 s() XCHG
+    s14 30 s() XCHG
+    s13 29 s() XCHG
+    s12 28 s() XCHG
+    s11 31 s() XCHG
+    s10 30 s() XCHG
+    s9 29 s() XCHG
+    s8 28 s() XCHG
+    s7 31 s() XCHG
+    s6 30 s() XCHG
+    s5 29 s() XCHG
+    s4 28 s() XCHG
+    s3 31 s() XCHG
+    s2 30 s() XCHG
+    s1 29 s() XCHG
+    s0 28 s() XCHG
+    24142 PUSHINT
+    s0 32 s() XCHG
+    $Campaign$_fun_isCampaignActive INLINECALLDICT
+    s1 33 s() XCHG
+    THROWANYIFNOT
+    s0 29 s() XCHG
+    IF:<{
+      12734 PUSHINT
+      257 PUSHINT
+      DUP
+      23 s() PUSH
+      -ROT
+      33 s() PUSH
+      SWAP
+      __tact_dict_get_int_int INLINECALLDICT
+      ISNULL
+      NOT
+      THROWANYIFNOT
+      26 s() 28 s() XCHG
+      25 s() 27 s() XCHG
+      24 s() 26 s() XCHG
+      23 s() 25 s() XCHG
+      22 s() 24 s() XCHG
+      21 s() 23 s() XCHG
+      20 s() 22 s() XCHG
+      19 s() 21 s() XCHG
+      18 s() 20 s() XCHG
+      17 s() 19 s() XCHG
+      16 s() 18 s() XCHG
+      s15 17 s() XCHG
+      s14 16 s() XCHG
+      s13 s15 XCHG
+      2 13 BLKSWAP
+      s0 30 s() XCHG
+      30 s() PUSH
+      $Campaign$_fun_updateMaxCpaValue INLINECALLDICT
+      257 PUSHINT
+      DUP
+      s4 24 s() XCHG
+      s1 s3 XCHG
+      s2 31 s() XCHG
+      s1 32 s() XCHG
+      __tact_dict_set_int_int INLINECALLDICT
+    }>ELSE<{
+      12734 PUSHINT
+      257 PUSHINT
+      DUP
+      24 s() PUSH
+      -ROT
+      33 s() PUSH
+      SWAP
+      __tact_dict_get_int_int INLINECALLDICT
+      ISNULL
+      NOT
+      THROWANYIFNOT
+      26 s() 28 s() XCHG
+      25 s() 27 s() XCHG
+      24 s() 26 s() XCHG
+      23 s() 25 s() XCHG
+      22 s() 24 s() XCHG
+      21 s() 23 s() XCHG
+      20 s() 22 s() XCHG
+      19 s() 21 s() XCHG
+      18 s() 20 s() XCHG
+      17 s() 19 s() XCHG
+      16 s() 18 s() XCHG
+      s15 17 s() XCHG
+      s14 16 s() XCHG
+      s13 s15 XCHG
+      2 13 BLKSWAP
+      s0 30 s() XCHG
+      30 s() PUSH
+      $Campaign$_fun_updateMaxCpaValue INLINECALLDICT
+      257 PUSHINT
+      DUP
+      s4 25 s() XCHG
+      s1 s3 XCHG
+      s2 31 s() XCHG
+      s1 32 s() XCHG
+      __tact_dict_set_int_int INLINECALLDICT
+      s0 21 s() XCHG
+      s0 20 s() XCHG
+    }>
+    26 s() 28 s() XCHG
+    25 s() 27 s() XCHG
+    24 s() 26 s() XCHG
+    23 s() 25 s() XCHG
+    22 s() 24 s() XCHG
+    21 s() 23 s() XCHG
+    s0 22 s() XCHG
+    19 s() 21 s() XCHG
+    18 s() 20 s() XCHG
+    17 s() 19 s() XCHG
+    16 s() 18 s() XCHG
+    s15 17 s() XCHG
+    s14 16 s() XCHG
+    s13 s15 XCHG
+    s12 s14 XCHG
+    s11 s13 XCHG
+    s10 s12 XCHG
+    s9 s11 XCHG
+    s8 s10 XCHG
+    s7 s9 XCHG
+    s6 s8 XCHG
+    s5 s7 XCHG
+    s4 s6 XCHG
+    s3 s5 XCHG
+    s4 s0 s3 XCHG3
+  }>
+  $Campaign$_internal_binary_AdvertiserUserAction PROCINLINE:<{
+    11661 PUSHINT
+    __tact_context_get_sender INLINECALLDICT
+    29 s() PUSH
+    SWAP
+    __tact_slice_eq_bits INLINECALLDICT
+    THROWANYIFNOT
+    14465 PUSHINT
+    s2 PUSH
+    20000 PUSHINT
+    GREATER
+    THROWANYIFNOT
+    s1 s2 XCHG
+    $Campaign$_fun_applyUserAction INLINECALLDICT
+  }>
+  $Campaign$_internal_binary_ParentToChildJettonNotificationMessageFailure PROCINLINE:<{
+    28 s() 29 s() XCHG
+    27 s() 29 s() XCHG
+    26 s() 29 s() XCHG
+    25 s() 29 s() XCHG
+    24 s() 29 s() XCHG
+    23 s() 29 s() XCHG
+    22 s() 29 s() XCHG
+    21 s() 29 s() XCHG
+    20 s() 29 s() XCHG
+    19 s() 29 s() XCHG
+    18 s() 29 s() XCHG
+    17 s() 29 s() XCHG
+    16 s() 29 s() XCHG
+    s15 29 s() XCHG
+    s14 29 s() XCHG
+    s13 29 s() XCHG
+    s12 29 s() XCHG
+    s11 29 s() XCHG
+    s10 29 s() XCHG
+    s9 29 s() XCHG
+    s0 29 s() XCHG
+    s0 s8 XCHG
+    s0 s7 XCHG
+    s0 s6 XCHG
+    5 -ROLL
+    $Campaign$_fun_requireOwner INLINECALLDICT
+    s0 29 s() XCHG
+    ADD
+    27 s() 28 s() XCHG
+    26 s() 27 s() XCHG
+    25 s() 26 s() XCHG
+    24 s() 25 s() XCHG
+    23 s() 24 s() XCHG
+    22 s() 23 s() XCHG
+    21 s() 22 s() XCHG
+    20 s() 21 s() XCHG
+    19 s() 20 s() XCHG
+    18 s() 19 s() XCHG
+    17 s() 18 s() XCHG
+    16 s() 17 s() XCHG
+    s15 16 s() XCHG
+    15 ROLL
+  }>
+  $Campaign$_internal_binary_ParentToChildWithdrawUSDTToPayout PROCINLINE:<{
+    28 s() 29 s() XCHG
+    27 s() 29 s() XCHG
+    26 s() 29 s() XCHG
+    25 s() 29 s() XCHG
+    24 s() 29 s() XCHG
+    23 s() 29 s() XCHG
+    22 s() 29 s() XCHG
+    21 s() 29 s() XCHG
+    20 s() 29 s() XCHG
+    19 s() 29 s() XCHG
+    18 s() 29 s() XCHG
+    17 s() 29 s() XCHG
+    16 s() 29 s() XCHG
+    s15 29 s() XCHG
+    s14 29 s() XCHG
+    s13 29 s() XCHG
+    s12 29 s() XCHG
+    s11 29 s() XCHG
+    s10 29 s() XCHG
+    s9 29 s() XCHG
+    s0 29 s() XCHG
+    s0 s8 XCHG
+    s0 s7 XCHG
+    s0 s6 XCHG
+    5 -ROLL
+    $Campaign$_fun_requireOwner INLINECALLDICT
+    28 s() 29 s() XCHG
+    27 s() 28 s() XCHG
+    26 s() 27 s() XCHG
+    25 s() PUSH
+    s0 27 s() XCHG
+    25 s() 26 s() XCHG
+    24 s() 25 s() XCHG
+    23 s() 24 s() XCHG
+    22 s() 23 s() XCHG
+    21 s() 22 s() XCHG
+    20 s() 21 s() XCHG
+    19 s() 20 s() XCHG
+    18 s() 19 s() XCHG
+    17 s() 18 s() XCHG
+    16 s() 17 s() XCHG
+    s15 16 s() XCHG
+    s14 s15 XCHG
+    s13 s14 XCHG
+    s12 s13 XCHG
+    s11 s12 XCHG
+    s10 s11 XCHG
+    s9 s10 XCHG
+    s8 s9 XCHG
+    s7 s8 XCHG
+    s6 s7 XCHG
+    s5 s6 XCHG
+    s4 s5 XCHG
+    s3 s4 XCHG
+    s1 s3 s0 XCHG3
+    $Campaign$_fun_transferJettonUSDT INLINECALLDICT
+  }>
+  $Campaign$_internal_binary_ParentToChildPayAffiliateUSDTBounced PROCINLINE:<{
+    28 s() 30 s() XCHG
+    27 s() 29 s() XCHG
+    26 s() 30 s() XCHG
+    25 s() 29 s() XCHG
+    24 s() 30 s() XCHG
+    23 s() 29 s() XCHG
+    22 s() 30 s() XCHG
+    21 s() 29 s() XCHG
+    20 s() 30 s() XCHG
+    19 s() 29 s() XCHG
+    18 s() 30 s() XCHG
+    17 s() 29 s() XCHG
+    16 s() 30 s() XCHG
+    s15 29 s() XCHG
+    s14 30 s() XCHG
+    s13 29 s() XCHG
+    s12 30 s() XCHG
+    s11 29 s() XCHG
+    s10 30 s() XCHG
+    s9 29 s() XCHG
+    s8 30 s() XCHG
+    s7 29 s() XCHG
+    s6 30 s() XCHG
+    s5 29 s() XCHG
+    s4 30 s() XCHG
+    s3 29 s() XCHG
+    s2 30 s() XCHG
+    s1 29 s() XCHG
+    s0 30 s() XCHG
+    $Campaign$_fun_requireOwner INLINECALLDICT
+    28 s() 29 s() XCHG
+    27 s() 28 s() XCHG
+    26 s() 27 s() XCHG
+    25 s() 26 s() XCHG
+    24 s() 25 s() XCHG
+    23 s() 24 s() XCHG
+    22 s() 23 s() XCHG
+    21 s() 22 s() XCHG
+    20 s() 21 s() XCHG
+    19 s() 20 s() XCHG
+    18 s() 19 s() XCHG
+    17 s() 18 s() XCHG
+    16 s() 17 s() XCHG
+    s15 16 s() XCHG
+    15 ROLL
+    30 s() PUSH
+    $Campaign$_fun_bouncedPayment INLINECALLDICT
+    s0 29 s() XCHG
+    ADD
+    27 s() 28 s() XCHG
+    26 s() 27 s() XCHG
+    25 s() 26 s() XCHG
+    24 s() 25 s() XCHG
+    23 s() 24 s() XCHG
+    22 s() 23 s() XCHG
+    21 s() 22 s() XCHG
+    20 s() 21 s() XCHG
+    19 s() 20 s() XCHG
+    18 s() 19 s() XCHG
+    17 s() 18 s() XCHG
+    16 s() 17 s() XCHG
+    s15 16 s() XCHG
+    15 ROLL
+  }>
+  $Campaign$_receive_binary_bounce_PayAffiliate PROCINLINE:<{
+    $Campaign$_fun_bouncedPayment INLINECALLDICT
+  }>
+  $Campaign$_internal_text_6c8f44f45fedb4cdfed4de8db14aa5b13ad55d430f759d0669210b74c48fe3df PROCINLINE:<{
+    $Campaign$_fun_requireOwner INLINECALLDICT
+    $Campaign$_fun_requireStopped INLINECALLDICT
+    27 s() POP
+    FALSE
+        B{b5ee9c7241010101000d00001600000000526573756d656412d9e98a} B>boc PUSHREF
+    s1 28 s() XCHG
+    $Campaign$_fun_reply INLINECALLDICT
+  }>
+  $Campaign$_internal_text_bcfaf776907c719cc8d379d8f194aaaa27e8ca2871cd591781721f215a454501 PROCINLINE:<{
+    $Campaign$_fun_requireOwner INLINECALLDICT
+    $Campaign$_fun_requireNotStopped INLINECALLDICT
+    27 s() POP
+    TRUE
+        B{b5ee9c7241010101000d0000160000000053746f707065646f94ddb2} B>boc PUSHREF
+    s1 28 s() XCHG
+    $Campaign$_fun_reply INLINECALLDICT
+  }>
+  %campaignData PROC:<{
+    $Campaign$_contract_load INLINECALLDICT
+    $Campaign$_fun_campaignData INLINECALLDICT
+    34 s() POP
+    34 s() POP
+    34 s() POP
+    34 s() POP
+    34 s() POP
+    34 s() POP
+    34 s() POP
+    34 s() POP
+    34 s() POP
+    34 s() POP
+    34 s() POP
+    34 s() POP
+    34 s() POP
+    34 s() POP
+    34 s() POP
+    34 s() POP
+    34 s() POP
+    34 s() POP
+    34 s() POP
+    34 s() POP
+    34 s() POP
+    34 s() POP
+    34 s() POP
+    34 s() POP
+    34 s() POP
+    34 s() POP
+    34 s() POP
+    34 s() POP
+    34 s() POP
+    s4 33 s() XCHG
+    s3 32 s() XCHG
+    s2 31 s() XCHG
+    s1 30 s() XCHG
+    s0 29 s() XCHG
+    s4 28 s() XCHG
+    s3 27 s() XCHG
+    s2 26 s() XCHG
+    s1 25 s() XCHG
+    s0 24 s() XCHG
+    s4 23 s() XCHG
+    s3 22 s() XCHG
+    s2 21 s() XCHG
+    s1 20 s() XCHG
+    s0 19 s() XCHG
+    s4 18 s() XCHG
+    s3 17 s() XCHG
+    s2 16 s() XCHG
+    s15 s14 XCHG2
+    9 5 BLKSWAP
+    $CampaignData$_to_external INLINECALLDICT
+  }>
+  %affiliateData PROC:<{
+    $Campaign$_contract_load INLINECALLDICT
+    28 s() 29 s() XCHG
+    27 s() 28 s() XCHG
+    26 s() 27 s() XCHG
+    25 s() 26 s() XCHG
+    24 s() 25 s() XCHG
+    23 s() 24 s() XCHG
+    22 s() 23 s() XCHG
+    21 s() 22 s() XCHG
+    20 s() 21 s() XCHG
+    19 s() 20 s() XCHG
+    18 s() 19 s() XCHG
+    17 s() 18 s() XCHG
+    16 s() 17 s() XCHG
+    s15 16 s() XCHG
+    15 ROLL
+    $Campaign$_fun_affiliateData INLINECALLDICT
+    16 s() POP
+    15 BLKDROP
+    13 1 BLKDROP2
+    $AffiliateData$_to_opt_external INLINECALLDICT
+  }>
+  %affiliatesData PROC:<{
+    $Campaign$_contract_load INLINECALLDICT
+    $Campaign$_fun_affiliatesData INLINECALLDICT
+    16 s() POP
+    15 BLKDROP
+    13 1 BLKDROP2
+  }>
+  %affiliatesDataInRange PROC:<{
+    $Campaign$_contract_load INLINECALLDICT
+    28 s() 30 s() XCHG
+    27 s() 29 s() XCHG
+    26 s() 28 s() XCHG
+    25 s() 27 s() XCHG
+    24 s() 26 s() XCHG
+    23 s() 25 s() XCHG
+    22 s() 24 s() XCHG
+    21 s() 23 s() XCHG
+    20 s() 22 s() XCHG
+    19 s() 21 s() XCHG
+    18 s() 20 s() XCHG
+    17 s() 19 s() XCHG
+    16 s() 18 s() XCHG
+    s15 17 s() XCHG
+    s14 16 s() XCHG
+    s13 s15 XCHG
+    2 13 BLKSWAP
+    $Campaign$_fun_affiliatesDataInRange INLINECALLDICT
+    16 s() POP
+    15 BLKDROP
+    13 1 BLKDROP2
+  }>
+  %balance PROC:<{
+    $Campaign$_contract_load INLINECALLDICT
+    $Campaign$_fun_balance INLINECALLDICT
+    16 s() POP
+    15 BLKDROP
+    13 1 BLKDROP2
+  }>
+  %stopped PROC:<{
+    $Campaign$_contract_load INLINECALLDICT
+    $Campaign$_fun_stopped INLINECALLDICT
+    16 s() POP
+    15 BLKDROP
+    13 1 BLKDROP2
+  }>
+  %owner PROC:<{
+    $Campaign$_contract_load INLINECALLDICT
+    $Campaign$_fun_owner INLINECALLDICT
+    16 s() POP
+    15 BLKDROP
+    13 1 BLKDROP2
+  }>
+  lazy_deployment_completed PROC:<{
+    c4 PUSH
+    CTOS
+    1 LDI
+    SWAP
+  }>
+  $Campaign$_contract_router_internal PROCREF:<{
+    c2 SAVE
+    SAMEALTSAVE
+    SWAP
+    IFJMP:<{
+      32 PUSHINT
+      SDSKIPFIRST
+      0 PUSHINT
+      OVER
+      SBITS
+      31 GTINT
+      IF:<{
+        DROP
+        DUP
+        32 PLDU
+      }>
+      2310656706 PUSHINT
+      EQUAL
+      IFJMP:<{
+        $PayAffiliate$_load INLINECALLDICT
+        1 2 BLKDROP2
+        $Campaign$_receive_binary_bounce_PayAffiliate INLINECALLDICT
+        TRUE
+      }>
+      DROP
+      TRUE
+    }>
+    0 PUSHINT
+    OVER
+    SBITS
+    31 GTINT
+    IF:<{
+      DROP
+      DUP
+      32 PLDU
+    }>
+    DUP
+    1292517596 PUSHINT
+    EQUAL
+    IFJMP:<{
+      DROP
+      $ParentToChildDeployCampaign$_load INLINECALLDICT
+      1 2 BLKDROP2
+      $Campaign$_internal_binary_ParentToChildDeployCampaign INLINECALLDICT
+      TRUE
+    }>
+    DUP
+    3576854235 PUSHINT
+    EQUAL
+    IFJMP:<{
+      DROP
+      $TokenExcesses$_load INLINECALLDICT
+      NIP
+      $Campaign$_internal_binary_TokenExcesses INLINECALLDICT
+      TRUE
+    }>
+    DUP
+    1935855772 PUSHINT
+    EQUAL
+    IFJMP:<{
+      DROP
+      $JettonTransferNotification$_load INLINECALLDICT
+      1 4 BLKDROP2
+      $Campaign$_internal_binary_JettonTransferNotification INLINECALLDICT
+      TRUE
+    }>
+    DUP
+    2309430758 PUSHINT
+    EQUAL
+    IFJMP:<{
+      DROP
+      $AffiliateWithdrawEarnings$_load INLINECALLDICT
+      NIP
+      $Campaign$_internal_binary_AffiliateWithdrawEarnings INLINECALLDICT
+      TRUE
+    }>
+    DUP
+    2469363792 PUSHINT
+    EQUAL
+    IFJMP:<{
+      DROP
+      $AdvertiserSignOffWithdraw$_load INLINECALLDICT
+      NIP
+      $Campaign$_internal_binary_AdvertiserSignOffWithdraw INLINECALLDICT
+      TRUE
+    }>
+    DUP
+    340595563 PUSHINT
+    EQUAL
+    IFJMP:<{
+      DROP
+      $ParentToChildSeizeCampaign$_load INLINECALLDICT
+      NIP
+      $Campaign$_internal_binary_ParentToChildSeizeCampaign INLINECALLDICT
+      TRUE
+    }>
+    DUP
+    1253088072 PUSHINT
+    EQUAL
+    IFJMP:<{
+      DROP
+      $AdvertiserSetCampaignDetails$_load INLINECALLDICT
+      1 6 BLKDROP2
+      $Campaign$_internal_binary_AdvertiserSetCampaignDetails INLINECALLDICT
+      TRUE
+    }>
+    DUP
+    1319387318 PUSHINT
+    EQUAL
+    IFJMP:<{
+      DROP
+      $AdvertiserReplenish$_load INLINECALLDICT
+      NIP
+      $Campaign$_internal_binary_AdvertiserReplenish INLINECALLDICT
+      TRUE
+    }>
+    DUP
+    3170273034 PUSHINT
+    EQUAL
+    IFJMP:<{
+      DROP
+      $AdvertiserReplenishGasFeesForUSDTCampaign$_load INLINECALLDICT
+      NIP
+      $Campaign$_internal_binary_AdvertiserReplenishGasFeesForUSDTCampaign INLINECALLDICT
+      TRUE
+    }>
+    DUP
+    820291840 PUSHINT
+    EQUAL
+    IFJMP:<{
+      DROP
+      $AffiliateCreateNewAffiliate$_load INLINECALLDICT
+      NIP
+      $Campaign$_internal_binary_AffiliateCreateNewAffiliate INLINECALLDICT
+      TRUE
+    }>
+    DUP
+    1560570076 PUSHINT
+    EQUAL
+    IFJMP:<{
+      DROP
+      $AdvertiserApproveAffiliate$_load INLINECALLDICT
+      NIP
+      $Campaign$_internal_binary_AdvertiserApproveAffiliate INLINECALLDICT
+      TRUE
+    }>
+    DUP
+    2637094481 PUSHINT
+    EQUAL
+    IFJMP:<{
+      DROP
+      $AdvertiserRemoveAffiliate$_load INLINECALLDICT
+      NIP
+      $Campaign$_internal_binary_AdvertiserRemoveAffiliate INLINECALLDICT
+      TRUE
+    }>
+    DUP
+    3579069153 PUSHINT
+    EQUAL
+    IFJMP:<{
+      DROP
+      $AdvertiserWithdrawFunds$_load INLINECALLDICT
+      NIP
+      $Campaign$_internal_binary_AdvertiserWithdrawFunds INLINECALLDICT
+      TRUE
+    }>
+    DUP
+    1940543113 PUSHINT
+    EQUAL
+    IFJMP:<{
+      DROP
+      $BotUserAction$_load INLINECALLDICT
+      1 3 BLKDROP2
+      $Campaign$_internal_binary_BotUserAction INLINECALLDICT
+      TRUE
+    }>
+    DUP
+    237456654 PUSHINT
+    EQUAL
+    IFJMP:<{
+      DROP
+      $AdvertiserAddNewUserOpCode$_load INLINECALLDICT
+      1 3 BLKDROP2
+      $Campaign$_internal_binary_AdvertiserAddNewUserOpCode INLINECALLDICT
+      TRUE
+    }>
+    DUP
+    3231438857 PUSHINT
+    EQUAL
+    IFJMP:<{
+      DROP
+      $AdvertiserUserAction$_load INLINECALLDICT
+      1 3 BLKDROP2
+      $Campaign$_internal_binary_AdvertiserUserAction INLINECALLDICT
+      TRUE
+    }>
+    DUP
+    1354800261 PUSHINT
+    EQUAL
+    IFJMP:<{
+      DROP
+      $ParentToChildJettonNotificationMessageFailure$_load INLINECALLDICT
+      NIP
+      $Campaign$_internal_binary_ParentToChildJettonNotificationMessageFailure INLINECALLDICT
+      TRUE
+    }>
+    DUP
+    2232130989 PUSHINT
+    EQUAL
+    IFJMP:<{
+      DROP
+      $ParentToChildWithdrawUSDTToPayout$_load INLINECALLDICT
+      NIP
+      $Campaign$_internal_binary_ParentToChildWithdrawUSDTToPayout INLINECALLDICT
+      TRUE
+    }>
+    DUP
+    2591643766 PUSHINT
+    EQUAL
+    IFJMP:<{
+      DROP
+      $ParentToChildPayAffiliateUSDTBounced$_load INLINECALLDICT
+      1 2 BLKDROP2
+      $Campaign$_internal_binary_ParentToChildPayAffiliateUSDTBounced INLINECALLDICT
+      TRUE
+    }>
+    0 EQINT
+    IF:<{
+      HASHSU
+      DUP
+      49102922684337101841979563583256198294100324132395678439113188049283630228447 PUSHINT
+      EQUAL
+      IFJMP:<{
+        DROP
+        $Campaign$_internal_text_6c8f44f45fedb4cdfed4de8db14aa5b13ad55d430f759d0669210b74c48fe3df INLINECALLDICT
+        TRUE
+        RETALT
+      }>
+      85478235227686204299312064008631277118150318603456584517510472216578858763521 PUSHINT
+      EQUAL
+      IFJMP:<{
+        $Campaign$_internal_text_bcfaf776907c719cc8d379d8f194aaaa27e8ca2871cd591781721f215a454501 INLINECALLDICT
+        TRUE
+        RETALT
+      }>
+    }>ELSE<{
+      DROP
+    }>
+    FALSE
+  }>
+  recv_internal PROC:<{
+    SWAP
+    CTOS
+    4 LDU
+    SWAP
+    1 PUSHINT
+    AND
+    NEGATE
+    SWAP
+    LDMSGADDR
+    SWAP
+    __tact_verify_address INLINECALLDICT
+    s0 s4 s2 PUXCPU
+    s0 s3 XCHG
+    4 TUPLE
+    __tact_context SETGLOB
+    s0 s2 XCHG
+    __tact_context_sender SETGLOB
+    $Campaign$_contract_load INLINECALLDICT
+    28 s() 30 s() XCHG
+    27 s() 29 s() XCHG
+    26 s() 28 s() XCHG
+    25 s() 27 s() XCHG
+    24 s() 26 s() XCHG
+    23 s() 25 s() XCHG
+    22 s() 24 s() XCHG
+    21 s() 23 s() XCHG
+    20 s() 22 s() XCHG
+    19 s() 21 s() XCHG
+    18 s() 20 s() XCHG
+    17 s() 19 s() XCHG
+    16 s() 18 s() XCHG
+    s15 17 s() XCHG
+    s14 16 s() XCHG
+    s13 s15 XCHG
+    2 13 BLKSWAP
+    $Campaign$_contract_router_internal INLINECALLDICT
+    130 THROWIFNOT
+    $Campaign$_contract_store INLINECALLDICT
+  }>
+}END>c

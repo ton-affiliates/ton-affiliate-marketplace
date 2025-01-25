@@ -30,5 +30,5 @@ RUN tsc -p tsconfig.json
 # Install PostgreSQL client
 RUN apk add --no-cache postgresql-client
 
-EXPOSE 3000
+EXPOSE 8080
 CMD ["npm", "run", "start"]

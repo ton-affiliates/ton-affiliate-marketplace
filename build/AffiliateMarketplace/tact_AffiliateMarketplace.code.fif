@@ -1,0 +1,1690 @@
+PROGRAM{
+  DECLPROC __tact_verify_address
+  DECLPROC __tact_load_address
+  DECLPROC __tact_store_address
+  DECLPROC __tact_create_address
+  DECLPROC __tact_compute_contract_address
+  DECLPROC __tact_not_null
+  DECLPROC __tact_context_get
+  DECLPROC __tact_context_get_sender
+  DECLPROC __tact_prepare_random
+  DECLPROC __tact_store_bool
+  DECLPROC __tact_dict_min_slice_int
+  DECLPROC __tact_dict_next_slice_int
+  DECLPROC __tact_slice_eq_bits
+  DECLPROC __tact_dict_set_code
+  DECLPROC __tact_dict_get_code
+  DECLPROC $Deploy$_load
+  DECLPROC $DeployOk$_store
+  DECLPROC $DeployOk$_store_cell
+  DECLPROC $AdminWithdraw$_load
+  DECLPROC $AdminUpdateFeeBalance$_load
+  DECLPROC $AdminReplenish$_load
+  DECLPROC $AdminStopCampaign$_load
+  DECLPROC $AdminResumeCampaign$_load
+  DECLPROC $AdminSeizeCampaignBalance$_load
+  DECLPROC $AdminJettonNotificationMessageFailure$_load
+  DECLPROC $AdminWithdrawUSDTToPayout$_load
+  DECLPROC $AdminPayAffiliateUSDTBounced$_load
+  DECLPROC $AdvertiserWithdrawFundsEvent$_store
+  DECLPROC $AdvertiserWithdrawFundsEvent$_store_cell
+  DECLPROC $CampaignCreatedEvent$_store
+  DECLPROC $CampaignCreatedEvent$_store_cell
+  DECLPROC $AdvertiserSignedCampaignDetailsEvent$_store
+  DECLPROC $AdvertiserSignedCampaignDetailsEvent$_store_cell
+  DECLPROC $AffiliateCreatedEvent$_store
+  DECLPROC $AffiliateCreatedEvent$_store_cell
+  DECLPROC $AdvertiserRemovedAffiliateEvent$_store
+  DECLPROC $AdvertiserRemovedAffiliateEvent$_store_cell
+  DECLPROC $AdvertiserApprovedAffiliateListEvent$_store
+  DECLPROC $AdvertiserApprovedAffiliateListEvent$_store_cell
+  DECLPROC $AdvertiserDeployNewCampaign$_load
+  DECLPROC $ParentToChildDeployCampaign$_store
+  DECLPROC $ParentToChildDeployCampaign$_store_cell
+  DECLPROC $ParentToChildSeizeCampaign$_store
+  DECLPROC $ParentToChildSeizeCampaign$_store_cell
+  DECLPROC $ParentToChildJettonNotificationMessageFailure$_store
+  DECLPROC $ParentToChildJettonNotificationMessageFailure$_store_cell
+  DECLPROC $ParentToChildWithdrawUSDTToPayout$_store
+  DECLPROC $ParentToChildWithdrawUSDTToPayout$_store_cell
+  DECLPROC $ParentToChildPayAffiliateUSDTBounced$_store
+  DECLPROC $ParentToChildPayAffiliateUSDTBounced$_store_cell
+  DECLPROC $ChildToParentCampaignDeployedSuccessfully$_load
+  DECLPROC $ChildToParentAffiliateCreated$_load
+  DECLPROC $ChildToParentAdvertiserSignedCampaignDetails$_load
+  DECLPROC $ChildToParentAdvertiserWithdrawFunds$_load
+  DECLPROC $ChildToParentAdvertiserApprovedAffiliate$_load
+  DECLPROC $ChildToParentAdvertiserRemovedAffiliate$_load
+  DECLPROC $AffiliateMarketplace$_store
+  DECLPROC $AffiliateMarketplace$_load
+  DECLPROC $StateInit$_not_null
+  DECLPROC $Context$_get_value
+  DECLPROC $Campaign$init$_store
+  DECLPROC $AffiliateMarketplace$init$_load
+  DECLPROC $AffiliateMarketplace$_contract_init
+  DECLPROC $AffiliateMarketplace$_contract_load
+  DECLPROC $AffiliateMarketplace$_contract_store
+  DECLPROC $global_random
+  DECLPROC $global_contractAddress
+  DECLPROC $global_send
+  DECLPROC $global_emit
+  DECLPROC $Campaign$_init_child
+  DECLPROC $SendParameters$_constructor_bounce_to_value_mode_body_code_data
+  DECLPROC $AffiliateMarketplace$_fun_balance
+  DECLPROC $AffiliateMarketplace$_fun_bot
+  DECLPROC $AffiliateMarketplace$_fun_numCampaigns
+  DECLPROC $AffiliateMarketplace$_fun_campaignContractStateInit
+  DECLPROC $AffiliateMarketplace$_fun_campaignContractAddress
+  DECLPROC $AffiliateMarketplace$_fun_forward
+  DECLPROC $AffiliateMarketplace$_fun_reply
+  DECLPROC $AffiliateMarketplace$_fun_notify
+  DECLPROC $AffiliateMarketplace$_fun_requireNotStopped
+  DECLPROC $AffiliateMarketplace$_fun_requireStopped
+  DECLPROC $AffiliateMarketplace$_fun_stopped
+  DECLPROC $AffiliateMarketplace$_fun_requireOwner
+  DECLPROC $AffiliateMarketplace$_fun_owner
+  DECLPROC $SendParameters$_constructor_to_bounce_value_mode
+  DECLPROC $SendParameters$_constructor_to_body_value_mode
+  DECLPROC $ParentToChildSeizeCampaign$_constructor_
+  DECLPROC $ParentToChildPayAffiliateUSDTBounced$_constructor_affiliateId_amount
+  DECLPROC $ParentToChildJettonNotificationMessageFailure$_constructor_amount
+  DECLPROC $ParentToChildWithdrawUSDTToPayout$_constructor_amount
+  DECLPROC $AdvertiserApprovedAffiliateListEvent$_constructor_campaignId_advertiser_affiliateId_affiliate
+  DECLPROC $AdvertiserRemovedAffiliateEvent$_constructor_campaignId_advertiser_affiliateId_affiliate
+  DECLPROC $AdvertiserWithdrawFundsEvent$_constructor_campaignId_advertiser_amount
+  DECLPROC $AdvertiserSignedCampaignDetailsEvent$_constructor_campaignId_advertiser
+  DECLPROC $AffiliateCreatedEvent$_constructor_campaignId_affiliateId_advertiser_affiliate_state
+  DECLPROC $SendParameters$_constructor_to_value_code_data_body_mode
+  DECLPROC $ParentToChildDeployCampaign$_constructor_campaignId_advertiser
+  DECLPROC $CampaignCreatedEvent$_constructor_campaignId_advertiser_campaignContractAddress
+  DECLPROC $DeployOk$_constructor_queryId
+  DECLPROC $AffiliateMarketplace$_internal_binary_AdminReplenish
+  DECLPROC $AffiliateMarketplace$_internal_binary_AdminUpdateFeeBalance
+  DECLPROC $AffiliateMarketplace$_internal_binary_AdminWithdraw
+  DECLPROC $AffiliateMarketplace$_internal_binary_AdminStopCampaign
+  DECLPROC $AffiliateMarketplace$_internal_binary_AdminResumeCampaign
+  DECLPROC $AffiliateMarketplace$_internal_binary_AdminSeizeCampaignBalance
+  DECLPROC $AffiliateMarketplace$_internal_binary_AdminPayAffiliateUSDTBounced
+  DECLPROC $AffiliateMarketplace$_internal_binary_AdminJettonNotificationMessageFailure
+  DECLPROC $AffiliateMarketplace$_internal_binary_AdminWithdrawUSDTToPayout
+  DECLPROC $AffiliateMarketplace$_internal_binary_ChildToParentAdvertiserApprovedAffiliate
+  DECLPROC $AffiliateMarketplace$_internal_binary_ChildToParentAdvertiserRemovedAffiliate
+  DECLPROC $AffiliateMarketplace$_internal_binary_ChildToParentAdvertiserWithdrawFunds
+  DECLPROC $AffiliateMarketplace$_internal_binary_ChildToParentAdvertiserSignedCampaignDetails
+  DECLPROC $AffiliateMarketplace$_internal_binary_ChildToParentAffiliateCreated
+  DECLPROC $AffiliateMarketplace$_internal_binary_AdvertiserDeployNewCampaign
+  DECLPROC $AffiliateMarketplace$_internal_binary_ChildToParentCampaignDeployedSuccessfully
+  DECLPROC %$AffiliateMarketplace$_internal_empty
+  DECLPROC $AffiliateMarketplace$_internal_binary_Deploy
+  DECLPROC $AffiliateMarketplace$_internal_text_6c8f44f45fedb4cdfed4de8db14aa5b13ad55d430f759d0669210b74c48fe3df
+  DECLPROC $AffiliateMarketplace$_internal_text_bcfaf776907c719cc8d379d8f194aaaa27e8ca2871cd591781721f215a454501
+  104128 DECLMETHOD %balance
+  118796 DECLMETHOD %bot
+  104382 DECLMETHOD %numCampaigns
+  82228 DECLMETHOD %campaignContractAddress
+  74107 DECLMETHOD %stopped
+  83229 DECLMETHOD %owner
+  115390 DECLMETHOD lazy_deployment_completed
+  DECLPROC $AffiliateMarketplace$_contract_router_internal
+  DECLPROC recv_internal
+  DECLGLOBVAR __tact_context
+  DECLGLOBVAR __tact_context_sender
+  DECLGLOBVAR __tact_context_sys
+  DECLGLOBVAR __tact_randomized
+  __tact_verify_address PROCINLINE:<{
+    DUP
+    SBITS
+    267 PUSHINT
+    EQUAL
+    136 THROWIFNOT
+    DUP
+    11 PLDU
+    DUP
+    1279 PUSHINT
+    EQUAL
+    137 THROWIF
+    10 PUSHPOW2
+    EQUAL
+    136 THROWIFNOT
+  }>
+  __tact_load_address PROCINLINE:<{
+    LDMSGADDR
+    SWAP
+    __tact_verify_address INLINECALLDICT
+  }>
+  __tact_store_address PROCINLINE:<{
+    __tact_verify_address INLINECALLDICT
+    STSLICER
+  }>
+  __tact_create_address PROCINLINE:<{
+    NEWC
+    2 PUSHINT
+    SWAP
+    2 STU
+    0 PUSHINT
+    SWAP
+    1 STU
+    s1 s2 XCHG
+    8 STI
+    256 STU
+    ENDC
+    CTOS
+    __tact_verify_address INLINECALLDICT
+  }>
+  __tact_compute_contract_address PROCINLINE:<{
+    NEWC
+    0 PUSHINT
+    SWAP
+    2 STU
+    3 PUSHINT
+    SWAP
+    2 STU
+    0 PUSHINT
+    SWAP
+    1 STU
+    s1 s2 XCHG
+    STREF
+    STREF
+    ENDC
+    HASHCU
+    __tact_create_address INLINECALLDICT
+  }>
+  __tact_not_null PROCINLINE:<{
+    DUP
+    ISNULL
+    128 THROWIF
+  }>
+  __tact_context_get PROCINLINE:<{
+    __tact_context GETGLOB
+    4 UNTUPLE
+  }>
+  __tact_context_get_sender PROCINLINE:<{
+    __tact_context_sender GETGLOB
+  }>
+  __tact_prepare_random PROCINLINE:<{
+    __tact_randomized GETGLOB
+    ISNULL
+    IF:<{
+      LTIME
+      ADDRAND
+      TRUE
+      __tact_randomized SETGLOB
+    }>
+  }>
+  __tact_store_bool PROCINLINE:<{
+    SWAP
+    1 STI
+  }>
+  __tact_dict_min_slice_int PROCINLINE:<{
+    -ROT
+        DICTMIN  NULLSWAPIFNOT2
+    DUP
+    IF:<{
+      s2 s3 XCHG2
+      LDIX
+      DROP
+      ROT
+    }>ELSE<{
+      2 1 BLKDROP2
+      PUSHNULL
+      s2 POP
+      PUSHNULL
+      SWAP
+    }>
+  }>
+  __tact_dict_next_slice_int PROCINLINE:<{
+    s1 s3 s3 XCHG3
+        DICTGETNEXT NULLSWAPIFNOT2
+    DUP
+    IF:<{
+      s2 s3 XCHG2
+      LDIX
+      DROP
+      ROT
+    }>ELSE<{
+      2 1 BLKDROP2
+      PUSHNULL
+      s2 POP
+      PUSHNULL
+      SWAP
+    }>
+  }>
+  __tact_slice_eq_bits PROCINLINE:<{
+    SDEQ
+  }>
+  __tact_dict_set_code PROCINLINE:<{
+    s0 s2 XCHG
+    16 PUSHINT
+    DICTUSETREF
+  }>
+  __tact_dict_get_code PROCINLINE:<{
+    SWAP
+    16 PUSHINT
+    DICTUGETREF
+    NULLSWAPIFNOT
+    135 THROWIFNOT
+  }>
+  $Deploy$_load PROCINLINE:<{
+    32 LDU
+    SWAP
+    2490013878 PUSHINT
+    EQUAL
+    129 THROWIFNOT
+    64 LDU
+    SWAP
+  }>
+  $DeployOk$_store PROCINLINE:<{
+    2952335191 PUSHINT
+    ROT
+    32 STU
+    64 STU
+  }>
+  $DeployOk$_store_cell PROCINLINE:<{
+    NEWC
+    SWAP
+    $DeployOk$_store INLINECALLDICT
+    ENDC
+  }>
+  $AdminWithdraw$_load PROCINLINE:<{
+    32 LDU
+    SWAP
+    26200810 PUSHINT
+    EQUAL
+    129 THROWIFNOT
+    LDVARUINT16
+    LDDICT
+    -ROT
+  }>
+  $AdminUpdateFeeBalance$_load PROCINLINE:<{
+    32 LDU
+    SWAP
+    2718584125 PUSHINT
+    EQUAL
+    129 THROWIFNOT
+    32 LDU
+    32 LDU
+    -ROT
+  }>
+  $AdminReplenish$_load PROCINLINE:<{
+    32 LDU
+    SWAP
+    58961501 PUSHINT
+    EQUAL
+    129 THROWIFNOT
+    PUSHNULL
+  }>
+  $AdminStopCampaign$_load PROCINLINE:<{
+    32 LDU
+    SWAP
+    1822632228 PUSHINT
+    EQUAL
+    129 THROWIFNOT
+    32 LDU
+    __tact_load_address INLINECALLDICT
+    s1 s2 XCHG
+  }>
+  $AdminResumeCampaign$_load PROCINLINE:<{
+    32 LDU
+    SWAP
+    460159264 PUSHINT
+    EQUAL
+    129 THROWIFNOT
+    32 LDU
+    __tact_load_address INLINECALLDICT
+    s1 s2 XCHG
+  }>
+  $AdminSeizeCampaignBalance$_load PROCINLINE:<{
+    32 LDU
+    SWAP
+    1433233099 PUSHINT
+    EQUAL
+    129 THROWIFNOT
+    32 LDU
+    __tact_load_address INLINECALLDICT
+    s1 s2 XCHG
+  }>
+  $AdminJettonNotificationMessageFailure$_load PROCINLINE:<{
+    32 LDU
+    SWAP
+    3769391455 PUSHINT
+    EQUAL
+    129 THROWIFNOT
+    32 LDU
+    __tact_load_address INLINECALLDICT
+    SWAP
+    LDVARUINT16
+    3 -ROLL
+  }>
+  $AdminWithdrawUSDTToPayout$_load PROCINLINE:<{
+    32 LDU
+    SWAP
+    2703619106 PUSHINT
+    EQUAL
+    129 THROWIFNOT
+    32 LDU
+    __tact_load_address INLINECALLDICT
+    SWAP
+    LDVARUINT16
+    3 -ROLL
+  }>
+  $AdminPayAffiliateUSDTBounced$_load PROCINLINE:<{
+    32 LDU
+    SWAP
+    1452035766 PUSHINT
+    EQUAL
+    129 THROWIFNOT
+    32 LDU
+    __tact_load_address INLINECALLDICT
+    SWAP
+    64 LDU
+    LDVARUINT16
+    4 -ROLL
+  }>
+  $AdvertiserWithdrawFundsEvent$_store PROCINLINE:<{
+    3552449590 PUSHINT
+    s0 s4 XCHG2
+    32 STU
+    s1 s2 XCHG
+    32 STU
+    SWAP
+    __tact_store_address INLINECALLDICT
+    SWAP
+    STVARUINT16
+  }>
+  $AdvertiserWithdrawFundsEvent$_store_cell PROCINLINE:<{
+    NEWC
+    3 -ROLL
+    $AdvertiserWithdrawFundsEvent$_store INLINECALLDICT
+    ENDC
+  }>
+  $CampaignCreatedEvent$_store PROCINLINE:<{
+    2452245169 PUSHINT
+    s0 s4 XCHG2
+    32 STU
+    s1 s2 XCHG
+    32 STU
+    SWAP
+    __tact_store_address INLINECALLDICT
+    SWAP
+    __tact_store_address INLINECALLDICT
+  }>
+  $CampaignCreatedEvent$_store_cell PROCINLINE:<{
+    NEWC
+    3 -ROLL
+    $CampaignCreatedEvent$_store INLINECALLDICT
+    ENDC
+  }>
+  $AdvertiserSignedCampaignDetailsEvent$_store PROCINLINE:<{
+    1529127575 PUSHINT
+    s0 s3 XCHG2
+    32 STU
+    32 STU
+    SWAP
+    __tact_store_address INLINECALLDICT
+  }>
+  $AdvertiserSignedCampaignDetailsEvent$_store_cell PROCINLINE:<{
+    NEWC
+    -ROT
+    $AdvertiserSignedCampaignDetailsEvent$_store INLINECALLDICT
+    ENDC
+  }>
+  $AffiliateCreatedEvent$_store PROCINLINE:<{
+    2267067737 PUSHINT
+    s0 s6 XCHG2
+    32 STU
+    s1 s4 XCHG
+    32 STU
+    ROT
+    __tact_store_address INLINECALLDICT
+    32 STU
+    SWAP
+    __tact_store_address INLINECALLDICT
+    8 STU
+  }>
+  $AffiliateCreatedEvent$_store_cell PROCINLINE:<{
+    NEWC
+    5 -ROLL
+    $AffiliateCreatedEvent$_store INLINECALLDICT
+    ENDC
+  }>
+  $AdvertiserRemovedAffiliateEvent$_store PROCINLINE:<{
+    1530383439 PUSHINT
+    s0 s5 XCHG2
+    32 STU
+    s1 s3 XCHG
+    32 STU
+    SWAP
+    __tact_store_address INLINECALLDICT
+    32 STU
+    SWAP
+    __tact_store_address INLINECALLDICT
+  }>
+  $AdvertiserRemovedAffiliateEvent$_store_cell PROCINLINE:<{
+    NEWC
+    4 -ROLL
+    $AdvertiserRemovedAffiliateEvent$_store INLINECALLDICT
+    ENDC
+  }>
+  $AdvertiserApprovedAffiliateListEvent$_store PROCINLINE:<{
+    4109738705 PUSHINT
+    s0 s5 XCHG2
+    32 STU
+    s1 s3 XCHG
+    32 STU
+    SWAP
+    __tact_store_address INLINECALLDICT
+    32 STU
+    SWAP
+    __tact_store_address INLINECALLDICT
+  }>
+  $AdvertiserApprovedAffiliateListEvent$_store_cell PROCINLINE:<{
+    NEWC
+    4 -ROLL
+    $AdvertiserApprovedAffiliateListEvent$_store INLINECALLDICT
+    ENDC
+  }>
+  $AdvertiserDeployNewCampaign$_load PROCINLINE:<{
+    32 LDU
+    SWAP
+    1179651103 PUSHINT
+    EQUAL
+    129 THROWIFNOT
+    PUSHNULL
+  }>
+  $ParentToChildDeployCampaign$_store PROCINLINE:<{
+    1292517596 PUSHINT
+    s0 s3 XCHG2
+    32 STU
+    32 STU
+    SWAP
+    __tact_store_address INLINECALLDICT
+  }>
+  $ParentToChildDeployCampaign$_store_cell PROCINLINE:<{
+    NEWC
+    -ROT
+    $ParentToChildDeployCampaign$_store INLINECALLDICT
+    ENDC
+  }>
+  $ParentToChildSeizeCampaign$_store PROCINLINE:<{
+    DROP
+    340595563 PUSHINT
+    SWAP
+    32 STU
+  }>
+  $ParentToChildSeizeCampaign$_store_cell PROCINLINE:<{
+    NEWC
+    SWAP
+    $ParentToChildSeizeCampaign$_store INLINECALLDICT
+    ENDC
+  }>
+  $ParentToChildJettonNotificationMessageFailure$_store PROCINLINE:<{
+    1354800261 PUSHINT
+    ROT
+    32 STU
+    SWAP
+    STVARUINT16
+  }>
+  $ParentToChildJettonNotificationMessageFailure$_store_cell PROCINLINE:<{
+    NEWC
+    SWAP
+    $ParentToChildJettonNotificationMessageFailure$_store INLINECALLDICT
+    ENDC
+  }>
+  $ParentToChildWithdrawUSDTToPayout$_store PROCINLINE:<{
+    2232130989 PUSHINT
+    ROT
+    32 STU
+    SWAP
+    STVARUINT16
+  }>
+  $ParentToChildWithdrawUSDTToPayout$_store_cell PROCINLINE:<{
+    NEWC
+    SWAP
+    $ParentToChildWithdrawUSDTToPayout$_store INLINECALLDICT
+    ENDC
+  }>
+  $ParentToChildPayAffiliateUSDTBounced$_store PROCINLINE:<{
+    2591643766 PUSHINT
+    s0 s3 XCHG2
+    32 STU
+    64 STU
+    SWAP
+    STVARUINT16
+  }>
+  $ParentToChildPayAffiliateUSDTBounced$_store_cell PROCINLINE:<{
+    NEWC
+    -ROT
+    $ParentToChildPayAffiliateUSDTBounced$_store INLINECALLDICT
+    ENDC
+  }>
+  $ChildToParentCampaignDeployedSuccessfully$_load PROCINLINE:<{
+    32 LDU
+    SWAP
+    370750836 PUSHINT
+    EQUAL
+    129 THROWIFNOT
+    32 LDU
+    __tact_load_address INLINECALLDICT
+    s1 s2 XCHG
+  }>
+  $ChildToParentAffiliateCreated$_load PROCINLINE:<{
+    32 LDU
+    SWAP
+    3477708169 PUSHINT
+    EQUAL
+    129 THROWIFNOT
+    32 LDU
+    32 LDU
+    __tact_load_address INLINECALLDICT
+    SWAP
+    __tact_load_address INLINECALLDICT
+    SWAP
+    8 LDU
+    5 -ROLL
+  }>
+  $ChildToParentAdvertiserSignedCampaignDetails$_load PROCINLINE:<{
+    32 LDU
+    SWAP
+    1248894233 PUSHINT
+    EQUAL
+    129 THROWIFNOT
+    32 LDU
+    __tact_load_address INLINECALLDICT
+    s1 s2 XCHG
+  }>
+  $ChildToParentAdvertiserWithdrawFunds$_load PROCINLINE:<{
+    32 LDU
+    SWAP
+    2584288256 PUSHINT
+    EQUAL
+    129 THROWIFNOT
+    32 LDU
+    __tact_load_address INLINECALLDICT
+    SWAP
+    LDVARUINT16
+    3 -ROLL
+  }>
+  $ChildToParentAdvertiserApprovedAffiliate$_load PROCINLINE:<{
+    32 LDU
+    SWAP
+    1498234406 PUSHINT
+    EQUAL
+    129 THROWIFNOT
+    32 LDU
+    __tact_load_address INLINECALLDICT
+    SWAP
+    32 LDU
+    __tact_load_address INLINECALLDICT
+    s1 s4 XCHG
+    s3 s3 s0 XCHG3
+  }>
+  $ChildToParentAdvertiserRemovedAffiliate$_load PROCINLINE:<{
+    32 LDU
+    SWAP
+    2190513838 PUSHINT
+    EQUAL
+    129 THROWIFNOT
+    32 LDU
+    __tact_load_address INLINECALLDICT
+    SWAP
+    32 LDU
+    __tact_load_address INLINECALLDICT
+    s1 s4 XCHG
+    s3 s3 s0 XCHG3
+  }>
+  $AffiliateMarketplace$_store PROCINLINE:<{
+    s8 s7 XCHG2
+    __tact_store_address INLINECALLDICT
+    s1 s5 XCHG
+    1 STI
+    s0 s3 XCHG2
+    __tact_store_address INLINECALLDICT
+    32 STU
+    SWAP
+    __tact_store_address INLINECALLDICT
+    STREF
+    s1 s2 XCHG
+    32 STU
+    32 STU
+  }>
+  $AffiliateMarketplace$_load PROCINLINE:<{
+    __tact_load_address INLINECALLDICT
+    SWAP
+    1 LDI
+    __tact_load_address INLINECALLDICT
+    SWAP
+    32 LDU
+    __tact_load_address INLINECALLDICT
+    SWAP
+    LDREF
+    32 LDU
+    32 LDU
+    8 -ROLL
+  }>
+  $StateInit$_not_null PROCINLINE:<{
+    DUP
+    ISNULL
+    128 THROWIF
+        2 UNTUPLE
+  }>
+  $Context$_get_value PROCINLINE:<{
+    s1 s3 XCHG
+    3 BLKDROP
+  }>
+  $Campaign$init$_store PROCINLINE:<{
+    s9 s8 XCHG2
+    __tact_store_address INLINECALLDICT
+    s1 s6 XCHG
+    257 PUSHINT
+    STIX
+    s0 s4 XCHG2
+    __tact_store_address INLINECALLDICT
+    NEWC
+    s0 s3 XCHG2
+    __tact_store_address INLINECALLDICT
+    SWAP
+    __tact_store_address INLINECALLDICT
+    ROT
+    __tact_store_address INLINECALLDICT
+    s1 s2 XCHG
+    STREF
+    s0 s3 XCHG
+    NEWC
+    257 PUSHINT
+    STIX
+    s1 s2 XCHG
+    257 PUSHINT
+    STIX
+    ENDC
+    ROT
+    STREF
+    ENDC
+    SWAP
+    STREF
+  }>
+  $AffiliateMarketplace$init$_load PROCINLINE:<{
+    __tact_load_address INLINECALLDICT
+    SWAP
+    __tact_load_address INLINECALLDICT
+    SWAP
+    LDREF
+    257 PUSHINT
+    LDIX
+    LDREF
+    SWAP
+    CTOS
+    257 PUSHINT
+    LDIX
+    DROP
+    s1 s5 XCHG
+    s1 s4 XCHG
+    s3 s3 s0 XCHG3
+  }>
+  $AffiliateMarketplace$_contract_init PROCREF:<{
+    __tact_context_get_sender INLINECALLDICT
+    FALSE
+    s6 s5 XCHG2
+    s1 s4 XCHG
+    0 PUSHINT
+    s3 s4 XCHG2
+  }>
+  $AffiliateMarketplace$_contract_load PROCREF:<{
+    c4 PUSH
+    CTOS
+    LDREF
+    SWAP
+    __tact_context_sys SETGLOB
+    1 LDI
+    SWAP
+    IFJMP:<{
+      $AffiliateMarketplace$_load INLINECALLDICT
+      1 8 BLKDROP2
+    }>
+    MYADDR
+    11 PLDU
+    10 PUSHPOW2
+    EQUAL
+    137 THROWIFNOT
+    $AffiliateMarketplace$init$_load INLINECALLDICT
+    s0 s5 XCHG
+    ENDS
+    4 ROLL
+    $AffiliateMarketplace$_contract_init INLINECALLDICT
+  }>
+  $AffiliateMarketplace$_contract_store PROCINLINE:<{
+    NEWC
+    __tact_context_sys GETGLOB
+    SWAP
+    STREF
+    TRUE
+    SWAP
+    1 STI
+    8 -ROLL
+    $AffiliateMarketplace$_store INLINECALLDICT
+    ENDC
+    c4 POP
+  }>
+  $global_random PROCINLINE:<{
+    __tact_prepare_random INLINECALLDICT
+    OVER
+    SUB
+        RAND
+    ADD
+  }>
+  $global_contractAddress PROCINLINE:<{
+    0 PUSHINT
+    -ROT
+    __tact_compute_contract_address INLINECALLDICT
+  }>
+  $global_send PROCREF:<{
+        NEWC
+    1 PUSHINT
+    SWAP
+    2 STI
+    s0 s7 XCHG2
+    __tact_store_bool INLINECALLDICT
+    0 PUSHINT
+    SWAP
+    3 STI
+    s0 s5 XCHG2
+    __tact_store_address INLINECALLDICT
+    s0 s3 XCHG2
+        STVARUINT16
+    0 PUSHINT
+    SWAP
+    105 STI
+    s3 PUSH
+    ISNULL
+    NOT
+    IF:<{
+      TRUE
+    }>ELSE<{
+      s4 PUSH
+      ISNULL
+      NOT
+    }>
+    IF:<{
+      TRUE
+      __tact_store_bool INLINECALLDICT
+          NEWC
+      FALSE
+      __tact_store_bool INLINECALLDICT
+      FALSE
+      __tact_store_bool INLINECALLDICT
+      s4 PUSH
+      ISNULL
+      NOT
+      IF:<{
+        TRUE
+        __tact_store_bool INLINECALLDICT
+        s0 s4 XCHG
+        __tact_not_null INLINECALLDICT
+        s0 s4 XCHG2
+            STREF
+      }>ELSE<{
+        s4 POP
+        s0 s3 XCHG
+        FALSE
+        __tact_store_bool INLINECALLDICT
+      }>
+      s4 PUSH
+      ISNULL
+      NOT
+      IF:<{
+        TRUE
+        __tact_store_bool INLINECALLDICT
+        s0 s4 XCHG
+        __tact_not_null INLINECALLDICT
+        s0 s4 XCHG2
+            STREF
+      }>ELSE<{
+        s4 POP
+        s0 s3 XCHG
+        FALSE
+        __tact_store_bool INLINECALLDICT
+      }>
+      FALSE
+      __tact_store_bool INLINECALLDICT
+      s0 s2 XCHG
+      TRUE
+      __tact_store_bool INLINECALLDICT
+      s0 s2 XCHG
+          ENDC
+      ROT
+          STREF
+    }>ELSE<{
+      s3 POP
+      s3 POP
+      SWAP
+      FALSE
+      __tact_store_bool INLINECALLDICT
+    }>
+    OVER
+    ISNULL
+    NOT
+    IF:<{
+      TRUE
+      __tact_store_bool INLINECALLDICT
+      SWAP
+      __tact_not_null INLINECALLDICT
+      SWAP
+          STREF
+    }>ELSE<{
+      NIP
+      FALSE
+      __tact_store_bool INLINECALLDICT
+    }>
+        ENDC
+    SWAP
+        SENDMSG
+  }>
+  $global_emit PROCINLINE:<{
+        NEWC
+    15211807202738752817960438464513 PUSHINT
+    SWAP
+    104 STU
+        STREF
+        ENDC
+    0 PUSHINT
+        SENDRAWMSG
+  }>
+  $Campaign$_init_child PROCREF:<{
+    s0 s9 XCHG
+    CTOS
+    LDDICT
+    DROP
+    NEWDICT
+    SWAP
+    3146 PUSHINT
+    __tact_dict_get_code INLINECALLDICT
+    SWAP
+    3146 PUSHINT
+    s2 PUSH
+    __tact_dict_set_code INLINECALLDICT
+    NEWC
+    SWAP
+    NEWC
+    STDICT
+    ENDC
+    SWAP
+    STREF
+    FALSE
+    SWAP
+    1 STI
+    9 -ROLL
+    s0 s10 XCHG
+    $Campaign$init$_store INLINECALLDICT
+    ENDC
+  }>
+  $SendParameters$_constructor_bounce_to_value_mode_body_code_data PROCINLINE:<{
+  }>
+  $AffiliateMarketplace$_fun_balance PROCREF:<{
+        BALANCE FIRST
+  }>
+  $AffiliateMarketplace$_fun_bot PROCREF:<{
+    s5 PUSH
+  }>
+  $AffiliateMarketplace$_fun_numCampaigns PROCREF:<{
+    s4 PUSH
+  }>
+  $AffiliateMarketplace$_fun_campaignContractStateInit PROCREF:<{
+    __tact_context_sys GETGLOB
+        MYADDR
+    s3 s2 s11 XC2PU
+    s10 s8 s7 PUSH3
+    s8 s9 PUSH2
+    $Campaign$_init_child INLINECALLDICT
+  }>
+  $AffiliateMarketplace$_fun_campaignContractAddress PROCREF:<{
+    $AffiliateMarketplace$_fun_campaignContractStateInit INLINECALLDICT
+    $global_contractAddress INLINECALLDICT
+  }>
+  $AffiliateMarketplace$_fun_forward PROCREF:<{
+    PUSHNULL
+    PUSHNULL
+    s2 PUSH
+    ISNULL
+    NOT
+    IF:<{
+      2DROP
+      $StateInit$_not_null INLINECALLDICT
+      SWAP
+    }>ELSE<{
+      s2 POP
+    }>
+    s2 s4 XCHG
+    0 PUSHINT
+    s0 s3 XCHG
+    s0 s4 XCHG
+    66 PUSHINT
+    s2 s3 XCHG2
+    $SendParameters$_constructor_bounce_to_value_mode_body_code_data INLINECALLDICT
+    $global_send INLINECALLDICT
+    DROP
+  }>
+  $AffiliateMarketplace$_fun_reply PROCINLINE:<{
+    __tact_context_get_sender INLINECALLDICT
+    SWAP
+    TRUE
+    PUSHNULL
+    $AffiliateMarketplace$_fun_forward INLINECALLDICT
+  }>
+  $AffiliateMarketplace$_fun_notify PROCINLINE:<{
+    __tact_context_get_sender INLINECALLDICT
+    SWAP
+    FALSE
+    PUSHNULL
+    $AffiliateMarketplace$_fun_forward INLINECALLDICT
+  }>
+  $AffiliateMarketplace$_fun_requireNotStopped PROCREF:<{
+    40368 PUSHINT
+    s7 PUSH
+    NOT
+    THROWANYIFNOT
+  }>
+  $AffiliateMarketplace$_fun_requireStopped PROCREF:<{
+    53296 PUSHINT
+    s7 PUSH
+    THROWANYIFNOT
+  }>
+  $AffiliateMarketplace$_fun_stopped PROCREF:<{
+    s6 PUSH
+  }>
+  $AffiliateMarketplace$_fun_requireOwner PROCREF:<{
+    __tact_context_get_sender INLINECALLDICT
+    s8 s(-1) PUXC
+    __tact_slice_eq_bits INLINECALLDICT
+    132 THROWIFNOT
+  }>
+  $AffiliateMarketplace$_fun_owner PROCREF:<{
+    s7 PUSH
+  }>
+  $SendParameters$_constructor_to_bounce_value_mode PROCINLINE:<{
+    s2 s3 XCHG
+    PUSHNULL
+    PUSHNULL
+    PUSHNULL
+  }>
+  $SendParameters$_constructor_to_body_value_mode PROCINLINE:<{
+    TRUE
+    s0 s4 XCHG
+    s0 s3 XCHG
+    PUSHNULL
+    PUSHNULL
+  }>
+  $ParentToChildSeizeCampaign$_constructor_ PROCINLINE:<{
+    NIL
+  }>
+  $ParentToChildPayAffiliateUSDTBounced$_constructor_affiliateId_amount PROCINLINE:<{
+  }>
+  $ParentToChildJettonNotificationMessageFailure$_constructor_amount PROCINLINE:<{
+  }>
+  $ParentToChildWithdrawUSDTToPayout$_constructor_amount PROCINLINE:<{
+  }>
+  $AdvertiserApprovedAffiliateListEvent$_constructor_campaignId_advertiser_affiliateId_affiliate PROCINLINE:<{
+  }>
+  $AdvertiserRemovedAffiliateEvent$_constructor_campaignId_advertiser_affiliateId_affiliate PROCINLINE:<{
+  }>
+  $AdvertiserWithdrawFundsEvent$_constructor_campaignId_advertiser_amount PROCINLINE:<{
+  }>
+  $AdvertiserSignedCampaignDetailsEvent$_constructor_campaignId_advertiser PROCINLINE:<{
+  }>
+  $AffiliateCreatedEvent$_constructor_campaignId_affiliateId_advertiser_affiliate_state PROCINLINE:<{
+    s2 s3 XCHG
+  }>
+  $SendParameters$_constructor_to_value_code_data_body_mode PROCINLINE:<{
+    TRUE
+    s0 s6 XCHG
+    s0 s5 XCHG
+    s4 s4 XCHG2
+    s0 s3 XCHG
+  }>
+  $ParentToChildDeployCampaign$_constructor_campaignId_advertiser PROCINLINE:<{
+  }>
+  $CampaignCreatedEvent$_constructor_campaignId_advertiser_campaignContractAddress PROCINLINE:<{
+  }>
+  $DeployOk$_constructor_queryId PROCINLINE:<{
+  }>
+  $AffiliateMarketplace$_internal_binary_AdminReplenish PROCINLINE:<{
+    DROP
+    $AffiliateMarketplace$_fun_requireOwner INLINECALLDICT
+  }>
+  $AffiliateMarketplace$_internal_binary_AdminUpdateFeeBalance PROCINLINE:<{
+    8 2 BLKSWAP
+    $AffiliateMarketplace$_fun_requireOwner INLINECALLDICT
+    2DROP
+    s5 s7 XCHG
+    2 5 BLKSWAP
+  }>
+  $AffiliateMarketplace$_internal_binary_AdminWithdraw PROCINLINE:<{
+    8 2 BLKSWAP
+    $AffiliateMarketplace$_fun_requireOwner INLINECALLDICT
+    1000000000 PUSHINT
+    48874 PUSHINT
+        BALANCE FIRST
+    s12 s2 PUXC
+    ADD
+    s1 s2 XCHG
+    GEQ
+    THROWANYIFNOT
+    0 PUSHINT
+    s9 PUSH
+    267 PUSHINT
+    1 PUSHINT
+    __tact_dict_min_slice_int INLINECALLDICT
+    NIP
+    WHILE:<{
+    }>DO<{
+      SWAP
+      INC
+      267 PUSHINT
+      s11 s0 s2 PUXC2
+      1 PUSHINT
+      __tact_dict_next_slice_int INLINECALLDICT
+      NIP
+    }>
+    DROP
+    2509 PUSHINT
+    OVER
+    0 GTINT
+    THROWANYIFNOT
+    DUP
+    1 GTINT
+    IF:<{
+      s1 s10 XCHG
+      DIV
+      s0 s9 XCHG
+    }>ELSE<{
+      DROP
+    }>
+    s8 PUSH
+    267 PUSHINT
+    1 PUSHINT
+    __tact_dict_min_slice_int INLINECALLDICT
+    NIP
+    WHILE:<{
+    }>DO<{
+      DUP
+      TRUE
+      s12 PUSH
+      1 PUSHINT
+      $SendParameters$_constructor_to_bounce_value_mode INLINECALLDICT
+      $global_send INLINECALLDICT
+      DROP
+      267 PUSHINT
+      s10 PUSH
+      s0 s2 XCHG
+      1 PUSHINT
+      __tact_dict_next_slice_int INLINECALLDICT
+      NIP
+    }>
+    DROP
+    2 8 BLKDROP2
+  }>
+  $AffiliateMarketplace$_internal_binary_AdminStopCampaign PROCINLINE:<{
+    8 2 BLKSWAP
+    $AffiliateMarketplace$_fun_requireOwner INLINECALLDICT
+    2 8 BLKSWAP
+    $AffiliateMarketplace$_fun_campaignContractStateInit INLINECALLDICT
+    $global_contractAddress INLINECALLDICT
+        B{b5ee9c7241010101000a0000100000000053746f703e375941} B>boc PUSHREF
+    0 PUSHINT
+    64 PUSHINT
+    $SendParameters$_constructor_to_body_value_mode INLINECALLDICT
+    $global_send INLINECALLDICT
+    DROP
+  }>
+  $AffiliateMarketplace$_internal_binary_AdminResumeCampaign PROCINLINE:<{
+    8 2 BLKSWAP
+    $AffiliateMarketplace$_fun_requireOwner INLINECALLDICT
+    2 8 BLKSWAP
+    $AffiliateMarketplace$_fun_campaignContractStateInit INLINECALLDICT
+    $global_contractAddress INLINECALLDICT
+        B{b5ee9c7241010101000c00001400000000526573756d651a083419} B>boc PUSHREF
+    0 PUSHINT
+    64 PUSHINT
+    $SendParameters$_constructor_to_body_value_mode INLINECALLDICT
+    $global_send INLINECALLDICT
+    DROP
+  }>
+  $AffiliateMarketplace$_internal_binary_AdminSeizeCampaignBalance PROCINLINE:<{
+    8 2 BLKSWAP
+    $AffiliateMarketplace$_fun_requireOwner INLINECALLDICT
+    2 8 BLKSWAP
+    $AffiliateMarketplace$_fun_campaignContractStateInit INLINECALLDICT
+    $global_contractAddress INLINECALLDICT
+    $ParentToChildSeizeCampaign$_constructor_ INLINECALLDICT
+    $ParentToChildSeizeCampaign$_store_cell INLINECALLDICT
+    0 PUSHINT
+    64 PUSHINT
+    $SendParameters$_constructor_to_body_value_mode INLINECALLDICT
+    $global_send INLINECALLDICT
+    DROP
+  }>
+  $AffiliateMarketplace$_internal_binary_AdminPayAffiliateUSDTBounced PROCINLINE:<{
+    8 4 BLKSWAP
+    $AffiliateMarketplace$_fun_requireOwner INLINECALLDICT
+    2 10 BLKSWAP
+    $AffiliateMarketplace$_fun_campaignContractStateInit INLINECALLDICT
+    $global_contractAddress INLINECALLDICT
+    s10 s9 XCHG2
+    $ParentToChildPayAffiliateUSDTBounced$_constructor_affiliateId_amount INLINECALLDICT
+    $ParentToChildPayAffiliateUSDTBounced$_store_cell INLINECALLDICT
+    s1 s8 XCHG
+    0 PUSHINT
+    64 PUSHINT
+    $SendParameters$_constructor_to_body_value_mode INLINECALLDICT
+    $global_send INLINECALLDICT
+    DROP
+    s5 s7 XCHG
+    2 5 BLKSWAP
+  }>
+  $AffiliateMarketplace$_internal_binary_AdminJettonNotificationMessageFailure PROCINLINE:<{
+    s7 s10 XCHG
+    s6 s9 XCHG
+    s5 s8 XCHG
+    s4 s10 XCHG
+    s3 s9 XCHG
+    s8 s10 s9 XCHG3
+    $AffiliateMarketplace$_fun_requireOwner INLINECALLDICT
+    s7 s9 XCHG
+    2 7 BLKSWAP
+    s0 s10 XCHG
+    $AffiliateMarketplace$_fun_campaignContractStateInit INLINECALLDICT
+    $global_contractAddress INLINECALLDICT
+    s0 s9 XCHG
+    $ParentToChildJettonNotificationMessageFailure$_constructor_amount INLINECALLDICT
+    $ParentToChildJettonNotificationMessageFailure$_store_cell INLINECALLDICT
+    s1 s9 XCHG
+    0 PUSHINT
+    64 PUSHINT
+    $SendParameters$_constructor_to_body_value_mode INLINECALLDICT
+    $global_send INLINECALLDICT
+    DROP
+    7 ROLL
+  }>
+  $AffiliateMarketplace$_internal_binary_AdminWithdrawUSDTToPayout PROCINLINE:<{
+    s7 s10 XCHG
+    s6 s9 XCHG
+    s5 s8 XCHG
+    s4 s10 XCHG
+    s3 s9 XCHG
+    s8 s10 s9 XCHG3
+    $AffiliateMarketplace$_fun_requireOwner INLINECALLDICT
+    s7 s9 XCHG
+    2 7 BLKSWAP
+    s0 s10 XCHG
+    $AffiliateMarketplace$_fun_campaignContractStateInit INLINECALLDICT
+    $global_contractAddress INLINECALLDICT
+    s0 s9 XCHG
+    $ParentToChildWithdrawUSDTToPayout$_constructor_amount INLINECALLDICT
+    $ParentToChildWithdrawUSDTToPayout$_store_cell INLINECALLDICT
+    s1 s9 XCHG
+    0 PUSHINT
+    64 PUSHINT
+    $SendParameters$_constructor_to_body_value_mode INLINECALLDICT
+    $global_send INLINECALLDICT
+    DROP
+    7 ROLL
+  }>
+  $AffiliateMarketplace$_internal_binary_ChildToParentAdvertiserApprovedAffiliate PROCINLINE:<{
+    8 4 BLKSWAP
+    s11 s10 PUSH2
+    $AffiliateMarketplace$_fun_campaignContractStateInit INLINECALLDICT
+    $global_contractAddress INLINECALLDICT
+    49469 PUSHINT
+    __tact_context_get_sender INLINECALLDICT
+    s1 s2 XCHG
+    __tact_slice_eq_bits INLINECALLDICT
+    THROWANYIFNOT
+    s3 s11 XCHG
+    s10 s9 s8 XCHG3
+    $AdvertiserApprovedAffiliateListEvent$_constructor_campaignId_advertiser_affiliateId_affiliate INLINECALLDICT
+    $AdvertiserApprovedAffiliateListEvent$_store_cell INLINECALLDICT
+    $global_emit INLINECALLDICT
+    4 4 BLKSWAP
+  }>
+  $AffiliateMarketplace$_internal_binary_ChildToParentAdvertiserRemovedAffiliate PROCINLINE:<{
+    8 4 BLKSWAP
+    s11 s10 PUSH2
+    $AffiliateMarketplace$_fun_campaignContractStateInit INLINECALLDICT
+    $global_contractAddress INLINECALLDICT
+    49469 PUSHINT
+    __tact_context_get_sender INLINECALLDICT
+    s1 s2 XCHG
+    __tact_slice_eq_bits INLINECALLDICT
+    THROWANYIFNOT
+    s3 s11 XCHG
+    s10 s9 s8 XCHG3
+    $AdvertiserRemovedAffiliateEvent$_constructor_campaignId_advertiser_affiliateId_affiliate INLINECALLDICT
+    $AdvertiserRemovedAffiliateEvent$_store_cell INLINECALLDICT
+    $global_emit INLINECALLDICT
+    4 4 BLKSWAP
+  }>
+  $AffiliateMarketplace$_internal_binary_ChildToParentAdvertiserWithdrawFunds PROCINLINE:<{
+    s7 s10 XCHG
+    s6 s9 XCHG
+    s5 s8 XCHG
+    s4 s10 XCHG
+    s3 s9 XCHG
+    s8 s10 s9 XCHG3
+    s8 s10 PUSH2
+    $AffiliateMarketplace$_fun_campaignContractStateInit INLINECALLDICT
+    $global_contractAddress INLINECALLDICT
+    49469 PUSHINT
+    __tact_context_get_sender INLINECALLDICT
+    s1 s2 XCHG
+    __tact_slice_eq_bits INLINECALLDICT
+    THROWANYIFNOT
+    s8 s10 s9 XCHG3
+    $AdvertiserWithdrawFundsEvent$_constructor_campaignId_advertiser_amount INLINECALLDICT
+    $AdvertiserWithdrawFundsEvent$_store_cell INLINECALLDICT
+    $global_emit INLINECALLDICT
+    s4 s7 XCHG
+    s3 s6 XCHG
+    3 3 BLKSWAP
+  }>
+  $AffiliateMarketplace$_internal_binary_ChildToParentAdvertiserSignedCampaignDetails PROCINLINE:<{
+    8 2 BLKSWAP
+    s9 s8 PUSH2
+    $AffiliateMarketplace$_fun_campaignContractStateInit INLINECALLDICT
+    $global_contractAddress INLINECALLDICT
+    49469 PUSHINT
+    __tact_context_get_sender INLINECALLDICT
+    s1 s2 XCHG
+    __tact_slice_eq_bits INLINECALLDICT
+    THROWANYIFNOT
+    s9 s8 XCHG2
+    $AdvertiserSignedCampaignDetailsEvent$_constructor_campaignId_advertiser INLINECALLDICT
+    $AdvertiserSignedCampaignDetailsEvent$_store_cell INLINECALLDICT
+    $global_emit INLINECALLDICT
+    2 6 BLKSWAP
+  }>
+  $AffiliateMarketplace$_internal_binary_ChildToParentAffiliateCreated PROCINLINE:<{
+    s7 s12 XCHG
+    s6 s11 XCHG
+    s5 s10 XCHG
+    s4 s9 XCHG
+    s3 s8 XCHG
+    s12 s11 s10 XCHG3
+    s9 s12 PUSH2
+    $AffiliateMarketplace$_fun_campaignContractStateInit INLINECALLDICT
+    $global_contractAddress INLINECALLDICT
+    49469 PUSHINT
+    __tact_context_get_sender INLINECALLDICT
+    s1 s2 XCHG
+    __tact_slice_eq_bits INLINECALLDICT
+    THROWANYIFNOT
+    s4 s9 XCHG
+    s3 s8 XCHG
+    s12 s11 s10 XCHG3
+    $AffiliateCreatedEvent$_constructor_campaignId_affiliateId_advertiser_affiliate_state INLINECALLDICT
+    $AffiliateCreatedEvent$_store_cell INLINECALLDICT
+    $global_emit INLINECALLDICT
+    s7 s6 s5 XCHG3
+  }>
+  $AffiliateMarketplace$_internal_binary_AdvertiserDeployNewCampaign PROCINLINE:<{
+    DROP
+    $AffiliateMarketplace$_fun_requireNotStopped INLINECALLDICT
+    40466 PUSHINT
+    __tact_context_get INLINECALLDICT
+    $Context$_get_value INLINECALLDICT
+    110000000 PUSHINT
+    GREATER
+    THROWANYIFNOT
+    0 PUSHINT
+    4294967294 PUSHINT
+    $global_random INLINECALLDICT
+    s0 s5 XCHG
+    INC
+    __tact_context_get_sender INLINECALLDICT
+    s8 s9 XCHG
+    s7 s9 XCHG
+    s6 s9 XCHG
+    s1 s5 XCHG
+    s1 s4 XCHG
+    s3 s3 s0 XCHG3
+    s9 s(-1) PUXC
+    $AffiliateMarketplace$_fun_campaignContractStateInit INLINECALLDICT
+    2DUP
+    $global_contractAddress INLINECALLDICT
+    100000000 PUSHINT
+    __tact_context_get_sender INLINECALLDICT
+    s1 s13 XCHG
+    $ParentToChildDeployCampaign$_constructor_campaignId_advertiser INLINECALLDICT
+    $ParentToChildDeployCampaign$_store_cell INLINECALLDICT
+    s1 s4 XCHG
+    s1 s12 XCHG
+    s3 s3 s0 XCHG3
+    1 PUSHINT
+    $SendParameters$_constructor_to_value_code_data_body_mode INLINECALLDICT
+    $global_send INLINECALLDICT
+    DROP
+    7 ROLL
+  }>
+  $AffiliateMarketplace$_internal_binary_ChildToParentCampaignDeployedSuccessfully PROCINLINE:<{
+    8 2 BLKSWAP
+    s9 s8 PUSH2
+    $AffiliateMarketplace$_fun_campaignContractStateInit INLINECALLDICT
+    $global_contractAddress INLINECALLDICT
+    49469 PUSHINT
+    __tact_context_get_sender INLINECALLDICT
+    s2 s(-1) PUXC
+    __tact_slice_eq_bits INLINECALLDICT
+    THROWANYIFNOT
+    s10 s9 s0 XCHG3
+    $CampaignCreatedEvent$_constructor_campaignId_advertiser_campaignContractAddress INLINECALLDICT
+    $CampaignCreatedEvent$_store_cell INLINECALLDICT
+    $global_emit INLINECALLDICT
+    2 6 BLKSWAP
+  }>
+  %$AffiliateMarketplace$_internal_empty PROCINLINE:<{
+  }>
+  $AffiliateMarketplace$_internal_binary_Deploy PROCINLINE:<{
+    $DeployOk$_constructor_queryId INLINECALLDICT
+    $DeployOk$_store_cell INLINECALLDICT
+    $AffiliateMarketplace$_fun_notify INLINECALLDICT
+  }>
+  $AffiliateMarketplace$_internal_text_6c8f44f45fedb4cdfed4de8db14aa5b13ad55d430f759d0669210b74c48fe3df PROCINLINE:<{
+    $AffiliateMarketplace$_fun_requireOwner INLINECALLDICT
+    $AffiliateMarketplace$_fun_requireStopped INLINECALLDICT
+    s6 POP
+    FALSE
+        B{b5ee9c7241010101000d00001600000000526573756d656412d9e98a} B>boc PUSHREF
+    s1 s7 XCHG
+    $AffiliateMarketplace$_fun_reply INLINECALLDICT
+  }>
+  $AffiliateMarketplace$_internal_text_bcfaf776907c719cc8d379d8f194aaaa27e8ca2871cd591781721f215a454501 PROCINLINE:<{
+    $AffiliateMarketplace$_fun_requireOwner INLINECALLDICT
+    $AffiliateMarketplace$_fun_requireNotStopped INLINECALLDICT
+    s6 POP
+    TRUE
+        B{b5ee9c7241010101000d0000160000000053746f707065646f94ddb2} B>boc PUSHREF
+    s1 s7 XCHG
+    $AffiliateMarketplace$_fun_reply INLINECALLDICT
+  }>
+  %balance PROC:<{
+    $AffiliateMarketplace$_contract_load INLINECALLDICT
+    $AffiliateMarketplace$_fun_balance INLINECALLDICT
+    8 1 BLKDROP2
+  }>
+  %bot PROC:<{
+    $AffiliateMarketplace$_contract_load INLINECALLDICT
+    $AffiliateMarketplace$_fun_bot INLINECALLDICT
+    8 1 BLKDROP2
+  }>
+  %numCampaigns PROC:<{
+    $AffiliateMarketplace$_contract_load INLINECALLDICT
+    $AffiliateMarketplace$_fun_numCampaigns INLINECALLDICT
+    8 1 BLKDROP2
+  }>
+  %campaignContractAddress PROC:<{
+    __tact_verify_address INLINECALLDICT
+    $AffiliateMarketplace$_contract_load INLINECALLDICT
+    2 8 BLKSWAP
+    $AffiliateMarketplace$_fun_campaignContractAddress INLINECALLDICT
+    8 1 BLKDROP2
+  }>
+  %stopped PROC:<{
+    $AffiliateMarketplace$_contract_load INLINECALLDICT
+    $AffiliateMarketplace$_fun_stopped INLINECALLDICT
+    8 1 BLKDROP2
+  }>
+  %owner PROC:<{
+    $AffiliateMarketplace$_contract_load INLINECALLDICT
+    $AffiliateMarketplace$_fun_owner INLINECALLDICT
+    8 1 BLKDROP2
+  }>
+  lazy_deployment_completed PROC:<{
+    c4 PUSH
+    CTOS
+    1 LDI
+    SWAP
+  }>
+  $AffiliateMarketplace$_contract_router_internal PROCREF:<{
+    c2 SAVE
+    SAMEALTSAVE
+    SWAP
+    IFJMP:<{
+      DROP
+      TRUE
+    }>
+    0 PUSHINT
+    OVER
+    SBITS
+    31 GTINT
+    IF:<{
+      DROP
+      DUP
+      32 PLDU
+    }>
+    DUP
+    58961501 PUSHINT
+    EQUAL
+    IFJMP:<{
+      DROP
+      $AdminReplenish$_load INLINECALLDICT
+      NIP
+      $AffiliateMarketplace$_internal_binary_AdminReplenish INLINECALLDICT
+      TRUE
+    }>
+    DUP
+    2718584125 PUSHINT
+    EQUAL
+    IFJMP:<{
+      DROP
+      $AdminUpdateFeeBalance$_load INLINECALLDICT
+      1 2 BLKDROP2
+      $AffiliateMarketplace$_internal_binary_AdminUpdateFeeBalance INLINECALLDICT
+      TRUE
+    }>
+    DUP
+    26200810 PUSHINT
+    EQUAL
+    IFJMP:<{
+      DROP
+      $AdminWithdraw$_load INLINECALLDICT
+      1 2 BLKDROP2
+      $AffiliateMarketplace$_internal_binary_AdminWithdraw INLINECALLDICT
+      TRUE
+    }>
+    DUP
+    1822632228 PUSHINT
+    EQUAL
+    IFJMP:<{
+      DROP
+      $AdminStopCampaign$_load INLINECALLDICT
+      1 2 BLKDROP2
+      $AffiliateMarketplace$_internal_binary_AdminStopCampaign INLINECALLDICT
+      TRUE
+    }>
+    DUP
+    460159264 PUSHINT
+    EQUAL
+    IFJMP:<{
+      DROP
+      $AdminResumeCampaign$_load INLINECALLDICT
+      1 2 BLKDROP2
+      $AffiliateMarketplace$_internal_binary_AdminResumeCampaign INLINECALLDICT
+      TRUE
+    }>
+    DUP
+    1433233099 PUSHINT
+    EQUAL
+    IFJMP:<{
+      DROP
+      $AdminSeizeCampaignBalance$_load INLINECALLDICT
+      1 2 BLKDROP2
+      $AffiliateMarketplace$_internal_binary_AdminSeizeCampaignBalance INLINECALLDICT
+      TRUE
+    }>
+    DUP
+    1452035766 PUSHINT
+    EQUAL
+    IFJMP:<{
+      DROP
+      $AdminPayAffiliateUSDTBounced$_load INLINECALLDICT
+      1 4 BLKDROP2
+      $AffiliateMarketplace$_internal_binary_AdminPayAffiliateUSDTBounced INLINECALLDICT
+      TRUE
+    }>
+    DUP
+    3769391455 PUSHINT
+    EQUAL
+    IFJMP:<{
+      DROP
+      $AdminJettonNotificationMessageFailure$_load INLINECALLDICT
+      1 3 BLKDROP2
+      $AffiliateMarketplace$_internal_binary_AdminJettonNotificationMessageFailure INLINECALLDICT
+      TRUE
+    }>
+    DUP
+    2703619106 PUSHINT
+    EQUAL
+    IFJMP:<{
+      DROP
+      $AdminWithdrawUSDTToPayout$_load INLINECALLDICT
+      1 3 BLKDROP2
+      $AffiliateMarketplace$_internal_binary_AdminWithdrawUSDTToPayout INLINECALLDICT
+      TRUE
+    }>
+    DUP
+    1498234406 PUSHINT
+    EQUAL
+    IFJMP:<{
+      DROP
+      $ChildToParentAdvertiserApprovedAffiliate$_load INLINECALLDICT
+      1 4 BLKDROP2
+      $AffiliateMarketplace$_internal_binary_ChildToParentAdvertiserApprovedAffiliate INLINECALLDICT
+      TRUE
+    }>
+    DUP
+    2190513838 PUSHINT
+    EQUAL
+    IFJMP:<{
+      DROP
+      $ChildToParentAdvertiserRemovedAffiliate$_load INLINECALLDICT
+      1 4 BLKDROP2
+      $AffiliateMarketplace$_internal_binary_ChildToParentAdvertiserRemovedAffiliate INLINECALLDICT
+      TRUE
+    }>
+    DUP
+    2584288256 PUSHINT
+    EQUAL
+    IFJMP:<{
+      DROP
+      $ChildToParentAdvertiserWithdrawFunds$_load INLINECALLDICT
+      1 3 BLKDROP2
+      $AffiliateMarketplace$_internal_binary_ChildToParentAdvertiserWithdrawFunds INLINECALLDICT
+      TRUE
+    }>
+    DUP
+    1248894233 PUSHINT
+    EQUAL
+    IFJMP:<{
+      DROP
+      $ChildToParentAdvertiserSignedCampaignDetails$_load INLINECALLDICT
+      1 2 BLKDROP2
+      $AffiliateMarketplace$_internal_binary_ChildToParentAdvertiserSignedCampaignDetails INLINECALLDICT
+      TRUE
+    }>
+    DUP
+    3477708169 PUSHINT
+    EQUAL
+    IFJMP:<{
+      DROP
+      $ChildToParentAffiliateCreated$_load INLINECALLDICT
+      1 5 BLKDROP2
+      $AffiliateMarketplace$_internal_binary_ChildToParentAffiliateCreated INLINECALLDICT
+      TRUE
+    }>
+    DUP
+    1179651103 PUSHINT
+    EQUAL
+    IFJMP:<{
+      DROP
+      $AdvertiserDeployNewCampaign$_load INLINECALLDICT
+      NIP
+      $AffiliateMarketplace$_internal_binary_AdvertiserDeployNewCampaign INLINECALLDICT
+      TRUE
+    }>
+    DUP
+    370750836 PUSHINT
+    EQUAL
+    IFJMP:<{
+      DROP
+      $ChildToParentCampaignDeployedSuccessfully$_load INLINECALLDICT
+      1 2 BLKDROP2
+      $AffiliateMarketplace$_internal_binary_ChildToParentCampaignDeployedSuccessfully INLINECALLDICT
+      TRUE
+    }>
+    DUP
+    0 EQINT
+    s2 PUSH
+    SBITS
+    33 LESSINT
+    AND
+    IFJMP:<{
+      2DROP
+      %$AffiliateMarketplace$_internal_empty INLINECALLDICT
+      TRUE
+    }>
+    DUP
+    2490013878 PUSHINT
+    EQUAL
+    IFJMP:<{
+      DROP
+      $Deploy$_load INLINECALLDICT
+      NIP
+      $AffiliateMarketplace$_internal_binary_Deploy INLINECALLDICT
+      TRUE
+    }>
+    0 EQINT
+    IF:<{
+      HASHSU
+      DUP
+      49102922684337101841979563583256198294100324132395678439113188049283630228447 PUSHINT
+      EQUAL
+      IFJMP:<{
+        DROP
+        $AffiliateMarketplace$_internal_text_6c8f44f45fedb4cdfed4de8db14aa5b13ad55d430f759d0669210b74c48fe3df INLINECALLDICT
+        TRUE
+        RETALT
+      }>
+      85478235227686204299312064008631277118150318603456584517510472216578858763521 PUSHINT
+      EQUAL
+      IFJMP:<{
+        $AffiliateMarketplace$_internal_text_bcfaf776907c719cc8d379d8f194aaaa27e8ca2871cd591781721f215a454501 INLINECALLDICT
+        TRUE
+        RETALT
+      }>
+    }>ELSE<{
+      DROP
+    }>
+    FALSE
+  }>
+  recv_internal PROC:<{
+    SWAP
+    CTOS
+    4 LDU
+    SWAP
+    1 PUSHINT
+    AND
+    NEGATE
+    SWAP
+    LDMSGADDR
+    SWAP
+    __tact_verify_address INLINECALLDICT
+    s0 s4 s2 PUXCPU
+    s0 s3 XCHG
+    4 TUPLE
+    __tact_context SETGLOB
+    s0 s2 XCHG
+    __tact_context_sender SETGLOB
+    $AffiliateMarketplace$_contract_load INLINECALLDICT
+    2 8 BLKSWAP
+    $AffiliateMarketplace$_contract_router_internal INLINECALLDICT
+    130 THROWIFNOT
+    $AffiliateMarketplace$_contract_store INLINECALLDICT
+  }>
+}END>c

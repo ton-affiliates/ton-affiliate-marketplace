@@ -1,0 +1,519 @@
+#pragma version =0.4.4;
+#pragma allow-post-modification;
+#pragma compute-asm-ltr;
+
+#include "tact_AffiliateMarketplace.headers.fc";
+#include "tact_AffiliateMarketplace.stdlib.fc";
+#include "tact_AffiliateMarketplace.constants.fc";
+#include "tact_AffiliateMarketplace.storage.fc";
+
+;;
+;; Contract AffiliateMarketplace functions
+;;
+
+(slice, int, slice, int, slice, cell, int, int) $AffiliateMarketplace$_contract_init(slice $bot, slice $usdtMasterAddress, cell $usdtWalletBytecode, int $advertiserFeePercentage, int $affiliateFeePercentage) impure inline_ref {
+    var (($self'owner, $self'stopped, $self'bot, $self'numCampaigns, $self'usdtMasterAddress, $self'usdtWalletBytecode, $self'affiliateFeePercentage, $self'advertiserFeePercentage)) = (null(), null(), null(), null(), null(), null(), null(), null());
+    $self'owner = __tact_context_get_sender();
+    $self'stopped = false;
+    $self'bot = $bot;
+    $self'usdtMasterAddress = $usdtMasterAddress;
+    $self'usdtWalletBytecode = $usdtWalletBytecode;
+    $self'advertiserFeePercentage = $advertiserFeePercentage;
+    $self'affiliateFeePercentage = $affiliateFeePercentage;
+    $self'numCampaigns = 0;
+    return ($self'owner, $self'stopped, $self'bot, $self'numCampaigns, $self'usdtMasterAddress, $self'usdtWalletBytecode, $self'affiliateFeePercentage, $self'advertiserFeePercentage);
+}
+
+((slice, int, slice, int, slice, cell, int, int), int) $AffiliateMarketplace$_fun_balance((slice, int, slice, int, slice, cell, int, int) $self) impure inline_ref {
+    var (($self'owner, $self'stopped, $self'bot, $self'numCampaigns, $self'usdtMasterAddress, $self'usdtWalletBytecode, $self'affiliateFeePercentage, $self'advertiserFeePercentage)) = $self;
+    var $fresh$ret_52 = $global_myBalance();
+    return (($self'owner, $self'stopped, $self'bot, $self'numCampaigns, $self'usdtMasterAddress, $self'usdtWalletBytecode, $self'affiliateFeePercentage, $self'advertiserFeePercentage), $fresh$ret_52);
+}
+
+((slice, int, slice, int, slice, cell, int, int), slice) $AffiliateMarketplace$_fun_bot((slice, int, slice, int, slice, cell, int, int) $self) impure inline_ref {
+    var (($self'owner, $self'stopped, $self'bot, $self'numCampaigns, $self'usdtMasterAddress, $self'usdtWalletBytecode, $self'affiliateFeePercentage, $self'advertiserFeePercentage)) = $self;
+    var $fresh$ret_53 = $self'bot;
+    return (($self'owner, $self'stopped, $self'bot, $self'numCampaigns, $self'usdtMasterAddress, $self'usdtWalletBytecode, $self'affiliateFeePercentage, $self'advertiserFeePercentage), $fresh$ret_53);
+}
+
+((slice, int, slice, int, slice, cell, int, int), int) $AffiliateMarketplace$_fun_numCampaigns((slice, int, slice, int, slice, cell, int, int) $self) impure inline_ref {
+    var (($self'owner, $self'stopped, $self'bot, $self'numCampaigns, $self'usdtMasterAddress, $self'usdtWalletBytecode, $self'affiliateFeePercentage, $self'advertiserFeePercentage)) = $self;
+    var $fresh$ret_54 = $self'numCampaigns;
+    return (($self'owner, $self'stopped, $self'bot, $self'numCampaigns, $self'usdtMasterAddress, $self'usdtWalletBytecode, $self'affiliateFeePercentage, $self'advertiserFeePercentage), $fresh$ret_54);
+}
+
+((slice, int, slice, int, slice, cell, int, int), (cell, cell)) $AffiliateMarketplace$_fun_campaignContractStateInit((slice, int, slice, int, slice, cell, int, int) $self, int $campaignId, slice $advertiser) impure inline_ref {
+    var (($self'owner, $self'stopped, $self'bot, $self'numCampaigns, $self'usdtMasterAddress, $self'usdtWalletBytecode, $self'affiliateFeePercentage, $self'advertiserFeePercentage)) = $self;
+    var ($initCode'code, $initCode'data) = $Campaign$_init_child(__tact_context_sys, $global_myAddress(), $campaignId, $advertiser, $self'owner, $self'bot, $self'usdtMasterAddress, $self'usdtWalletBytecode, $self'advertiserFeePercentage, $self'affiliateFeePercentage);
+    var $fresh$ret_56 = ($initCode'code, $initCode'data);
+    return (($self'owner, $self'stopped, $self'bot, $self'numCampaigns, $self'usdtMasterAddress, $self'usdtWalletBytecode, $self'affiliateFeePercentage, $self'advertiserFeePercentage), $fresh$ret_56);
+}
+
+((slice, int, slice, int, slice, cell, int, int), slice) $AffiliateMarketplace$_fun_campaignContractAddress((slice, int, slice, int, slice, cell, int, int) $self, int $campaignId, slice $advertiser) impure inline_ref {
+    var (($self'owner, $self'stopped, $self'bot, $self'numCampaigns, $self'usdtMasterAddress, $self'usdtWalletBytecode, $self'affiliateFeePercentage, $self'advertiserFeePercentage)) = $self;
+    var $fresh$ret_55 = $global_contractAddress(($self'owner, $self'stopped, $self'bot, $self'numCampaigns, $self'usdtMasterAddress, $self'usdtWalletBytecode, $self'affiliateFeePercentage, $self'advertiserFeePercentage)~$AffiliateMarketplace$_fun_campaignContractStateInit($campaignId, $advertiser));
+    return (($self'owner, $self'stopped, $self'bot, $self'numCampaigns, $self'usdtMasterAddress, $self'usdtWalletBytecode, $self'affiliateFeePercentage, $self'advertiserFeePercentage), $fresh$ret_55);
+}
+
+((slice, int, slice, int, slice, cell, int, int), ()) $AffiliateMarketplace$_fun_requireNotStopped((slice, int, slice, int, slice, cell, int, int) $self) impure inline_ref {
+    var (($self'owner, $self'stopped, $self'bot, $self'numCampaigns, $self'usdtMasterAddress, $self'usdtWalletBytecode, $self'affiliateFeePercentage, $self'advertiserFeePercentage)) = $self;
+    throw_unless(40368, (~ $self'stopped));
+    return (($self'owner, $self'stopped, $self'bot, $self'numCampaigns, $self'usdtMasterAddress, $self'usdtWalletBytecode, $self'affiliateFeePercentage, $self'advertiserFeePercentage), ());
+}
+
+((slice, int, slice, int, slice, cell, int, int), ()) $AffiliateMarketplace$_fun_requireStopped((slice, int, slice, int, slice, cell, int, int) $self) impure inline_ref {
+    var (($self'owner, $self'stopped, $self'bot, $self'numCampaigns, $self'usdtMasterAddress, $self'usdtWalletBytecode, $self'affiliateFeePercentage, $self'advertiserFeePercentage)) = $self;
+    throw_unless(53296, $self'stopped);
+    return (($self'owner, $self'stopped, $self'bot, $self'numCampaigns, $self'usdtMasterAddress, $self'usdtWalletBytecode, $self'affiliateFeePercentage, $self'advertiserFeePercentage), ());
+}
+
+((slice, int, slice, int, slice, cell, int, int), int) $AffiliateMarketplace$_fun_stopped((slice, int, slice, int, slice, cell, int, int) $self) impure inline_ref {
+    var (($self'owner, $self'stopped, $self'bot, $self'numCampaigns, $self'usdtMasterAddress, $self'usdtWalletBytecode, $self'affiliateFeePercentage, $self'advertiserFeePercentage)) = $self;
+    var $fresh$ret_57 = $self'stopped;
+    return (($self'owner, $self'stopped, $self'bot, $self'numCampaigns, $self'usdtMasterAddress, $self'usdtWalletBytecode, $self'affiliateFeePercentage, $self'advertiserFeePercentage), $fresh$ret_57);
+}
+
+((slice, int, slice, int, slice, cell, int, int), ()) $AffiliateMarketplace$_fun_requireOwner((slice, int, slice, int, slice, cell, int, int) $self) impure inline_ref {
+    var (($self'owner, $self'stopped, $self'bot, $self'numCampaigns, $self'usdtMasterAddress, $self'usdtWalletBytecode, $self'affiliateFeePercentage, $self'advertiserFeePercentage)) = $self;
+    throw_unless(132, ( __tact_slice_eq_bits($self'owner, __tact_context_get_sender()) ));
+    return (($self'owner, $self'stopped, $self'bot, $self'numCampaigns, $self'usdtMasterAddress, $self'usdtWalletBytecode, $self'affiliateFeePercentage, $self'advertiserFeePercentage), ());
+}
+
+((slice, int, slice, int, slice, cell, int, int), slice) $AffiliateMarketplace$_fun_owner((slice, int, slice, int, slice, cell, int, int) $self) impure inline_ref {
+    var (($self'owner, $self'stopped, $self'bot, $self'numCampaigns, $self'usdtMasterAddress, $self'usdtWalletBytecode, $self'affiliateFeePercentage, $self'advertiserFeePercentage)) = $self;
+    var $fresh$ret_58 = $self'owner;
+    return (($self'owner, $self'stopped, $self'bot, $self'numCampaigns, $self'usdtMasterAddress, $self'usdtWalletBytecode, $self'affiliateFeePercentage, $self'advertiserFeePercentage), $fresh$ret_58);
+}
+
+;;
+;; Receivers of a Contract AffiliateMarketplace
+;;
+
+(((slice, int, slice, int, slice, cell, int, int)), ()) $AffiliateMarketplace$_internal_binary_AdminReplenish((slice, int, slice, int, slice, cell, int, int) $self, tuple $msg) impure inline {
+    var ($self'owner, $self'stopped, $self'bot, $self'numCampaigns, $self'usdtMasterAddress, $self'usdtWalletBytecode, $self'affiliateFeePercentage, $self'advertiserFeePercentage) = $self;
+    var $msg = $msg;
+    ($self'owner, $self'stopped, $self'bot, $self'numCampaigns, $self'usdtMasterAddress, $self'usdtWalletBytecode, $self'affiliateFeePercentage, $self'advertiserFeePercentage)~$AffiliateMarketplace$_fun_requireOwner();
+    return (($self'owner, $self'stopped, $self'bot, $self'numCampaigns, $self'usdtMasterAddress, $self'usdtWalletBytecode, $self'affiliateFeePercentage, $self'advertiserFeePercentage), ());
+}
+
+(((slice, int, slice, int, slice, cell, int, int)), ()) $AffiliateMarketplace$_internal_binary_AdminUpdateFeeBalance((slice, int, slice, int, slice, cell, int, int) $self, (int, int) $msg) impure inline {
+    var ($self'owner, $self'stopped, $self'bot, $self'numCampaigns, $self'usdtMasterAddress, $self'usdtWalletBytecode, $self'affiliateFeePercentage, $self'advertiserFeePercentage) = $self;
+    var ($msg'advertiserFeePercentage, $msg'affiliateFeePercentage) = $msg;
+    ($self'owner, $self'stopped, $self'bot, $self'numCampaigns, $self'usdtMasterAddress, $self'usdtWalletBytecode, $self'affiliateFeePercentage, $self'advertiserFeePercentage)~$AffiliateMarketplace$_fun_requireOwner();
+    $self'advertiserFeePercentage = $msg'advertiserFeePercentage;
+    $self'affiliateFeePercentage = $msg'affiliateFeePercentage;
+    return (($self'owner, $self'stopped, $self'bot, $self'numCampaigns, $self'usdtMasterAddress, $self'usdtWalletBytecode, $self'affiliateFeePercentage, $self'advertiserFeePercentage), ());
+}
+
+(((slice, int, slice, int, slice, cell, int, int)), ()) $AffiliateMarketplace$_internal_binary_AdminWithdraw((slice, int, slice, int, slice, cell, int, int) $self, (int, cell) $msg) impure inline {
+    var ($self'owner, $self'stopped, $self'bot, $self'numCampaigns, $self'usdtMasterAddress, $self'usdtWalletBytecode, $self'affiliateFeePercentage, $self'advertiserFeePercentage) = $self;
+    var ($msg'amount, $msg'wallets) = $msg;
+    ($self'owner, $self'stopped, $self'bot, $self'numCampaigns, $self'usdtMasterAddress, $self'usdtWalletBytecode, $self'affiliateFeePercentage, $self'advertiserFeePercentage)~$AffiliateMarketplace$_fun_requireOwner();
+    int $buffer = 1000000000;
+    throw_unless(48874, ($global_myBalance() >= ($msg'amount + $buffer)));
+    int $numWallets = 0;
+    var ($wallet, $v, $fresh$flag_59) = __tact_dict_min_slice_int($msg'wallets, 267, 1);
+    while ($fresh$flag_59) {
+        $numWallets = ($numWallets + 1);
+        ($wallet, $v, $fresh$flag_59) = __tact_dict_next_slice_int($msg'wallets, 267, $wallet, 1);
+    }
+    throw_unless(2509, ($numWallets > 0));
+    int $fraction = $msg'amount;
+    if (($numWallets > 1)) {
+        $fraction = ($fraction / $numWallets);
+    }
+    var ($wallet, $v, $fresh$flag_60) = __tact_dict_min_slice_int($msg'wallets, 267, 1);
+    while ($fresh$flag_60) {
+        $global_send($SendParameters$_constructor_to_bounce_value_mode($wallet, true, $fraction, 1));
+        ($wallet, $v, $fresh$flag_60) = __tact_dict_next_slice_int($msg'wallets, 267, $wallet, 1);
+    }
+    return (($self'owner, $self'stopped, $self'bot, $self'numCampaigns, $self'usdtMasterAddress, $self'usdtWalletBytecode, $self'affiliateFeePercentage, $self'advertiserFeePercentage), ());
+}
+
+(((slice, int, slice, int, slice, cell, int, int)), ()) $AffiliateMarketplace$_internal_binary_AdminStopCampaign((slice, int, slice, int, slice, cell, int, int) $self, (int, slice) $msg) impure inline {
+    var ($self'owner, $self'stopped, $self'bot, $self'numCampaigns, $self'usdtMasterAddress, $self'usdtWalletBytecode, $self'affiliateFeePercentage, $self'advertiserFeePercentage) = $self;
+    var ($msg'campaignId, $msg'advertiser) = $msg;
+    ($self'owner, $self'stopped, $self'bot, $self'numCampaigns, $self'usdtMasterAddress, $self'usdtWalletBytecode, $self'affiliateFeePercentage, $self'advertiserFeePercentage)~$AffiliateMarketplace$_fun_requireOwner();
+    var ($init'code, $init'data) = ($self'owner, $self'stopped, $self'bot, $self'numCampaigns, $self'usdtMasterAddress, $self'usdtWalletBytecode, $self'affiliateFeePercentage, $self'advertiserFeePercentage)~$AffiliateMarketplace$_fun_campaignContractStateInit($msg'campaignId, $msg'advertiser);
+    slice $campaignContractAddress = $global_contractAddress(($init'code, $init'data));
+    $global_send($SendParameters$_constructor_to_body_value_mode($campaignContractAddress, __gen_cell_comment_bcfaf776907c719cc8d379d8f194aaaa27e8ca2871cd591781721f215a454501(), 0, 64));
+    return (($self'owner, $self'stopped, $self'bot, $self'numCampaigns, $self'usdtMasterAddress, $self'usdtWalletBytecode, $self'affiliateFeePercentage, $self'advertiserFeePercentage), ());
+}
+
+(((slice, int, slice, int, slice, cell, int, int)), ()) $AffiliateMarketplace$_internal_binary_AdminResumeCampaign((slice, int, slice, int, slice, cell, int, int) $self, (int, slice) $msg) impure inline {
+    var ($self'owner, $self'stopped, $self'bot, $self'numCampaigns, $self'usdtMasterAddress, $self'usdtWalletBytecode, $self'affiliateFeePercentage, $self'advertiserFeePercentage) = $self;
+    var ($msg'campaignId, $msg'advertiser) = $msg;
+    ($self'owner, $self'stopped, $self'bot, $self'numCampaigns, $self'usdtMasterAddress, $self'usdtWalletBytecode, $self'affiliateFeePercentage, $self'advertiserFeePercentage)~$AffiliateMarketplace$_fun_requireOwner();
+    var ($init'code, $init'data) = ($self'owner, $self'stopped, $self'bot, $self'numCampaigns, $self'usdtMasterAddress, $self'usdtWalletBytecode, $self'affiliateFeePercentage, $self'advertiserFeePercentage)~$AffiliateMarketplace$_fun_campaignContractStateInit($msg'campaignId, $msg'advertiser);
+    slice $campaignContractAddress = $global_contractAddress(($init'code, $init'data));
+    $global_send($SendParameters$_constructor_to_body_value_mode($campaignContractAddress, __gen_cell_comment_6c8f44f45fedb4cdfed4de8db14aa5b13ad55d430f759d0669210b74c48fe3df(), 0, 64));
+    return (($self'owner, $self'stopped, $self'bot, $self'numCampaigns, $self'usdtMasterAddress, $self'usdtWalletBytecode, $self'affiliateFeePercentage, $self'advertiserFeePercentage), ());
+}
+
+(((slice, int, slice, int, slice, cell, int, int)), ()) $AffiliateMarketplace$_internal_binary_AdminSeizeCampaignBalance((slice, int, slice, int, slice, cell, int, int) $self, (int, slice) $msg) impure inline {
+    var ($self'owner, $self'stopped, $self'bot, $self'numCampaigns, $self'usdtMasterAddress, $self'usdtWalletBytecode, $self'affiliateFeePercentage, $self'advertiserFeePercentage) = $self;
+    var ($msg'campaignId, $msg'advertiser) = $msg;
+    ($self'owner, $self'stopped, $self'bot, $self'numCampaigns, $self'usdtMasterAddress, $self'usdtWalletBytecode, $self'affiliateFeePercentage, $self'advertiserFeePercentage)~$AffiliateMarketplace$_fun_requireOwner();
+    var ($init'code, $init'data) = ($self'owner, $self'stopped, $self'bot, $self'numCampaigns, $self'usdtMasterAddress, $self'usdtWalletBytecode, $self'affiliateFeePercentage, $self'advertiserFeePercentage)~$AffiliateMarketplace$_fun_campaignContractStateInit($msg'campaignId, $msg'advertiser);
+    slice $campaignContractAddress = $global_contractAddress(($init'code, $init'data));
+    $global_send($SendParameters$_constructor_to_body_value_mode($campaignContractAddress, $ParentToChildSeizeCampaign$_store_cell($ParentToChildSeizeCampaign$_constructor_()), 0, 64));
+    return (($self'owner, $self'stopped, $self'bot, $self'numCampaigns, $self'usdtMasterAddress, $self'usdtWalletBytecode, $self'affiliateFeePercentage, $self'advertiserFeePercentage), ());
+}
+
+(((slice, int, slice, int, slice, cell, int, int)), ()) $AffiliateMarketplace$_internal_binary_AdminPayAffiliateUSDTBounced((slice, int, slice, int, slice, cell, int, int) $self, (int, slice, int, int) $msg) impure inline {
+    var ($self'owner, $self'stopped, $self'bot, $self'numCampaigns, $self'usdtMasterAddress, $self'usdtWalletBytecode, $self'affiliateFeePercentage, $self'advertiserFeePercentage) = $self;
+    var ($msg'campaignId, $msg'advertiser, $msg'affiliateId, $msg'amount) = $msg;
+    ($self'owner, $self'stopped, $self'bot, $self'numCampaigns, $self'usdtMasterAddress, $self'usdtWalletBytecode, $self'affiliateFeePercentage, $self'advertiserFeePercentage)~$AffiliateMarketplace$_fun_requireOwner();
+    var ($init'code, $init'data) = ($self'owner, $self'stopped, $self'bot, $self'numCampaigns, $self'usdtMasterAddress, $self'usdtWalletBytecode, $self'affiliateFeePercentage, $self'advertiserFeePercentage)~$AffiliateMarketplace$_fun_campaignContractStateInit($msg'campaignId, $msg'advertiser);
+    slice $campaignContractAddress = $global_contractAddress(($init'code, $init'data));
+    $global_send($SendParameters$_constructor_to_body_value_mode($campaignContractAddress, $ParentToChildPayAffiliateUSDTBounced$_store_cell($ParentToChildPayAffiliateUSDTBounced$_constructor_affiliateId_amount($msg'affiliateId, $msg'amount)), 0, 64));
+    return (($self'owner, $self'stopped, $self'bot, $self'numCampaigns, $self'usdtMasterAddress, $self'usdtWalletBytecode, $self'affiliateFeePercentage, $self'advertiserFeePercentage), ());
+}
+
+(((slice, int, slice, int, slice, cell, int, int)), ()) $AffiliateMarketplace$_internal_binary_AdminJettonNotificationMessageFailure((slice, int, slice, int, slice, cell, int, int) $self, (int, slice, int) $msg) impure inline {
+    var ($self'owner, $self'stopped, $self'bot, $self'numCampaigns, $self'usdtMasterAddress, $self'usdtWalletBytecode, $self'affiliateFeePercentage, $self'advertiserFeePercentage) = $self;
+    var ($msg'campaignId, $msg'advertiser, $msg'amount) = $msg;
+    ($self'owner, $self'stopped, $self'bot, $self'numCampaigns, $self'usdtMasterAddress, $self'usdtWalletBytecode, $self'affiliateFeePercentage, $self'advertiserFeePercentage)~$AffiliateMarketplace$_fun_requireOwner();
+    var ($init'code, $init'data) = ($self'owner, $self'stopped, $self'bot, $self'numCampaigns, $self'usdtMasterAddress, $self'usdtWalletBytecode, $self'affiliateFeePercentage, $self'advertiserFeePercentage)~$AffiliateMarketplace$_fun_campaignContractStateInit($msg'campaignId, $msg'advertiser);
+    slice $campaignContractAddress = $global_contractAddress(($init'code, $init'data));
+    $global_send($SendParameters$_constructor_to_body_value_mode($campaignContractAddress, $ParentToChildJettonNotificationMessageFailure$_store_cell($ParentToChildJettonNotificationMessageFailure$_constructor_amount($msg'amount)), 0, 64));
+    return (($self'owner, $self'stopped, $self'bot, $self'numCampaigns, $self'usdtMasterAddress, $self'usdtWalletBytecode, $self'affiliateFeePercentage, $self'advertiserFeePercentage), ());
+}
+
+(((slice, int, slice, int, slice, cell, int, int)), ()) $AffiliateMarketplace$_internal_binary_AdminWithdrawUSDTToPayout((slice, int, slice, int, slice, cell, int, int) $self, (int, slice, int) $msg) impure inline {
+    var ($self'owner, $self'stopped, $self'bot, $self'numCampaigns, $self'usdtMasterAddress, $self'usdtWalletBytecode, $self'affiliateFeePercentage, $self'advertiserFeePercentage) = $self;
+    var ($msg'campaignId, $msg'advertiser, $msg'amount) = $msg;
+    ($self'owner, $self'stopped, $self'bot, $self'numCampaigns, $self'usdtMasterAddress, $self'usdtWalletBytecode, $self'affiliateFeePercentage, $self'advertiserFeePercentage)~$AffiliateMarketplace$_fun_requireOwner();
+    var ($init'code, $init'data) = ($self'owner, $self'stopped, $self'bot, $self'numCampaigns, $self'usdtMasterAddress, $self'usdtWalletBytecode, $self'affiliateFeePercentage, $self'advertiserFeePercentage)~$AffiliateMarketplace$_fun_campaignContractStateInit($msg'campaignId, $msg'advertiser);
+    slice $campaignContractAddress = $global_contractAddress(($init'code, $init'data));
+    $global_send($SendParameters$_constructor_to_body_value_mode($campaignContractAddress, $ParentToChildWithdrawUSDTToPayout$_store_cell($ParentToChildWithdrawUSDTToPayout$_constructor_amount($msg'amount)), 0, 64));
+    return (($self'owner, $self'stopped, $self'bot, $self'numCampaigns, $self'usdtMasterAddress, $self'usdtWalletBytecode, $self'affiliateFeePercentage, $self'advertiserFeePercentage), ());
+}
+
+(((slice, int, slice, int, slice, cell, int, int)), ()) $AffiliateMarketplace$_internal_binary_ChildToParentAdvertiserApprovedAffiliate((slice, int, slice, int, slice, cell, int, int) $self, (int, slice, int, slice) $msg) impure inline {
+    var ($self'owner, $self'stopped, $self'bot, $self'numCampaigns, $self'usdtMasterAddress, $self'usdtWalletBytecode, $self'affiliateFeePercentage, $self'advertiserFeePercentage) = $self;
+    var ($msg'campaignId, $msg'advertiser, $msg'affiliateId, $msg'affiliate) = $msg;
+    slice $expectedAddress = $global_contractAddress(($self'owner, $self'stopped, $self'bot, $self'numCampaigns, $self'usdtMasterAddress, $self'usdtWalletBytecode, $self'affiliateFeePercentage, $self'advertiserFeePercentage)~$AffiliateMarketplace$_fun_campaignContractStateInit($msg'campaignId, $msg'advertiser));
+    throw_unless(49469, ( __tact_slice_eq_bits($expectedAddress, __tact_context_get_sender()) ));
+    $global_emit($AdvertiserApprovedAffiliateListEvent$_store_cell($AdvertiserApprovedAffiliateListEvent$_constructor_campaignId_advertiser_affiliateId_affiliate($msg'campaignId, $msg'advertiser, $msg'affiliateId, $msg'affiliate)));
+    return (($self'owner, $self'stopped, $self'bot, $self'numCampaigns, $self'usdtMasterAddress, $self'usdtWalletBytecode, $self'affiliateFeePercentage, $self'advertiserFeePercentage), ());
+}
+
+(((slice, int, slice, int, slice, cell, int, int)), ()) $AffiliateMarketplace$_internal_binary_ChildToParentAdvertiserRemovedAffiliate((slice, int, slice, int, slice, cell, int, int) $self, (int, slice, int, slice) $msg) impure inline {
+    var ($self'owner, $self'stopped, $self'bot, $self'numCampaigns, $self'usdtMasterAddress, $self'usdtWalletBytecode, $self'affiliateFeePercentage, $self'advertiserFeePercentage) = $self;
+    var ($msg'campaignId, $msg'advertiser, $msg'affiliateId, $msg'affiliate) = $msg;
+    slice $expectedAddress = $global_contractAddress(($self'owner, $self'stopped, $self'bot, $self'numCampaigns, $self'usdtMasterAddress, $self'usdtWalletBytecode, $self'affiliateFeePercentage, $self'advertiserFeePercentage)~$AffiliateMarketplace$_fun_campaignContractStateInit($msg'campaignId, $msg'advertiser));
+    throw_unless(49469, ( __tact_slice_eq_bits($expectedAddress, __tact_context_get_sender()) ));
+    $global_emit($AdvertiserRemovedAffiliateEvent$_store_cell($AdvertiserRemovedAffiliateEvent$_constructor_campaignId_advertiser_affiliateId_affiliate($msg'campaignId, $msg'advertiser, $msg'affiliateId, $msg'affiliate)));
+    return (($self'owner, $self'stopped, $self'bot, $self'numCampaigns, $self'usdtMasterAddress, $self'usdtWalletBytecode, $self'affiliateFeePercentage, $self'advertiserFeePercentage), ());
+}
+
+(((slice, int, slice, int, slice, cell, int, int)), ()) $AffiliateMarketplace$_internal_binary_ChildToParentAdvertiserWithdrawFunds((slice, int, slice, int, slice, cell, int, int) $self, (int, slice, int) $msg) impure inline {
+    var ($self'owner, $self'stopped, $self'bot, $self'numCampaigns, $self'usdtMasterAddress, $self'usdtWalletBytecode, $self'affiliateFeePercentage, $self'advertiserFeePercentage) = $self;
+    var ($msg'campaignId, $msg'advertiser, $msg'amount) = $msg;
+    slice $expectedAddress = $global_contractAddress(($self'owner, $self'stopped, $self'bot, $self'numCampaigns, $self'usdtMasterAddress, $self'usdtWalletBytecode, $self'affiliateFeePercentage, $self'advertiserFeePercentage)~$AffiliateMarketplace$_fun_campaignContractStateInit($msg'campaignId, $msg'advertiser));
+    throw_unless(49469, ( __tact_slice_eq_bits($expectedAddress, __tact_context_get_sender()) ));
+    $global_emit($AdvertiserWithdrawFundsEvent$_store_cell($AdvertiserWithdrawFundsEvent$_constructor_campaignId_advertiser_amount($msg'campaignId, $msg'advertiser, $msg'amount)));
+    return (($self'owner, $self'stopped, $self'bot, $self'numCampaigns, $self'usdtMasterAddress, $self'usdtWalletBytecode, $self'affiliateFeePercentage, $self'advertiserFeePercentage), ());
+}
+
+(((slice, int, slice, int, slice, cell, int, int)), ()) $AffiliateMarketplace$_internal_binary_ChildToParentAdvertiserSignedCampaignDetails((slice, int, slice, int, slice, cell, int, int) $self, (int, slice) $msg) impure inline {
+    var ($self'owner, $self'stopped, $self'bot, $self'numCampaigns, $self'usdtMasterAddress, $self'usdtWalletBytecode, $self'affiliateFeePercentage, $self'advertiserFeePercentage) = $self;
+    var ($msg'campaignId, $msg'advertiser) = $msg;
+    slice $expectedAddress = $global_contractAddress(($self'owner, $self'stopped, $self'bot, $self'numCampaigns, $self'usdtMasterAddress, $self'usdtWalletBytecode, $self'affiliateFeePercentage, $self'advertiserFeePercentage)~$AffiliateMarketplace$_fun_campaignContractStateInit($msg'campaignId, $msg'advertiser));
+    throw_unless(49469, ( __tact_slice_eq_bits($expectedAddress, __tact_context_get_sender()) ));
+    $global_emit($AdvertiserSignedCampaignDetailsEvent$_store_cell($AdvertiserSignedCampaignDetailsEvent$_constructor_campaignId_advertiser($msg'campaignId, $msg'advertiser)));
+    return (($self'owner, $self'stopped, $self'bot, $self'numCampaigns, $self'usdtMasterAddress, $self'usdtWalletBytecode, $self'affiliateFeePercentage, $self'advertiserFeePercentage), ());
+}
+
+(((slice, int, slice, int, slice, cell, int, int)), ()) $AffiliateMarketplace$_internal_binary_ChildToParentAffiliateCreated((slice, int, slice, int, slice, cell, int, int) $self, (int, int, slice, slice, int) $msg) impure inline {
+    var ($self'owner, $self'stopped, $self'bot, $self'numCampaigns, $self'usdtMasterAddress, $self'usdtWalletBytecode, $self'affiliateFeePercentage, $self'advertiserFeePercentage) = $self;
+    var ($msg'campaignId, $msg'affiliateId, $msg'advertiser, $msg'affiliate, $msg'state) = $msg;
+    slice $expectedAddress = $global_contractAddress(($self'owner, $self'stopped, $self'bot, $self'numCampaigns, $self'usdtMasterAddress, $self'usdtWalletBytecode, $self'affiliateFeePercentage, $self'advertiserFeePercentage)~$AffiliateMarketplace$_fun_campaignContractStateInit($msg'campaignId, $msg'advertiser));
+    throw_unless(49469, ( __tact_slice_eq_bits($expectedAddress, __tact_context_get_sender()) ));
+    $global_emit($AffiliateCreatedEvent$_store_cell($AffiliateCreatedEvent$_constructor_campaignId_affiliateId_advertiser_affiliate_state($msg'campaignId, $msg'affiliateId, $msg'advertiser, $msg'affiliate, $msg'state)));
+    return (($self'owner, $self'stopped, $self'bot, $self'numCampaigns, $self'usdtMasterAddress, $self'usdtWalletBytecode, $self'affiliateFeePercentage, $self'advertiserFeePercentage), ());
+}
+
+(((slice, int, slice, int, slice, cell, int, int)), ()) $AffiliateMarketplace$_internal_binary_AdvertiserDeployNewCampaign((slice, int, slice, int, slice, cell, int, int) $self, tuple $msg) impure inline {
+    var ($self'owner, $self'stopped, $self'bot, $self'numCampaigns, $self'usdtMasterAddress, $self'usdtWalletBytecode, $self'affiliateFeePercentage, $self'advertiserFeePercentage) = $self;
+    var $msg = $msg;
+    ($self'owner, $self'stopped, $self'bot, $self'numCampaigns, $self'usdtMasterAddress, $self'usdtWalletBytecode, $self'affiliateFeePercentage, $self'advertiserFeePercentage)~$AffiliateMarketplace$_fun_requireNotStopped();
+    throw_unless(40466, ($Context$_get_value(__tact_context_get()) > 110000000));
+    int $campaignId = $global_random(0, 4294967294);
+    $self'numCampaigns = $self'numCampaigns + 1;
+    var ($init'code, $init'data) = ($self'owner, $self'stopped, $self'bot, $self'numCampaigns, $self'usdtMasterAddress, $self'usdtWalletBytecode, $self'affiliateFeePercentage, $self'advertiserFeePercentage)~$AffiliateMarketplace$_fun_campaignContractStateInit($campaignId, __tact_context_get_sender());
+    slice $campaignContractAddress = $global_contractAddress(($init'code, $init'data));
+    $global_send($SendParameters$_constructor_to_value_code_data_body_mode($campaignContractAddress, 100000000, $init'code, $init'data, $ParentToChildDeployCampaign$_store_cell($ParentToChildDeployCampaign$_constructor_campaignId_advertiser($campaignId, __tact_context_get_sender())), 1));
+    return (($self'owner, $self'stopped, $self'bot, $self'numCampaigns, $self'usdtMasterAddress, $self'usdtWalletBytecode, $self'affiliateFeePercentage, $self'advertiserFeePercentage), ());
+}
+
+(((slice, int, slice, int, slice, cell, int, int)), ()) $AffiliateMarketplace$_internal_binary_ChildToParentCampaignDeployedSuccessfully((slice, int, slice, int, slice, cell, int, int) $self, (int, slice) $msg) impure inline {
+    var ($self'owner, $self'stopped, $self'bot, $self'numCampaigns, $self'usdtMasterAddress, $self'usdtWalletBytecode, $self'affiliateFeePercentage, $self'advertiserFeePercentage) = $self;
+    var ($msg'campaignId, $msg'advertiser) = $msg;
+    slice $expectedAddress = $global_contractAddress(($self'owner, $self'stopped, $self'bot, $self'numCampaigns, $self'usdtMasterAddress, $self'usdtWalletBytecode, $self'affiliateFeePercentage, $self'advertiserFeePercentage)~$AffiliateMarketplace$_fun_campaignContractStateInit($msg'campaignId, $msg'advertiser));
+    throw_unless(49469, ( __tact_slice_eq_bits($expectedAddress, __tact_context_get_sender()) ));
+    $global_emit($CampaignCreatedEvent$_store_cell($CampaignCreatedEvent$_constructor_campaignId_advertiser_campaignContractAddress($msg'campaignId, $msg'advertiser, $expectedAddress)));
+    return (($self'owner, $self'stopped, $self'bot, $self'numCampaigns, $self'usdtMasterAddress, $self'usdtWalletBytecode, $self'affiliateFeePercentage, $self'advertiserFeePercentage), ());
+}
+
+(((slice, int, slice, int, slice, cell, int, int)), ()) %$AffiliateMarketplace$_internal_empty((slice, int, slice, int, slice, cell, int, int) $self) impure inline {
+    var ($self'owner, $self'stopped, $self'bot, $self'numCampaigns, $self'usdtMasterAddress, $self'usdtWalletBytecode, $self'affiliateFeePercentage, $self'advertiserFeePercentage) = $self;
+    return (($self'owner, $self'stopped, $self'bot, $self'numCampaigns, $self'usdtMasterAddress, $self'usdtWalletBytecode, $self'affiliateFeePercentage, $self'advertiserFeePercentage), ());
+}
+
+(((slice, int, slice, int, slice, cell, int, int)), ()) $AffiliateMarketplace$_internal_binary_Deploy((slice, int, slice, int, slice, cell, int, int) $self, (int) $deploy) impure inline {
+    var ($self'owner, $self'stopped, $self'bot, $self'numCampaigns, $self'usdtMasterAddress, $self'usdtWalletBytecode, $self'affiliateFeePercentage, $self'advertiserFeePercentage) = $self;
+    var ($deploy'queryId) = $deploy;
+    ($self'owner, $self'stopped, $self'bot, $self'numCampaigns, $self'usdtMasterAddress, $self'usdtWalletBytecode, $self'affiliateFeePercentage, $self'advertiserFeePercentage)~$AffiliateMarketplace$_fun_notify($DeployOk$_store_cell($DeployOk$_constructor_queryId($deploy'queryId)));
+    return (($self'owner, $self'stopped, $self'bot, $self'numCampaigns, $self'usdtMasterAddress, $self'usdtWalletBytecode, $self'affiliateFeePercentage, $self'advertiserFeePercentage), ());
+}
+
+((slice, int, slice, int, slice, cell, int, int), ()) $AffiliateMarketplace$_internal_text_6c8f44f45fedb4cdfed4de8db14aa5b13ad55d430f759d0669210b74c48fe3df((slice, int, slice, int, slice, cell, int, int) $self) impure inline {
+    var ($self'owner, $self'stopped, $self'bot, $self'numCampaigns, $self'usdtMasterAddress, $self'usdtWalletBytecode, $self'affiliateFeePercentage, $self'advertiserFeePercentage) = $self;
+    ($self'owner, $self'stopped, $self'bot, $self'numCampaigns, $self'usdtMasterAddress, $self'usdtWalletBytecode, $self'affiliateFeePercentage, $self'advertiserFeePercentage)~$AffiliateMarketplace$_fun_requireOwner();
+    ($self'owner, $self'stopped, $self'bot, $self'numCampaigns, $self'usdtMasterAddress, $self'usdtWalletBytecode, $self'affiliateFeePercentage, $self'advertiserFeePercentage)~$AffiliateMarketplace$_fun_requireStopped();
+    $self'stopped = false;
+    ($self'owner, $self'stopped, $self'bot, $self'numCampaigns, $self'usdtMasterAddress, $self'usdtWalletBytecode, $self'affiliateFeePercentage, $self'advertiserFeePercentage)~$AffiliateMarketplace$_fun_reply(__gen_cell_comment_514f593ead485926515219a03034c6b162f1c29390f83f2f1bd70b8b77731ec3());
+    return (($self'owner, $self'stopped, $self'bot, $self'numCampaigns, $self'usdtMasterAddress, $self'usdtWalletBytecode, $self'affiliateFeePercentage, $self'advertiserFeePercentage), ());
+}
+
+((slice, int, slice, int, slice, cell, int, int), ()) $AffiliateMarketplace$_internal_text_bcfaf776907c719cc8d379d8f194aaaa27e8ca2871cd591781721f215a454501((slice, int, slice, int, slice, cell, int, int) $self) impure inline {
+    var ($self'owner, $self'stopped, $self'bot, $self'numCampaigns, $self'usdtMasterAddress, $self'usdtWalletBytecode, $self'affiliateFeePercentage, $self'advertiserFeePercentage) = $self;
+    ($self'owner, $self'stopped, $self'bot, $self'numCampaigns, $self'usdtMasterAddress, $self'usdtWalletBytecode, $self'affiliateFeePercentage, $self'advertiserFeePercentage)~$AffiliateMarketplace$_fun_requireOwner();
+    ($self'owner, $self'stopped, $self'bot, $self'numCampaigns, $self'usdtMasterAddress, $self'usdtWalletBytecode, $self'affiliateFeePercentage, $self'advertiserFeePercentage)~$AffiliateMarketplace$_fun_requireNotStopped();
+    $self'stopped = true;
+    ($self'owner, $self'stopped, $self'bot, $self'numCampaigns, $self'usdtMasterAddress, $self'usdtWalletBytecode, $self'affiliateFeePercentage, $self'advertiserFeePercentage)~$AffiliateMarketplace$_fun_reply(__gen_cell_comment_8f4b6a166554b4f282855d0333c627d5b58d281ea4ba11e4def91a1053193b2d());
+    return (($self'owner, $self'stopped, $self'bot, $self'numCampaigns, $self'usdtMasterAddress, $self'usdtWalletBytecode, $self'affiliateFeePercentage, $self'advertiserFeePercentage), ());
+}
+
+;;
+;; Get methods of a Contract AffiliateMarketplace
+;;
+
+_ %balance() method_id(104128) {
+    var self = $AffiliateMarketplace$_contract_load();
+    var res = self~$AffiliateMarketplace$_fun_balance();
+    return res;
+}
+
+_ %bot() method_id(118796) {
+    var self = $AffiliateMarketplace$_contract_load();
+    var res = self~$AffiliateMarketplace$_fun_bot();
+    return res;
+}
+
+_ %numCampaigns() method_id(104382) {
+    var self = $AffiliateMarketplace$_contract_load();
+    var res = self~$AffiliateMarketplace$_fun_numCampaigns();
+    return res;
+}
+
+_ %campaignContractAddress(int $campaignId, slice $advertiser) method_id(82228) {
+    int $campaignId = $campaignId;
+    slice $advertiser = __tact_verify_address($advertiser);
+    var self = $AffiliateMarketplace$_contract_load();
+    var res = self~$AffiliateMarketplace$_fun_campaignContractAddress($campaignId, $advertiser);
+    return res;
+}
+
+_ %stopped() method_id(74107) {
+    var self = $AffiliateMarketplace$_contract_load();
+    var res = self~$AffiliateMarketplace$_fun_stopped();
+    return res;
+}
+
+_ %owner() method_id(83229) {
+    var self = $AffiliateMarketplace$_contract_load();
+    var res = self~$AffiliateMarketplace$_fun_owner();
+    return res;
+}
+
+_ lazy_deployment_completed() method_id {
+    return get_data().begin_parse().load_int(1);
+}
+
+;;
+;; Routing of a Contract AffiliateMarketplace
+;;
+
+((slice, int, slice, int, slice, cell, int, int), int) $AffiliateMarketplace$_contract_router_internal((slice, int, slice, int, slice, cell, int, int) self, int msg_bounced, slice in_msg) impure inline_ref {
+    ;; Handle bounced messages
+    if (msg_bounced) {
+        return (self, true);
+    }
+    
+    ;; Parse incoming message
+    int op = 0;
+    if (slice_bits(in_msg) >= 32) {
+        op = in_msg.preload_uint(32);
+    }
+    
+    
+    ;; Receive AdminReplenish message
+    if (op == 58961501) {
+        var msg = in_msg~$AdminReplenish$_load();
+        self~$AffiliateMarketplace$_internal_binary_AdminReplenish(msg);
+        return (self, true);
+    }
+    
+    ;; Receive AdminUpdateFeeBalance message
+    if (op == 2718584125) {
+        var msg = in_msg~$AdminUpdateFeeBalance$_load();
+        self~$AffiliateMarketplace$_internal_binary_AdminUpdateFeeBalance(msg);
+        return (self, true);
+    }
+    
+    ;; Receive AdminWithdraw message
+    if (op == 26200810) {
+        var msg = in_msg~$AdminWithdraw$_load();
+        self~$AffiliateMarketplace$_internal_binary_AdminWithdraw(msg);
+        return (self, true);
+    }
+    
+    ;; Receive AdminStopCampaign message
+    if (op == 1822632228) {
+        var msg = in_msg~$AdminStopCampaign$_load();
+        self~$AffiliateMarketplace$_internal_binary_AdminStopCampaign(msg);
+        return (self, true);
+    }
+    
+    ;; Receive AdminResumeCampaign message
+    if (op == 460159264) {
+        var msg = in_msg~$AdminResumeCampaign$_load();
+        self~$AffiliateMarketplace$_internal_binary_AdminResumeCampaign(msg);
+        return (self, true);
+    }
+    
+    ;; Receive AdminSeizeCampaignBalance message
+    if (op == 1433233099) {
+        var msg = in_msg~$AdminSeizeCampaignBalance$_load();
+        self~$AffiliateMarketplace$_internal_binary_AdminSeizeCampaignBalance(msg);
+        return (self, true);
+    }
+    
+    ;; Receive AdminPayAffiliateUSDTBounced message
+    if (op == 1452035766) {
+        var msg = in_msg~$AdminPayAffiliateUSDTBounced$_load();
+        self~$AffiliateMarketplace$_internal_binary_AdminPayAffiliateUSDTBounced(msg);
+        return (self, true);
+    }
+    
+    ;; Receive AdminJettonNotificationMessageFailure message
+    if (op == 3769391455) {
+        var msg = in_msg~$AdminJettonNotificationMessageFailure$_load();
+        self~$AffiliateMarketplace$_internal_binary_AdminJettonNotificationMessageFailure(msg);
+        return (self, true);
+    }
+    
+    ;; Receive AdminWithdrawUSDTToPayout message
+    if (op == 2703619106) {
+        var msg = in_msg~$AdminWithdrawUSDTToPayout$_load();
+        self~$AffiliateMarketplace$_internal_binary_AdminWithdrawUSDTToPayout(msg);
+        return (self, true);
+    }
+    
+    ;; Receive ChildToParentAdvertiserApprovedAffiliate message
+    if (op == 1498234406) {
+        var msg = in_msg~$ChildToParentAdvertiserApprovedAffiliate$_load();
+        self~$AffiliateMarketplace$_internal_binary_ChildToParentAdvertiserApprovedAffiliate(msg);
+        return (self, true);
+    }
+    
+    ;; Receive ChildToParentAdvertiserRemovedAffiliate message
+    if (op == 2190513838) {
+        var msg = in_msg~$ChildToParentAdvertiserRemovedAffiliate$_load();
+        self~$AffiliateMarketplace$_internal_binary_ChildToParentAdvertiserRemovedAffiliate(msg);
+        return (self, true);
+    }
+    
+    ;; Receive ChildToParentAdvertiserWithdrawFunds message
+    if (op == 2584288256) {
+        var msg = in_msg~$ChildToParentAdvertiserWithdrawFunds$_load();
+        self~$AffiliateMarketplace$_internal_binary_ChildToParentAdvertiserWithdrawFunds(msg);
+        return (self, true);
+    }
+    
+    ;; Receive ChildToParentAdvertiserSignedCampaignDetails message
+    if (op == 1248894233) {
+        var msg = in_msg~$ChildToParentAdvertiserSignedCampaignDetails$_load();
+        self~$AffiliateMarketplace$_internal_binary_ChildToParentAdvertiserSignedCampaignDetails(msg);
+        return (self, true);
+    }
+    
+    ;; Receive ChildToParentAffiliateCreated message
+    if (op == 3477708169) {
+        var msg = in_msg~$ChildToParentAffiliateCreated$_load();
+        self~$AffiliateMarketplace$_internal_binary_ChildToParentAffiliateCreated(msg);
+        return (self, true);
+    }
+    
+    ;; Receive AdvertiserDeployNewCampaign message
+    if (op == 1179651103) {
+        var msg = in_msg~$AdvertiserDeployNewCampaign$_load();
+        self~$AffiliateMarketplace$_internal_binary_AdvertiserDeployNewCampaign(msg);
+        return (self, true);
+    }
+    
+    ;; Receive ChildToParentCampaignDeployedSuccessfully message
+    if (op == 370750836) {
+        var msg = in_msg~$ChildToParentCampaignDeployedSuccessfully$_load();
+        self~$AffiliateMarketplace$_internal_binary_ChildToParentCampaignDeployedSuccessfully(msg);
+        return (self, true);
+    }
+    
+    ;; Receive empty message
+    if ((op == 0) & (slice_bits(in_msg) <= 32)) {
+        self~%$AffiliateMarketplace$_internal_empty();
+        return (self, true);
+    }
+    
+    ;; Receive Deploy message
+    if (op == 2490013878) {
+        var msg = in_msg~$Deploy$_load();
+        self~$AffiliateMarketplace$_internal_binary_Deploy(msg);
+        return (self, true);
+    }
+    
+    ;; Text Receivers
+    if (op == 0) {
+        var text_op = slice_hash(in_msg);
+        
+        ;; Receive "Resume" message
+        if (text_op == 0x6c8f44f45fedb4cdfed4de8db14aa5b13ad55d430f759d0669210b74c48fe3df) {
+            self~$AffiliateMarketplace$_internal_text_6c8f44f45fedb4cdfed4de8db14aa5b13ad55d430f759d0669210b74c48fe3df();
+            return (self, true);
+        }
+        
+        ;; Receive "Stop" message
+        if (text_op == 0xbcfaf776907c719cc8d379d8f194aaaa27e8ca2871cd591781721f215a454501) {
+            self~$AffiliateMarketplace$_internal_text_bcfaf776907c719cc8d379d8f194aaaa27e8ca2871cd591781721f215a454501();
+            return (self, true);
+        }
+    }
+    
+    return (self, false);
+}
+
+() recv_internal(int msg_value, cell in_msg_cell, slice in_msg) impure {
+    
+    ;; Context
+    var cs = in_msg_cell.begin_parse();
+    var msg_flags = cs~load_uint(4);
+    var msg_bounced = -(msg_flags & 1);
+    slice msg_sender_addr = __tact_verify_address(cs~load_msg_addr());
+    __tact_context = (msg_bounced, msg_sender_addr, msg_value, cs);
+    __tact_context_sender = msg_sender_addr;
+    
+    ;; Load contract data
+    var self = $AffiliateMarketplace$_contract_load();
+    
+    ;; Handle operation
+    int handled = self~$AffiliateMarketplace$_contract_router_internal(msg_bounced, in_msg);
+    
+    ;; Throw if not handled
+    throw_unless(130, handled);
+    
+    ;; Persist state
+    $AffiliateMarketplace$_contract_store(self);
+}

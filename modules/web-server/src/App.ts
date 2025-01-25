@@ -18,7 +18,7 @@ import AuthRoutes from './routes/AuthRoutes';
 // Load environment variables
 dotenv.config();
 
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 8080;
 const FETCH_INTERVAL = Number(process.env.FETCH_INTERVAL_BLOCKCHAIN_EVENTS || 10 * 1000); // Default: every 10 seconds
 
 const app = express();

@@ -1,0 +1,14 @@
+;; String "USDT from campaign"
+slice __gen_slice_string_4283f2e204e0607846b270f967faef0d2593a6781c7c2c0cf581388cd4ee9f9d() asm """
+    B{b5ee9c72410101010014000024555344542066726f6d2063616d706169676e2fa8d824} B>boc <s PUSHSLICE
+""";
+
+;; Comment "Resumed"
+cell __gen_cell_comment_514f593ead485926515219a03034c6b162f1c29390f83f2f1bd70b8b77731ec3() asm """
+    B{b5ee9c7241010101000d00001600000000526573756d656412d9e98a} B>boc PUSHREF
+""";
+
+;; Comment "Stopped"
+cell __gen_cell_comment_8f4b6a166554b4f282855d0333c627d5b58d281ea4ba11e4def91a1053193b2d() asm """
+    B{b5ee9c7241010101000d0000160000000053746f707065646f94ddb2} B>boc PUSHREF
+""";

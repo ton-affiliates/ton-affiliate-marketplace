@@ -31,7 +31,9 @@
     # 6. Copy Tact-generated TS files (if needed)
     COPY build/AffiliateMarketplace/tact_AffiliateMarketplace.ts ./src/contracts/AffiliateMarketplace.ts
     COPY build/Campaign/tact_Campaign.ts                         ./src/contracts/Campaign.ts
-    
+    # COPY modules/mini-app/src/contracts/tact_AffiliateMarketplace.ts  ./src/contracts/AffiliateMarketplace.ts
+    # COPY build/Campaign/tact_Campaign.ts                         ./src/contracts/Campaign.ts
+
     # 7. (Optional) Prepend `// @ts-nocheck` if you want to silence Tact warnings
     RUN echo "// @ts-nocheck" | cat - ./src/contracts/AffiliateMarketplace.ts > temp && mv temp ./src/contracts/AffiliateMarketplace.ts
     RUN echo "// @ts-nocheck" | cat - ./src/contracts/Campaign.ts > temp && mv temp ./src/contracts/Campaign.ts
@@ -58,7 +60,7 @@
     COPY --from=builder /app/modules/mini-app/public/assets/icon.png /usr/share/nginx/html/assets/
     
     # Expose port 80
-    EXPOSE 80
+    EXPOSE 8080
     
     # (Optional) For dynamic envsubst, if you do it
     RUN apk add --no-cache gettext

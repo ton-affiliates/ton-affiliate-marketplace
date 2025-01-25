@@ -1,0 +1,754 @@
+;;
+;; Type: StateInit
+;; TLB: _ code:^cell data:^cell = StateInit
+;;
+
+((cell, cell)) $StateInit$_not_null(tuple v) inline {
+    throw_if(128, null?(v));
+    var (cell vvv'code, cell vvv'data) = __tact_tuple_destroy_2(v);
+    return (vvv'code, vvv'data);
+}
+
+((cell, cell)) $StateInit$_constructor_code_data(cell $code, cell $data) inline {
+    return ($code, $data);
+}
+
+;;
+;; Type: Context
+;; TLB: _ bounced:bool sender:address value:int257 raw:^slice = Context
+;;
+
+_ $Context$_get_value((int, slice, int, slice) v) inline {
+    var (v'bounced, v'sender, v'value, v'raw) = v;
+    return v'value;
+}
+
+;;
+;; Type: SendParameters
+;; TLB: _ bounce:bool to:address value:int257 mode:int257 body:Maybe ^cell code:Maybe ^cell data:Maybe ^cell = SendParameters
+;;
+
+((int, slice, int, int, cell, cell, cell)) $SendParameters$_constructor_to_value_body_mode(slice $to, int $value, cell $body, int $mode) inline {
+    return (true, $to, $value, $mode, $body, null(), null());
+}
+
+((int, slice, int, int, cell, cell, cell)) $SendParameters$_constructor_bounce_to_value_mode_body_code_data(int $bounce, slice $to, int $value, int $mode, cell $body, cell $code, cell $data) inline {
+    return ($bounce, $to, $value, $mode, $body, $code, $data);
+}
+
+((int, slice, int, int, cell, cell, cell)) $SendParameters$_constructor_to_body_value_mode(slice $to, cell $body, int $value, int $mode) inline {
+    return (true, $to, $value, $mode, $body, null(), null());
+}
+
+((int, slice, int, int, cell, cell, cell)) $SendParameters$_constructor_to_value_bounce_mode(slice $to, int $value, int $bounce, int $mode) inline {
+    return ($bounce, $to, $value, $mode, null(), null(), null());
+}
+
+((int, slice, int, int, cell, cell, cell)) $SendParameters$_constructor_to_value_bounce_body_mode(slice $to, int $value, int $bounce, cell $body, int $mode) inline {
+    return ($bounce, $to, $value, $mode, $body, null(), null());
+}
+
+((int, slice, int, int, cell, cell, cell)) $SendParameters$_constructor_to_value_mode(slice $to, int $value, int $mode) inline {
+    return (true, $to, $value, $mode, null(), null(), null());
+}
+
+;;
+;; Type: ParentToChildDeployCampaign
+;; Header: 0x4d0a40dc
+;; TLB: parent_to_child_deploy_campaign#4d0a40dc campaignId:uint32 advertiser:address = ParentToChildDeployCampaign
+;;
+
+(slice, ((int, slice))) $ParentToChildDeployCampaign$_load(slice sc_0) inline {
+    throw_unless(129, sc_0~load_uint(32) == 1292517596);
+    var v'campaignId = sc_0~load_uint(32);
+    var v'advertiser = sc_0~__tact_load_address();
+    return (sc_0, (v'campaignId, v'advertiser));
+}
+
+;;
+;; Type: ParentToChildSeizeCampaign
+;; Header: 0x144d136b
+;; TLB: parent_to_child_seize_campaign#144d136b  = ParentToChildSeizeCampaign
+;;
+
+(slice, (tuple)) $ParentToChildSeizeCampaign$_load(slice sc_0) inline {
+    throw_unless(129, sc_0~load_uint(32) == 340595563);
+    return (sc_0, null());
+}
+
+;;
+;; Type: ParentToChildJettonNotificationMessageFailure
+;; Header: 0x50c09c85
+;; TLB: parent_to_child_jetton_notification_message_failure#50c09c85 amount:coins = ParentToChildJettonNotificationMessageFailure
+;;
+
+(slice, ((int))) $ParentToChildJettonNotificationMessageFailure$_load(slice sc_0) inline {
+    throw_unless(129, sc_0~load_uint(32) == 1354800261);
+    var v'amount = sc_0~load_coins();
+    return (sc_0, (v'amount));
+}
+
+;;
+;; Type: ParentToChildWithdrawUSDTToPayout
+;; Header: 0x850b9dad
+;; TLB: parent_to_child_withdraw_usdt_to_payout#850b9dad amount:coins = ParentToChildWithdrawUSDTToPayout
+;;
+
+(slice, ((int))) $ParentToChildWithdrawUSDTToPayout$_load(slice sc_0) inline {
+    throw_unless(129, sc_0~load_uint(32) == 2232130989);
+    var v'amount = sc_0~load_coins();
+    return (sc_0, (v'amount));
+}
+
+;;
+;; Type: ParentToChildPayAffiliateUSDTBounced
+;; Header: 0x9a795876
+;; TLB: parent_to_child_pay_affiliate_usdt_bounced#9a795876 affiliateId:uint64 amount:coins = ParentToChildPayAffiliateUSDTBounced
+;;
+
+(slice, ((int, int))) $ParentToChildPayAffiliateUSDTBounced$_load(slice sc_0) inline {
+    throw_unless(129, sc_0~load_uint(32) == 2591643766);
+    var v'affiliateId = sc_0~load_uint(64);
+    var v'amount = sc_0~load_coins();
+    return (sc_0, (v'affiliateId, v'amount));
+}
+
+;;
+;; Type: BotUserAction
+;; Header: 0x73aa5689
+;; TLB: bot_user_action#73aa5689 affiliateId:uint32 userActionOpCode:uint32 isPremiumUser:bool = BotUserAction
+;;
+
+(slice, ((int, int, int))) $BotUserAction$_load(slice sc_0) inline {
+    throw_unless(129, sc_0~load_uint(32) == 1940543113);
+    var v'affiliateId = sc_0~load_uint(32);
+    var v'userActionOpCode = sc_0~load_uint(32);
+    var v'isPremiumUser = sc_0~load_int(1);
+    return (sc_0, (v'affiliateId, v'userActionOpCode, v'isPremiumUser));
+}
+
+;;
+;; Type: PayAffiliate
+;; Header: 0x89b9d2c2
+;; TLB: pay_affiliate#89b9d2c2 affiliateId:uint32 amount:coins = PayAffiliate
+;;
+
+builder $PayAffiliate$_store(builder build_0, (int, int) v) inline {
+    var (v'affiliateId, v'amount) = v;
+    build_0 = store_uint(build_0, 2310656706, 32);
+    build_0 = build_0.store_uint(v'affiliateId, 32);
+    build_0 = build_0.store_coins(v'amount);
+    return build_0;
+}
+
+cell $PayAffiliate$_store_cell((int, int) v) inline {
+    return $PayAffiliate$_store(begin_cell(), v).end_cell();
+}
+
+(slice, ((int, int))) $PayAffiliate$_load(slice sc_0) inline {
+    throw_unless(129, sc_0~load_uint(32) == 2310656706);
+    var v'affiliateId = sc_0~load_uint(32);
+    var v'amount = sc_0~load_coins();
+    return (sc_0, (v'affiliateId, v'amount));
+}
+
+((int, int)) $PayAffiliate$_constructor_affiliateId_amount(int $affiliateId, int $amount) inline {
+    return ($affiliateId, $amount);
+}
+
+;;
+;; Type: AffiliateCreateNewAffiliate
+;; Header: 0x30e4a900
+;; TLB: affiliate_create_new_affiliate#30e4a900  = AffiliateCreateNewAffiliate
+;;
+
+(slice, (tuple)) $AffiliateCreateNewAffiliate$_load(slice sc_0) inline {
+    throw_unless(129, sc_0~load_uint(32) == 820291840);
+    return (sc_0, null());
+}
+
+;;
+;; Type: AffiliateWithdrawEarnings
+;; Header: 0x89a71de6
+;; TLB: affiliate_withdraw_earnings#89a71de6 affiliateId:uint32 = AffiliateWithdrawEarnings
+;;
+
+(slice, ((int))) $AffiliateWithdrawEarnings$_load(slice sc_0) inline {
+    throw_unless(129, sc_0~load_uint(32) == 2309430758);
+    var v'affiliateId = sc_0~load_uint(32);
+    return (sc_0, (v'affiliateId));
+}
+
+;;
+;; Type: AdvertiserWithdrawFunds
+;; Header: 0xd55442e1
+;; TLB: advertiser_withdraw_funds#d55442e1 amount:coins = AdvertiserWithdrawFunds
+;;
+
+(slice, ((int))) $AdvertiserWithdrawFunds$_load(slice sc_0) inline {
+    throw_unless(129, sc_0~load_uint(32) == 3579069153);
+    var v'amount = sc_0~load_coins();
+    return (sc_0, (v'amount));
+}
+
+;;
+;; Type: AdvertiserAddNewUserOpCode
+;; Header: 0x0e274d0e
+;; TLB: advertiser_add_new_user_op_code#0e274d0e userOpCode:uint32 isPremiumUserOpCode:bool costPerAction:coins = AdvertiserAddNewUserOpCode
+;;
+
+(slice, ((int, int, int))) $AdvertiserAddNewUserOpCode$_load(slice sc_0) inline {
+    throw_unless(129, sc_0~load_uint(32) == 237456654);
+    var v'userOpCode = sc_0~load_uint(32);
+    var v'isPremiumUserOpCode = sc_0~load_int(1);
+    var v'costPerAction = sc_0~load_coins();
+    return (sc_0, (v'userOpCode, v'isPremiumUserOpCode, v'costPerAction));
+}
+
+;;
+;; Type: CampaignDetails
+;; TLB: _ regularUsersCostPerAction:dict<int, int> premiumUsersCostPerAction:dict<int, int> isPublicCampaign:bool campaignValidForNumDays:Maybe uint32 paymentMethod:uint32 requiresAdvertiserApprovalForWithdrawl:bool = CampaignDetails
+;;
+
+builder $CampaignDetails$_store(builder build_0, (cell, cell, int, int, int, int) v) inline_ref {
+    var (v'regularUsersCostPerAction, v'premiumUsersCostPerAction, v'isPublicCampaign, v'campaignValidForNumDays, v'paymentMethod, v'requiresAdvertiserApprovalForWithdrawl) = v;
+    build_0 = build_0.store_dict(v'regularUsersCostPerAction);
+    build_0 = build_0.store_dict(v'premiumUsersCostPerAction);
+    build_0 = build_0.store_int(v'isPublicCampaign, 1);
+    build_0 = ~ null?(v'campaignValidForNumDays) ? build_0.store_int(true, 1).store_uint(v'campaignValidForNumDays, 32) : build_0.store_int(false, 1);
+    build_0 = build_0.store_uint(v'paymentMethod, 32);
+    build_0 = build_0.store_int(v'requiresAdvertiserApprovalForWithdrawl, 1);
+    return build_0;
+}
+
+(slice, ((cell, cell, int, int, int, int))) $CampaignDetails$_load(slice sc_0) inline_ref {
+    var v'regularUsersCostPerAction = sc_0~load_dict();
+    var v'premiumUsersCostPerAction = sc_0~load_dict();
+    var v'isPublicCampaign = sc_0~load_int(1);
+    var v'campaignValidForNumDays = sc_0~load_int(1) ? sc_0~load_uint(32) : null();
+    var v'paymentMethod = sc_0~load_uint(32);
+    var v'requiresAdvertiserApprovalForWithdrawl = sc_0~load_int(1);
+    return (sc_0, (v'regularUsersCostPerAction, v'premiumUsersCostPerAction, v'isPublicCampaign, v'campaignValidForNumDays, v'paymentMethod, v'requiresAdvertiserApprovalForWithdrawl));
+}
+
+((cell, cell, int, int, int, int)) $CampaignDetails$_constructor_regularUsersCostPerAction_premiumUsersCostPerAction_isPublicCampaign_campaignValidForNumDays_paymentMethod_requiresAdvertiserApprovalForWithdrawl(cell $regularUsersCostPerAction, cell $premiumUsersCostPerAction, int $isPublicCampaign, int $campaignValidForNumDays, int $paymentMethod, int $requiresAdvertiserApprovalForWithdrawl) inline {
+    return ($regularUsersCostPerAction, $premiumUsersCostPerAction, $isPublicCampaign, $campaignValidForNumDays, $paymentMethod, $requiresAdvertiserApprovalForWithdrawl);
+}
+
+;;
+;; Type: AdvertiserSetCampaignDetails
+;; Header: 0x4ab09b48
+;; TLB: advertiser_set_campaign_details#4ab09b48 campaignDetails:CampaignDetails{regularUsersCostPerAction:dict<int, int>,premiumUsersCostPerAction:dict<int, int>,isPublicCampaign:bool,campaignValidForNumDays:Maybe uint32,paymentMethod:uint32,requiresAdvertiserApprovalForWithdrawl:bool} = AdvertiserSetCampaignDetails
+;;
+
+(slice, (((cell, cell, int, int, int, int)))) $AdvertiserSetCampaignDetails$_load(slice sc_0) inline {
+    throw_unless(129, sc_0~load_uint(32) == 1253088072);
+    var v'campaignDetails = sc_0~$CampaignDetails$_load();
+    return (sc_0, (v'campaignDetails));
+}
+
+;;
+;; Type: AdvertiserUserAction
+;; Header: 0xc09bd809
+;; TLB: advertiser_user_action#c09bd809 affiliateId:uint32 userActionOpCode:uint32 isPremiumUser:bool = AdvertiserUserAction
+;;
+
+(slice, ((int, int, int))) $AdvertiserUserAction$_load(slice sc_0) inline {
+    throw_unless(129, sc_0~load_uint(32) == 3231438857);
+    var v'affiliateId = sc_0~load_uint(32);
+    var v'userActionOpCode = sc_0~load_uint(32);
+    var v'isPremiumUser = sc_0~load_int(1);
+    return (sc_0, (v'affiliateId, v'userActionOpCode, v'isPremiumUser));
+}
+
+;;
+;; Type: AdvertiserRemoveAffiliate
+;; Header: 0x9d2ede51
+;; TLB: advertiser_remove_affiliate#9d2ede51 affiliateId:uint32 = AdvertiserRemoveAffiliate
+;;
+
+(slice, ((int))) $AdvertiserRemoveAffiliate$_load(slice sc_0) inline {
+    throw_unless(129, sc_0~load_uint(32) == 2637094481);
+    var v'affiliateId = sc_0~load_uint(32);
+    return (sc_0, (v'affiliateId));
+}
+
+;;
+;; Type: AdvertiserApproveAffiliate
+;; Header: 0x5d0468dc
+;; TLB: advertiser_approve_affiliate#5d0468dc affiliateId:uint32 = AdvertiserApproveAffiliate
+;;
+
+(slice, ((int))) $AdvertiserApproveAffiliate$_load(slice sc_0) inline {
+    throw_unless(129, sc_0~load_uint(32) == 1560570076);
+    var v'affiliateId = sc_0~load_uint(32);
+    return (sc_0, (v'affiliateId));
+}
+
+;;
+;; Type: AdvertiserReplenish
+;; Header: 0x4ea440b6
+;; TLB: advertiser_replenish#4ea440b6  = AdvertiserReplenish
+;;
+
+(slice, (tuple)) $AdvertiserReplenish$_load(slice sc_0) inline {
+    throw_unless(129, sc_0~load_uint(32) == 1319387318);
+    return (sc_0, null());
+}
+
+;;
+;; Type: AdvertiserReplenishGasFeesForUSDTCampaign
+;; Header: 0xbcf6870a
+;; TLB: advertiser_replenish_gas_fees_for_usdt_campaign#bcf6870a  = AdvertiserReplenishGasFeesForUSDTCampaign
+;;
+
+(slice, (tuple)) $AdvertiserReplenishGasFeesForUSDTCampaign$_load(slice sc_0) inline {
+    throw_unless(129, sc_0~load_uint(32) == 3170273034);
+    return (sc_0, null());
+}
+
+;;
+;; Type: AdvertiserSignOffWithdraw
+;; Header: 0x932f8050
+;; TLB: advertiser_sign_off_withdraw#932f8050 setAffiliatesWithdrawEarnings:dict<int, int> = AdvertiserSignOffWithdraw
+;;
+
+(slice, ((cell))) $AdvertiserSignOffWithdraw$_load(slice sc_0) inline {
+    throw_unless(129, sc_0~load_uint(32) == 2469363792);
+    var v'setAffiliatesWithdrawEarnings = sc_0~load_dict();
+    return (sc_0, (v'setAffiliatesWithdrawEarnings));
+}
+
+;;
+;; Type: ChildToParentCampaignDeployedSuccessfully
+;; Header: 0x16193574
+;; TLB: child_to_parent_campaign_deployed_successfully#16193574 campaignId:uint32 advertiser:address = ChildToParentCampaignDeployedSuccessfully
+;;
+
+builder $ChildToParentCampaignDeployedSuccessfully$_store(builder build_0, (int, slice) v) inline {
+    var (v'campaignId, v'advertiser) = v;
+    build_0 = store_uint(build_0, 370750836, 32);
+    build_0 = build_0.store_uint(v'campaignId, 32);
+    build_0 = __tact_store_address(build_0, v'advertiser);
+    return build_0;
+}
+
+cell $ChildToParentCampaignDeployedSuccessfully$_store_cell((int, slice) v) inline {
+    return $ChildToParentCampaignDeployedSuccessfully$_store(begin_cell(), v).end_cell();
+}
+
+((int, slice)) $ChildToParentCampaignDeployedSuccessfully$_constructor_campaignId_advertiser(int $campaignId, slice $advertiser) inline {
+    return ($campaignId, $advertiser);
+}
+
+;;
+;; Type: ChildToParentAffiliateCreated
+;; Header: 0xcf499d89
+;; TLB: child_to_parent_affiliate_created#cf499d89 campaignId:uint32 affiliateId:uint32 advertiser:address affiliate:address state:uint8 = ChildToParentAffiliateCreated
+;;
+
+builder $ChildToParentAffiliateCreated$_store(builder build_0, (int, int, slice, slice, int) v) inline {
+    var (v'campaignId, v'affiliateId, v'advertiser, v'affiliate, v'state) = v;
+    build_0 = store_uint(build_0, 3477708169, 32);
+    build_0 = build_0.store_uint(v'campaignId, 32);
+    build_0 = build_0.store_uint(v'affiliateId, 32);
+    build_0 = __tact_store_address(build_0, v'advertiser);
+    build_0 = __tact_store_address(build_0, v'affiliate);
+    build_0 = build_0.store_uint(v'state, 8);
+    return build_0;
+}
+
+cell $ChildToParentAffiliateCreated$_store_cell((int, int, slice, slice, int) v) inline {
+    return $ChildToParentAffiliateCreated$_store(begin_cell(), v).end_cell();
+}
+
+((int, int, slice, slice, int)) $ChildToParentAffiliateCreated$_constructor_campaignId_advertiser_affiliateId_affiliate_state(int $campaignId, slice $advertiser, int $affiliateId, slice $affiliate, int $state) inline {
+    return ($campaignId, $affiliateId, $advertiser, $affiliate, $state);
+}
+
+;;
+;; Type: ChildToParentAdvertiserSignedCampaignDetails
+;; Header: 0x4a709d19
+;; TLB: child_to_parent_advertiser_signed_campaign_details#4a709d19 campaignId:uint32 advertiser:address = ChildToParentAdvertiserSignedCampaignDetails
+;;
+
+builder $ChildToParentAdvertiserSignedCampaignDetails$_store(builder build_0, (int, slice) v) inline {
+    var (v'campaignId, v'advertiser) = v;
+    build_0 = store_uint(build_0, 1248894233, 32);
+    build_0 = build_0.store_uint(v'campaignId, 32);
+    build_0 = __tact_store_address(build_0, v'advertiser);
+    return build_0;
+}
+
+cell $ChildToParentAdvertiserSignedCampaignDetails$_store_cell((int, slice) v) inline {
+    return $ChildToParentAdvertiserSignedCampaignDetails$_store(begin_cell(), v).end_cell();
+}
+
+((int, slice)) $ChildToParentAdvertiserSignedCampaignDetails$_constructor_campaignId_advertiser(int $campaignId, slice $advertiser) inline {
+    return ($campaignId, $advertiser);
+}
+
+;;
+;; Type: ChildToParentAdvertiserWithdrawFunds
+;; Header: 0x9a091c00
+;; TLB: child_to_parent_advertiser_withdraw_funds#9a091c00 campaignId:uint32 advertiser:address amount:coins = ChildToParentAdvertiserWithdrawFunds
+;;
+
+builder $ChildToParentAdvertiserWithdrawFunds$_store(builder build_0, (int, slice, int) v) inline {
+    var (v'campaignId, v'advertiser, v'amount) = v;
+    build_0 = store_uint(build_0, 2584288256, 32);
+    build_0 = build_0.store_uint(v'campaignId, 32);
+    build_0 = __tact_store_address(build_0, v'advertiser);
+    build_0 = build_0.store_coins(v'amount);
+    return build_0;
+}
+
+cell $ChildToParentAdvertiserWithdrawFunds$_store_cell((int, slice, int) v) inline {
+    return $ChildToParentAdvertiserWithdrawFunds$_store(begin_cell(), v).end_cell();
+}
+
+((int, slice, int)) $ChildToParentAdvertiserWithdrawFunds$_constructor_campaignId_advertiser_amount(int $campaignId, slice $advertiser, int $amount) inline {
+    return ($campaignId, $advertiser, $amount);
+}
+
+;;
+;; Type: ChildToParentAdvertiserApprovedAffiliate
+;; Header: 0x594d3e26
+;; TLB: child_to_parent_advertiser_approved_affiliate#594d3e26 campaignId:uint32 advertiser:address affiliateId:uint32 affiliate:address = ChildToParentAdvertiserApprovedAffiliate
+;;
+
+builder $ChildToParentAdvertiserApprovedAffiliate$_store(builder build_0, (int, slice, int, slice) v) inline {
+    var (v'campaignId, v'advertiser, v'affiliateId, v'affiliate) = v;
+    build_0 = store_uint(build_0, 1498234406, 32);
+    build_0 = build_0.store_uint(v'campaignId, 32);
+    build_0 = __tact_store_address(build_0, v'advertiser);
+    build_0 = build_0.store_uint(v'affiliateId, 32);
+    build_0 = __tact_store_address(build_0, v'affiliate);
+    return build_0;
+}
+
+cell $ChildToParentAdvertiserApprovedAffiliate$_store_cell((int, slice, int, slice) v) inline {
+    return $ChildToParentAdvertiserApprovedAffiliate$_store(begin_cell(), v).end_cell();
+}
+
+((int, slice, int, slice)) $ChildToParentAdvertiserApprovedAffiliate$_constructor_campaignId_advertiser_affiliateId_affiliate(int $campaignId, slice $advertiser, int $affiliateId, slice $affiliate) inline {
+    return ($campaignId, $advertiser, $affiliateId, $affiliate);
+}
+
+;;
+;; Type: ChildToParentAdvertiserRemovedAffiliate
+;; Header: 0x829096ae
+;; TLB: child_to_parent_advertiser_removed_affiliate#829096ae campaignId:uint32 advertiser:address affiliateId:uint32 affiliate:address = ChildToParentAdvertiserRemovedAffiliate
+;;
+
+builder $ChildToParentAdvertiserRemovedAffiliate$_store(builder build_0, (int, slice, int, slice) v) inline {
+    var (v'campaignId, v'advertiser, v'affiliateId, v'affiliate) = v;
+    build_0 = store_uint(build_0, 2190513838, 32);
+    build_0 = build_0.store_uint(v'campaignId, 32);
+    build_0 = __tact_store_address(build_0, v'advertiser);
+    build_0 = build_0.store_uint(v'affiliateId, 32);
+    build_0 = __tact_store_address(build_0, v'affiliate);
+    return build_0;
+}
+
+cell $ChildToParentAdvertiserRemovedAffiliate$_store_cell((int, slice, int, slice) v) inline {
+    return $ChildToParentAdvertiserRemovedAffiliate$_store(begin_cell(), v).end_cell();
+}
+
+((int, slice, int, slice)) $ChildToParentAdvertiserRemovedAffiliate$_constructor_campaignId_advertiser_affiliateId_affiliate(int $campaignId, slice $advertiser, int $affiliateId, slice $affiliate) inline {
+    return ($campaignId, $advertiser, $affiliateId, $affiliate);
+}
+
+;;
+;; Type: JettonTransferNotification
+;; Header: 0x7362d09c
+;; TLB: jetton_transfer_notification#7362d09c queryId:uint64 amount:coins sender:address forwardPayload:remainder<slice> = JettonTransferNotification
+;;
+
+(slice, ((int, int, slice, slice))) $JettonTransferNotification$_load(slice sc_0) inline {
+    throw_unless(129, sc_0~load_uint(32) == 1935855772);
+    var v'queryId = sc_0~load_uint(64);
+    var v'amount = sc_0~load_coins();
+    var v'sender = sc_0~__tact_load_address();
+    var v'forwardPayload = sc_0;
+    return (sc_0, (v'queryId, v'amount, v'sender, v'forwardPayload));
+}
+
+;;
+;; Type: TokenExcesses
+;; Header: 0xd53276db
+;; TLB: token_excesses#d53276db query_id:uint64 = TokenExcesses
+;;
+
+(slice, ((int))) $TokenExcesses$_load(slice sc_0) inline {
+    throw_unless(129, sc_0~load_uint(32) == 3576854235);
+    var v'query_id = sc_0~load_uint(64);
+    return (sc_0, (v'query_id));
+}
+
+;;
+;; Type: UserActionStats
+;; TLB: _ numActions:uint32 lastUserActionTimestamp:uint32 = UserActionStats
+;;
+
+builder $UserActionStats$_store(builder build_0, (int, int) v) inline {
+    var (v'numActions, v'lastUserActionTimestamp) = v;
+    build_0 = build_0.store_uint(v'numActions, 32);
+    build_0 = build_0.store_uint(v'lastUserActionTimestamp, 32);
+    return build_0;
+}
+
+cell $UserActionStats$_store_cell((int, int) v) inline {
+    return $UserActionStats$_store(begin_cell(), v).end_cell();
+}
+
+(slice, ((int, int))) $UserActionStats$_load(slice sc_0) inline {
+    var v'numActions = sc_0~load_uint(32);
+    var v'lastUserActionTimestamp = sc_0~load_uint(32);
+    return (sc_0, (v'numActions, v'lastUserActionTimestamp));
+}
+
+tuple $UserActionStats$_as_optional((int, int) v) inline {
+    var (v'numActions, v'lastUserActionTimestamp) = v;
+    return __tact_tuple_create_2(v'numActions, v'lastUserActionTimestamp);
+}
+
+tuple $UserActionStats$_load_opt(cell cl) inline {
+    if (null?(cl)) {
+        return null();
+    }
+    var sc = cl.begin_parse();
+    return $UserActionStats$_as_optional(sc~$UserActionStats$_load());
+}
+
+((int, int)) $UserActionStats$_not_null(tuple v) inline {
+    throw_if(128, null?(v));
+    var (int vvv'numActions, int vvv'lastUserActionTimestamp) = __tact_tuple_destroy_2(v);
+    return (vvv'numActions, vvv'lastUserActionTimestamp);
+}
+
+((int, int)) $UserActionStats$_constructor_numActions_lastUserActionTimestamp(int $numActions, int $lastUserActionTimestamp) inline {
+    return ($numActions, $lastUserActionTimestamp);
+}
+
+;;
+;; Type: AffiliateData
+;; TLB: _ affiliate:address state:uint8 userActionsStats:dict<int, ^UserActionStats{numActions:uint32,lastUserActionTimestamp:uint32}> premiumUserActionsStats:dict<int, ^UserActionStats{numActions:uint32,lastUserActionTimestamp:uint32}> pendingApprovalEarnings:coins totalEarnings:coins withdrawEarnings:coins = AffiliateData
+;;
+
+builder $AffiliateData$_store(builder build_0, (slice, int, cell, cell, int, int, int) v) inline_ref {
+    var (v'affiliate, v'state, v'userActionsStats, v'premiumUserActionsStats, v'pendingApprovalEarnings, v'totalEarnings, v'withdrawEarnings) = v;
+    build_0 = __tact_store_address(build_0, v'affiliate);
+    build_0 = build_0.store_uint(v'state, 8);
+    build_0 = build_0.store_dict(v'userActionsStats);
+    build_0 = build_0.store_dict(v'premiumUserActionsStats);
+    build_0 = build_0.store_coins(v'pendingApprovalEarnings);
+    build_0 = build_0.store_coins(v'totalEarnings);
+    build_0 = build_0.store_coins(v'withdrawEarnings);
+    return build_0;
+}
+
+cell $AffiliateData$_store_cell((slice, int, cell, cell, int, int, int) v) inline {
+    return $AffiliateData$_store(begin_cell(), v).end_cell();
+}
+
+((slice, int, cell, cell, int, int, int)) $AffiliateData$_not_null(tuple v) inline {
+    throw_if(128, null?(v));
+    var (slice vvv'affiliate, int vvv'state, cell vvv'userActionsStats, cell vvv'premiumUserActionsStats, int vvv'pendingApprovalEarnings, int vvv'totalEarnings, int vvv'withdrawEarnings) = __tact_tuple_destroy_7(v);
+    return (vvv'affiliate, vvv'state, vvv'userActionsStats, vvv'premiumUserActionsStats, vvv'pendingApprovalEarnings, vvv'totalEarnings, vvv'withdrawEarnings);
+}
+
+cell $AffiliateData$_store_opt(tuple v) inline {
+    if (null?(v)) {
+        return null();
+    }
+    return $AffiliateData$_store_cell($AffiliateData$_not_null(v));
+}
+
+(slice, ((slice, int, cell, cell, int, int, int))) $AffiliateData$_load(slice sc_0) inline_ref {
+    var v'affiliate = sc_0~__tact_load_address();
+    var v'state = sc_0~load_uint(8);
+    var v'userActionsStats = sc_0~load_dict();
+    var v'premiumUserActionsStats = sc_0~load_dict();
+    var v'pendingApprovalEarnings = sc_0~load_coins();
+    var v'totalEarnings = sc_0~load_coins();
+    var v'withdrawEarnings = sc_0~load_coins();
+    return (sc_0, (v'affiliate, v'state, v'userActionsStats, v'premiumUserActionsStats, v'pendingApprovalEarnings, v'totalEarnings, v'withdrawEarnings));
+}
+
+tuple $AffiliateData$_as_optional((slice, int, cell, cell, int, int, int) v) inline {
+    var (v'affiliate, v'state, v'userActionsStats, v'premiumUserActionsStats, v'pendingApprovalEarnings, v'totalEarnings, v'withdrawEarnings) = v;
+    return __tact_tuple_create_7(v'affiliate, v'state, v'userActionsStats, v'premiumUserActionsStats, v'pendingApprovalEarnings, v'totalEarnings, v'withdrawEarnings);
+}
+
+tuple $AffiliateData$_load_opt(cell cl) inline {
+    if (null?(cl)) {
+        return null();
+    }
+    var sc = cl.begin_parse();
+    return $AffiliateData$_as_optional(sc~$AffiliateData$_load());
+}
+
+tuple $AffiliateData$_to_tuple(((slice, int, cell, cell, int, int, int)) v) inline {
+    var (v'affiliate, v'state, v'userActionsStats, v'premiumUserActionsStats, v'pendingApprovalEarnings, v'totalEarnings, v'withdrawEarnings) = v;
+    return __tact_tuple_create_7(v'affiliate, v'state, v'userActionsStats, v'premiumUserActionsStats, v'pendingApprovalEarnings, v'totalEarnings, v'withdrawEarnings);
+}
+
+tuple $AffiliateData$_to_opt_tuple(tuple v) inline {
+    if (null?(v)) { return null(); } 
+    return $AffiliateData$_to_tuple($AffiliateData$_not_null(v)); 
+}
+
+tuple $AffiliateData$_to_opt_external(tuple v) inline {
+    var loaded = $AffiliateData$_to_opt_tuple(v);
+    if (null?(loaded)) {
+        return null();
+    } else {
+        return (loaded);
+    }
+}
+
+((slice, int, cell, cell, int, int, int)) $AffiliateData$_constructor_affiliate_state_userActionsStats_premiumUserActionsStats_pendingApprovalEarnings_totalEarnings_withdrawEarnings(slice $affiliate, int $state, cell $userActionsStats, cell $premiumUserActionsStats, int $pendingApprovalEarnings, int $totalEarnings, int $withdrawEarnings) inline {
+    return ($affiliate, $state, $userActionsStats, $premiumUserActionsStats, $pendingApprovalEarnings, $totalEarnings, $withdrawEarnings);
+}
+
+;;
+;; Type: CampaignData
+;; TLB: _ campaignId:uint32 advertiser:address owner:address payout:address campaignDetails:CampaignDetails{regularUsersCostPerAction:dict<int, int>,premiumUsersCostPerAction:dict<int, int>,isPublicCampaign:bool,campaignValidForNumDays:Maybe uint32,paymentMethod:uint32,requiresAdvertiserApprovalForWithdrawl:bool} numAffiliates:uint32 totalAffiliateEarnings:coins state:uint32 campaignStartTimestamp:uint32 lastUserActionTimestamp:uint32 numAdvertiserWithdrawls:uint32 numAdvertiserSignOffs:uint32 numAdvertiserReplenishCampaign:uint32 numAdvertiserReplenishGasFees:uint32 numUserActions:uint32 campaignBalance:coins maxCpaValue:coins contractTonBalance:coins contractAddress:address contractUSDTBalance:coins contractUsdtWallet:address advertiserFeePercentage:uint32 affiliateFeePercentage:uint32 campaignHasSufficientFundsToPayMaxCpa:bool isCampaignExpired:bool isCampaignPausedByAdmin:bool campaignHasSufficientTonToPayGasFees:bool isCampaignActive:bool topAffiliates:dict<int, int> = CampaignData
+;;
+
+(int, slice, slice, slice, (cell, cell, int, int, int, int), int, int, int, int, int, int, int, int, int, int, int, int, int, slice, int, slice, int, int, int, int, int, int, int, cell) $CampaignData$_to_external(((int, slice, slice, slice, (cell, cell, int, int, int, int), int, int, int, int, int, int, int, int, int, int, int, int, int, slice, int, slice, int, int, int, int, int, int, int, cell)) v) inline {
+    var (v'campaignId, v'advertiser, v'owner, v'payout, v'campaignDetails, v'numAffiliates, v'totalAffiliateEarnings, v'state, v'campaignStartTimestamp, v'lastUserActionTimestamp, v'numAdvertiserWithdrawls, v'numAdvertiserSignOffs, v'numAdvertiserReplenishCampaign, v'numAdvertiserReplenishGasFees, v'numUserActions, v'campaignBalance, v'maxCpaValue, v'contractTonBalance, v'contractAddress, v'contractUSDTBalance, v'contractUsdtWallet, v'advertiserFeePercentage, v'affiliateFeePercentage, v'campaignHasSufficientFundsToPayMaxCpa, v'isCampaignExpired, v'isCampaignPausedByAdmin, v'campaignHasSufficientTonToPayGasFees, v'isCampaignActive, v'topAffiliates) = v; 
+    return (v'campaignId, v'advertiser, v'owner, v'payout, v'campaignDetails, v'numAffiliates, v'totalAffiliateEarnings, v'state, v'campaignStartTimestamp, v'lastUserActionTimestamp, v'numAdvertiserWithdrawls, v'numAdvertiserSignOffs, v'numAdvertiserReplenishCampaign, v'numAdvertiserReplenishGasFees, v'numUserActions, v'campaignBalance, v'maxCpaValue, v'contractTonBalance, v'contractAddress, v'contractUSDTBalance, v'contractUsdtWallet, v'advertiserFeePercentage, v'affiliateFeePercentage, v'campaignHasSufficientFundsToPayMaxCpa, v'isCampaignExpired, v'isCampaignPausedByAdmin, v'campaignHasSufficientTonToPayGasFees, v'isCampaignActive, v'topAffiliates);
+}
+
+((int, slice, slice, slice, (cell, cell, int, int, int, int), int, int, int, int, int, int, int, int, int, int, int, int, int, slice, int, slice, int, int, int, int, int, int, int, cell)) $CampaignData$_constructor_campaignId_advertiser_owner_payout_campaignDetails_numAffiliates_totalAffiliateEarnings_campaignStartTimestamp_lastUserActionTimestamp_numAdvertiserWithdrawls_numUserActions_numAdvertiserSignOffs_numAdvertiserReplenishCampaign_numAdvertiserReplenishGasFees_state_campaignBalance_maxCpaValue_contractTonBalance_contractAddress_contractUSDTBalance_contractUsdtWallet_advertiserFeePercentage_affiliateFeePercentage_campaignHasSufficientFundsToPayMaxCpa_isCampaignExpired_isCampaignPausedByAdmin_campaignHasSufficientTonToPayGasFees_isCampaignActive_topAffiliates(int $campaignId, slice $advertiser, slice $owner, slice $payout, (cell, cell, int, int, int, int) $campaignDetails, int $numAffiliates, int $totalAffiliateEarnings, int $campaignStartTimestamp, int $lastUserActionTimestamp, int $numAdvertiserWithdrawls, int $numUserActions, int $numAdvertiserSignOffs, int $numAdvertiserReplenishCampaign, int $numAdvertiserReplenishGasFees, int $state, int $campaignBalance, int $maxCpaValue, int $contractTonBalance, slice $contractAddress, int $contractUSDTBalance, slice $contractUsdtWallet, int $advertiserFeePercentage, int $affiliateFeePercentage, int $campaignHasSufficientFundsToPayMaxCpa, int $isCampaignExpired, int $isCampaignPausedByAdmin, int $campaignHasSufficientTonToPayGasFees, int $isCampaignActive, cell $topAffiliates) inline {
+    return ($campaignId, $advertiser, $owner, $payout, $campaignDetails, $numAffiliates, $totalAffiliateEarnings, $state, $campaignStartTimestamp, $lastUserActionTimestamp, $numAdvertiserWithdrawls, $numAdvertiserSignOffs, $numAdvertiserReplenishCampaign, $numAdvertiserReplenishGasFees, $numUserActions, $campaignBalance, $maxCpaValue, $contractTonBalance, $contractAddress, $contractUSDTBalance, $contractUsdtWallet, $advertiserFeePercentage, $affiliateFeePercentage, $campaignHasSufficientFundsToPayMaxCpa, $isCampaignExpired, $isCampaignPausedByAdmin, $campaignHasSufficientTonToPayGasFees, $isCampaignActive, $topAffiliates);
+}
+
+;;
+;; Type: JettonWalletData
+;; TLB: _ status:uint4 balance:coins ownerAddress:address jettonMasterAddress:address = JettonWalletData
+;;
+
+builder $JettonWalletData$_store(builder build_0, (int, int, slice, slice) v) inline {
+    var (v'status, v'balance, v'ownerAddress, v'jettonMasterAddress) = v;
+    build_0 = build_0.store_uint(v'status, 4);
+    build_0 = build_0.store_coins(v'balance);
+    build_0 = __tact_store_address(build_0, v'ownerAddress);
+    build_0 = __tact_store_address(build_0, v'jettonMasterAddress);
+    return build_0;
+}
+
+cell $JettonWalletData$_store_cell((int, int, slice, slice) v) inline {
+    return $JettonWalletData$_store(begin_cell(), v).end_cell();
+}
+
+((int, int, slice, slice)) $JettonWalletData$_constructor_status_balance_ownerAddress_jettonMasterAddress(int $status, int $balance, slice $ownerAddress, slice $jettonMasterAddress) inline {
+    return ($status, $balance, $ownerAddress, $jettonMasterAddress);
+}
+
+;;
+;; Type: Campaign
+;;
+
+builder $Campaign$_store(builder build_0, (slice, int, int, slice, slice, (cell, cell, int, int, int, int), slice, int, cell, int, int, int, int, int, int, int, int, int, int, int, int, cell, int, slice) v) inline {
+    var (v'owner, v'stopped, v'campaignId, v'payout, v'advertiser, (v'campaignDetails'regularUsersCostPerAction, v'campaignDetails'premiumUsersCostPerAction, v'campaignDetails'isPublicCampaign, v'campaignDetails'campaignValidForNumDays, v'campaignDetails'paymentMethod, v'campaignDetails'requiresAdvertiserApprovalForWithdrawl), v'bot, v'currAffiliateId, v'affiliates, v'state, v'campaignStartTimestamp, v'lastUserActionTimestamp, v'numAdvertiserWithdrawls, v'numAdvertiserSignOffs, v'numAdvertiserReplenishCampaign, v'numAdvertiserReplenishGasFees, v'numUserActions, v'totalAffiliateEarnings, v'maxCpaValue, v'affiliateFeePercentage, v'advertiserFeePercentage, v'topAffiliates, v'contractUSDTBalance, v'contractUsdtWallet) = v;
+    build_0 = __tact_store_address(build_0, v'owner);
+    build_0 = build_0.store_int(v'stopped, 1);
+    build_0 = build_0.store_uint(v'campaignId, 32);
+    build_0 = __tact_store_address(build_0, v'payout);
+    build_0 = __tact_store_address(build_0, v'advertiser);
+    var build_1 = begin_cell();
+    build_1 = $CampaignDetails$_store(build_1, (v'campaignDetails'regularUsersCostPerAction, v'campaignDetails'premiumUsersCostPerAction, v'campaignDetails'isPublicCampaign, v'campaignDetails'campaignValidForNumDays, v'campaignDetails'paymentMethod, v'campaignDetails'requiresAdvertiserApprovalForWithdrawl));
+    build_1 = __tact_store_address(build_1, v'bot);
+    build_1 = build_1.store_uint(v'currAffiliateId, 32);
+    build_1 = build_1.store_dict(v'affiliates);
+    build_1 = build_1.store_uint(v'state, 32);
+    build_1 = build_1.store_uint(v'campaignStartTimestamp, 32);
+    build_1 = build_1.store_uint(v'lastUserActionTimestamp, 32);
+    build_1 = build_1.store_uint(v'numAdvertiserWithdrawls, 32);
+    build_1 = build_1.store_uint(v'numAdvertiserSignOffs, 32);
+    build_1 = build_1.store_uint(v'numAdvertiserReplenishCampaign, 32);
+    build_1 = build_1.store_uint(v'numAdvertiserReplenishGasFees, 32);
+    build_1 = build_1.store_uint(v'numUserActions, 32);
+    build_1 = build_1.store_coins(v'totalAffiliateEarnings);
+    build_1 = build_1.store_coins(v'maxCpaValue);
+    build_1 = build_1.store_uint(v'affiliateFeePercentage, 32);
+    build_1 = build_1.store_uint(v'advertiserFeePercentage, 32);
+    var build_2 = begin_cell();
+    build_2 = build_2.store_dict(v'topAffiliates);
+    build_2 = build_2.store_coins(v'contractUSDTBalance);
+    build_2 = __tact_store_address(build_2, v'contractUsdtWallet);
+    build_1 = store_ref(build_1, build_2.end_cell());
+    build_0 = store_ref(build_0, build_1.end_cell());
+    return build_0;
+}
+
+(slice, ((slice, int, int, slice, slice, (cell, cell, int, int, int, int), slice, int, cell, int, int, int, int, int, int, int, int, int, int, int, int, cell, int, slice))) $Campaign$_load(slice sc_0) inline {
+    var v'owner = sc_0~__tact_load_address();
+    var v'stopped = sc_0~load_int(1);
+    var v'campaignId = sc_0~load_uint(32);
+    var v'payout = sc_0~__tact_load_address();
+    var v'advertiser = sc_0~__tact_load_address();
+    slice sc_1 = sc_0~load_ref().begin_parse();
+    var v'campaignDetails = sc_1~$CampaignDetails$_load();
+    var v'bot = sc_1~__tact_load_address();
+    var v'currAffiliateId = sc_1~load_uint(32);
+    var v'affiliates = sc_1~load_dict();
+    var v'state = sc_1~load_uint(32);
+    var v'campaignStartTimestamp = sc_1~load_uint(32);
+    var v'lastUserActionTimestamp = sc_1~load_uint(32);
+    var v'numAdvertiserWithdrawls = sc_1~load_uint(32);
+    var v'numAdvertiserSignOffs = sc_1~load_uint(32);
+    var v'numAdvertiserReplenishCampaign = sc_1~load_uint(32);
+    var v'numAdvertiserReplenishGasFees = sc_1~load_uint(32);
+    var v'numUserActions = sc_1~load_uint(32);
+    var v'totalAffiliateEarnings = sc_1~load_coins();
+    var v'maxCpaValue = sc_1~load_coins();
+    var v'affiliateFeePercentage = sc_1~load_uint(32);
+    var v'advertiserFeePercentage = sc_1~load_uint(32);
+    slice sc_2 = sc_1~load_ref().begin_parse();
+    var v'topAffiliates = sc_2~load_dict();
+    var v'contractUSDTBalance = sc_2~load_coins();
+    var v'contractUsdtWallet = sc_2~__tact_load_address();
+    return (sc_0, (v'owner, v'stopped, v'campaignId, v'payout, v'advertiser, v'campaignDetails, v'bot, v'currAffiliateId, v'affiliates, v'state, v'campaignStartTimestamp, v'lastUserActionTimestamp, v'numAdvertiserWithdrawls, v'numAdvertiserSignOffs, v'numAdvertiserReplenishCampaign, v'numAdvertiserReplenishGasFees, v'numUserActions, v'totalAffiliateEarnings, v'maxCpaValue, v'affiliateFeePercentage, v'advertiserFeePercentage, v'topAffiliates, v'contractUSDTBalance, v'contractUsdtWallet));
+}
+
+(slice, ((slice, int, slice, slice, slice, slice, cell, int, int))) $Campaign$init$_load(slice sc_0) inline_ref {
+    var v'owner = sc_0~__tact_load_address();
+    var v'campaignId = sc_0~load_int(257);
+    var v'advertiser = sc_0~__tact_load_address();
+    slice sc_1 = sc_0~load_ref().begin_parse();
+    var v'payout = sc_1~__tact_load_address();
+    var v'bot = sc_1~__tact_load_address();
+    var v'usdtMasterAddress = sc_1~__tact_load_address();
+    var v'usdtWalletBytecode = sc_1~load_ref();
+    slice sc_2 = sc_1~load_ref().begin_parse();
+    var v'advertiserFeePercentage = sc_2~load_int(257);
+    var v'affiliateFeePercentage = sc_2~load_int(257);
+    return (sc_0, (v'owner, v'campaignId, v'advertiser, v'payout, v'bot, v'usdtMasterAddress, v'usdtWalletBytecode, v'advertiserFeePercentage, v'affiliateFeePercentage));
+}
+
+(slice, int, int, slice, slice, (cell, cell, int, int, int, int), slice, int, cell, int, int, int, int, int, int, int, int, int, int, int, int, cell, int, slice) $Campaign$_contract_load() impure inline_ref {
+    slice $sc = get_data().begin_parse();
+    __tact_context_sys = $sc~load_ref();
+    int $loaded = $sc~load_int(1);
+    if ($loaded) {
+        return $sc~$Campaign$_load();
+    } else {
+        ;; Allow only workchain deployments
+        throw_unless(137, my_address().preload_uint(11) == 1024);
+        (slice $owner, int $campaignId, slice $advertiser, slice $payout, slice $bot, slice $usdtMasterAddress, cell $usdtWalletBytecode, int $advertiserFeePercentage, int $affiliateFeePercentage) = $sc~$Campaign$init$_load();
+        $sc.end_parse();
+        return $Campaign$_contract_init($owner, $campaignId, $advertiser, $payout, $bot, $usdtMasterAddress, $usdtWalletBytecode, $advertiserFeePercentage, $affiliateFeePercentage);
+    }
+}
+
+() $Campaign$_contract_store((slice, int, int, slice, slice, (cell, cell, int, int, int, int), slice, int, cell, int, int, int, int, int, int, int, int, int, int, int, int, cell, int, slice) v) impure inline {
+    builder b = begin_cell();
+    b = b.store_ref(__tact_context_sys);
+    b = b.store_int(true, 1);
+    b = $Campaign$_store(b, v);
+    set_data(b.end_cell());
+}
