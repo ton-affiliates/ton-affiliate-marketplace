@@ -108,8 +108,8 @@ function mapChatTypeToAssetType(chatType: string): TelegramAssetType {
 
 export async function sendTelegramMessage(userId: number, text: string, parseMode: string | null  = null ) {
   const user = await getUserById(userId);
-  if (!user || !user.canMessage) {
-    // Already can't message user or they don't exist
+  if (!user) {
+    Logger.error(`[sendTelegramMessage] Cannot find user with id: ${userId} in DB`)
     return;
   }
 

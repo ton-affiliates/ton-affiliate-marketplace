@@ -5,6 +5,7 @@ export interface NotificationApiResponse {
   message: string;
   createdAt: string;
   readAt?: string | null;
+  link?: string | null;
 }
 
 export interface CampaignApiResponse {

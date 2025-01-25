@@ -27,10 +27,10 @@ const STATE_AFFILIATE_ACTIVE: Int = 1;
 struct CampaignDetails {
     regularUsersCostPerAction: map<Int, Int>; // op code -> cpa
     premiumUsersCostPerAction: map<Int, Int>; // op code -> cpa
-    isPublicCampaign: Bool; // if public -> anyone can be an affiliate
-    campaignValidForNumDays: Int? as uint32; // optional - campaign expiry period
-    paymentMethod: Int as uint32; // TON (0) or USDT (1)
-    requiresAdvertiserApprovalForWithdrawl: Bool;  // Flag indicating if advertiser withdraws earnings for affiliates by default or not
+    isPublicCampaign: Bool;
+    campaignValidForNumDays: Int? as uint32; 
+    paymentMethod: Int as uint32; 
+    requiresAdvertiserApprovalForWithdrawl: Bool; 
 }
 
 struct UserActionStats {
@@ -44,8 +44,8 @@ struct AffiliateData {
     userActionsStats: map<Int, UserActionStats>;
     premiumUserActionsStats: map<Int, UserActionStats>;
     pendingApprovalEarnings: Int as coins;
-    totalEarnings: Int as coins; // over time
-	withdrawEarnings: Int as coins; // earnings ready to withdraw now
+    totalEarnings: Int as coins;
+    withdrawEarnings: Int as coins; 
 }
 
 struct CampaignData {
@@ -66,7 +66,7 @@ struct CampaignData {
     numUserActions: Int as uint32;
     campaignBalance: Int as coins;
     maxCpaValue: Int as coins;
-    contractTonBalance: Int as coins;  // myBalance
+    contractTonBalance: Int as coins;  
     contractAddress: Address;
     contractUSDTBalance: Int as coins;
     contractUsdtWallet: Address;
@@ -87,14 +87,11 @@ struct JettonWalletData {
     jettonMasterAddress: Address;
 }
 
-
-// And the function to calculate the wallet address may look like this:
 fun calculateUSDTWalletAddress(
     ownerAddress: Address,
     jettonMasterAddress: Address,
     jettonWalletCode: Cell
 ): Address {
-
     let initData = JettonWalletData{
         status: 0,
         balance: 0,
@@ -108,7 +105,6 @@ fun calculateUSDTWalletAddress(
     });
 }
 
-// Child contract for each affiliate
 contract Campaign with Resumable {
 
     owner: Address;
@@ -145,7 +141,9 @@ contract Campaign with Resumable {
          bot: Address, usdtMasterAddress: Address, usdtWalletBytecode: Cell,
          advertiserFeePercentage: Int, affiliateFeePercentage: Int) {
         
-        require(sender() == owner, "owner must be deployer");
+        require(sender() == owner, "Deployment failed: Only the contract owner can deploy a new campaign.");
+        require(advertiserFeePercentage <= 10000, "Fee cannot exceed 100%");
+        require(affiliateFeePercentage <= 10000,  "Fee cannot exceed 100%");
 
         self.owner = owner;  // parent contract
         self.payout = payout;
@@ -164,7 +162,7 @@ contract Campaign with Resumable {
             premiumUsersCostPerAction: emptyMap(),
             isPublicCampaign: true,
             campaignValidForNumDays: null,
-            paymentMethod: PAYMENT_METHOD_TON, // Default to TON
+            paymentMethod: PAYMENT_METHOD_TON,
             requiresAdvertiserApprovalForWithdrawl: false
         };
 
@@ -179,18 +177,13 @@ contract Campaign with Resumable {
         self.totalAffiliateEarnings = 0;
         self.maxCpaValue = ton("0");
 
-        // top 3 affiliates in campaign
         self.topAffiliates = emptyMap();
 
-        // USDT details
-		self.contractUSDTBalance = 0;
-		self.contractUsdtWallet = calculateUSDTWalletAddress(myAddress(), usdtMasterAddress, usdtWalletBytecode);
+        self.contractUSDTBalance = 0;
+        self.contractUsdtWallet = calculateUSDTWalletAddress(myAddress(), usdtMasterAddress, usdtWalletBytecode);
     }
 
-    // piggyback on this message for deployment
     receive(msg: ParentToChildDeployCampaign) {
-                
-         // notify parent that contract was successfully deployed
         send(SendParameters{
             to: self.owner,
             body: ChildToParentCampaignDeployedSuccessfully{
@@ -202,7 +195,6 @@ contract Campaign with Resumable {
         });
     }
 
-    // Function to calculate campaign balance (supports TON and USDT)
     fun calcCampaignBalance(): Int {
         if (self.campaignDetails.paymentMethod == PAYMENT_METHOD_TON) {
             let campaignBalance: Int = myBalance() - CAMPAIGN_BUFFER - self.totalAffiliateEarnings;
@@ -216,7 +208,8 @@ contract Campaign with Resumable {
         if (self.campaignDetails.campaignValidForNumDays == null) {
             return false;
         } else {
-            return now() - self.campaignStartTimestamp > self.campaignDetails.campaignValidForNumDays!! * (24*60*60);
+            return now() - self.campaignStartTimestamp >
+                self.campaignDetails.campaignValidForNumDays!! * (24*60*60);
         }
     }
 
@@ -225,104 +218,83 @@ contract Campaign with Resumable {
     }
 
     fun transferJettonUSDT(to: Address, amount: Int) {  
-	
-		require(self.contractUSDTBalance >= amount, "Insufficient USDT funds to make transfer");
-		
-		// adjust amount to send back to 6 decimals
-		let adjustedAmount = amount / 1000;
-		
-		// Create forward payload (optional comment)
+        require(self.contractUSDTBalance >= amount, "Transfer USDT failed: insufficient USDT in this campaign.");
+
+        let adjustedAmount = amount / 1000;
+
         let forwardPayload = beginCell()
-            .storeUint(0, 32) // 0 opcode means we have a comment
+            .storeUint(0, 32)
             .storeSlice("USDT from campaign".asSlice())
             .endCell();
 
-        let forwardTonAmount = ton("0.01"); // TON for forwarding to contract
-		let randomQueryId = random(0, 18446744073709551614);
-        
+        let forwardTonAmount = ton("0.01");
+        let randomQueryId = random(0, 18446744073709551614);
+
         let jettonTransferPayload: Cell = beginCell()
-            .storeUint(0xf8a7ea5, 32) // OP code for Jetton transfer
-            .storeUint(randomQueryId, 64) // Query ID
-            .storeCoins(adjustedAmount) // Amount of USDT to send
-            .storeAddress(to) // Recipient address
-            .storeAddress(myAddress()) // Response address for excess gas
-            .storeBit(false) // No custom payload
-            .storeCoins(forwardTonAmount) // Forwarded TON amount
-            .storeBit(true) // Forward payload is stored as a reference
+            .storeUint(0xf8a7ea5, 32)
+            .storeUint(randomQueryId, 64)
+            .storeCoins(adjustedAmount)
+            .storeAddress(to)
+            .storeAddress(myAddress())
+            .storeBit(false)
+            .storeCoins(forwardTonAmount)
+            .storeBit(true)
             .storeRef(forwardPayload)
             .endCell();
 
         send(SendParameters{
-            to: self.contractUsdtWallet,  // The Jetton wallet to send from
-            value: GAS_FEE*3,  // This TON is for paying for gas fees of the transfer
+            to: self.contractUsdtWallet,
+            value: GAS_FEE*3,
             body: jettonTransferPayload,
             mode: SendPayGasSeparately | SendIgnoreErrors
         });
-				
-		// Deduct amount from the contract's USDT balance
+
         self.contractUSDTBalance -= amount;
     }
 
     receive(msg: TokenExcesses) {
-        // do nothing - excess ton will be added to the contract's TON balance
-        require(sender() == self.contractUsdtWallet, "Only contract wallet allowed to invoke");
-        require(self.campaignDetails.paymentMethod == PAYMENT_METHOD_USDT, "Only USDT Campaigns can accept excess TON");
+        require(sender() == self.contractUsdtWallet, "Excess TON rejected: only the contract's USDT wallet can send this message.");
+        require(self.campaignDetails.paymentMethod == PAYMENT_METHOD_USDT, "Excess TON only makes sense for a USDT-based campaign.");
     }
 
-    // Function to track received USDT Jettons and update balance
     receive(msg: JettonTransferNotification) {
-        
-        require(sender() == self.contractUsdtWallet, "Only contract wallet allowed to invoke");
-        require(msg.sender == self.advertiser, "Only advertiser can send tokens to this contract");
-        require(self.campaignDetails.paymentMethod == PAYMENT_METHOD_USDT, "Only USDT Campaigns can accept USDT");
+        require(sender() == self.contractUsdtWallet, "Jetton notification rejected: must come from the campaign's USDT wallet.");
+        require(msg.sender == self.advertiser, "Jetton deposit failed: only the advertiser can fund this USDT-based campaign.");
+        require(self.campaignDetails.paymentMethod == PAYMENT_METHOD_USDT, "Jetton deposit failed: this campaign is not set to USDT.");
         
         self.numAdvertiserReplenishCampaign += 1;
 
-        // Calculate the net amount after fees
-        let depositAmount = (msg.amount * 1000); // convert to 9 decimals
-        let fee: Int = (depositAmount * self.advertiserFeePercentage + 9999) / 10000;  // e.g., fee=200 = 2%
+        let depositAmount = (msg.amount * 1000);
+        let fee: Int = (depositAmount * self.advertiserFeePercentage + 9999) / 10000;
         let netAmount: Int = depositAmount - fee;
 
-        // Transfer fee to payout address
         if (fee > ton("0")) {
-           self.transferJettonUSDT(self.payout, fee);
+            self.transferJettonUSDT(self.payout, fee);
         }
-
-        // Update the USDT balance in the state.  Adjust to 9 decimals (since we received 6 decimals)
         self.contractUSDTBalance += netAmount;
-
     }
 
-    // Function to handle affiliate withdrawals (supports both TON and USDT)
     receive(msg: AffiliateWithdrawEarnings) {
-
         self.requireNotStopped();
-        require(context().value >= GAS_FEE*2, "Insufficient gas fees to withdraw earnings");
+        require(context().value >= GAS_FEE*2, "Withdrawal failed: not enough TON attached for gas fees.");
         
         let affiliateDataOptional = self.affiliates.get(msg.affiliateId);
-        require(affiliateDataOptional != null, "Affiliate does not exist");
+        require(affiliateDataOptional != null, "Withdrawal failed: specified affiliate does not exist.");
         let affiliateData: AffiliateData = affiliateDataOptional!!;
 
-        require(sender() == affiliateData.affiliate, "Only affiliate can withdraw funds");
+        require(sender() == affiliateData.affiliate, "Withdrawal failed: only the affiliate can withdraw their earnings.");
+        require(affiliateData.withdrawEarnings > 0, "Withdrawal failed: no positive earnings to withdraw.");
 
         let withdrawalAmount = affiliateData.withdrawEarnings;
-        require(withdrawalAmount > 0,"Must withdraw a positive amount");
-
-        // update state
         affiliateData.withdrawEarnings = ton("0");
         self.affiliates.set(msg.affiliateId, affiliateData);
 
-         // Update campaign’s total affiliate earnings
         self.totalAffiliateEarnings -= withdrawalAmount;
 
-        // Calculate the net amount after fees
-        let fee: Int = (withdrawalAmount * self.affiliateFeePercentage + 9999) / 10000;  // e.g., fee=200 = 2%
+        let fee: Int = (withdrawalAmount * self.affiliateFeePercentage + 9999) / 10000;
         let netAmount: Int = withdrawalAmount - fee;
 
-        // Send the approved or full amount directly to the affiliate’s wallet
         if (self.campaignDetails.paymentMethod == PAYMENT_METHOD_TON) {
-
-            // Transfer fee to payout address
             send(SendParameters{
                 to: self.payout,
                 value: fee,
@@ -338,44 +310,37 @@ contract Campaign with Resumable {
                 mode: SendPayGasSeparately | SendIgnoreErrors
             });
         } else {
-            // For USDT Jetton, transfer both fee and withdrawal amount
             self.transferJettonUSDT(self.payout, fee);
             self.transferJettonUSDT(affiliateData.affiliate, netAmount);
         }
     }
 
-
-    // function sign off earnings for some affiliates due to poor execution
     receive(msg: AdvertiserSignOffWithdraw) {
-
         self.requireNotStopped();
-        require(self.isCampaignActive(), "Campaign is not active");
-        require(self.campaignDetails.requiresAdvertiserApprovalForWithdrawl, "Advertiser can only modify affiliate earnings only if campaign is setup this requiresApprovalForWithdrawlFlag");
-        
-        foreach(affiliateId, affiliateData in self.affiliates) {
+        require(self.isCampaignActive(), "Advertiser sign-off failed: campaign is not active.");
+        require(self.campaignDetails.requiresAdvertiserApprovalForWithdrawl, 
+            "Sign-off unavailable: advertiser approval is not required for this campaign's affiliate earnings.");
 
+        foreach(affiliateId, affiliateData in self.affiliates) {
             let amountToWithdrawOptional = msg.setAffiliatesWithdrawEarnings.get(affiliateId); 
             if (amountToWithdrawOptional != null) {
-
                 let amountToWithdraw = amountToWithdrawOptional!!;
-                require(amountToWithdraw <= affiliateData.pendingApprovalEarnings, "withdrawableAmount must be <= pendingApprovalEarnings");
-
-                // update diff (diff can be zero)
-                let diff: Int = (affiliateData.pendingApprovalEarnings - amountToWithdraw);
-                affiliateData.pendingApprovalEarnings -= diff; // update affiliate's pending approval earnings
-                affiliateData.totalEarnings -= diff; // update affiliate's total earnings
-                self.totalAffiliateEarnings -= diff; // return diff to campaign
-            } 
+                require(amountToWithdraw <= affiliateData.pendingApprovalEarnings, 
+                    "Sign-off mismatch: requested sign-off is greater than the pending approval earnings.");
                 
+                let diff: Int = (affiliateData.pendingApprovalEarnings - amountToWithdraw);
+                affiliateData.pendingApprovalEarnings -= diff;
+                affiliateData.totalEarnings -= diff;
+                self.totalAffiliateEarnings -= diff;
+            } 
             affiliateData.withdrawEarnings += affiliateData.pendingApprovalEarnings;
-            affiliateData.pendingApprovalEarnings = ton("0");  
+            affiliateData.pendingApprovalEarnings = ton("0");
             self.affiliates.set(affiliateId, affiliateData);
         }
 
         self.numAdvertiserSignOffs += 1;
-		
-		// send remaining value back to advertiser
-		send(SendParameters{
+
+        send(SendParameters{
             to: self.advertiser,
             value: 0,
             mode: SendRemainingValue 
@@ -383,15 +348,13 @@ contract Campaign with Resumable {
     }
 
     receive(msg: ParentToChildSeizeCampaign) {
-        
         self.requireOwner();
 
-        // Check for TON or USDT based on the payment method
-		if (self.contractUSDTBalance > 0) {
-			self.transferJettonUSDT(self.payout, self.contractUSDTBalance);
-		}
-		
-		send(SendParameters{
+        if (self.contractUSDTBalance > 0) {
+            self.transferJettonUSDT(self.payout, self.contractUSDTBalance);
+        }
+        
+        send(SendParameters{
             to: self.payout,
             value: 0,
             mode: SendRemainingBalance
@@ -402,20 +365,22 @@ contract Campaign with Resumable {
         self.maxCpaValue = max(self.maxCpaValue, val);
     }
 
-    // advetiser sets campaign details 
     receive (msg: AdvertiserSetCampaignDetails) {
+        require(sender() == self.advertiser, 
+            "Setting campaign details failed: only the advertiser can set the details.");
+        require(self.state == STATE_CAMPAIGN_CREATED, 
+            "Campaign details failed: not in 'STATE_CAMPAIGN_CREATED' state.");
+        require(msg.campaignDetails.paymentMethod == PAYMENT_METHOD_TON ||
+                msg.campaignDetails.paymentMethod == PAYMENT_METHOD_USDT, 
+            "Unsupported payment method: must be TON (0) or USDT (1).");
+        require((msg.campaignDetails.campaignValidForNumDays == null) ||
+                msg.campaignDetails.campaignValidForNumDays!! > 0, 
+            "Invalid setting: 'campaignValidForNumDays' must be greater than 0 (or null).");
 
-        require(sender() == self.advertiser, "Only advertiser can set campaign details");
-        require(self.state == STATE_CAMPAIGN_CREATED, "Must be in state: STATE_CAMPAIGN_CREATED");
-        require(msg.campaignDetails.paymentMethod == PAYMENT_METHOD_TON || msg.campaignDetails.paymentMethod == PAYMENT_METHOD_USDT, "Only TON or USDT supported as payment methods");
-        require((msg.campaignDetails.campaignValidForNumDays == null) || msg.campaignDetails.campaignValidForNumDays!! > 0, "Invalid campaignValidForNumDays param");
-		
-        // get maxCpaValue
         let maxCpaValue: Int = ton("0");
         foreach (key, val in msg.campaignDetails.regularUsersCostPerAction) {
             self.updateMaxCpaValue(val);
         }
-
         foreach (key, val in msg.campaignDetails.premiumUsersCostPerAction) {
             self.updateMaxCpaValue(val);
         }
@@ -424,7 +389,6 @@ contract Campaign with Resumable {
         self.campaignStartTimestamp = now();
         self.state = STATE_CAMPAIGN_DETAILS_SET_BY_ADVERTISER;
 
-        // return deploy costs to parent
         send(SendParameters{
             to: self.owner,
             body: ChildToParentAdvertiserSignedCampaignDetails{
@@ -436,19 +400,18 @@ contract Campaign with Resumable {
         });
     }
 
-    // Function to handle advertiser replenishment of TON
     receive(msg: AdvertiserReplenish) {
-        require(self.state == STATE_CAMPAIGN_DETAILS_SET_BY_ADVERTISER, "Must be in state: STATE_CAMPAIGN_DETAILS_SET_BY_ADVERTISER");
-        require(sender() == self.advertiser, "Only the advertiser can replenish the contract");
+        require(self.state == STATE_CAMPAIGN_DETAILS_SET_BY_ADVERTISER, 
+            "Replenish failed: campaign must be in 'STATE_CAMPAIGN_DETAILS_SET_BY_ADVERTISER'.");
+        require(sender() == self.advertiser, 
+            "Replenish failed: only the advertiser can fund the campaign with TON.");
 
         self.numAdvertiserReplenishCampaign += 1;
 
-        // Calculate the net amount after fees
         let depositAmount = context().value;
-        let fee: Int = (depositAmount * self.advertiserFeePercentage + 9999) / 10000;  // e.g., fee=200 = 2%
+        let fee: Int = (depositAmount * self.advertiserFeePercentage + 9999) / 10000;
         let netAmount: Int = depositAmount - fee;
 
-        // Transfer fee to payout address
         if (fee > ton("0")) {
             send(SendParameters{
                 to: self.payout,
@@ -459,39 +422,44 @@ contract Campaign with Resumable {
         }
     }
 
-    // Function to handle advertiser replenishment TON for gas fees usage (in UDST based campaigns)
     receive(msg: AdvertiserReplenishGasFeesForUSDTCampaign) {
-        require(sender() == self.advertiser, "Only the advertiser can replenish the contract");
-        require(self.state == STATE_CAMPAIGN_DETAILS_SET_BY_ADVERTISER, "Must be in state: STATE_CAMPAIGN_DETAILS_SET_BY_ADVERTISER");
-        require(self.campaignDetails.paymentMethod == PAYMENT_METHOD_USDT, "Can replenish TON for gas fees for USDT camapigns only");
+        require(sender() == self.advertiser, 
+            "Gas-fee replenish failed: only advertiser can add TON for gas fees.");
+        require(self.state == STATE_CAMPAIGN_DETAILS_SET_BY_ADVERTISER, 
+            "Gas-fee replenish failed: campaign must be in 'STATE_CAMPAIGN_DETAILS_SET_BY_ADVERTISER'.");
+        require(self.campaignDetails.paymentMethod == PAYMENT_METHOD_USDT, 
+            "Gas-fee replenish mismatch: this is not a USDT campaign.");
     
         self.numAdvertiserReplenishGasFees += 1;
     }
 
     receive(msg: AffiliateCreateNewAffiliate) {
-
-        require(self.isCampaignActive(), "Campaign is not active");
-		require(context().value >= FIXED_FEE_CREATE_AFFILIATE, "Insufficient funds to create affiliate");
+        require(self.isCampaignActive(), 
+            "Affiliate creation failed: campaign is not currently active.");
+        require(context().value >= FIXED_FEE_CREATE_AFFILIATE, 
+            "Affiliate creation failed: not enough TON attached to cover fees.");
 
         let numAffiliates = self.currAffiliateId;
-        require(numAffiliates <= MAX_NUM_AFFILIATES, "Reached max number of affiliates for this campaign");
+        require(numAffiliates < MAX_NUM_AFFILIATES, 
+            "Creation failed: maximum number of affiliates for this campaign has been reached.");
 
         let affiliateId = self.currAffiliateId;
         self.currAffiliateId += 1;
 
-        let affiliateInitialState: Int = self.campaignDetails.isPublicCampaign ? STATE_AFFILIATE_ACTIVE : STATE_AFFILIATE_PENDING_APPROVAL;
+        let affiliateInitialState: Int = self.campaignDetails.isPublicCampaign 
+            ? STATE_AFFILIATE_ACTIVE 
+            : STATE_AFFILIATE_PENDING_APPROVAL;
 
         self.affiliates.set(affiliateId, AffiliateData{
-            affiliate: sender(), 
+            affiliate: sender(),
             state: affiliateInitialState,
-            userActionsStats: emptyMap(), 
-            premiumUserActionsStats: emptyMap(), 
+            userActionsStats: emptyMap(),
+            premiumUserActionsStats: emptyMap(),
             pendingApprovalEarnings: ton("0"),
             totalEarnings: ton("0"),
-			withdrawEarnings: ton("0")
+            withdrawEarnings: ton("0")
         });
 
-        // notify parent
         send(SendParameters{
             to: self.owner,
             body: ChildToParentAffiliateCreated{
@@ -502,25 +470,26 @@ contract Campaign with Resumable {
                 state: affiliateInitialState
             }.toCell(),
             value: 0,
-            mode: SendRemainingValue, 
+            mode: SendRemainingValue,
         });
     }
 
     receive(msg: AdvertiserApproveAffiliate) {
+        require(sender() == self.advertiser, 
+            "Approval failed: only the advertiser can approve an affiliate.");
+        require(!self.campaignDetails.isPublicCampaign, 
+            "Approval not needed: this campaign is public (affiliates are automatically active).");
 
-        require(sender() == self.advertiser, "Only the advertiser can remove an existing affiliate");
-        require(!self.campaignDetails.isPublicCampaign, "Cannot manually add affiliates to an public campaign");
-        
         let affiliateDataOptional = self.affiliates.get(msg.affiliateId);
-        require(affiliateDataOptional != null, "Affiliate does not exist");
+        require(affiliateDataOptional != null, "Approval failed: affiliate ID does not exist.");
         let affiliateData: AffiliateData = affiliateDataOptional!!;
 
-        require(affiliateData.state == STATE_AFFILIATE_PENDING_APPROVAL, "Affiliate in ACTIVE state");
-        affiliateData.state = STATE_AFFILIATE_ACTIVE;
+        require(affiliateData.state == STATE_AFFILIATE_PENDING_APPROVAL, 
+            "Approval failed: affiliate is already active.");
 
+        affiliateData.state = STATE_AFFILIATE_ACTIVE;
         self.affiliates.set(msg.affiliateId, affiliateData);
 
-        //emit event so parent will notify affiliate
         send(SendParameters{
             to: self.owner,
             body: ChildToParentAdvertiserApprovedAffiliate {
@@ -532,20 +501,18 @@ contract Campaign with Resumable {
             value: GAS_FEE,
             mode: SendPayGasSeparately 
         });
-        
     }
 
     receive(msg: AdvertiserRemoveAffiliate) {
-        
-        require(sender() == self.advertiser, "Only the advertiser can remove an existing affiliate");
-        
-        let affiliateDataOptional = self.affiliates.get(msg.affiliateId);
-        require(affiliateDataOptional != null, "Affiliate does not exist");
-        let affiliateData: AffiliateData = affiliateDataOptional!!;
+        require(sender() == self.advertiser, 
+            "Removal failed: only the advertiser can remove an existing affiliate.");
 
+        let affiliateDataOptional = self.affiliates.get(msg.affiliateId);
+        require(affiliateDataOptional != null, "Removal failed: affiliate does not exist.");
+
+        let affiliateData: AffiliateData = affiliateDataOptional!!;
         self.affiliates.del(msg.affiliateId);
 
-        //emit event so parent will notify affiliate
         send(SendParameters{
             to: self.owner,
             body: ChildToParentAdvertiserRemovedAffiliate {
@@ -560,13 +527,15 @@ contract Campaign with Resumable {
     }
 
     receive(msg: AdvertiserWithdrawFunds) {
-
         self.requireNotStopped();
-        require(self.state == STATE_CAMPAIGN_DETAILS_SET_BY_ADVERTISER, "Must be in state: STATE_CAMPAIGN_DETAILS_SET_BY_ADVERTISER");
-        require(sender() == self.advertiser, "Only the advertiser can remove the campaign and withdraw all funds");
-        
+        require(self.state == STATE_CAMPAIGN_DETAILS_SET_BY_ADVERTISER, 
+            "Withdrawal failed: campaign must be in 'STATE_CAMPAIGN_DETAILS_SET_BY_ADVERTISER' state.");
+        require(sender() == self.advertiser, 
+            "Withdrawal failed: only the advertiser can withdraw funds from the campaign.");
+
         let campaignBalance: Int = self.calcCampaignBalance();
-        require(campaignBalance >= msg.amount, "Insufficient campaign funds");
+        require(campaignBalance >= msg.amount, 
+            "Withdrawal failed: insufficient campaign funds to cover the requested amount.");
 
         self.numAdvertiserWithdrawls += 1;
 
@@ -581,8 +550,7 @@ contract Campaign with Resumable {
             mode: SendPayGasSeparately | SendIgnoreErrors
         });
 
-        // Check for TON or USDT based on the payment method
-        if (self.campaignDetails.paymentMethod == PAYMENT_METHOD_TON) { 
+        if (self.campaignDetails.paymentMethod == PAYMENT_METHOD_TON) {
             send(SendParameters{
                 to: self.advertiser,
                 value: msg.amount,
@@ -594,51 +562,52 @@ contract Campaign with Resumable {
     }
 
     receive(msg: BotUserAction) {
-
-        require(sender() == self.bot, "Only bot can invoke this function");
-        require(msg.userActionOpCode <= USER_ACTION_OP_CODES_BOT, "Bot can verify only op codes under 20000");
-        require(myBalance() >= context().value + GAS_FEE, "Insufficient contract funds to repay bot");
+        require(sender() == self.bot, "User action failed: only the authorized bot can call this function.");
+        require(msg.userActionOpCode <= USER_ACTION_OP_CODES_BOT, 
+            "User action mismatch: the bot can only verify op codes below 20000.");
+        require(myBalance() >= context().value + GAS_FEE, 
+            "User action failed: insufficient contract balance to reimburse bot.");
 
         self.applyUserAction(msg.userActionOpCode, msg.affiliateId, msg.isPremiumUser);
 
-        // return gas fees to bot
         send(SendParameters{
             to: self.bot,
-            value: context().value,  // return gas fee paid by the bot
+            value: context().value,
             mode: SendPayGasSeparately
         });
     }
 
     receive(msg: AdvertiserAddNewUserOpCode) {
-
-        require(sender() == self.advertiser, "Only advertiser can add user op codes");
-        require(self.isCampaignActive(), "Campaign is not active");
+        require(sender() == self.advertiser, "Adding user op code failed: only advertiser can do this.");
+        require(self.isCampaignActive(), "Cannot add user op code: campaign is inactive.");
 
         let newUserOpCode: Int = msg.userOpCode;
         let isPremiumUserOpCode: Bool = msg.isPremiumUserOpCode;
         let cpa: Int = msg.costPerAction;
 
         if (isPremiumUserOpCode) {
-            require(self.campaignDetails.premiumUsersCostPerAction.get(newUserOpCode) != null, "Can only add op codes");
+            require(self.campaignDetails.premiumUsersCostPerAction.get(newUserOpCode) != null, 
+                "Add op code failed: code not recognized in premium user dictionary.");
             self.updateMaxCpaValue(cpa);
             self.campaignDetails.premiumUsersCostPerAction.set(newUserOpCode, cpa);
         } else {
-            require(self.campaignDetails.regularUsersCostPerAction.get(newUserOpCode) != null, "Can only add op codes");
+            require(self.campaignDetails.regularUsersCostPerAction.get(newUserOpCode) != null, 
+                "Add op code failed: code not recognized in regular user dictionary.");
             self.updateMaxCpaValue(cpa);
             self.campaignDetails.regularUsersCostPerAction.set(newUserOpCode, cpa);
         }
     }
 
     receive(msg: AdvertiserUserAction) {
-        
-        require(sender() == self.advertiser, "Only advertiser can verify these events");
-        require(msg.userActionOpCode > USER_ACTION_OP_CODES_BOT, "Advertiser can verify only op codes over 20000");
+        require(sender() == self.advertiser, 
+            "User action failed: only the advertiser can verify these particular op codes.");
+        require(msg.userActionOpCode > USER_ACTION_OP_CODES_BOT, 
+            "User action mismatch: advertiser can only verify op codes over 20000.");
 
         self.applyUserAction(msg.userActionOpCode, msg.affiliateId, msg.isPremiumUser);
     }
 
     fun updateUserStat(userActionStatsOptional: UserActionStats?, currTime: Int): UserActionStats {
-
         let result = UserActionStats{lastUserActionTimestamp: 0, numActions: 0};
         if (userActionStatsOptional != null) {
             result = userActionStatsOptional!!;
@@ -649,14 +618,15 @@ contract Campaign with Resumable {
     }
 
     fun applyUserAction(userActionOpCode: Int, affiliateId: Int, isPremiumUser: Bool) {
-
-        require(self.isCampaignActive(), "Campaign is not active");
+        require(self.isCampaignActive(), 
+            "User action failed: campaign is not active or is paused/expired.");
 
         let affiliateDataOptional = self.affiliates.get(affiliateId);
-        require(affiliateDataOptional != null, "Affiliate does not exist");
+        require(affiliateDataOptional != null, "User action failed: affiliate does not exist for this ID.");
         let affiliateData: AffiliateData = affiliateDataOptional!!;
 
-        require(affiliateData.state == STATE_AFFILIATE_ACTIVE, "Inactive affiliate");
+        require(affiliateData.state == STATE_AFFILIATE_ACTIVE, 
+            "User action ignored: affiliate is not active or is pending approval.");
 
         let cpaOptional: Int? = null;
         if (isPremiumUser) {
@@ -665,11 +635,12 @@ contract Campaign with Resumable {
             cpaOptional = self.campaignDetails.regularUsersCostPerAction.get(userActionOpCode);
         }
 
-        require(cpaOptional != null, "Cannot find cpa for the given op code");
+        require(cpaOptional != null, 
+            "User action failed: no cost-per-action found for the provided op code.");
+
         let costPerAction: Int = cpaOptional!!;
-		        
-        // process user action - no need to check optional because we set it when advertiser setup the campaign
         let currTime: Int = now();
+
         if (isPremiumUser) {
             let userActionStatsOptional: UserActionStats? = affiliateData.premiumUserActionsStats.get(userActionOpCode);
             let userActionStats = self.updateUserStat(userActionStatsOptional, currTime);
@@ -680,7 +651,6 @@ contract Campaign with Resumable {
             affiliateData.userActionsStats.set(userActionOpCode, userActionStats);
         }
 
-        // Accumulate the earnings for the affiliate
         if (self.campaignDetails.requiresAdvertiserApprovalForWithdrawl) {
             affiliateData.pendingApprovalEarnings += costPerAction;
         } else {
@@ -688,25 +658,20 @@ contract Campaign with Resumable {
         }
 
         affiliateData.totalEarnings += costPerAction;
-        self.affiliates.set(affiliateId, affiliateData);  // update affiliate data
+        self.affiliates.set(affiliateId, affiliateData);
 
-        // update campaign state
         self.lastUserActionTimestamp = currTime;
         self.numUserActions += 1;
         self.totalAffiliateEarnings += costPerAction;
-		self.updateTopAffiliates(affiliateId, affiliateData.totalEarnings);
+        self.updateTopAffiliates(affiliateId, affiliateData.totalEarnings);
     }
 
-    // Function to update the "Top 3 Affiliates" dynamically
     fun updateTopAffiliates(affiliateId: Int, earnings: Int) {
-
-        // If the affiliate is already in the top 3, update their earnings
         if (self.topAffiliates.get(affiliateId) != null) {
             self.topAffiliates.set(affiliateId, earnings);
             return;
         }
 
-        // Find the lowest earner in the current top 3 and count the number of affiliates in the list
         let minEarnings: Int? = null;
         let minId: Int = 0;
         let numAffiliates = 0;
@@ -719,92 +684,71 @@ contract Campaign with Resumable {
             }
         }
 
-        // If there are fewer than 3 affiliates, simply add the new one
         if (numAffiliates < 3) {
             self.topAffiliates.set(affiliateId, earnings);
             return;
         }
 
-        // If the new affiliate's earnings are higher than the current minimum, replace the lowest
         if (minEarnings != null && earnings > minEarnings!!) {
             self.topAffiliates.del(minId);
             self.topAffiliates.set(affiliateId, earnings);
         }
     }
 
-    
-    // Jetton notification did not arrive.  
     receive(msg: ParentToChildJettonNotificationMessageFailure) {
         self.requireOwner();
         self.contractUSDTBalance += msg.amount;
-    } 
-
-    // Function to withdraw any amount of USDT stuck in the contract for any reason
-    receive(msg: ParentToChildWithdrawUSDTToPayout) {
-        self.requireOwner();
-        self.transferJettonUSDT(self.payout, msg.amount);		
-    } 
-
-    // if payment bounces - adjust the affiliate's pendingApprovalEarnings and totalAffiliateEarnings accordingly
-    fun bouncedPayment(affiliateId: Int, amount: Int) {
-        
-        let affiliateDataOptional = self.affiliates.get(affiliateId);
-		require(affiliateDataOptional != null, "Affiliate does not exist for this id");
-		
-		let affiliateData: AffiliateData = affiliateDataOptional!!;
-		affiliateData.withdrawEarnings += amount;
-		self.affiliates.set(affiliateId, affiliateData);
-
-		self.totalAffiliateEarnings += amount;
     }
 
-    // bounced USDT - amount in 9 decials already!
-    receive(msg: ParentToChildPayAffiliateUSDTBounced) {     
+    receive(msg: ParentToChildWithdrawUSDTToPayout) {
+        self.requireOwner();
+        self.transferJettonUSDT(self.payout, msg.amount);       
+    }
+
+    fun bouncedPayment(affiliateId: Int, amount: Int) {
+        let affiliateDataOptional = self.affiliates.get(affiliateId);
+        require(affiliateDataOptional != null, 
+            "Bounced payment update failed: affiliate does not exist for this ID.");
+
+        let affiliateData: AffiliateData = affiliateDataOptional!!;
+        affiliateData.withdrawEarnings += amount;
+        self.affiliates.set(affiliateId, affiliateData);
+
+        self.totalAffiliateEarnings += amount;
+    }
+
+    receive(msg: ParentToChildPayAffiliateUSDTBounced) {
         self.requireOwner();
         self.bouncedPayment(msg.affiliateId, msg.amount);
         self.contractUSDTBalance += msg.amount;
     }
 
-    // bounced TON
     bounced(msg: PayAffiliate) {
         self.bouncedPayment(msg.affiliateId, msg.amount);
     }
 
     fun isCampaignActive(): Bool {
-        
-        // Check if the campaign details are set
         if (self.state != STATE_CAMPAIGN_DETAILS_SET_BY_ADVERTISER) {
             return false;
         }
-
-        // Check if the contract is not stopped (paused by admin)
         if (self.stopped) {
             return false;
         }
-
-        // Check if the campaign is not expired
         if (self.isCampaignExpired()) {
             return false;
         }
-
-        // Check if the campaign has sufficient funds to pay the maximum CPA
         if (!self.campaignHasSufficientFundsToPayMaxCpa()) {
             return false;
         }
-		
-		// Check if there are sufficient TON funds for gas fees
         if (!self.campaignHasSufficientTonToPayGasFees()) {
             return false;
         }
-
-        // If all checks pass, the campaign is active
         return true;
     }
 
     fun campaignHasSufficientTonToPayGasFees(): Bool {
         return (myBalance() >= CAMPAIGN_BUFFER);
     }
-
 
     get fun campaignData(): CampaignData {
         return CampaignData {
@@ -827,11 +771,11 @@ contract Campaign with Resumable {
             maxCpaValue: self.maxCpaValue,
             contractTonBalance: myBalance(),
             contractAddress: myAddress(),
-            contractUSDTBalance: self.contractUSDTBalance,  // 9 decimals
+            contractUSDTBalance: self.contractUSDTBalance,
             contractUsdtWallet: self.contractUsdtWallet,
             advertiserFeePercentage: self.advertiserFeePercentage,
             affiliateFeePercentage: self.affiliateFeePercentage,
-            campaignHasSufficientFundsToPayMaxCpa: self.campaignHasSufficientFundsToPayMaxCpa(), 
+            campaignHasSufficientFundsToPayMaxCpa: self.campaignHasSufficientFundsToPayMaxCpa(),
             isCampaignExpired: self.isCampaignExpired(),
             isCampaignPausedByAdmin: self.stopped,
             campaignHasSufficientTonToPayGasFees: self.campaignHasSufficientTonToPayGasFees(),
@@ -849,10 +793,11 @@ contract Campaign with Resumable {
     }
 
     get fun affiliatesDataInRange(fromIdx: Int, toIdx: Int): map<Int, AffiliateData> {
-        require(toIdx > fromIdx, "Invalid indices");
+        require(toIdx > fromIdx, "Range error: toIdx must be strictly greater than fromIdx.");
+
         let result: map<Int, AffiliateData> = emptyMap();
         let i: Int = 0;
-        repeat (toIdx - fromIdx) {  
+        repeat (toIdx - fromIdx) {
             if (self.affiliates.get(fromIdx + i) != null) {
                 result.set(fromIdx + i, self.affiliates.get(fromIdx + i));
             }
@@ -860,29 +805,26 @@ contract Campaign with Resumable {
         }
         return result;
     }
-	
-	get fun balance(): Int {
-        return myBalance(); // in nano-tons (like cents, just with 9 decimals)
+
+    get fun balance(): Int {
+        return myBalance();
     }
 
 }
 
-
 // owner Contract
 contract AffiliateMarketplace with Deployable, Resumable  {
 
-    // state
     owner: Address;
     stopped: Bool;
     bot: Address;
 
     numCampaigns: Int as uint32; 
-	usdtMasterAddress: Address;
+    usdtMasterAddress: Address;
     usdtWalletBytecode: Cell;
     affiliateFeePercentage: Int as uint32;
     advertiserFeePercentage: Int as uint32;
-	
-    // Constructor
+    
     init(bot: Address, usdtMasterAddress: Address, usdtWalletBytecode: Cell, 
          advertiserFeePercentage: Int, affiliateFeePercentage: Int) {
         self.owner = sender();
@@ -892,19 +834,19 @@ contract AffiliateMarketplace with Deployable, Resumable  {
         self.usdtWalletBytecode = usdtWalletBytecode;
         self.advertiserFeePercentage = advertiserFeePercentage;
         self.affiliateFeePercentage = affiliateFeePercentage;
-        self.numCampaigns = 0; 
+        self.numCampaigns = 0;
     }
 
     get fun balance(): Int {
-        return myBalance(); // in nano-tons (like cents, just with 9 decimals)
+        return myBalance();
     }
 
     get fun bot(): Address {
-        return self.bot; 
+        return self.bot;
     }
 
     get fun numCampaigns(): Int {
-        return self.numCampaigns; 
+        return self.numCampaigns;
     }
 
     get fun campaignContractAddress(campaignId: Int, advertiser: Address): Address {
@@ -912,8 +854,17 @@ contract AffiliateMarketplace with Deployable, Resumable  {
     }
 
     fun campaignContractStateInit(campaignId: Int, advertiser: Address): StateInit {
-        let initCode: StateInit = initOf Campaign(myAddress(), campaignId, advertiser, self.owner, self.bot, 
-                self.usdtMasterAddress, self.usdtWalletBytecode, self.advertiserFeePercentage, self.affiliateFeePercentage);
+        let initCode: StateInit = initOf Campaign(
+            myAddress(), 
+            campaignId, 
+            advertiser, 
+            self.owner, 
+            self.bot, 
+            self.usdtMasterAddress, 
+            self.usdtWalletBytecode, 
+            self.advertiserFeePercentage, 
+            self.affiliateFeePercentage
+        );
         return initCode;
     }
 
@@ -928,25 +879,24 @@ contract AffiliateMarketplace with Deployable, Resumable  {
     }
 
     receive(msg: AdminWithdraw) {
-
         self.requireOwner();
 
         let buffer: Int = ton("1");
-        require(myBalance() >= msg.amount + buffer, "Insufficient contract funds to make payment");
+        require(myBalance() >= msg.amount + buffer, 
+            "AdminWithdraw failed: not enough contract TON to handle withdrawal plus buffer.");
 
         let numWallets: Int = 0;
-        foreach(wallet,v in msg.wallets) {
+        foreach(wallet, v in msg.wallets) {
             numWallets = numWallets + 1;
         }
-
-        require(numWallets > 0, "Must have at least one wallet to withdraw to");
+        require(numWallets > 0, "AdminWithdraw failed: must specify at least one recipient wallet.");
 
         let fraction: Int = msg.amount;
         if (numWallets > 1) {
             fraction = fraction / numWallets;
         }
 
-        foreach(wallet,v in msg.wallets) {
+        foreach(wallet, v in msg.wallets) {
             send(SendParameters{
                 to: wallet,
                 bounce: true,
@@ -957,54 +907,46 @@ contract AffiliateMarketplace with Deployable, Resumable  {
     }
 
     receive(msg: AdminStopCampaign) {
-
         self.requireOwner();
-
         let init: StateInit = self.campaignContractStateInit(msg.campaignId, msg.advertiser);
         let campaignContractAddress: Address = contractAddress(init);
 
         send(SendParameters{
             to: campaignContractAddress,
-            body: "Stop".asComment(), 
+            body: "Stop".asComment(),
             value: 0,
             mode: SendRemainingValue
         });
     }
 
     receive(msg: AdminResumeCampaign) {
-
         self.requireOwner();
-
         let init: StateInit = self.campaignContractStateInit(msg.campaignId, msg.advertiser);
         let campaignContractAddress: Address = contractAddress(init);
 
         send(SendParameters{
             to: campaignContractAddress,
-            body: "Resume".asComment(), 
+            body: "Resume".asComment(),
             value: 0,
             mode: SendRemainingValue
         });
     }
 
     receive(msg: AdminSeizeCampaignBalance) {
-
         self.requireOwner();
-
         let init: StateInit = self.campaignContractStateInit(msg.campaignId, msg.advertiser);
         let campaignContractAddress: Address = contractAddress(init);
 
         send(SendParameters{
             to: campaignContractAddress,
-            body: ParentToChildSeizeCampaign{}.toCell(), 
+            body: ParentToChildSeizeCampaign{}.toCell(),
             value: 0,
             mode: SendRemainingValue
         });
     }
 
     receive(msg: AdminPayAffiliateUSDTBounced) {
-
         self.requireOwner();
-
         let init: StateInit = self.campaignContractStateInit(msg.campaignId, msg.advertiser);
         let campaignContractAddress: Address = contractAddress(init);
 
@@ -1020,9 +962,7 @@ contract AffiliateMarketplace with Deployable, Resumable  {
     }
 
     receive(msg: AdminJettonNotificationMessageFailure) {
-
         self.requireOwner();
-
         let init: StateInit = self.campaignContractStateInit(msg.campaignId, msg.advertiser);
         let campaignContractAddress: Address = contractAddress(init);
 
@@ -1037,9 +977,7 @@ contract AffiliateMarketplace with Deployable, Resumable  {
     }
 
     receive(msg: AdminWithdrawUSDTToPayout) {
-
         self.requireOwner();
-
         let init: StateInit = self.campaignContractStateInit(msg.campaignId, msg.advertiser);
         let campaignContractAddress: Address = contractAddress(init);
 
@@ -1054,48 +992,51 @@ contract AffiliateMarketplace with Deployable, Resumable  {
     }
 
     receive(msg: ChildToParentAdvertiserApprovedAffiliate) {
-		
-		let expectedAddress: Address = contractAddress(self.campaignContractStateInit(msg.campaignId, msg.advertiser));
-        require(sender() == expectedAddress, "Access denied");
+        let expectedAddress: Address = contractAddress(
+            self.campaignContractStateInit(msg.campaignId, msg.advertiser)
+        );
+        require(sender() == expectedAddress, "Access denied: message does not come from the expected campaign contract.");
 
-         emit(AdvertiserApprovedAffiliateListEvent{
-                campaignId: msg.campaignId,
-                advertiser: msg.advertiser,
-                affiliateId: msg.affiliateId,
-                affiliate: msg.affiliate
+        emit(AdvertiserApprovedAffiliateListEvent{
+            campaignId: msg.campaignId,
+            advertiser: msg.advertiser,
+            affiliateId: msg.affiliateId,
+            affiliate: msg.affiliate
         }.toCell());
     }
 
     receive(msg: ChildToParentAdvertiserRemovedAffiliate) {
-		
-		let expectedAddress: Address = contractAddress(self.campaignContractStateInit(msg.campaignId, msg.advertiser));
-        require(sender() == expectedAddress, "Access denied");
+        let expectedAddress: Address = contractAddress(
+            self.campaignContractStateInit(msg.campaignId, msg.advertiser)
+        );
+        require(sender() == expectedAddress, "Removal event denied: must come from the correct campaign contract.");
 
-         emit(AdvertiserRemovedAffiliateEvent{
-                campaignId: msg.campaignId,
-                advertiser: msg.advertiser,
-                affiliateId: msg.affiliateId,
-                affiliate: msg.affiliate
+        emit(AdvertiserRemovedAffiliateEvent{
+            campaignId: msg.campaignId,
+            advertiser: msg.advertiser,
+            affiliateId: msg.affiliateId,
+            affiliate: msg.affiliate
         }.toCell());
     }
-	
-	
-    receive(msg: ChildToParentAdvertiserWithdrawFunds) {
 
-        let expectedAddress: Address = contractAddress(self.campaignContractStateInit(msg.campaignId, msg.advertiser));
-        require(sender() == expectedAddress, "Access denied");
+    receive(msg: ChildToParentAdvertiserWithdrawFunds) {
+        let expectedAddress: Address = contractAddress(
+            self.campaignContractStateInit(msg.campaignId, msg.advertiser)
+        );
+        require(sender() == expectedAddress, "Withdrawal event denied: must come from the correct campaign contract.");
 
         emit(AdvertiserWithdrawFundsEvent{
             campaignId: msg.campaignId,
             advertiser: msg.advertiser,
-            amount: msg.amount}.toCell());
-
+            amount: msg.amount
+        }.toCell());
     }
 
     receive(msg: ChildToParentAdvertiserSignedCampaignDetails) {
-        
-        let expectedAddress: Address = contractAddress(self.campaignContractStateInit(msg.campaignId, msg.advertiser));
-        require(sender() == expectedAddress, "Access denied");
+        let expectedAddress: Address = contractAddress(
+            self.campaignContractStateInit(msg.campaignId, msg.advertiser)
+        );
+        require(sender() == expectedAddress, "Signature event denied: must come from the correct campaign contract.");
 
         emit(AdvertiserSignedCampaignDetailsEvent{
             campaignId: msg.campaignId,
@@ -1104,9 +1045,11 @@ contract AffiliateMarketplace with Deployable, Resumable  {
     }
 
     receive(msg: ChildToParentAffiliateCreated) {
-
-        let expectedAddress: Address = contractAddress(self.campaignContractStateInit(msg.campaignId, msg.advertiser));
-        require(sender() == expectedAddress, "Access denied");
+        let expectedAddress: Address = contractAddress(
+            self.campaignContractStateInit(msg.campaignId, msg.advertiser)
+        );
+        require(sender() == expectedAddress, 
+            "Affiliate creation event denied: message does not come from the matching campaign contract.");
 
         emit(AffiliateCreatedEvent{
             campaignId: msg.campaignId,
@@ -1117,33 +1060,35 @@ contract AffiliateMarketplace with Deployable, Resumable  {
         }.toCell());
     }
 
-    // Function to create a new campaign
     receive(msg: AdvertiserDeployNewCampaign) {
-        
-		self.requireNotStopped();
-        require(context().value > DEPLOY_NEW_CONTRACT_COST + GAS_FEE, "Insufficient funds to deploy new campaign");
+        self.requireNotStopped();
+        require(context().value > DEPLOY_NEW_CONTRACT_COST + GAS_FEE, 
+            "Campaign deployment failed: insufficient TON attached (must exceed DEPLOY_NEW_CONTRACT_COST + GAS_FEE).");
 
-        let campaignId: Int = random(0, 4294967294); // Generate a new random number, which is an unsigned 32-bit integer
+        let campaignId: Int = random(0, 4294967294);
         self.numCampaigns += 1;
 
         let init: StateInit = self.campaignContractStateInit(campaignId, sender());
         let campaignContractAddress: Address = contractAddress(init);
 
-        // deploy contract
         send(SendParameters{
             to: campaignContractAddress,
             value: DEPLOY_NEW_CONTRACT_COST,
             code: init.code,
             data: init.data,
-            body: ParentToChildDeployCampaign{campaignId: campaignId, advertiser: sender()}.toCell(),
+            body: ParentToChildDeployCampaign{
+                campaignId: campaignId,
+                advertiser: sender()
+            }.toCell(),
             mode: SendPayGasSeparately
         });
     }
 
     receive(msg: ChildToParentCampaignDeployedSuccessfully) {
-
-        let expectedAddress: Address = contractAddress(self.campaignContractStateInit(msg.campaignId, msg.advertiser));
-        require(sender() == expectedAddress, "Access denied");
+        let expectedAddress: Address = contractAddress(
+            self.campaignContractStateInit(msg.campaignId, msg.advertiser)
+        );
+        require(sender() == expectedAddress, "Deployment success event denied: must come from correct contract.");
 
         emit(CampaignCreatedEvent{
             campaignId: msg.campaignId,
@@ -1152,11 +1097,6 @@ contract AffiliateMarketplace with Deployable, Resumable  {
         }.toCell());
     }
 
-    // receive any amount of incoming TON
     receive() {}
 
-    // receive("Resume") is added automatically to allow owner to resume the contract
-    // receive("Stop") is added automatically to allow owner to stop the contract
-    // get fun stopped(): Bool is added automatically to query if contract is stopped
-    // get fun owner(): Address is added automatically to query who the owner is
 }

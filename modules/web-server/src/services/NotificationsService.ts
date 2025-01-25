@@ -16,7 +16,8 @@ function notificationRepository() {
 export async function createNotification(
     tonAddress: Address,
     message: string,
-    campaignId?: string
+    campaignId?: string,
+    link?: string
   ): Promise<Notification> {
     try {
       const walletAddress = tonAddress.toString();
@@ -25,6 +26,7 @@ export async function createNotification(
         walletAddress,
         message,
         campaignId: campaignId || null,
+        link: link || null
       });
       return await repo.save(newNotif);
     } catch (err) {

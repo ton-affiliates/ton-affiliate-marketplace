@@ -120,7 +120,7 @@ export class InitialSchema1736681774554 implements MigrationInterface {
       );
     `);
 
-    // 8) notifications TABLE
+    // snippet from your .up() migration for notifications table
     await queryRunner.query(`
       CREATE TABLE IF NOT EXISTS "notifications" (
         "id"             SERIAL PRIMARY KEY,
@@ -130,6 +130,10 @@ export class InitialSchema1736681774554 implements MigrationInterface {
         "created_at"     TIMESTAMP NOT NULL DEFAULT NOW(),
         "updated_at"     TIMESTAMP NOT NULL DEFAULT NOW(),
         "read_at"        TIMESTAMP,
+
+        /* new link column */
+        "link"           VARCHAR(500),
+
         CONSTRAINT "fk_wallet_notifications"
           FOREIGN KEY ("wallet_address")
           REFERENCES "wallets"("address"),
@@ -138,6 +142,7 @@ export class InitialSchema1736681774554 implements MigrationInterface {
           REFERENCES "campaigns"("id")
       );
     `);
+
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {

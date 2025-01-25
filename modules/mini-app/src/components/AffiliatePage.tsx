@@ -11,7 +11,9 @@ import { advertiserApproveAffiliate } from '../blockchain/campaign/advertiserApp
 import { affiliateWithdrawEarnings } from '../blockchain/campaign/affiliateWithdrawEarnings';
 
 import { AffiliateData, CampaignData, UserActionStats } from '../contracts/Campaign';
-import { CampaignApiResponse, UserApiResponse } from '../models/models';
+import { CampaignApiResponse, UserApiResponse } from '../models/apiResponses';
+
+import { BOT_ACTION_LABELS } from '@common/constants';
 
 async function fetchSingleAffiliate(campaignId: string, affiliateId: string): Promise<UserApiResponse> {
   const resp = await fetch(`/api/v1/campaign-roles/affiliates/${campaignId}/${affiliateId}`);
@@ -156,9 +158,13 @@ export function AffiliatePage() {
     for (const key of dict.keys()) {
       const stats = dict.get(key);
       if (!stats) continue;
+  
+      // Use BOT_ACTION_LABELS to get a friendly name
+      const actionLabel = BOT_ACTION_LABELS.get(key) ?? `Unknown Action (#${key.toString()})`;
+  
       entries.push(
         <div key={key.toString()} style={{ marginBottom: '0.5rem' }}>
-          <strong>OpCode {key.toString()}:</strong>
+          <strong>{actionLabel}:</strong>
           <div style={{ marginLeft: '1rem' }}>
             numActions: {stats.numActions.toString()}
             <br />
@@ -169,7 +175,7 @@ export function AffiliatePage() {
     }
     return <div>{entries}</div>;
   }
-
+  
   if (!campaignId || !affiliateId) {
     return <div>Missing campaignId or affiliateId in the URL.</div>;
   }

@@ -30,6 +30,11 @@ export const AFFILIATE_FEE_PERCENTAGE = BigInt(process.env.AFFILIATE_FEE_PERCENT
 export const BOT_OP_CODE_USER_CLICK = BigInt(0);
 export const BOT_OP_CODE_USER_RETAINED_TWO_WEEKS = BigInt(1);
 
+// Dictionary mapping each opcode to a friendly label
+export const BOT_ACTION_LABELS = new Map<bigint, string>([
+  [BOT_OP_CODE_USER_CLICK, 'User Click'],
+  [BOT_OP_CODE_USER_RETAINED_TWO_WEEKS, 'User Retained For 2 Weeks'],
+]);
 
 export class MaxAttemptsError extends Error {
   constructor() {

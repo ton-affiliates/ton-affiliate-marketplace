@@ -1,12 +1,14 @@
+// entity/Notification.ts (full class)
+
 import {
-    Entity,
-    PrimaryGeneratedColumn,
-    Column,
-    CreateDateColumn,
-    UpdateDateColumn,
-    ManyToOne,
-    JoinColumn,
-  } from 'typeorm';
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  CreateDateColumn,
+  UpdateDateColumn,
+  ManyToOne,
+  JoinColumn,
+} from 'typeorm';
 import { Wallet } from './Wallet';
 import { Campaign } from './Campaign';
 
@@ -15,7 +17,6 @@ export class Notification {
   @PrimaryGeneratedColumn()
   id: number;
 
-  // Replace "userId" with "walletAddress"
   @Column({ type: 'varchar', length: 255, name: 'wallet_address' })
   walletAddress: string;
 
@@ -34,7 +35,9 @@ export class Notification {
   @Column({ type: 'timestamp', nullable: true, name: 'read_at' })
   readAt: Date | null;
 
-  // Now point to the Wallet entity
+  @Column({ type: 'varchar', length: 500, name: 'link', nullable: true })
+  link: string | null;
+
   @ManyToOne(() => Wallet)
   @JoinColumn({ name: 'wallet_address', referencedColumnName: 'address' })
   wallet: Wallet;

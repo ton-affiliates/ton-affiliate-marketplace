@@ -44,29 +44,6 @@ export async function createCampaignRole(data: CreateCampaignRoleInput): Promise
   }
 }
 
-export async function updateCampaignRoleByCampaignAndWalletAddress(
-  campaignId: string,
-  tonAddress: Address,
-  updates: Partial<CampaignRole>
-): Promise<CampaignRole | null> {
-  try {
-    const repo = campaignRoleRepository();
-    const walletAddress = tonAddress.toString();
-    // 1) Find the row
-    const role = await repo.findOne({
-      where: { campaignId, walletAddress},
-    });
-    if (!role) return null;
-
-    // 2) Merge and save
-    Object.assign(role, updates);
-    return await repo.save(role);
-  } catch (err) {
-    Logger.error(`Error updating campaign role for campaign=${campaignId}, wallet=${tonAddress}: ` + err);
-    throw new Error('Could not update campaign role');
-  }
-}
-
 export async function deleteCampaignRoleByCampaignAndWallet(
   campaignId: string,
   walletAddress: string

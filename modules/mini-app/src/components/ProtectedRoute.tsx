@@ -1,6 +1,7 @@
 // src/components/ProtectedRoute.tsx
+
 import React from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useLocation } from 'react-router-dom';
 import { useTelegramContext } from './TelegramContext';
 
 interface ProtectedRouteProps {
@@ -8,19 +9,20 @@ interface ProtectedRouteProps {
 }
 
 export default function ProtectedRoute({ children }: ProtectedRouteProps) {
-  const { userInfo, loading } = useTelegramContext(); 
+  const { userInfo, loading } = useTelegramContext();
   const isLoggedIn = userInfo !== null;
+  const location = useLocation();
 
-  // If we're still loading user info from local storage, don’t decide yet
+  // If we're still loading user info from local storage or an API, don’t decide yet
   if (loading) {
-    return <div>Loading...</div>; 
+    return <div>Loading...</div>;
   }
 
-  // If not logged in, redirect to /login
+  // If not logged in, redirect to "/login" and store the current location in state
   if (!isLoggedIn) {
-    return <Navigate to="/login" replace />;
+    return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  // Otherwise, render the protected content
+  // If logged in, render the protected route content
   return <>{children}</>;
 }

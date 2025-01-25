@@ -1,173 +1,178 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useParams, useSearchParams, Link } from 'react-router-dom';
 import { useCampaignContract } from '../hooks/useCampaignContract';
-
-// On-chain affiliate data type
 import { AffiliateData, CampaignData } from '../contracts/Campaign';
 import { advertiserRemoveAffiliate } from '../blockchain/campaign/advertiserRemoveAffiliate';
 import { advertiserApproveAffiliate } from '../blockchain/campaign/advertiserApproveAffiliate';
-
-// Suppose you have a hook or context providing userAccount
 import { useTonConnectFetchContext } from './TonConnectProvider';
 import { useTonWalletConnect } from '../hooks/useTonConnect';
+import { Dictionary } from '@ton/core';
 
-// Sample models from your code
-import { CampaignApiResponse, UserApiResponse } from '../models/models';
+// Suppose your DB returns a structure with affiliateId (e.g. from your own API).
+export interface UserAffiliateRecord {
+  affiliateId: number;         // The ID that matches on-chain
+  id: number;                  // The user ID
+  firstName?: string;
+  lastName?: string;
+  // ... any other DB fields
+}
 
-/**
- * Inline function to fetch paged affiliates from your server API.
- * e.g. GET /api/v1/campaign-roles/affiliates/paged/:campaignId?offset=X&limit=Y
- */
+// For demonstration: fetchPagedAffiliates returns an array of user affiliates from the DB.
 async function fetchPagedAffiliates(
   campaignId: string,
   offset: number,
   limit: number
-): Promise<UserApiResponse[]> {
+): Promise<UserAffiliateRecord[]> {
   const query = new URLSearchParams({ offset: String(offset), limit: String(limit) });
   const resp = await fetch(`/api/v1/campaign-roles/affiliates/paged/${campaignId}?${query}`);
   if (!resp.ok) {
     throw new Error(`Failed to fetch affiliates. Status ${resp.status}`);
   }
-  return (await resp.json()) as UserApiResponse[];
+  return await resp.json();
 }
 
-/**
- * Displays all affiliates for a given campaign (paged),
- * combining data from both the DB and the blockchain.
- *
- * Also shows "Approve Affiliate" (for state=0) and "Remove Affiliate" 
- * for the campaign's advertiser (private campaigns only).
- */
 export function AllAffiliatesPage() {
-  // 1) Read the campaignId from the URL
   const { campaignId } = useParams<{ campaignId: string }>();
 
-  // 2) Query params for offset & limit
+  // offset & limit from query params
   const [searchParams, setSearchParams] = useSearchParams();
   const offset = parseInt(searchParams.get('offset') || '0', 10);
   const limit = parseInt(searchParams.get('limit') || '10', 10);
 
-  // 3) Local state
-  const [campaign, setCampaign] = useState<CampaignApiResponse | null>(null);
-  const [affiliates, setAffiliates] = useState<UserApiResponse[]>([]);
-  const [chainData, setChainData] = useState<AffiliateData[]>([]);
-  const [onChainData, setOnChainData] = useState<CampaignData | null>(null);
+  // DB affiliates in a map: affiliateId -> DB record
+  const [dbMap, setDbMap] = useState<Map<bigint, UserAffiliateRecord>>(new Map());
 
-  // Basic loading & error states
+  // Contract on-chain data in a map: affiliateId -> AffiliateData
+  // (uses string-based keys to satisfy React state)
+  const [chainMap, setChainMap] = useState<Record<string, AffiliateData>>({});
+
+  const [onChainData, setOnChainData] = useState<CampaignData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // from TonConnect to sign transactions
+  // Set up Ton
   const { userAccount } = useTonConnectFetchContext();
   const { sender } = useTonWalletConnect();
 
-  // 4) Fetch the campaign from the server
+  // 1) Hook up the campaign contract from ID
+  const advertiserAddr = "SOME_ADVERTISER_ADDRESS"; // or fetched from your API
+  const campaignIdBig = campaignId ? BigInt(campaignId) : undefined;
+
+  const {
+    campaignContract,
+    isLoading: contractLoading,
+    error: contractError,
+  } = useCampaignContract(advertiserAddr, campaignIdBig);
+
+  // 2) Fetch the DB affiliates (paged) and store them in a Map
   useEffect(() => {
     if (!campaignId) return;
+    setLoading(true);
+    setError(null);
 
-    async function fetchCampaign() {
-      try {
-        setLoading(true);
-        setError(null);
-
-        const resp = await fetch(`/api/v1/campaigns/${campaignId}`);
-        if (!resp.ok) {
-          throw new Error(`Error fetching campaign. Status ${resp.status}`);
+    fetchPagedAffiliates(campaignId, offset, limit)
+      .then((dbAffs) => {
+        // Build a map: affiliateId => DB record
+        const newMap = new Map<bigint, UserAffiliateRecord>();
+        for (const rec of dbAffs) {
+          // Convert the numeric affiliateId to bigint
+          newMap.set(BigInt(rec.affiliateId), rec);
         }
-        const data: CampaignApiResponse = await resp.json();
-        setCampaign(data);
-      } catch (err: any) {
-        setError(err.message);
-      } finally {
-        setLoading(false);
-      }
-    }
+        setDbMap(newMap);
+      })
+      .catch((err) => setError(err.message))
+      .finally(() => setLoading(false));
+  }, [campaignId, offset, limit]);
 
-    fetchCampaign();
-  }, [campaignId]);
-
-  // 5) Once we have the campaign, set up the on-chain contract
-  const advertiserAddr = campaign?.advertiserAddress;
-  const campaignIdBig = campaign?.id ? BigInt(campaign.id) : undefined;
-
-  const { campaignContract, isLoading: contractLoading, error: contractError } =
-    useCampaignContract(advertiserAddr, campaignIdBig);
-
-  // 6) Load DB affiliates + chain data whenever offset/limit changes (and we have the contract)
+  // 3) Fetch on-chain affiliate data and campaign data in the same range
   useEffect(() => {
-    if (!campaignId || !campaignContract) return;
+    if (!campaignContract || !campaignId) return;
+    setLoading(true);
+    setError(null);
 
-    async function loadAffiliates() {
-      setLoading(true);
-      setError(null);
-
+    (async () => {
       try {
-        // (A) Fetch affiliates from the DB
-        const dbAffiliates = await fetchPagedAffiliates(campaignId!, offset, limit);
-        setAffiliates(dbAffiliates);
-
-        // (B) On-chain range
+        // We read affiliates in the same offset..limit range
         const fromIdx = BigInt(offset);
         const toIdx = BigInt(offset + limit - 1);
 
-        // (C) Fetch on-chain data
-        const onChainDataDict = await campaignContract!.getAffiliatesDataInRange(fromIdx, toIdx);
-        const chainArray = Object.values(onChainDataDict) as AffiliateData[];
-        setChainData(chainArray);
+        // getAffiliatesDataInRange => Dictionary<bigint, AffiliateData>
+        const dictionary: Dictionary<bigint, AffiliateData> =
+          await campaignContract.getAffiliatesDataInRange(fromIdx, toIdx);
 
-        const data = await campaignContract!.getCampaignData();
-        setOnChainData(data);
+        // Convert Dictionary<bigint, AffiliateData> => Record<string, AffiliateData>
+        const chainObj: Record<string, AffiliateData> = {};
+        for (const key of dictionary.keys()) {
+          const data = dictionary.get(key);
+          if (data) {
+            chainObj[key.toString()] = data;
+          }
+        }
+        setChainMap(chainObj);
+
+        // Also fetch the overall campaign data
+        const cData = await campaignContract.getCampaignData();
+        setOnChainData(cData);
       } catch (err: any) {
-        console.error('Error loading affiliates:', err);
         setError(err.message);
       } finally {
         setLoading(false);
       }
-    }
+    })();
+  }, [campaignContract, campaignId, offset, limit]);
 
-    loadAffiliates();
-  }, [campaignId, campaignContract, offset, limit]);
-
-  // 7) Determine if the connected user is the advertiser
+  // 4) Check if the user is the advertiser (optional logic)
   const isUserAdvertiser = useMemo(() => {
     if (!userAccount?.address || !advertiserAddr) return false;
     return userAccount.address.toLowerCase() === advertiserAddr.toLowerCase();
   }, [userAccount?.address, advertiserAddr]);
 
-  // 8) Button handlers
-  async function handleApprove(affiliateUserId: number) {
+  // 5) Approve/Remove affiliate on-chain
+  async function handleApprove(affId: bigint) {
+    if (!campaignContract || !sender) {
+      alert('Not ready to approve affiliate. Missing contract or sender.');
+      return;
+    }
     try {
-      if (!campaignContract || !sender) throw new Error('Contract or sender not ready');
-      await advertiserApproveAffiliate(campaignContract, BigInt(affiliateUserId), sender);
-      alert(`Approved affiliate ID: ${affiliateUserId}`);
-      // Possibly re-fetch
-    } catch (err) {
+      await advertiserApproveAffiliate(campaignContract, affId, sender);
+      alert(`Approved affiliate ID: ${affId.toString()}`);
+      // Optionally re-fetch on-chain data here if needed
+    } catch (err: any) {
       console.error(err);
       alert(`Failed to approve affiliate: ${String(err)}`);
     }
   }
 
-  async function handleRemove(affiliateUserId: number) {
+  async function handleRemove(affId: bigint) {
+    if (!campaignContract || !sender) {
+      alert('Not ready to remove affiliate. Missing contract or sender.');
+      return;
+    }
     try {
-      if (!campaignContract || !sender) throw new Error('Contract or sender not ready');
-      await advertiserRemoveAffiliate(campaignContract, BigInt(affiliateUserId), sender);
-      alert(`Removed affiliate ID: ${affiliateUserId}`);
-      // Possibly re-fetch
-    } catch (err) {
+      await advertiserRemoveAffiliate(campaignContract, affId, sender);
+      alert(`Removed affiliate ID: ${affId.toString()}`);
+      // Optionally re-fetch on-chain data here if needed
+    } catch (err: any) {
       console.error(err);
       alert(`Failed to remove affiliate: ${String(err)}`);
     }
   }
 
-  // 9) Render
-  if (!campaignId) {
-    return <div>No campaignId in the URL!</div>;
-  }
   if (error) {
     return <div style={{ color: 'red' }}>Error: {error}</div>;
   }
 
   const loadingState = loading || contractLoading;
+
+  // Create a combined list of affiliate IDs (union DB + chain)
+  const allAffIds = new Set<bigint>([
+    ...dbMap.keys(),
+    ...Object.keys(chainMap).map((k) => BigInt(k)),
+  ]);
+  const sortedAffIds = Array.from(allAffIds).sort((a, b) => Number(a - b));
+
+  // Example usage: if the campaign is private, we show 'Approve' / 'Remove' buttons
+  const isPrivate = onChainData?.campaignDetails.isPublicCampaign === false;
 
   return (
     <div style={{ margin: '1rem' }}>
@@ -180,71 +185,64 @@ export function AllAffiliatesPage() {
         <table style={{ borderCollapse: 'collapse', width: '100%' }}>
           <thead>
             <tr>
-              <th style={{ border: '1px solid #ccc', padding: '8px' }}>User ID</th>
-              <th style={{ border: '1px solid #ccc', padding: '8px' }}>Name</th>
-              <th style={{ border: '1px solid #ccc', padding: '8px' }}>On-Chain Earnings</th>
+              <th style={{ border: '1px solid #ccc', padding: '8px' }}>Affiliate ID</th>
+              <th style={{ border: '1px solid #ccc', padding: '8px' }}>DB User Info</th>
+              <th style={{ border: '1px solid #ccc', padding: '8px' }}>On-chain Earnings</th>
               <th style={{ border: '1px solid #ccc', padding: '8px' }}>State</th>
               <th style={{ border: '1px solid #ccc', padding: '8px' }}>Manage</th>
             </tr>
           </thead>
           <tbody>
-            {affiliates.map((user, idx) => {
-              const chainItem = chainData[idx];
-              if (!chainItem) {
-                // If chainData is shorter or not aligned
-                return (
-                  <tr key={user.id}>
-                    <td colSpan={5} style={{ border: '1px solid #ccc', padding: '8px' }}>
-                      <Link to={`/campaign/${campaignId}/affiliate/${user.id}`}>
-                        {user.id} - {user.firstName ?? ''} {user.lastName ?? ''}
-                      </Link>{' '}
-                      (No on-chain data)
-                    </td>
-                  </tr>
-                );
-              }
+            {sortedAffIds.map((affId) => {
+              const dbRec = dbMap.get(affId) || null;
+              const chainItem = chainMap[affId.toString()] || null;
 
-              const affiliateState = chainItem.state ?? -1n;
-              let stateLabel = affiliateState.toString();
-              if (affiliateState === 0n) stateLabel = 'Pending Approval';
-              if (affiliateState === 1n) stateLabel = 'Active';
+              let stateLabel = 'Unknown';
+              if (chainItem?.state === 0n) stateLabel = 'Pending Approval';
+              if (chainItem?.state === 1n) stateLabel = 'Active';
 
-              const affiliateLink = `/campaign/${campaignId}/affiliate/${user.id}`;
-              const showApproveButton =
-                affiliateState === 0n &&
-                isUserAdvertiser &&
-                onChainData?.campaignDetails.isPublicCampaign === false;
+              const totalEarnings = chainItem?.totalEarnings?.toString() || 'N/A';
+              const affLink = `/campaign/${campaignId}/affiliate/${affId.toString()}`;
 
-              const showRemoveButton =
-                isUserAdvertiser && onChainData?.campaignDetails.isPublicCampaign === false;
+              // Only advertisers on private campaigns can Approve/Remove
+              const showApprove =
+                isUserAdvertiser && isPrivate && chainItem?.state === 0n;
+              const showRemove = isUserAdvertiser && isPrivate;
 
               return (
-                <tr key={user.id}>
+                <tr key={affId.toString()}>
                   <td style={{ border: '1px solid #ccc', padding: '8px' }}>
-                    <Link to={affiliateLink}>{user.id}</Link>
+                    <Link to={affLink}>{affId.toString()}</Link>
                   </td>
                   <td style={{ border: '1px solid #ccc', padding: '8px' }}>
-                    <Link to={affiliateLink}>
-                      {user.firstName ?? ''} {user.lastName ?? ''}
-                    </Link>
+                    {dbRec ? (
+                      <>
+                        <p>UserID: {dbRec.id}</p>
+                        <p>
+                          Name: {dbRec.firstName} {dbRec.lastName}
+                        </p>
+                      </>
+                    ) : (
+                      <p>(No DB record found for affiliateId={affId.toString()})</p>
+                    )}
                   </td>
                   <td style={{ border: '1px solid #ccc', padding: '8px' }}>
-                    {chainItem.totalEarnings?.toString() || 'N/A'}
+                    {totalEarnings}
                   </td>
                   <td style={{ border: '1px solid #ccc', padding: '8px' }}>
-                    {stateLabel}
+                    {chainItem ? stateLabel : '(No chain data)'}
                   </td>
                   <td style={{ border: '1px solid #ccc', padding: '8px' }}>
-                    {showApproveButton && (
+                    {showApprove && (
                       <button
                         style={{ marginRight: '0.5rem' }}
-                        onClick={() => handleApprove(user.id)}
+                        onClick={() => handleApprove(affId)}
                       >
                         Approve
                       </button>
                     )}
-                    {showRemoveButton && (
-                      <button onClick={() => handleRemove(user.id)}>Remove</button>
+                    {showRemove && (
+                      <button onClick={() => handleRemove(affId)}>Remove</button>
                     )}
                   </td>
                 </tr>
@@ -254,7 +252,7 @@ export function AllAffiliatesPage() {
         </table>
       )}
 
-      {/* Pagination controls */}
+      {/* Simple pagination controls */}
       <div style={{ marginTop: '1rem' }}>
         <button
           onClick={() => {
@@ -274,7 +272,7 @@ export function AllAffiliatesPage() {
           Next
         </button>
         <span style={{ marginLeft: '1rem' }}>
-          Showing {affiliates.length} affiliates (offset={offset}, limit={limit})
+          Showing {dbMap.size} DB affiliates (offset={offset}, limit={limit})
         </span>
       </div>
     </div>

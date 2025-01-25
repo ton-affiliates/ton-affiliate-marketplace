@@ -1,11 +1,8 @@
 // src/blockchain/campaign/advertiserSetCampaignDetails.ts
 import { Dictionary, Sender, OpenedContract } from '@ton/core';
 import { Campaign } from '../../contracts/Campaign';
-import { GAS_FEE } from '@common/constants';
+import { GAS_FEE, BOT_OP_CODE_USER_CLICK } from '@common/constants';
 import { pollUntil } from './pollUntil'; // or wherever you keep pollUntil
-
-// This constant might come from your constants file or a separate module:
-export const BOT_OP_CODE_USER_CLICK = 1n; // Example usage from your code
 
 interface CommissionValues {
   userReferred: string;       // e.g. '0.1'
