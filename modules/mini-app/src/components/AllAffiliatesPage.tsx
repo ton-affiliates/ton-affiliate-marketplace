@@ -55,7 +55,7 @@ export function AllAffiliatesPage() {
   const { sender } = useTonWalletConnect();
 
   // 1) Hook up the campaign contract from ID
-  const advertiserAddr = "SOME_ADVERTISER_ADDRESS"; // or fetched from your API
+  const advertiserAddr = onChainData?.advertiser.toString(); 
   const campaignIdBig = campaignId ? BigInt(campaignId) : undefined;
 
   const {
