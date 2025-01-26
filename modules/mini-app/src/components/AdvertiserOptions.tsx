@@ -19,7 +19,7 @@ const AdvertiserOptions: React.FC = () => {
       <div className="card">
         <p>
           <strong>
-            Hi {userInfo?.firstName || 'Merchant'}!
+            Hi {userInfo?.firstName || 'Advertiser'}!
           </strong>
         </p>
         <p>What would you like to do?</p>

@@ -552,11 +552,11 @@ export default function CampaignView() {
         </h3>
       )}
 
-      {/* The row with Merchant on left, main info on right */}
+      {/* The row with Advertiser on left, main info on right */}
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: '2rem' }}>
-        {/* LEFT: Merchant */}
+        {/* LEFT: Advertiser */}
         <div style={{ flex: '0 0 300px' }}>
-          <h3>Merchant</h3>
+          <h3>Advertiser</h3>
           {loadingUser ? (
             <p>Loading owner data...</p>
           ) : advertiserUser ? (
@@ -1008,7 +1008,7 @@ export default function CampaignView() {
               <strong># User Actions:</strong> {onChainData.numUserActions.toString()}
             </p>
             <p>
-              <strong>Merchant Fee (%):</strong>{' '}
+              <strong>Advertiser Fee (%):</strong>{' '}
               {(Number(onChainData.advertiserFeePercentage) / 100).toFixed(2)}%
             </p>
             <p>

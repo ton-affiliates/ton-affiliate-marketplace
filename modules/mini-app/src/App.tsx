@@ -68,7 +68,7 @@ function AppContent() {
 
           {/* Protected routes */}
           <Route
-            path="/merchant"
+            path="/advertiser"
             element={
               <ProtectedRoute>
                 <AdvertiserOptions />

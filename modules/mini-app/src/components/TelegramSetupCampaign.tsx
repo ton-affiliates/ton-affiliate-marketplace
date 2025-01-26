@@ -1,5 +1,4 @@
 // src/components/TelegramSetupCampaign.tsx
-
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -95,13 +94,12 @@ function TelegramSetupCampaign() {
     }
   }
 
-  // 7) If you want a select or input for “telegramType”
+  // Helper for “telegramType”
   function handleTelegramTypeChange(value: string) {
     const mapped = stringToTelegramAssetType(value);
     setTelegramType(mapped ?? '');
   }
 
-  // Helper
   function stringToTelegramAssetType(value: string): TelegramAssetType | undefined {
     switch (value.toUpperCase()) {
       case 'CHANNEL':
@@ -120,7 +118,33 @@ function TelegramSetupCampaign() {
       animate={{ opacity: 1 }}
     >
       <div className="card">
-        <h2>Set Up Your Telegram</h2>
+        {/* MAIN HEADING */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <h2 style={{ margin: 0 }}>Deploy New Campaign</h2>
+          {/* Info icon with tooltip */}
+          <div
+            style={{
+              position: 'relative',
+              display: 'inline-block',
+              cursor: 'pointer',
+              fontSize: '1.2rem',
+            }}
+            title="We create a new campaign contract on the blockchain. 
+This can take ~20–30 seconds because we wait for 
+the 'CampaignCreatedEvent' on our server before moving on."
+          >
+            ℹ️
+          </div>
+        </div>
+
+        {/* EXPLANATORY TEXT */}
+        <p style={{ marginTop: '0.5rem', fontSize: '0.95rem', color: '#555' }}>
+          By clicking "Verify Setup," we’ll deploy a new campaign contract on the TON blockchain
+          and wait for our server to confirm creation. Once confirmed, you’ll
+          automatically proceed to the next step. This can take up to 30 seconds.
+        </p>
+
+        {/* Display the campaign ID if available */}
         <p>
           <strong>Campaign ID:</strong> {campaignId || 'No campaign ID provided'}
         </p>
@@ -176,7 +200,7 @@ function TelegramSetupCampaign() {
 
         {/* Invite Link (Required) */}
         <div className="form-group">
-          <label htmlFor="handle">*Copy invite link to channel here:</label>
+          <label htmlFor="inviteLink">*Copy invite link to channel here:</label>
           <input
             id="inviteLink"
             type="text"
@@ -198,7 +222,7 @@ function TelegramSetupCampaign() {
           </div>
         )}
 
-        {/* Verify Setup button */}
+        {/* "Verify Setup" button */}
         <button
           className="telegram-campaign-button"
           disabled={
@@ -214,8 +238,9 @@ function TelegramSetupCampaign() {
               ? 'Please fill all the mandatory fields marked with *'
               : ''
           }
+          style={{ marginTop: '1rem' }}
         >
-          {isVerifying ? 'Verifying...' : 'Verify Setup'}
+          {isVerifying ? 'Deploying... Please wait' : 'Verify Setup'}
         </button>
       </div>
     </motion.div>

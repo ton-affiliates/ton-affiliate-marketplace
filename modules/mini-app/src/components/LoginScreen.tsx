@@ -34,7 +34,7 @@ const LoginScreen: React.FC = () => {
 
     // Decide route based on role
     if (userRole === 'Advertiser') {
-      navigate('/merchant');
+      navigate('/advertiser');
     } else {
       navigate('/affiliate');
     }

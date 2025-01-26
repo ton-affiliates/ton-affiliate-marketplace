@@ -1,3 +1,5 @@
+// src/components/AffiliatePage.tsx
+
 import { useEffect, useState, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { Dictionary, Address } from '@ton/core';
@@ -12,9 +14,9 @@ import { affiliateWithdrawEarnings } from '../blockchain/campaign/affiliateWithd
 
 import { AffiliateData, CampaignData, UserActionStats } from '../contracts/Campaign';
 import { CampaignApiResponse, UserApiResponse } from '../models/apiResponses';
-
 import { BOT_ACTION_LABELS } from '@common/constants';
 
+// 1) fetch the single affiliate from DB
 async function fetchSingleAffiliate(campaignId: string, affiliateId: string): Promise<UserApiResponse> {
   const resp = await fetch(`/api/v1/campaign-roles/affiliates/${campaignId}/${affiliateId}`);
   if (!resp.ok) {
@@ -23,6 +25,7 @@ async function fetchSingleAffiliate(campaignId: string, affiliateId: string): Pr
   return (await resp.json()) as UserApiResponse;
 }
 
+// 2) fetch campaign from DB
 async function fetchCampaign(campaignId: string): Promise<CampaignApiResponse> {
   const resp = await fetch(`/api/v1/campaigns/${campaignId}`);
   if (!resp.ok) {
@@ -44,15 +47,21 @@ export function AffiliatePage() {
   const { userAccount } = useTonConnectFetchContext();
   const { sender } = useTonWalletConnect();
 
+  // 3) Fetch the campaign from DB (to get advertiser addr)
   useEffect(() => {
     if (!campaignId) return;
     setLoading(true);
+
     fetchCampaign(campaignId)
-      .then((data) => setCampaign(data))
+      .then((data) => {
+        console.log('[AffiliatePage] DB campaign =>', data);
+        setCampaign(data);
+      })
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
   }, [campaignId]);
 
+  // 4) Create contract from advertiserAddr + campaignId
   const advertiserAddr = campaign?.advertiserAddress;
   const campaignIdBig = campaign?.id ? BigInt(campaign.id) : undefined;
   const {
@@ -61,6 +70,7 @@ export function AffiliatePage() {
     error: contractError,
   } = useCampaignContract(advertiserAddr, campaignIdBig);
 
+  // 5) Once contract is ready, fetch affiliate data (DB + on-chain)
   useEffect(() => {
     if (!campaignId || !affiliateId || !campaignContract) return;
 
@@ -69,14 +79,20 @@ export function AffiliatePage() {
         setLoading(true);
         setError(null);
 
+        // DB user info
         const dbUser = await fetchSingleAffiliate(campaignId!, affiliateId!);
+        console.log('[AffiliatePage] DB affiliate user =>', dbUser);
         setAffiliateUser(dbUser);
 
+        // On-chain affiliate data
         const affIdBn = BigInt(affiliateId!);
         const chainData = await campaignContract!.getAffiliateData(affIdBn);
+        console.log('[AffiliatePage] onChain affiliate data =>', chainData);
         setAffiliateChainData(chainData);
 
+        // Overall campaign data
         const cData = await campaignContract!.getCampaignData();
+        console.log('[AffiliatePage] onChain campaign data =>', cData);
         setOnChainData(cData);
       } catch (err: any) {
         console.error('Error loading affiliate data:', err);
@@ -89,22 +105,34 @@ export function AffiliatePage() {
     loadData();
   }, [campaignId, affiliateId, campaignContract]);
 
+  // 6) is user the advertiser?
   const isUserAdvertiser = useMemo(() => {
     if (!userAccount?.address || !advertiserAddr) return false;
-    return userAccount.address.toLowerCase() === advertiserAddr.toLowerCase();
+    // parse both addresses so they're normalized
+    try {
+      const userAddrStr = Address.parse(userAccount.address).toString();
+      const advAddrStr = Address.parse(advertiserAddr).toString();
+      console.log('[AffiliatePage] Checking advertiser? userAddr=', userAddrStr, 'advAddr=', advAddrStr);
+      return userAddrStr === advAddrStr;
+    } catch {
+      return false;
+    }
   }, [userAccount?.address, advertiserAddr]);
 
+  // 7) is user the affiliate themself?
   const isUserTheAffiliate = useMemo(() => {
     if (!userAccount?.address || !affiliateChainData) return false;
     try {
       const userAddrParsed = Address.parse(userAccount.address).toString();
       const affAddrParsed = affiliateChainData.affiliate.toString();
+      console.log('[AffiliatePage] Checking affiliate? userAddr=', userAddrParsed, 'affAddr=', affAddrParsed);
       return userAddrParsed === affAddrParsed;
     } catch {
       return false;
     }
   }, [userAccount?.address, affiliateChainData]);
 
+  // 8) Approve / Remove / Withdraw
   async function handleApprove() {
     if (!affiliateId || !campaignContract || !sender) {
       alert('Not ready to approve affiliate. Missing ID, contract, or sender.');
@@ -152,16 +180,15 @@ export function AffiliatePage() {
     }
   }
 
+  // 9) Render stats
   function renderUserActionStats(dict?: Dictionary<bigint, UserActionStats>) {
     if (!dict) return null;
     const entries: JSX.Element[] = [];
     for (const key of dict.keys()) {
       const stats = dict.get(key);
       if (!stats) continue;
-  
-      // Use BOT_ACTION_LABELS to get a friendly name
+
       const actionLabel = BOT_ACTION_LABELS.get(key) ?? `Unknown Action (#${key.toString()})`;
-  
       entries.push(
         <div key={key.toString()} style={{ marginBottom: '0.5rem' }}>
           <strong>{actionLabel}:</strong>
@@ -175,7 +202,8 @@ export function AffiliatePage() {
     }
     return <div>{entries}</div>;
   }
-  
+
+  // 10) Basic checks
   if (!campaignId || !affiliateId) {
     return <div>Missing campaignId or affiliateId in the URL.</div>;
   }
@@ -194,34 +222,31 @@ export function AffiliatePage() {
     return <div>Affiliate data not found in DB or on-chain.</div>;
   }
 
+  // 11) State
   const affiliateState = affiliateChainData?.state ?? -1n;
-
-  /** 
-   *  We'll display the state in color:
-   *    - 'Pending Approval' = red
-   *    - 'Active' = green
-   *    - Otherwise fallback to affiliateState
-   */
   let stateDisplay;
   if (affiliateState === 0n) {
     stateDisplay = <span style={{ color: 'red' }}>Pending Approval</span>;
   } else if (affiliateState === 1n) {
     stateDisplay = <span style={{ color: 'green' }}>Active</span>;
   } else {
-    // Fallback for unexpected states
     stateDisplay = `Unknown State #${affiliateState.toString()}`;
   }
 
+  // 12) Check if campaign is private => advertisers can Approve/Remove
   const isPrivate = onChainData?.campaignDetails?.isPublicCampaign === false;
-  const advertiserApprovesWithdraws =
-    onChainData?.campaignDetails?.requiresAdvertiserApprovalForWithdrawl === true;
 
+  console.log('[AffiliatePage] isUserAdvertiser=', isUserAdvertiser);
+  console.log('[AffiliatePage] isPrivate=', isPrivate);
+  console.log('[AffiliatePage] affiliateState=', affiliateState);
+
+  const advertiserApprovesWithdraws = onChainData?.campaignDetails?.requiresAdvertiserApprovalForWithdrawl;
   const showApproveButton = isUserAdvertiser && isPrivate && affiliateState === 0n;
   const showRemoveButton = isUserAdvertiser && isPrivate;
   const showWithdrawButton = isUserTheAffiliate;
 
+  // 13) Example affiliate link
   const affiliateLink = `https://${import.meta.env.VITE_TON_AFFILIATES_VERIFIER_BOT}/${campaignId}_${affiliateId}`;
-
   function copyLink() {
     navigator.clipboard.writeText(affiliateLink).then(() => {
       alert('Affiliate link copied to clipboard!');
@@ -230,25 +255,16 @@ export function AffiliatePage() {
 
   return (
     <div style={{ margin: '1rem' }}>
-      <h1>
-        Affiliate #{affiliateId} for Campaign #{campaignId}
-      </h1>
+      <h1>Affiliate #{affiliateId} for Campaign #{campaignId}</h1>
 
+      {/* DB user data */}
       {affiliateUser ? (
         <section style={{ marginBottom: '2rem' }}>
           <h2>User Info</h2>
-          <p>
-            <strong>User ID:</strong> {affiliateUser.id}
-          </p>
-          <p>
-            <strong>First Name:</strong> {affiliateUser.firstName}
-          </p>
-          <p>
-            <strong>Last Name:</strong> {affiliateUser.lastName}
-          </p>
-          <p>
-            <strong>Telegram Username:</strong> {affiliateUser.telegramUsername}
-          </p>
+          <p><strong>User ID:</strong> {affiliateUser.id}</p>
+          <p><strong>First Name:</strong> {affiliateUser.firstName}</p>
+          <p><strong>Last Name:</strong> {affiliateUser.lastName}</p>
+          <p><strong>Telegram Username:</strong> {affiliateUser.telegramUsername}</p>
           {affiliateUser.photoUrl && (
             <img
               src={affiliateUser.photoUrl}
@@ -261,15 +277,12 @@ export function AffiliatePage() {
         <p>No DB affiliate user found.</p>
       )}
 
+      {/* On-chain data */}
       {affiliateChainData ? (
         <section style={{ marginBottom: '2rem' }}>
           <h2>On-Chain Data</h2>
-          <p>
-            <strong>Address:</strong> {affiliateChainData.affiliate.toString()}
-          </p>
-          <p>
-            <strong>State:</strong> {stateDisplay}
-          </p>
+          <p><strong>Address:</strong> {affiliateChainData.affiliate.toString()}</p>
+          <p><strong>State:</strong> {stateDisplay}</p>
 
           {advertiserApprovesWithdraws && (
             <p>
@@ -292,6 +305,7 @@ export function AffiliatePage() {
             )}
           </p>
 
+          {/* Advertiser Management */}
           {(showApproveButton || showRemoveButton) && (
             <div style={{ marginTop: '1rem' }}>
               <h3>Management</h3>
@@ -306,6 +320,7 @@ export function AffiliatePage() {
             </div>
           )}
 
+          {/* If affiliate is active, show an affiliate link */}
           {affiliateState === 1n && (
             <div style={{ marginTop: '2rem' }}>
               <h3>Affiliate Link</h3>
@@ -320,6 +335,7 @@ export function AffiliatePage() {
             </div>
           )}
 
+          {/* Stats */}
           <div style={{ marginTop: '1rem' }}>
             <h3>User Actions Stats</h3>
             {renderUserActionStats(affiliateChainData.userActionsStats)}

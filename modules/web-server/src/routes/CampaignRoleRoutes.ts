@@ -1,40 +1,49 @@
+// src/routes/CampaignRoleRoutes.ts
+
 import { Router } from 'express';
 import {
   getSingleAffiliateUserForCampaign,
-  getAffiliateUsersForCampaignPaged,
-  getAffiliatesByWallet
+  getAffiliatesByWallet,
+  getAffiliateRolesForCampaignPaged, // <--- we use THIS now
 } from '../services/CampaignRolesService';
 import { Logger } from '../utils/Logger';
 import { Address } from '@ton/core';
 
 const router = Router();
 
-
 /**
  * GET /campaign-roles/affiliates/paged/:campaignId
- * Retrieve affiliates for a campaign with pagination
+ * Retrieve affiliate "roles" for a campaign with pagination
  */
 router.get('/affiliates/paged/:campaignId', async (req, res) => {
   try {
-    Logger.debug(`GET /campaign-roles/affiliates/paged/${req.params.campaignId} - fetching affiliates (paged)`);
+    Logger.debug(
+      `GET /campaign-roles/affiliates/paged/${req.params.campaignId} - fetching affiliates (paged)`
+    );
 
     const { campaignId } = req.params;
-
-    // Use query params for offset & limit, or defaults if not provided
     const offset = parseInt(req.query.offset as string) || 0;
     const limit = parseInt(req.query.limit as string) || 100;
 
-    const affiliates = await getAffiliateUsersForCampaignPaged(campaignId, offset, limit);
-    res.json(affiliates);
+    // CHANGED to getAffiliateRolesForCampaignPaged
+    const roles = await getAffiliateRolesForCampaignPaged(campaignId, offset, limit);
+
+    // Return the raw CampaignRole[] (which includes affiliateId, walletAddress, etc.)
+    res.json(roles);
     return;
   } catch (err: any) {
-    Logger.error(`Error in GET /campaign-roles/affiliates/paged/${req.params.campaignId}: ${err}`);
+    Logger.error(
+      `Error in GET /campaign-roles/affiliates/paged/${req.params.campaignId}: ${err}`
+    );
     res.status(500).json({ error: err.message || 'Internal Server Error' });
     return;
   }
 });
 
-
+/**
+ * GET /campaign-roles/affiliates/:campaignId/:affiliateId
+ * Retrieve a single affiliate user for a campaign
+ */
 router.get('/affiliates/:campaignId(\\d+)/:affiliateId(\\d+)', async (req, res) => {
   try {
     Logger.debug(
@@ -42,14 +51,17 @@ router.get('/affiliates/:campaignId(\\d+)/:affiliateId(\\d+)', async (req, res) 
     );
 
     const { campaignId, affiliateId } = req.params;
-    const affiliate = await getSingleAffiliateUserForCampaign(campaignId, parseInt(affiliateId as string));
+    const affUser = await getSingleAffiliateUserForCampaign(
+      campaignId,
+      parseInt(affiliateId as string)
+    );
 
-    if (!affiliate) {
+    if (!affUser) {
       res.status(404).json({ error: 'Affiliate not found' });
       return;
     }
 
-    res.json(affiliate);
+    res.json(affUser);
     return;
   } catch (err: any) {
     Logger.error(
@@ -60,23 +72,20 @@ router.get('/affiliates/:campaignId(\\d+)/:affiliateId(\\d+)', async (req, res) 
   }
 });
 
-
 /**
  * GET /campaign-roles/affiliates/by-wallet/:walletAddress
  * Retrieve all affiliates associated with a specific wallet address
  */
 router.get('/affiliates/by-wallet/:walletAddress', async (req, res) => {
   try {
-    Logger.debug(`GET /campaign-roles/affiliates/by-wallet/${req.params.walletAddress} - fetching affiliates by wallet`);
+    Logger.debug(
+      `GET /campaign-roles/affiliates/by-wallet/${req.params.walletAddress} - fetching affiliates by wallet`
+    );
 
     const { walletAddress } = req.params;
-
-    // Parse the wallet address into a TON Address object
     const tonAddress = Address.parse(walletAddress);
 
-    // Fetch all affiliates associated with the wallet
     const affiliates = await getAffiliatesByWallet(tonAddress);
-
     if (affiliates.length === 0) {
       res.status(404).json({ error: 'No affiliates found for the provided wallet address' });
       return;
@@ -85,7 +94,9 @@ router.get('/affiliates/by-wallet/:walletAddress', async (req, res) => {
     res.json(affiliates);
     return;
   } catch (err: any) {
-    Logger.error(`Error in GET /campaign-roles/affiliates/by-wallet/${req.params.walletAddress}: ${err}`);
+    Logger.error(
+      `Error in GET /campaign-roles/affiliates/by-wallet/${req.params.walletAddress}: ${err}`
+    );
     res.status(500).json({ error: err.message || 'Internal Server Error' });
     return;
   }
