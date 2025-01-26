@@ -50,20 +50,11 @@ router.post(
 
       // upsert user in DB
       const user = await upsertUser(userData);
-      
-      Logger.info("Guy after: " + user);
 
-      try {
-        await sendTelegramMessage(Number(id), userData.firstName + ', you successfuly logged in to TonAffiliates!');
-        // If successful, we know the bot can message them
-        res.json({ success: true, user, canMessage: true });
-        return;
-      } catch (err) {
-        // 403 or some other error => user hasn't started the bot
-        res.json({ success: true, user, canMessage: false });
-        return;
-      }
-
+      if (!user.canMessage) {
+          await sendTelegramMessage(Number(id), userData.firstName + ', you successfuly logged in to TonAffiliates!');
+      } 
+      res.json({ success: true, user, canMessage: user.canMessage });
     } catch (err: any) {
       Logger.error('Error in POST /telegram-verify route', err);
       return void res.status(500).json({ error: err.message || 'Internal Server Error' });

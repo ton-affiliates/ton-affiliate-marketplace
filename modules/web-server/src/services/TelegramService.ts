@@ -126,6 +126,9 @@ export async function sendTelegramMessage(userId: number, text: string, parseMod
         text: text
       });
     }
+
+    user.canMessage = true;
+    await upsertUser(user);
    
   } catch (err: any) {
     // If the error indicates the user blocked the bot:
