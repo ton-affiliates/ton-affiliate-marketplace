@@ -17,29 +17,41 @@ function walletRepository() {
 export async function upsertUser(userData: Partial<User>): Promise<User> {
   const repo = appDataSource.getRepository(User);
 
-  // Convert userData into the object fields you want to insert/update
-  // e.g. "firstName", "lastName", etc.
-  // For simplicity, we assume userData has the correct property names.
-  const insertResult: InsertResult = await repo
-    .createQueryBuilder()
-    .insert()
-    .into(User)
-    .values(userData)
-    .onConflict(`
-      ("id") DO UPDATE SET
-        "first_name" = EXCLUDED."first_name",
-        "last_name" = EXCLUDED."last_name",
-        "telegram_username" = EXCLUDED."telegram_username",
-        "photo_url" = EXCLUDED."photo_url",
-        "auth_date" = EXCLUDED."auth_date"
-    `)
-    .returning('*') // So we can get the updated row back
-    .execute();
+  // 1) Find existing user
+  let existing = await repo.findOneBy({ id: userData.id });
+  
+  // 2) If none, create a new entity
+  if (!existing) {
+    existing = repo.create(userData); // fill fields from partial
+  } else {
+    // 3) Merge only properties that are present in userData
+    if (userData.firstName !== undefined) {
+      existing.firstName = userData.firstName;
+    }
+    if (userData.lastName !== undefined) {
+      existing.lastName = userData.lastName;
+    }
+    if (userData.telegramUsername !== undefined) {
+      existing.telegramUsername = userData.telegramUsername;
+    }
+    if (userData.photoUrl !== undefined) {
+      existing.photoUrl = userData.photoUrl;
+    }
+    if (userData.authDate !== undefined) {
+      existing.authDate = userData.authDate;
+    }
+    if (userData.telegramLanguage !== undefined) {
+      existing.telegramLanguage = userData.telegramLanguage;
+    }
+    if (userData.canMessage !== undefined) {
+      existing.canMessage = userData.canMessage;
+    }
+  }
 
-  // insertResult.raw[0] will have the newly inserted or updated row
-  const updatedOrInsertedUser = insertResult.raw[0];
-  return updatedOrInsertedUser;
+  // 4) Save creates or updates as needed
+  return repo.save(existing);
 }
+
 
 
 /**

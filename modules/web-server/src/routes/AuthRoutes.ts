@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import crypto from 'crypto';
 import { Logger } from '../utils/Logger';
-import { upsertUser } from '../services/UsersService';
+import { upsertUser, getUserById } from '../services/UsersService';
 import dotenv from 'dotenv';
 import { sendTelegramMessage } from '../services/TelegramService'
 
@@ -34,8 +34,6 @@ router.post(
         Logger.error('Telegram login signature check failed (POST /telegram-verify).');
         return void res.status(401).json({ error: 'Invalid Telegram data signature' });
       }
-
-      Logger.info("Guy- photo url: " + photo_url)
 
       // 2) Upsert user in DB
       const userData = {
