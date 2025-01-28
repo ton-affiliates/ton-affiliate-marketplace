@@ -1,6 +1,8 @@
+// src/components/AllAffiliatesPage.tsx
 import { useEffect, useState, useMemo } from 'react';
 import { useParams, useSearchParams, Link } from 'react-router-dom';
 import { Dictionary, Address } from '@ton/core';
+
 import { useCampaignContract } from '../hooks/useCampaignContract';
 import { advertiserApproveAffiliate } from '../blockchain/campaign/advertiserApproveAffiliate';
 import { advertiserRemoveAffiliate } from '../blockchain/campaign/advertiserRemoveAffiliate';
@@ -9,6 +11,7 @@ import { useTonConnectFetchContext } from './TonConnectProvider';
 import { useTonWalletConnect } from '../hooks/useTonConnect';
 import { CampaignRoleApiResponse } from '../models/apiResponses';
 
+/** 1) DB call: fetch paged affiliates */
 async function fetchPagedAffiliates(
   campaignId: string,
   offset: number,
@@ -19,9 +22,16 @@ async function fetchPagedAffiliates(
   if (!resp.ok) {
     throw new Error(`Failed to fetch affiliates. Status ${resp.status}`);
   }
-  const data = await resp.json();
-  console.log('[fetchPagedAffiliates] raw data from server:', data);
-  return data;
+  return await resp.json();
+}
+
+/** 2) DB call: fetch the campaign => campaign.campaignContractAddress */
+async function fetchCampaign(campaignId: string) {
+  const resp = await fetch(`/api/v1/campaigns/${campaignId}`);
+  if (!resp.ok) {
+    throw new Error(`Failed to load campaign from DB. Status: ${resp.status}`);
+  }
+  return resp.json();
 }
 
 export function AllAffiliatesPage() {
@@ -30,9 +40,15 @@ export function AllAffiliatesPage() {
   const offset = parseInt(searchParams.get('offset') || '0', 10);
   const limit = parseInt(searchParams.get('limit') || '10', 10);
 
+  // The campaign’s *string* address from DB
+  const [campaignContractAddress, setCampaignContractAddress] = useState<string | undefined>();
+
+  // On-chain data (has advertiser: Address)
+  const [onChainData, setOnChainData] = useState<CampaignData | null>(null);
+
+  // DB + chain affiliate data
   const [dbMap, setDbMap] = useState<Map<bigint, CampaignRoleApiResponse>>(new Map());
   const [chainMap, setChainMap] = useState<Record<string, AffiliateData>>({});
-  const [onChainData, setOnChainData] = useState<CampaignData | null>(null);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -40,106 +56,65 @@ export function AllAffiliatesPage() {
   const { userAccount } = useTonConnectFetchContext();
   const { sender } = useTonWalletConnect();
 
-  const campaignIdBig = useMemo<bigint | null>(() => {
-    if (!campaignId) return null;
-    try {
-      return BigInt(campaignId);
-    } catch (err) {
-      console.error('[AllAffiliatesPage] Invalid campaignId, cannot parse as BigInt:', campaignId);
-      return null;
-    }
-  }, [campaignId]);
-
-  if (!campaignId || campaignIdBig === null) {
+  // 1) Validate
+  if (!campaignId) {
     return (
       <div style={{ color: 'red', margin: '1rem' }}>
-        <h1>Invalid or missing campaign ID in URL</h1>
+        <h1>Missing campaignId in URL</h1>
       </div>
     );
   }
 
-  // Advertiser address (populated once we fetch the DB campaign or chain data)
-  const advertiserAddr = useMemo(() => {
-    if (onChainData?.advertiser) {
-      return onChainData.advertiser.toString();
-    }
-    return null;
-  }, [onChainData]);
-
-  // 1) fetch advertiserAddress from DB
+  // 2) On mount, fetch from DB => get campaignContractAddress
   useEffect(() => {
-    async function fetchAdvertiserAddress() {
+    (async () => {
       try {
         setLoading(true);
-        setError(null);
-
-        console.log('[AllAffiliatesPage] Fetching campaign from DB for ID:', campaignId);
-        const resp = await fetch(`/api/v1/campaigns/${campaignId}`);
-        if (!resp.ok) {
-          throw new Error(`Failed to load campaign from DB. Status: ${resp.status}`);
-        }
-        const dbCampaign = await resp.json();
-        console.log('[AllAffiliatesPage] DB campaign record:', dbCampaign);
-
-        if (!dbCampaign.advertiserAddress) {
-          throw new Error('No advertiserAddress in DB campaign data');
-        }
-
-        // Construct partial onChainData
-        setOnChainData((prev) => ({
-          ...prev,
-          advertiser: Address.parse(dbCampaign.advertiserAddress),
-        } as unknown as CampaignData));
+        const dbCampaign = await fetchCampaign(campaignId);
+        console.log('[AllAffiliatesPage] DB campaign =>', dbCampaign);
+        setCampaignContractAddress(dbCampaign.campaignContractAddress); // a string
       } catch (err: any) {
         setError(err.message);
       } finally {
         setLoading(false);
       }
-    }
-    fetchAdvertiserAddress();
+    })();
   }, [campaignId]);
 
-  // 2) instantiate the contract
+  // 3) Use the contract hook with campaignContractAddress
   const {
     campaignContract,
     isLoading: contractLoading,
-    error: contractError,
-  } = useCampaignContract(advertiserAddr || undefined, campaignIdBig);
+    error: contractError
+  } = useCampaignContract(campaignContractAddress);
 
-  // 3) once contract is ready, fetch campaign data + affiliate dictionary
+  // 4) Once we have the contract, fetch on-chain data
   useEffect(() => {
-    if (!campaignContract) {
-      console.log('[AllAffiliatesPage] No campaignContract yet, skipping chain fetch');
-      return;
-    }
-    setLoading(true);
-    setError(null);
-
+    if (!campaignContract) return;
     (async () => {
+      setLoading(true);
+      setError(null);
+
       try {
-        console.log('[AllAffiliatesPage] Fetching getCampaignData() from chain...');
         const cData = await campaignContract.getCampaignData();
         console.log('[AllAffiliatesPage] onChainData =>', cData);
         setOnChainData(cData);
 
+        // fetch affiliates in offset..limit from chain
         const fromIdx = BigInt(offset);
         const toIdx = BigInt(offset + limit - 1);
-        console.log(
-          `[AllAffiliatesPage] Calling getAffiliatesDataInRange(${fromIdx}, ${toIdx})...`
-        );
-        const dictionary: Dictionary<bigint, AffiliateData> =
+        const dict: Dictionary<bigint, AffiliateData> =
           await campaignContract.getAffiliatesDataInRange(fromIdx, toIdx);
 
         const chainObj: Record<string, AffiliateData> = {};
-        for (const key of dictionary.keys()) {
-          const data = dictionary.get(key);
+        for (const key of dict.keys()) {
+          const data = dict.get(key);
           if (data) {
             chainObj[key.toString()] = data;
           }
         }
         console.log('[AllAffiliatesPage] chainMap =>', chainObj);
         setChainMap(chainObj);
-
       } catch (err: any) {
         setError(err.message);
       } finally {
@@ -148,41 +123,42 @@ export function AllAffiliatesPage() {
     })();
   }, [campaignContract, offset, limit]);
 
-  // 4) fetch DB affiliates for the same range
+  // 5) Also fetch the DB affiliates for offset..limit
   useEffect(() => {
-    console.log('[AllAffiliatesPage] fetchPagedAffiliates => offset:', offset, 'limit:', limit);
-    setLoading(true);
-    setError(null);
+    (async () => {
+      setLoading(true);
+      setError(null);
 
-    fetchPagedAffiliates(String(campaignIdBig), offset, limit)
-      .then((roles) => {
+      try {
+        const roles = await fetchPagedAffiliates(campaignId, offset, limit);
         console.log('[AllAffiliatesPage] Roles from DB =>', roles);
+
         const newMap = new Map<bigint, CampaignRoleApiResponse>();
         for (const role of roles) {
           if (role.affiliateId !== null) {
             newMap.set(BigInt(role.affiliateId), role);
           }
         }
-        console.log('[AllAffiliatesPage] Built dbMap =>', newMap);
         setDbMap(newMap);
-      })
-      .catch((err) => setError(err.message))
-      .finally(() => setLoading(false));
-  }, [campaignIdBig, offset, limit]);
+      } catch (err: any) {
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, [campaignId, offset, limit]);
 
-  // Check if user is advertiser
+  // 6) isUserAdvertiser => compare user address with onChainData.advertiser (Address)
   const isUserAdvertiser = useMemo(() => {
-    if (!userAccount?.address || !advertiserAddr) {
-      return false;
-    }
+    if (!userAccount?.address || !onChainData?.advertiser) return false;
     try {
-      const userAddrStr = Address.parse(userAccount.address).toString();
-      const advAddrStr = Address.parse(advertiserAddr).toString();
+      const userAddrStr = Address.parse(userAccount.address).toString(); // normalize
+      const advAddrStr = onChainData.advertiser.toString(); // from `Address => string`
       return userAddrStr === advAddrStr;
     } catch {
       return false;
     }
-  }, [userAccount?.address, advertiserAddr]);
+  }, [userAccount?.address, onChainData?.advertiser]);
 
   // Approve / Remove
   async function handleApprove(affId: bigint) {
@@ -191,7 +167,6 @@ export function AllAffiliatesPage() {
       return;
     }
     try {
-      console.log('[AllAffiliatesPage] Approving affiliate ID:', affId.toString());
       await advertiserApproveAffiliate(campaignContract, affId, sender);
       alert(`Approved affiliate ID: ${affId.toString()}`);
     } catch (err: any) {
@@ -206,7 +181,6 @@ export function AllAffiliatesPage() {
       return;
     }
     try {
-      console.log('[AllAffiliatesPage] Removing affiliate ID:', affId.toString());
       await advertiserRemoveAffiliate(campaignContract, affId, sender);
       alert(`Removed affiliate ID: ${affId.toString()}`);
     } catch (err: any) {
@@ -215,9 +189,8 @@ export function AllAffiliatesPage() {
     }
   }
 
-  // If there's any error
+  // If there's an error
   if (error) {
-    console.error('[AllAffiliatesPage] error =>', error);
     return (
       <div style={{ margin: '1rem', color: 'red' }}>
         <h2>Error</h2>
@@ -228,27 +201,27 @@ export function AllAffiliatesPage() {
 
   const loadingState = loading || contractLoading;
 
-  // Combine IDs
+  // If still loading and we don't have onChainData yet => show a message
+  if (loadingState && !onChainData) {
+    return <p style={{ margin: '1rem' }}>Loading data...</p>;
+  }
+
+  // Merge DB + chain affiliates
   const allAffIds = new Set<bigint>([
     ...dbMap.keys(),
     ...Object.keys(chainMap).map((k) => BigInt(k)),
   ]);
   const sortedAffIds = Array.from(allAffIds).sort((a, b) => Number(a - b));
 
+  // Check if the campaign is private => advertiser must Approve
   const isPrivate = onChainData?.campaignDetails?.isPublicCampaign === false;
-
-  // Print final data sets before rendering
-  console.log('[AllAffiliatesPage] Final chainMap =>', chainMap);
-  console.log('[AllAffiliatesPage] Final dbMap =>', dbMap);
-  console.log('[AllAffiliatesPage] allAffIds =>', sortedAffIds);
 
   return (
     <div style={{ margin: '1rem' }}>
-      <h1>All Affiliates for Campaign #{campaignIdBig.toString()}</h1>
-      {(loadingState || !onChainData) && <p>Loading data...</p>}
+      <h1>All Affiliates for Campaign #{campaignId}</h1>
       {contractError && <p style={{ color: 'red' }}>{contractError}</p>}
 
-      {/* Table */}
+      {/* Table of affiliates */}
       {!loadingState && onChainData && (
         <table style={{ borderCollapse: 'collapse', width: '100%' }}>
           <thead>
@@ -270,7 +243,7 @@ export function AllAffiliatesPage() {
               if (chainItem?.state === 1n) stateLabel = 'Active';
 
               const totalEarnings = chainItem ? chainItem.totalEarnings.toString() : 'N/A';
-              const affLink = `/campaign/${campaignIdBig.toString()}/affiliate/${affId.toString()}`;
+              const affLink = `/campaign/${campaignId}/affiliate/${affId.toString()}`;
 
               const showApprove = isUserAdvertiser && isPrivate && chainItem?.state === 0n;
               const showRemove = isUserAdvertiser && isPrivate;
@@ -299,7 +272,9 @@ export function AllAffiliatesPage() {
                       </button>
                     )}
                     {showRemove && (
-                      <button onClick={() => handleRemove(affId)}>Remove</button>
+                      <button onClick={() => handleRemove(affId)}>
+                        Remove
+                      </button>
                     )}
                   </td>
                 </tr>
@@ -309,7 +284,7 @@ export function AllAffiliatesPage() {
         </table>
       )}
 
-      {/* Pagination */}
+      {/* Pagination controls */}
       <div style={{ marginTop: '1rem' }}>
         <button
           onClick={() => {

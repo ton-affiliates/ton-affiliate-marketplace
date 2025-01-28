@@ -4,7 +4,7 @@ import appDataSource from '../ormconfig';
 import { Logger } from '../utils/Logger';
 import { CampaignRole, RoleType } from '../entity/CampaignRole';
 import { Address } from '@ton/core';
-import { User } from 'entity/User';
+import { User } from '../entity/User';
 
 function campaignRoleRepository() {
   return appDataSource.getRepository(CampaignRole);
@@ -32,7 +32,7 @@ export async function createCampaignRole(data: CreateCampaignRoleInput): Promise
       campaignId: data.campaignId,
       walletAddress,
       role: data.role,
-      affiliateId: data.affiliateId ?? undefined,
+      affiliateId: data.affiliateId,
     };
 
     const roleEntity = repo.create(roleData);
@@ -51,7 +51,6 @@ export async function deleteCampaignRoleByCampaignAndWallet(
   walletAddress: string
 ): Promise<boolean> {
   try {
-    // we can only delete affiliates (never an advertiser)
     const repo = campaignRoleRepository();
     const result = await repo.delete({
       campaignId,
@@ -61,39 +60,49 @@ export async function deleteCampaignRoleByCampaignAndWallet(
     return result.affected !== 0;
   } catch (err) {
     Logger.error(
-      `Error deleting campaign role with campaignId=${campaignId} and walletAddress=${walletAddress}: ` + err
+      `Error deleting campaign role with campaignId=${campaignId} ` +
+      `and walletAddress=${walletAddress}: ${err}`
     );
     throw new Error('Could not delete campaign role');
   }
 }
 
 /**
- * Fetch the ADVERTISER's user for a given campaign, if any
+ * Fetch the ADVERTISER's users for a given campaign.
+ * Because one "advertiser" wallet could have multiple user accounts,
+ * we return an array of Users (could be empty).
  */
-export async function getAdvertiserUserForCampaign(
+export async function getAdvertiserUsersForCampaign(
   campaignId: string
-): Promise<User | null> {
+): Promise<User[]> {
   try {
     const repo = campaignRoleRepository();
-    const role = await repo.findOne({
+    // Find the CampaignRole with role=ADVERTISER for that campaign
+    // and load wallet + wallet.users
+    const advertiserRole = await repo.findOne({
       where: { campaignId, role: RoleType.ADVERTISER },
-      relations: ['wallet', 'wallet.user'],
+      relations: ['wallet', 'wallet.users'],
     });
-    if (!role) return null;
-    return role.wallet?.user || null;
+    if (!advertiserRole || !advertiserRole.wallet) {
+      return [];
+    }
+    // Return all users linked to that wallet
+    return advertiserRole.wallet.users ?? [];
   } catch (err) {
-    Logger.error(`Error fetching advertiser (User) for campaign: ${campaignId}. ${err}`);
-    throw new Error('Could not retrieve advertiser user');
+    Logger.error(`Error fetching advertiser (Users) for campaign: ${campaignId}. ${err}`);
+    throw new Error('Could not retrieve advertiser users');
   }
 }
 
 /**
- * Fetch a single affiliate's user in a campaign by affiliateId
+ * Fetch all users for a given affiliateId in a campaign.
+ * Because the wallet for this affiliate could be linked to many users,
+ * we return an array of them.
  */
-export async function getSingleAffiliateUserForCampaign(
+export async function getAffiliateUsersForCampaign(
   campaignId: string,
   affiliateId: number
-): Promise<User | null> {
+): Promise<User[]> {
   try {
     const repo = campaignRoleRepository();
     const role = await repo.findOne({
@@ -102,21 +111,19 @@ export async function getSingleAffiliateUserForCampaign(
         affiliateId,
         role: RoleType.AFFILIATE,
       },
-      relations: ['wallet', 'wallet.user'],
+      relations: ['wallet', 'wallet.users'],
     });
-    if (!role) return null;
-    return role.wallet?.user || null;
+    if (!role || !role.wallet) {
+      return [];
+    }
+    return role.wallet.users ?? [];
   } catch (err) {
     Logger.error(`Error fetching affiliate (id=${affiliateId}) for campaign: ${campaignId}. ${err}`);
-    throw new Error('Could not retrieve affiliate user');
+    throw new Error('Could not retrieve affiliate users');
   }
 }
 
-/**
- * [LEGACY] Returns an array of "User" objects, ignoring affiliateId
- * This is why your front end had no affiliateId previously.
- * Keep it only if you still need user-based results somewhere else.
- */
+
 export async function getAffiliateUsersForCampaignPaged(
   campaignId: string,
   offset = 0,
@@ -129,17 +136,19 @@ export async function getAffiliateUsersForCampaignPaged(
         campaignId,
         role: RoleType.AFFILIATE,
       },
-      relations: ['wallet', 'wallet.user'],
+      relations: ['wallet', 'wallet.users'],
       skip: offset,
       take: limit,
     });
 
-    // Transform from CampaignRole => just the "User" portion
-    const users = roles
-      .map((role) => role.wallet?.user || null)
-      .filter((u): u is User => u !== null);
-
-    return users;
+    // Flatten all wallet.users across these roles
+    const allUsers: User[] = [];
+    for (const role of roles) {
+      if (role.wallet?.users) {
+        allUsers.push(...role.wallet.users);
+      }
+    }
+    return allUsers;
   } catch (err) {
     Logger.error(`Error fetching affiliate users (paged) for campaign: ${campaignId}. ${err}`);
     throw new Error('Could not retrieve affiliate users');
@@ -147,8 +156,10 @@ export async function getAffiliateUsersForCampaignPaged(
 }
 
 /**
- * Return an array of CampaignRole (including affiliateId) for a campaign,
- * with pagination. This is what you want to return to the front end.
+ * Return an array of *CampaignRole* (including affiliateId) for a campaign,
+ * with pagination. We load wallet.users as well, so you can see which users
+ * are behind each wallet. The front-end can pick out the user array from
+ * `role.wallet.users`.
  */
 export async function getAffiliateRolesForCampaignPaged(
   campaignId: string,
@@ -164,7 +175,7 @@ export async function getAffiliateRolesForCampaignPaged(
       },
       skip: offset,
       take: limit,
-      relations: ['wallet', 'wallet.user'],
+      relations: ['wallet', 'wallet.users'],
     });
   } catch (err) {
     Logger.error(`Error fetching affiliate roles (paged) for campaign: ${campaignId}. ${err}`);
@@ -173,7 +184,8 @@ export async function getAffiliateRolesForCampaignPaged(
 }
 
 /**
- * Find all affiliates for a given wallet address
+ * Find all AFFILIATE roles for a given wallet address
+ * (the wallet could be linked to multiple campaigns).
  */
 export async function getAffiliatesByWallet(
   tonAddress: Address
@@ -182,11 +194,13 @@ export async function getAffiliatesByWallet(
     const repo = campaignRoleRepository();
     const walletAddress = tonAddress.toString();
 
+    // For AFFILIATE roles that match this wallet address
     const affiliates = await repo.find({
       where: {
         walletAddress,
         role: RoleType.AFFILIATE,
       },
+      // load 'campaign' if you want info about the campaign
       relations: ['campaign'],
     });
     return affiliates;

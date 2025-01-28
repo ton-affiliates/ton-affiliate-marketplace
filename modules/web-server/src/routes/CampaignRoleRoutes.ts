@@ -2,9 +2,9 @@
 
 import { Router } from 'express';
 import {
-  getSingleAffiliateUserForCampaign,
   getAffiliatesByWallet,
-  getAffiliateRolesForCampaignPaged, // <--- we use THIS now
+  getAffiliateRolesForCampaignPaged, 
+  getAffiliateUsersForCampaign
 } from '../services/CampaignRolesService';
 import { Logger } from '../utils/Logger';
 import { Address } from '@ton/core';
@@ -51,17 +51,17 @@ router.get('/affiliates/:campaignId(\\d+)/:affiliateId(\\d+)', async (req, res) 
     );
 
     const { campaignId, affiliateId } = req.params;
-    const affUser = await getSingleAffiliateUserForCampaign(
+    const affUsers = await getAffiliateUsersForCampaign(
       campaignId,
       parseInt(affiliateId as string)
     );
 
-    if (!affUser) {
+    if (!affUsers) {
       res.status(404).json({ error: 'Affiliate not found' });
       return;
     }
 
-    res.json(affUser);
+    res.json(affUsers);
     return;
   } catch (err: any) {
     Logger.error(

@@ -41,6 +41,8 @@ const DeployEmptyCampaign: React.FC<DeployEmptyCampaignProps> = () => {
   useEffect(() => {
     const fetchNumCampaigns = async () => {
       if (!affiliateMarketplace) return;
+      console.log("Guy1");
+      console.log(affiliateMarketplace.address);
       try {
         const count = await affiliateMarketplace.getNumCampaigns();
         setNumCampaigns(count.toString());

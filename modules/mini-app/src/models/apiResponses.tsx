@@ -10,7 +10,7 @@ export interface NotificationApiResponse {
 
 export interface CampaignApiResponse {
   id: string;
-  advertiserAddress: string;
+  campaignContractAddress: string;
   campaignName: string;
   assetName: string;
   assetType?: string;

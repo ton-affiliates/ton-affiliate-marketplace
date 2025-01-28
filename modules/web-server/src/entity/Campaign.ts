@@ -4,7 +4,11 @@ import {
   Column,
   CreateDateColumn,
   UpdateDateColumn,
+  ManyToOne,
+  JoinColumn,
 } from 'typeorm';
+import { Wallet } from './Wallet'; // <-- Make sure this path is correct
+
 
 // Define the enum for campaign states
 export enum CampaignState {
@@ -17,6 +21,21 @@ export enum CampaignState {
 export class Campaign {
   @PrimaryColumn({ type: 'varchar', length: 255, name: 'id' })
   id: string;
+
+  /**
+   * The raw contract address string stored in the DB
+   */
+  @Column({
+    type: 'varchar',
+    length: 255,
+    name: 'campaign_contract_address',
+    nullable: true, // or false, depending on whether it's optional
+  })
+  campaignContractAddress: string;
+
+  @ManyToOne(() => Wallet, { eager: false })
+  @JoinColumn({ name: 'campaign_contract_address', referencedColumnName: 'address' })
+  campaignContractWallet: Wallet;
 
   @Column({ length: 255, nullable: true, name: 'name' })
   campaignName: string;
@@ -33,14 +52,12 @@ export class Campaign {
   @Column({ type: 'text', nullable: true, name: 'asset_description' })
   assetDescription: string;
 
-  // Telegram link to channel/group/mini-app
   @Column({ length: 500, nullable: true, name: 'invite_link' })
   inviteLink: string;
 
   @Column({ type: 'bytea', nullable: true, name: 'asset_photo' })
   assetPhoto: Buffer | null;
 
-  // State column to manage campaign states
   @Column({
     type: 'enum',
     enum: CampaignState,
@@ -51,4 +68,8 @@ export class Campaign {
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
+
+  // If you need updated_at:
+  @UpdateDateColumn({ name: 'updated_at' })
+  updatedAt: Date;
 }

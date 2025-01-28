@@ -22,34 +22,53 @@ export class InitialSchema1736681774554 implements MigrationInterface {
     await queryRunner.query(`
       CREATE TABLE IF NOT EXISTS "wallets" (
         "address"      VARCHAR(255) PRIMARY KEY,
-        "user_id"      BIGINT NOT NULL,
         "wallet_type"  VARCHAR(50),
         "public_key"   VARCHAR(255),
         "created_at"   TIMESTAMP NOT NULL DEFAULT NOW(),
-        "updated_at"   TIMESTAMP NOT NULL DEFAULT NOW(),
-        CONSTRAINT "fk_user_wallet"
+        "updated_at"   TIMESTAMP NOT NULL DEFAULT NOW()
+      );
+    `);
+
+    // 3) user_wallets (join table for the many-to-many)
+    await queryRunner.query(`
+      CREATE TABLE IF NOT EXISTS "user_wallets" (
+        "user_id"         BIGINT NOT NULL,
+        "wallet_address"  VARCHAR(255) NOT NULL,
+        "created_at"      TIMESTAMP NOT NULL DEFAULT NOW(),
+
+        CONSTRAINT "pk_user_wallets" PRIMARY KEY ("user_id", "wallet_address"),
+        CONSTRAINT "fk_user_wallets_user"
           FOREIGN KEY ("user_id")
           REFERENCES "users"("id")
+          ON DELETE CASCADE,
+        CONSTRAINT "fk_user_wallets_wallet"
+          FOREIGN KEY ("wallet_address")
+          REFERENCES "wallets"("address")
+          ON DELETE CASCADE
       );
     `);
 
-    // 3) campaigns TABLE
+    // 4) campaigns TABLE
+    //    We add `campaign_contract_address` with a foreign key to `wallets(address)`.
     await queryRunner.query(`
       CREATE TABLE IF NOT EXISTS "campaigns" (
-        "id"                VARCHAR(255) PRIMARY KEY,
-        "name"              VARCHAR(255),
-        "asset_type"        VARCHAR(255),
-        "asset_name"        VARCHAR(255),
-        "asset_category"    VARCHAR(255),
-        "asset_description" TEXT,
-        "invite_link"       VARCHAR(500),
-        "asset_photo"       BYTEA,
-        "state"             VARCHAR(50) NOT NULL DEFAULT 'DEPLOYED',
-        "created_at"        TIMESTAMP NOT NULL DEFAULT NOW()
+        "id"                         VARCHAR(255) PRIMARY KEY,
+        "campaign_contract_address"  VARCHAR(255),
+        "name"                       VARCHAR(255),
+        "asset_type"                 VARCHAR(255),
+        "asset_name"                 VARCHAR(255),
+        "asset_category"             VARCHAR(255),
+        "asset_description"          TEXT,
+        "invite_link"                VARCHAR(500),
+        "asset_photo"                BYTEA,
+        "state"                      VARCHAR(50) NOT NULL DEFAULT 'DEPLOYED',
+        "created_at"                 TIMESTAMP NOT NULL DEFAULT NOW(),
+        -- If you want an updated_at column in DB:
+        "updated_at"                 TIMESTAMP NOT NULL DEFAULT NOW()
       );
     `);
 
-    // Add the trigger function to enforce immutability after reaching the final state
+    // Trigger function to enforce immutability after final state
     await queryRunner.query(`
       CREATE OR REPLACE FUNCTION prevent_modification_after_final_state()
       RETURNS TRIGGER AS $$
@@ -62,7 +81,7 @@ export class InitialSchema1736681774554 implements MigrationInterface {
       $$ LANGUAGE plpgsql;
     `);
 
-    // Add the trigger to the campaigns table
+    // Attach trigger to the campaigns table
     await queryRunner.query(`
       CREATE TRIGGER prevent_final_state_modification
       BEFORE UPDATE ON "campaigns"
@@ -70,7 +89,7 @@ export class InitialSchema1736681774554 implements MigrationInterface {
       EXECUTE FUNCTION prevent_modification_after_final_state();
     `);
 
-    // 4) Create an ENUM type in Postgres for "role_type"
+    // 5) role_type enum
     await queryRunner.query(`
       DO $$
       BEGIN
@@ -81,7 +100,7 @@ export class InitialSchema1736681774554 implements MigrationInterface {
       $$;
     `);
 
-    // 5) campaign_roles TABLE
+    // 6) campaign_roles TABLE
     await queryRunner.query(`
       CREATE TABLE IF NOT EXISTS "campaign_roles" (
         "id"             SERIAL PRIMARY KEY,
@@ -91,16 +110,18 @@ export class InitialSchema1736681774554 implements MigrationInterface {
         "affiliate_id"   INT,
         "created_at"     TIMESTAMP NOT NULL DEFAULT NOW(),
         "updated_at"     TIMESTAMP NOT NULL DEFAULT NOW(),
+
         CONSTRAINT "fk_campaign"
           FOREIGN KEY ("campaign_id")
           REFERENCES "campaigns"("id"),
+
         CONSTRAINT "fk_wallet"
           FOREIGN KEY ("wallet_address")
           REFERENCES "wallets"("address")
       );
     `);
 
-    // 6) processed_offsets TABLE
+    // 7) processed_offsets TABLE
     await queryRunner.query(`
       CREATE TABLE IF NOT EXISTS "processed_offsets" (
         "id"         SERIAL PRIMARY KEY,
@@ -109,7 +130,7 @@ export class InitialSchema1736681774554 implements MigrationInterface {
       );
     `);
 
-    // 7) events TABLE
+    // 8) events TABLE
     await queryRunner.query(`
       CREATE TABLE IF NOT EXISTS "events" (
         "id" SERIAL PRIMARY KEY,
@@ -120,7 +141,7 @@ export class InitialSchema1736681774554 implements MigrationInterface {
       );
     `);
 
-    // snippet from your .up() migration for notifications table
+    // 9) notifications TABLE
     await queryRunner.query(`
       CREATE TABLE IF NOT EXISTS "notifications" (
         "id"             SERIAL PRIMARY KEY,
@@ -130,8 +151,6 @@ export class InitialSchema1736681774554 implements MigrationInterface {
         "created_at"     TIMESTAMP NOT NULL DEFAULT NOW(),
         "updated_at"     TIMESTAMP NOT NULL DEFAULT NOW(),
         "read_at"        TIMESTAMP,
-
-        /* new link column */
         "link"           VARCHAR(500),
 
         CONSTRAINT "fk_wallet_notifications"
@@ -142,7 +161,6 @@ export class InitialSchema1736681774554 implements MigrationInterface {
           REFERENCES "campaigns"("id")
       );
     `);
-
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
@@ -151,11 +169,16 @@ export class InitialSchema1736681774554 implements MigrationInterface {
     await queryRunner.query(`DROP TABLE IF EXISTS "events";`);
     await queryRunner.query(`DROP TABLE IF EXISTS "processed_offsets";`);
     await queryRunner.query(`DROP TABLE IF EXISTS "campaign_roles";`);
+
     await queryRunner.query(`DROP TRIGGER IF EXISTS prevent_final_state_modification ON "campaigns";`);
     await queryRunner.query(`DROP FUNCTION IF EXISTS prevent_modification_after_final_state;`);
+
     await queryRunner.query(`DROP TABLE IF EXISTS "campaigns";`);
+
+    await queryRunner.query(`DROP TABLE IF EXISTS "user_wallets";`);
     await queryRunner.query(`DROP TABLE IF EXISTS "wallets";`);
     await queryRunner.query(`DROP TABLE IF EXISTS "users";`);
+
     await queryRunner.query(`DROP TYPE IF EXISTS role_type;`);
   }
 }

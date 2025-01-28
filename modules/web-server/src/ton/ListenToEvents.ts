@@ -91,6 +91,7 @@ function getEventType(cell: Cell): 'AdvertiserWithdrawFundsEvent' | 'CampaignCre
 }
 
 export async function getLatestEvents(lastProcessedEventLt = BigInt(0)) {
+
     // Load client
     const endpoint = HTTP_ENDPOINT_NETWORK == "testnet" ? 
             await getHttpV4Endpoint({ network: HTTP_ENDPOINT_NETWORK }) :
@@ -115,7 +116,9 @@ export async function getLatestEvents(lastProcessedEventLt = BigInt(0)) {
 
     const logs: EmitLogEvent[] = [];
 
+    let i = 0;
     for (const tx of transactions) {
+        i++;
         if (tx?.outMessages) {
             for (const key of tx.outMessages.keys()) { // Iterate over message keys
                 const message = tx.outMessages.get(key); // Access message using `get`

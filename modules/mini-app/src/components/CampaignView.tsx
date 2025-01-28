@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { Address, Dictionary, fromNano } from '@ton/core';
+
 import { useCampaignContract } from '../hooks/useCampaignContract';
 import { useTonConnectFetchContext } from './TonConnectProvider';
 import { useTonWalletConnect } from '../hooks/useTonConnect';
@@ -23,7 +24,7 @@ import {
   UserApiResponse,
   NotificationApiResponse,
   CampaignRoleApiResponse,
-} from '../models/apiResponses'; // or ../models/apiResponses
+} from '../models/apiResponses';
 import { CampaignData, AffiliateData } from '../contracts/Campaign';
 import { BOT_OP_CODE_USER_CLICK } from '@common/constants';
 
@@ -32,14 +33,14 @@ import Spinner from '../components/Spinner';
 import SuccessIcon from '../components/SuccessIcon';
 
 //
-// A small blink for "Active" dot
+// 1) A small blink for "Active" dot
 //
 const blinkingAnimation = `
-  @keyframes blinkActive {
-    0%   { background-color: green; }
-    50%  { background-color: #4cff4c; }
-    100% { background-color: green; }
-  }
+@keyframes blinkActive {
+  0%   { background-color: green; }
+  50%  { background-color: #4cff4c; }
+  100% { background-color: green; }
+}
 `;
 
 function ActiveStatusDot({ isActive }: { isActive: boolean }) {
@@ -102,14 +103,14 @@ export default function CampaignView() {
   const { sender } = useTonWalletConnect();
   const client = useTonClient();
 
-  // Basic loading + error for initial campaign fetch
+  // 1) Basic loading + error for the campaign from DB
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // The campaign from DB
+  // 2) Campaign from DB
   const [campaign, setCampaign] = useState<CampaignApiResponse | null>(null);
 
-  // On-chain data
+  // 3) On-chain data (advertiser, isActive, etc.)
   const [onChainData, setOnChainData] = useState<CampaignData | null>(null);
   const [chainLoading, setChainLoading] = useState(false);
   const [chainError, setChainError] = useState<string | null>(null);
@@ -119,26 +120,26 @@ export default function CampaignView() {
     { affiliateId: bigint; affiliateAddr: string; totalEarnings: bigint; state: bigint }[]
   >([]);
 
-  // Advertiser user
+  // Advertiser user (from DB)
   const [advertiserUser, setAdvertiserUser] = useState<UserApiResponse | null>(null);
   const [loadingUser, setLoadingUser] = useState(false);
 
-  // Contract from useCampaignContract
-  const advertiserAddr = campaign?.advertiserAddress;
-  const campaignIdBigInt = campaign?.id ? BigInt(campaign.id) : undefined;
+  // 4) For the contract, we get `campaignContractAddress` from the DB campaign
+  const campaignContractAddress = campaign?.campaignContractAddress;
   const {
     campaignContract,
     isLoading: chainHookLoading,
     error: chainHookError,
-  } = useCampaignContract(advertiserAddr, campaignIdBigInt);
+  } = useCampaignContract(campaignContractAddress);
 
-  // Are we the advertiser?
+  // 5) Are we the advertiser? => from onChainData.advertiser
+  const advertiserAddr = onChainData?.advertiser;
   const isUserAdvertiser = useMemo(() => {
     if (!userAccount?.address || !advertiserAddr) return false;
     try {
       return (
         Address.parse(userAccount.address).toString() ===
-        Address.parse(advertiserAddr).toString()
+        advertiserAddr!.toString()
       );
     } catch {
       return false;
@@ -162,9 +163,9 @@ export default function CampaignView() {
   const [affiliatesLoading, setAffiliatesLoading] = useState(false);
   const [affiliatesError, setAffiliatesError] = useState<string | null>(null);
 
-  //
-  // 1) Fetch campaign from DB
-  //
+  //------------------------------------------------------------------
+  // 1) Fetch the campaign from DB -> we get e.g. campaignContractAddress
+  //------------------------------------------------------------------
   useEffect(() => {
     if (!id) {
       setError('No campaign ID in URL!');
@@ -187,9 +188,9 @@ export default function CampaignView() {
     })();
   }, [id]);
 
-  //
-  // 2) Fetch advertiser user
-  //
+  //------------------------------------------------------------------
+  // 2) Once we know onChainData.advertiser => fetch advertiser user from DB
+  //------------------------------------------------------------------
   useEffect(() => {
     if (!advertiserAddr) return;
     setLoadingUser(true);
@@ -211,9 +212,9 @@ export default function CampaignView() {
     })();
   }, [advertiserAddr]);
 
-  //
-  // 3) Once contract is loaded, fetch on-chain data
-  //
+  //------------------------------------------------------------------
+  // 3) Once we have the contract, fetch on-chain data
+  //------------------------------------------------------------------
   useEffect(() => {
     if (!campaignContract) return;
     (async () => {
@@ -224,7 +225,7 @@ export default function CampaignView() {
         const cData = await campaignContract.getCampaignData();
         setOnChainData(cData);
 
-        // top affiliates
+        // fetch top affiliates
         const dict: Dictionary<bigint, bigint> = cData.topAffiliates;
         const affArray: {
           affiliateId: bigint;
@@ -232,7 +233,6 @@ export default function CampaignView() {
           totalEarnings: bigint;
           state: bigint;
         }[] = [];
-
         for (const [affId] of dict) {
           const affData: AffiliateData | null = await campaignContract.getAffiliateData(affId);
           if (affData) {
@@ -253,9 +253,9 @@ export default function CampaignView() {
     })();
   }, [campaignContract]);
 
-  //
+  //------------------------------------------------------------------
   // 4) Fetch notifications
-  //
+  //------------------------------------------------------------------
   useEffect(() => {
     const walletAddr = userAccount?.address;
     if (!id || !walletAddr) return;
@@ -275,9 +275,9 @@ export default function CampaignView() {
     })();
   }, [id, userAccount?.address]);
 
-  //
-  // 5) WebSocket for newly created affiliates
-  //
+  //------------------------------------------------------------------
+  // 5) WebSocket for affiliate created
+  //------------------------------------------------------------------
   useAffiliateWebSocket(
     userAccount?.address,
     (createdId) => {
@@ -288,16 +288,14 @@ export default function CampaignView() {
       setTxTimeout(false);
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
       setNewAffiliateId(createdId);
-
-      // also fetch MyAffiliates
       fetchMyAffiliates();
     },
     id
   );
 
-  //
+  //------------------------------------------------------------------
   // 6) My affiliates
-  //
+  //------------------------------------------------------------------
   async function fetchMyAffiliates() {
     if (!userAccount?.address) return;
     try {
@@ -332,9 +330,9 @@ export default function CampaignView() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isUserAdvertiser, userAccount?.address]);
 
-  //
+  //------------------------------------------------------------------
   // 7) Notification logic
-  //
+  //------------------------------------------------------------------
   function handleToggleNotifications() {
     setShowNotifications((prev) => !prev);
   }
@@ -353,9 +351,9 @@ export default function CampaignView() {
     }
   }
 
-  //
+  //------------------------------------------------------------------
   // 8) Create affiliate
-  //
+  //------------------------------------------------------------------
   async function handleCreateAffiliate() {
     if (!campaignContract || !sender || !userAccount?.address) return;
 
@@ -365,7 +363,7 @@ export default function CampaignView() {
     setTxTimeout(false);
     setNewAffiliateId(null);
 
-    // fallback
+    // fallback if no WS event in 60s
     timeoutRef.current = window.setTimeout(() => {
       setTxTimeout(true);
       setWaitingForTx(false);
@@ -382,9 +380,9 @@ export default function CampaignView() {
     }
   }
 
-  //
+  //------------------------------------------------------------------
   // Helpers
-  //
+  //------------------------------------------------------------------
   function formatTonFriendly(rawAddr: string): string {
     try {
       return Address.parse(rawAddr).toString({ bounceable: false, testOnly: true });
@@ -403,20 +401,16 @@ export default function CampaignView() {
     });
   }
 
-  //
-  // load / error checks
-  //
+  //------------------------------------------------------------------
+  // Load checks
+  //------------------------------------------------------------------
   if (loading) return <div>Loading campaign data...</div>;
   if (error) return <div style={{ color: 'red' }}>{error}</div>;
   if (!campaign) return <div>No campaign found</div>;
 
-  //
-  // paused or expired?
-  //
+  // Paused or expired?
   const showPausedOrExpiredError =
-    onChainData &&
-    (onChainData.isCampaignPausedByAdmin === true || onChainData.isCampaignExpired === true);
-
+    onChainData && (onChainData.isCampaignPausedByAdmin || onChainData.isCampaignExpired);
   let pausedOrExpiredMsg = '';
   if (onChainData?.isCampaignPausedByAdmin) {
     pausedOrExpiredMsg = 'This campaign is currently paused by an admin.';
@@ -424,9 +418,7 @@ export default function CampaignView() {
     pausedOrExpiredMsg = 'This campaign has expired.';
   }
 
-  //
   // Copy link
-  //
   function handleCopyInviteUrl() {
     const affiliateInviteUrl = window.location.href;
     navigator.clipboard.writeText(affiliateInviteUrl).then(
@@ -435,6 +427,9 @@ export default function CampaignView() {
     );
   }
 
+  //------------------------------------------------------------------
+  // Render
+  //------------------------------------------------------------------
   return (
     <div style={{ margin: '1rem' }}>
       {/* Notification bell at top-left */}
@@ -502,8 +497,6 @@ export default function CampaignView() {
                   onClick={() => handleNotificationClick(n.id)}
                 >
                   <p style={{ margin: 0 }}>{n.message}</p>
-
-                  {/* If there's a link property on the notification, show an anchor */}
                   {n.link && (
                     <p style={{ margin: '0.25rem 0' }}>
                       <a
@@ -516,7 +509,6 @@ export default function CampaignView() {
                       </a>
                     </p>
                   )}
-
                   <small style={{ color: '#999' }}>
                     {new Date(n.createdAt).toLocaleString()}
                   </small>
@@ -527,6 +519,7 @@ export default function CampaignView() {
         )}
       </div>
 
+      {/* If paused or expired */}
       {showPausedOrExpiredError && (
         <div
           style={{
@@ -540,21 +533,44 @@ export default function CampaignView() {
         </div>
       )}
 
+      {/* The page title and ID */}
       <h1 style={{ marginBottom: '0.5rem' }}>
         Campaign Page for: {campaign.assetName || '(Unnamed)'}
       </h1>
       <h2 style={{ marginBottom: '0.5rem' }}>Campaign ID: {campaign.id}</h2>
       <h2 style={{ marginBottom: '0.5rem' }}>Campaign Name: {campaign.campaignName}</h2>
 
+      {/* Show the campaign contract address if we have onChainData */}
       {onChainData && (
         <h3 style={{ marginBottom: '1rem' }}>
           Campaign Contract Address: {formatTonFriendly(onChainData.contractAddress.toString())}
         </h3>
       )}
 
+      {/* ============ Show the "Active or Not" at the top ============ */}
+      {onChainData && (
+        <div style={{ marginBottom: '2rem' }}>
+          {(() => {
+            // figure out if truly active
+            const realTonBalance = Number(onChainData.contractTonBalance) / 1e9;
+            const isUSDT = onChainData.campaignDetails.paymentMethod === 1n;
+            const requiredGas = isUSDT ? 0.5 : 1;
+            const hasSufficientGas = realTonBalance >= requiredGas;
+
+            const isReallyActive =
+              onChainData.isCampaignActive &&
+              !onChainData.isCampaignPausedByAdmin &&
+              !onChainData.isCampaignExpired &&
+              hasSufficientGas;
+
+            return <ActiveStatusDot isActive={isReallyActive} />;
+          })()}
+        </div>
+      )}
+
       {/* The row with Advertiser on left, main info on right */}
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: '2rem' }}>
-        {/* LEFT: Advertiser */}
+        {/* LEFT: Advertiser info & affiliate invites */}
         <div style={{ flex: '0 0 300px' }}>
           <h3>Advertiser</h3>
           {loadingUser ? (
@@ -565,7 +581,7 @@ export default function CampaignView() {
                 <strong>Telegram Username:</strong> {advertiserUser.telegramUsername}
               </p>
               <p>
-                <strong>Ton Address:</strong> {campaign.advertiserAddress}
+                <strong>Ton Address:</strong> {advertiserAddr!.toString()}
               </p>
               <p>
                 <strong>First Name:</strong> {advertiserUser.firstName}
@@ -594,10 +610,7 @@ export default function CampaignView() {
           {isUserAdvertiser && (
             <div style={{ marginTop: '2rem', borderTop: '1px solid #ccc', paddingTop: '1rem' }}>
               <h3>Invite New Affiliates</h3>
-              <p>
-                Share this link with potential affiliates. When they visit, they can register as your
-                affiliate:
-              </p>
+              <p>Share this link with potential affiliates:</p>
               <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
                 <input
                   type="text"
@@ -608,13 +621,13 @@ export default function CampaignView() {
                 <button onClick={handleCopyInviteUrl}>Copy Link</button>
               </div>
 
-              {/*  ADDED "View All Affiliates" LINK  */}
               <p style={{ marginTop: '1rem' }}>
                 <Link to={`/campaign/${campaign.id}/affiliates`}>View All Affiliates</Link>
               </p>
             </div>
           )}
 
+          {/* If user is not advertiser => show affiliate creation / listing */}
           {!isUserAdvertiser && campaignContract && sender && (
             <div style={{ marginTop: '2rem', borderTop: '1px solid #ccc', paddingTop: '1rem' }}>
               <h3>Become an Affiliate</h3>
@@ -1092,13 +1105,7 @@ export default function CampaignView() {
                     if (onChainData.campaignDetails.paymentMethod === 0n) {
                       await replenishWithTon(campaignContract, amount, sender);
                     } else {
-                      await replenishWithUsdt(
-                        campaignContract,
-                        amount,
-                        sender,
-                        userAccount?.address,
-                        client
-                      );
+                      await replenishWithUsdt(campaignContract, amount, sender, userAccount?.address, client);
                     }
                   }}
                 />
@@ -1128,12 +1135,7 @@ export default function CampaignView() {
                   showAmountField
                   onTransaction={async (amount) => {
                     if (!amount) throw new Error('Invalid withdraw amount');
-                    await advertiserWithdrawFunds(
-                      campaignContract,
-                      amount,
-                      sender,
-                      userAccount?.address
-                    );
+                    await advertiserWithdrawFunds(campaignContract, amount, sender, userAccount?.address);
                   }}
                 />
               </div>

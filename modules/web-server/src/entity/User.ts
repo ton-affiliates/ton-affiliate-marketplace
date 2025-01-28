@@ -2,7 +2,8 @@ import {
   Entity,
   PrimaryColumn,
   Column,
-  OneToMany,
+  ManyToMany,
+  JoinTable,
   CreateDateColumn,
   UpdateDateColumn,
 } from 'typeorm';
@@ -40,6 +41,14 @@ export class User {
   @UpdateDateColumn({ name: 'updated_at' })
   updatedAt: Date;
 
-  @OneToMany(() => Wallet, (wallet) => wallet.user)
+  /**
+   * Many-to-many with Wallet. The "user_wallets" table is our join table.
+   */
+  @ManyToMany(() => Wallet, (wallet) => wallet.users)
+  @JoinTable({
+    name: 'user_wallets', // the join table name
+    joinColumns: [{ name: 'user_id' }],
+    inverseJoinColumns: [{ name: 'wallet_address' }],
+  })
   wallets: Wallet[];
 }

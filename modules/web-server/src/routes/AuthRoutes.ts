@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import crypto from 'crypto';
 import { Logger } from '../utils/Logger';
-import { upsertUser, getUserById } from '../services/UsersService';
+import {ensureUser  } from '../services/UsersService';
 import dotenv from 'dotenv';
 import { sendTelegramMessage } from '../services/TelegramService'
 
@@ -35,7 +35,7 @@ router.post(
         return void res.status(401).json({ error: 'Invalid Telegram data signature' });
       }
 
-      // 2) Upsert user in DB
+      // 2) ensure user in DB
       const userData = {
         id: Number(id),
         firstName: first_name,
@@ -47,7 +47,7 @@ router.post(
       };
 
       // upsert user in DB
-      const user = await upsertUser(userData);
+      const user = await ensureUser(userData);
 
       if (!user.canMessage) {
           await sendTelegramMessage(Number(id), userData.firstName + ', you successfuly logged in to TonAffiliates!');

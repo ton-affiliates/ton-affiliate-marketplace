@@ -1,7 +1,7 @@
 import { toNano, Address } from '@ton/core';
 import { AffiliateMarketplace } from '../wrappers/AffiliateMarketplace';
 import { NetworkProvider } from '@ton/blueprint';
-import { USDT_MASTER_ADDRESS, USDT_WALLET_BYTECODE, BOT_ADDRESS, ADVERTISER_FEE_PERCENTAGE, AFFILIATE_FEE_PERCENTAGE } from './constants'
+import { USDT_MASTER_ADDRESS, USDT_WALLET_BYTECODE, BOT_ADDRESS, ADVERTISER_FEE_PERCENTAGE, AFFILIATE_FEE_PERCENTAGE } from '../modules/mini-app/src/common/constants'
 import { hexToCell } from './utils';
 
 

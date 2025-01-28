@@ -11,7 +11,7 @@ import {
   deleteCampaignRoleByCampaignAndWallet,
 } from '../services/CampaignRolesService';
 import { sendTelegramMessage } from '../services/TelegramService';
-import { getUserByWalletAddress } from '../services/UsersService';
+import { getUsersByWalletAddress } from '../services/UsersService';
 import { createNotification } from '../services/NotificationsService';
 import { RoleType } from '../entity/CampaignRole';
 import { Address } from '@ton/core';
@@ -71,6 +71,7 @@ async function processEvents(events: EmitLogEvent[]) {
           await upsertCampaign({
             id: campaignId,
             state: CampaignState.DEPLOYED,
+            campaignContractAddress: campaignContractTon.toString()
           });
 
           // create advertiser role
@@ -159,8 +160,8 @@ async function processEvents(events: EmitLogEvent[]) {
           });
 
           // if pending approval => notify advertiser
-          const advertiserUser = await getUserByWalletAddress(advertiserTon);
-          if (!advertiserUser) {
+          const advertiserUsers = await getUsersByWalletAddress(advertiserTon);
+          if (!advertiserUsers) {
             throw new Error(
               'No User found for advertiser address: ' + advertiserTon.toString()
             );
@@ -178,7 +179,11 @@ async function processEvents(events: EmitLogEvent[]) {
 
           // pass link to createNotification, so your UI can click it
           await createNotification(advertiserTon, text, campaignId.toString(), affiliateLink);
-          await sendTelegramMessage(advertiserUser.id, text, 'Markdown');
+
+          for (const advertiserUser of advertiserUsers) {
+            await sendTelegramMessage(advertiserUser.id, text, 'Markdown');
+          }
+          
 
           break;
         }
@@ -197,13 +202,15 @@ async function processEvents(events: EmitLogEvent[]) {
           );
 
           // notify affiliate
-          const affiliateUser = await getUserByWalletAddress(affiliateTon);
-          if (affiliateUser) {
+          const affiliateUsers = await getUsersByWalletAddress(affiliateTon);
+          if (affiliateUsers) {
             const text = `Congratulations! You have been approved for campaign:\n` +
                               `https://${process.env.MINI_APP_HOSTNAME}/${campaignId}`;
             const link = `https://${process.env.MINI_APP_HOSTNAME}/${campaignId}/affiliate/${affiliateId}`;
             await createNotification(affiliateTon, text, campaignId.toString(), link);
-            await sendTelegramMessage(affiliateUser.id, text);
+            for (const affiliateUser of affiliateUsers) {
+              await sendTelegramMessage(affiliateUser.id, text);
+            }
           }
           break;
         }
@@ -238,13 +245,16 @@ async function processEvents(events: EmitLogEvent[]) {
           }
 
           // notify affiliate
-          const affiliateUser = await getUserByWalletAddress(affiliateTon);
-          if (affiliateUser) {
+          const affiliateUsers = await getUsersByWalletAddress(affiliateTon);
+          if (affiliateUsers) {
             const text = `You have been removed from campaign ${campaignId}.`;
             const link = `https://${process.env.MINI_APP_HOSTNAME}/${campaignId}`;
 
             await createNotification(affiliateTon, text, campaignId.toString(), link);
-            await sendTelegramMessage(affiliateUser.id, text);
+
+            for (const affiliateUser of affiliateUsers) {
+              await sendTelegramMessage(affiliateUser.id, text, 'Markdown');
+            }
           }
           break;
         }

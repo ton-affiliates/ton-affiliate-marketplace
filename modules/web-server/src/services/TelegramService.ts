@@ -4,7 +4,7 @@ import axios from 'axios';
 import dotenv from 'dotenv';
 import { Logger } from '../utils/Logger';
 import { TelegramAsset, TelegramAssetType } from '@common/models';
-import { getUserById, upsertUser} from '../services/UsersService'
+import { getUserById, ensureUser} from '../services/UsersService'
 
 dotenv.config();
 
@@ -128,14 +128,14 @@ export async function sendTelegramMessage(userId: number, text: string, parseMod
     }
 
     user.canMessage = true;
-    await upsertUser(user);
+    await ensureUser(user);
    
   } catch (err: any) {
     // If the error indicates the user blocked the bot:
     if (err.response?.error_code === 403) {
       // Mark canMessage = false in DB
       user.canMessage = false;
-      await upsertUser(user);
+      await ensureUser(user);
     }
     // Rethrow or log the error if you want
     Logger.error(err);

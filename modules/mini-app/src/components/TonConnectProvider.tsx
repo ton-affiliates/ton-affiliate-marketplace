@@ -40,13 +40,14 @@ export const TonConnectProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   // If user is connected & we have userInfo, POST /api/v1/users/add
   useEffect(() => {
     async function addWallet() {
+      
       if (!userAccount || !userInfo?.id) return;
+      
       try {
-        const res = await fetch('/api/v1/users/add', {
+        const res = await fetch('/api/v1/users/wallets', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            userId: userInfo.id,
             address: userAccount.address,
             walletType: userAccount.chain,
             publicKey: userAccount.publicKey
@@ -57,6 +58,26 @@ export const TonConnectProvider: React.FC<{ children: React.ReactNode }> = ({ ch
           console.log('Wallet added successfully:', data.wallet);
         } else {
           console.error('Error adding wallet:', data.error);
+        }
+      } catch (err) {
+        console.error('Network error adding wallet:', err);
+      }
+
+      // conect the wallet to this user
+      try {
+        const res = await fetch('/api/v1/users/userWallets/connect', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            userId: userInfo.id,
+            address: userAccount.address
+          }),
+        });
+        const data = await res.json();
+        if (data.success) {
+          console.log('Wallet connected successfully to user:', data.wallet);
+        } else {
+          console.error('Error connecting wallet:', data.error);
         }
       } catch (err) {
         console.error('Network error adding wallet:', err);

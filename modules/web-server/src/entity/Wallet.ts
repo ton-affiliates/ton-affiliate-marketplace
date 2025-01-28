@@ -2,8 +2,7 @@ import {
   Entity,
   PrimaryColumn,
   Column,
-  ManyToOne,
-  JoinColumn,
+  ManyToMany,
   CreateDateColumn,
   UpdateDateColumn,
 } from 'typeorm';
@@ -11,12 +10,11 @@ import { User } from './User';
 
 @Entity('wallets')
 export class Wallet {
-  /** Make address the PRIMARY KEY */
+  /**
+   * Each wallet is keyed by its address string
+   */
   @PrimaryColumn({ length: 255, name: 'address' })
   address: string;
-
-  @Column({ type: 'bigint', name: 'user_id' })
-  userId: number;
 
   @Column({ length: 50, nullable: true, name: 'wallet_type' })
   walletType: string;
@@ -30,7 +28,9 @@ export class Wallet {
   @UpdateDateColumn({ name: 'updated_at' })
   updatedAt: Date;
 
-  @ManyToOne(() => User, (user) => user.wallets)
-  @JoinColumn({ name: 'user_id' })
-  user: User;
+  /**
+   * Many-to-many with User; 'user_wallets' is the join table.
+   */
+  @ManyToMany(() => User, (user) => user.wallets)
+  users: User[];
 }

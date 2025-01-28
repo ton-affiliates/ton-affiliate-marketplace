@@ -139,8 +139,8 @@ the 'CampaignCreatedEvent' on our server before moving on."
 
         {/* EXPLANATORY TEXT */}
         <p style={{ marginTop: '0.5rem', fontSize: '0.95rem', color: '#555' }}>
-          By clicking "Verify Setup," we’ll deploy a new campaign contract on the TON blockchain
-          and wait for our server to confirm creation. Once confirmed, you’ll
+          By clicking "Verify Setup," we will deploy a new campaign contract on the TON blockchain
+          and wait for our server to confirm creation. Once confirmed, you will
           automatically proceed to the next step. This can take up to 30 seconds.
         </p>
 

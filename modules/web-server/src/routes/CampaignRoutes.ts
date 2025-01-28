@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { upsertCampaign, getCampaignByIdWithAdvertiser, getAllCampaignsForWallet } from '../services/CampaignsService';
 import { fetchPublicChatInfo } from '../services/TelegramService';
 import { Logger } from '../utils/Logger';
-import { getUserByWalletAddress } from '../services/UsersService'; 
+import { getUsersByWalletAddress } from '../services/UsersService'; 
 import { getUnreadNotificationsForWallet, markNotificationAsRead } from '../services/NotificationsService';
 import {Address} from "@ton/core";
 import { RoleType } from '../entity/CampaignRole';
@@ -109,7 +109,6 @@ router.post('/', async (req, res) => {
 
     const {
       campaignId,
-      walletAddress,
       campaignName,
       category,
       inviteLink,
@@ -117,13 +116,6 @@ router.post('/', async (req, res) => {
     } = req.body;
 
 
-    const tonAddress = Address.parseRaw(walletAddress); 
-
-    // Validate
-    if (!tonAddress) {
-      res.status(400).json({ error: 'Missing walletAddress' });
-      return;
-    }
     if (!campaignId || !inviteLink || !telegramType) {
       res.status(400).json({
         error: 'Missing required fields: campaignId, inviteLink, telegramType',
@@ -131,16 +123,7 @@ router.post('/', async (req, res) => {
       return;
     }
 
-    // 1) Confirm the wallet already exists in DB
-    const existingUser = await getUserByWalletAddress(tonAddress);
-    if (!existingUser) {
-      res.status(404).json({
-        error: `No wallet found with address: ${tonAddress}. Please connect a wallet first.`,
-      });
-      return;
-    }
-
-    // 2) Optionally fetch Telegram info
+    // fetch Telegram info
     const handle = parseHandleFromLink(inviteLink);
     const telegramAsset = await fetchPublicChatInfo(handle);
     if (!telegramAsset) {
@@ -155,7 +138,6 @@ router.post('/', async (req, res) => {
       id: campaignId,
       state: CampaignState.TELEGRAM_DETAILS_SET,
       campaignName: campaignName,
-      walletAddress: walletAddress, // string PK referencing "wallets"."address"
       assetType: telegramType,
       assetCategory: category,
       assetName: telegramAsset.name,

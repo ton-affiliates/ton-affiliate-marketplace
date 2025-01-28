@@ -6,7 +6,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 
 // Hooks
 import { useTonConnectFetchContext } from './TonConnectProvider';
-import { useCampaignContract } from '../hooks/useCampaignContract';
+import { useCampaignContractAdvertiserAndId } from '../hooks/useCampaignContractAdvertiserAndId';
 import { useTonWalletConnect } from '../hooks/useTonConnect';
 
 // Transaction logic
@@ -43,7 +43,7 @@ function BlockchainSetupCampaign() {
   const numericCampaignId = campaignId ? BigInt(campaignId) : undefined;
 
   // Load the campaign contract
-  const { campaignContract, isLoading, error } = useCampaignContract(
+  const { campaignContract, isLoading, error } = useCampaignContractAdvertiserAndId(
     advertiserAddress,
     numericCampaignId
   );

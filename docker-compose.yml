@@ -1,11 +1,13 @@
-services:
+version: '3.8'
 
+services:
   mini-app:
     build:
       context: .
       dockerfile: ./modules/mini-app/Dockerfile
       args:
         NODE_ENV: ${NODE_ENV}
+        NETWORK_ENV: ${NETWORK_ENV}
     ports:
       - "80:80"
     volumes:
@@ -29,7 +31,8 @@ services:
       - app-network
     env_file:
       - ./modules/web-server/.env.${NODE_ENV}
-      - ./modules/common/.env.${NETWORK_ENV}      # <-- Also load the "common" .env
+      - ./modules/common/.env.${NETWORK_ENV}  # <-- Also load the "common" .env
+
   db:
     image: postgres:15-alpine
     container_name: postgres_db
