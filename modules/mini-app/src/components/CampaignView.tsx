@@ -137,10 +137,7 @@ export default function CampaignView() {
   const isUserAdvertiser = useMemo(() => {
     if (!userAccount?.address || !advertiserAddr) return false;
     try {
-      return (
-        Address.parse(userAccount.address).toString() ===
-        advertiserAddr!.toString()
-      );
+      return Address.parse(userAccount.address).toString() === advertiserAddr!.toString();
     } catch {
       return false;
     }
@@ -233,6 +230,7 @@ export default function CampaignView() {
           totalEarnings: bigint;
           state: bigint;
         }[] = [];
+
         for (const [affId] of dict) {
           const affData: AffiliateData | null = await campaignContract.getAffiliateData(affId);
           if (affData) {
@@ -401,6 +399,23 @@ export default function CampaignView() {
     });
   }
 
+  // Helper to see if campaign is truly "active"
+  const isCampaignReallyActive = useMemo(() => {
+    if (!onChainData) return false;
+    // same logic you have in the code for realTonBalance vs requiredGas, etc.
+    const realTonBalance = Number(onChainData.contractTonBalance) / 1e9;
+    const isUSDT = onChainData.campaignDetails.paymentMethod === 1n;
+    const requiredGas = isUSDT ? 0.5 : 1;
+    const hasSufficientGas = realTonBalance >= requiredGas;
+
+    return (
+      onChainData.isCampaignActive &&
+      !onChainData.isCampaignPausedByAdmin &&
+      !onChainData.isCampaignExpired &&
+      hasSufficientGas
+    );
+  }, [onChainData]);
+
   //------------------------------------------------------------------
   // Load checks
   //------------------------------------------------------------------
@@ -551,19 +566,7 @@ export default function CampaignView() {
       {onChainData && (
         <div style={{ marginBottom: '2rem' }}>
           {(() => {
-            // figure out if truly active
-            const realTonBalance = Number(onChainData.contractTonBalance) / 1e9;
-            const isUSDT = onChainData.campaignDetails.paymentMethod === 1n;
-            const requiredGas = isUSDT ? 0.5 : 1;
-            const hasSufficientGas = realTonBalance >= requiredGas;
-
-            const isReallyActive =
-              onChainData.isCampaignActive &&
-              !onChainData.isCampaignPausedByAdmin &&
-              !onChainData.isCampaignExpired &&
-              hasSufficientGas;
-
-            return <ActiveStatusDot isActive={isReallyActive} />;
+            return <ActiveStatusDot isActive={isCampaignReallyActive} />;
           })()}
         </div>
       )}
@@ -628,60 +631,73 @@ export default function CampaignView() {
           )}
 
           {/* If user is not advertiser => show affiliate creation / listing */}
-          {!isUserAdvertiser && campaignContract && sender && (
-            <div style={{ marginTop: '2rem', borderTop: '1px solid #ccc', paddingTop: '1rem' }}>
-              <h3>Become an Affiliate</h3>
-              <p>Generate your affiliate ID in this campaign:</p>
-
-              {waitingForTx && !txTimeout && !txSuccess && (
-                <div style={{ marginBottom: '1rem' }}>
-                  <Spinner />
-                  <p>Waiting for server confirmation... (can take up to 1 minute)</p>
-                </div>
-              )}
-              {txTimeout && !txSuccess && (
-                <div style={{ marginBottom: '1rem', color: 'red' }}>
-                  Timed out waiting for the server event. The transaction might still be pending...
-                </div>
-              )}
-              {txSuccess && (
-                <div style={{ marginBottom: '1rem' }}>
-                  <SuccessIcon />
-                  <p>Affiliate created successfully!</p>
-                </div>
-              )}
-              {txFailed && (
-                <div style={{ marginBottom: '1rem', color: 'red' }}>
-                  Transaction failed or was canceled.
-                </div>
-              )}
-
-              <button
-                onClick={handleCreateAffiliate}
-                disabled={waitingForTx || txSuccess}
-                style={{ marginBottom: '1rem' }}
+          {/* Also hide the entire block if the campaign is NOT active. */}
+          {!isUserAdvertiser &&
+            isCampaignReallyActive && // Only show if active
+            campaignContract &&
+            sender && (
+              <div
+                style={{ marginTop: '2rem', borderTop: '1px solid #ccc', paddingTop: '1rem' }}
               >
-                Create Affiliate
-              </button>
+                <h3>Become an Affiliate</h3>
+                {/* If private => "Ask to Join Campaign", else => "Create Affiliate" */}
+                {onChainData?.campaignDetails.isPublicCampaign ? (
+                  <p>Generate your affiliate ID in this campaign:</p>
+                ) : (
+                  <p>Request permission to join this private campaign:</p>
+                )}
 
-              {newAffiliateId !== null && (
-                <div
-                  style={{
-                    border: '1px solid #ccc',
-                    padding: '0.5rem',
-                    backgroundColor: '#f5f5f5',
-                  }}
+                {waitingForTx && !txTimeout && !txSuccess && (
+                  <div style={{ marginBottom: '1rem' }}>
+                    <Spinner />
+                    <p>Waiting for server confirmation... (can take up to 1 minute)</p>
+                  </div>
+                )}
+                {txTimeout && !txSuccess && (
+                  <div style={{ marginBottom: '1rem', color: 'red' }}>
+                    Timed out waiting for the server event. The transaction might still be pending...
+                  </div>
+                )}
+                {txSuccess && (
+                  <div style={{ marginBottom: '1rem' }}>
+                    <SuccessIcon />
+                    <p>Affiliate created successfully!</p>
+                  </div>
+                )}
+                {txFailed && (
+                  <div style={{ marginBottom: '1rem', color: 'red' }}>
+                    Transaction failed or was canceled.
+                  </div>
+                )}
+
+                <button
+                  onClick={handleCreateAffiliate}
+                  disabled={waitingForTx || txSuccess}
+                  style={{ marginBottom: '1rem' }}
                 >
-                  <strong>Your new Affiliate ID:</strong> {newAffiliateId.toString()}
-                  <br />
-                  <strong>Your affiliate page: </strong>
-                  <Link to={`/campaign/${campaign.id}/affiliate/${newAffiliateId.toString()}`}>
-                    {`/campaign/${campaign.id}/affiliate/${newAffiliateId.toString()}`}
-                  </Link>
-                </div>
-              )}
-            </div>
-          )}
+                  {onChainData?.campaignDetails.isPublicCampaign
+                    ? 'Create Affiliate'
+                    : 'Ask to Join Campaign'}
+                </button>
+
+                {newAffiliateId !== null && (
+                  <div
+                    style={{
+                      border: '1px solid #ccc',
+                      padding: '0.5rem',
+                      backgroundColor: '#f5f5f5',
+                    }}
+                  >
+                    <strong>Your new Affiliate ID:</strong> {newAffiliateId.toString()}
+                    <br />
+                    <strong>Your affiliate page: </strong>
+                    <Link to={`/campaign/${campaign.id}/affiliate/${newAffiliateId.toString()}`}>
+                      {`/campaign/${campaign.id}/affiliate/${newAffiliateId.toString()}`}
+                    </Link>
+                  </div>
+                )}
+              </div>
+            )}
 
           {!isUserAdvertiser && (
             <div style={{ marginTop: '2rem', borderTop: '1px solid #ccc', paddingTop: '1rem' }}>
@@ -975,8 +991,7 @@ export default function CampaignView() {
                 return (
                   <>
                     <p>
-                      <strong>Campaign Balance (USDT):</strong>{' '}
-                      {fromNano(onChainData.campaignBalance)}
+                      <strong>Campaign Balance (USDT):</strong> {fromNano(onChainData.campaignBalance)}
                     </p>
                     <p>
                       <strong>Campaign Contract Ton Balance:</strong>{' '}
@@ -1135,7 +1150,12 @@ export default function CampaignView() {
                   showAmountField
                   onTransaction={async (amount) => {
                     if (!amount) throw new Error('Invalid withdraw amount');
-                    await advertiserWithdrawFunds(campaignContract, amount, sender, userAccount?.address);
+                    await advertiserWithdrawFunds(
+                      campaignContract,
+                      amount,
+                      sender,
+                      userAccount?.address
+                    );
                   }}
                 />
               </div>
