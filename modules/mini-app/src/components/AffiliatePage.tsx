@@ -236,7 +236,7 @@ export function AffiliatePage() {
   const showWithdrawButton = isUserTheAffiliate;
 
   // 13) Example affiliate link
-  const affiliateLink = `https://${import.meta.env.VITE_TON_AFFILIATES_VERIFIER_BOT}/${campaignId}_${affiliateId}`;
+  const affiliateLink = `https://t.me/${import.meta.env.VITE_TON_AFFILIATES_VERIFIER_BOT}/${campaignId}_${affiliateId}`;
   function copyLink() {
     navigator.clipboard.writeText(affiliateLink).then(() => {
       alert('Affiliate link copied to clipboard!');
