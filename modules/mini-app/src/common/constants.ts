@@ -2,12 +2,6 @@
 import { Address, toNano } from '@ton/core';
 
 
-
-console.log(import.meta.env.VITE_BOT_ADDRESS);
-console.log(import.meta.env.VITE_AFFILIATE_MARKETPLACE_ADDRESS);
-console.log(import.meta.env.VITE_USDT_MASTER_ADDRESS);
-console.log(import.meta.env.VITE_HTTP_ENDPOINT_NETWORK);
-
 export const USDT_WALLET_BYTECODE = 
 import.meta.env.VITE_USDT_WALLET_BYTECODE;
 

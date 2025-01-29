@@ -53,7 +53,7 @@ export async function checkTxFailureReason(
       if (computePhase && computePhase.exitCode !== undefined) {
         const exitCode = computePhase.exitCode;
         // The contract’s ABI might have a known error mapped to that exit code
-        const error = campaignContract.abi?.errors?.[exitCode];
+        const error = campaignContract.abi?.errors?.[Number(exitCode.toString())];
         if (error) {
           throw new Error(error.message);
         }
