@@ -1,13 +1,13 @@
+// src/routes/CampaignRoutes.ts
+
 import { Router } from 'express';
-import { upsertCampaign, getCampaignByIdWithAdvertiser, getAllCampaignsForWallet } from '../services/CampaignsService';
-import { fetchPublicChatInfo } from '../services/TelegramService';
+import { ensureCampaign, getCampaignByIdWithAdvertiser, getAllCampaignsForWallet } from '../services/CampaignsService';
+import { fetchChatInfo } from '../services/TelegramService';
 import { Logger } from '../utils/Logger';
-import { getUsersByWalletAddress } from '../services/UsersService'; 
 import { getUnreadNotificationsForWallet, markNotificationAsRead } from '../services/NotificationsService';
-import {Address} from "@ton/core";
+import { Address } from '@ton/core';
 import { RoleType } from '../entity/CampaignRole';
 import { CampaignState } from '../entity/Campaign';
-
 
 const router = Router();
 
@@ -30,7 +30,7 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-// e.g. /campaigns/:id/notifications?walletAddress=EQxyz
+
 router.get('/:id/notifications', async (req, res) => {
   const { id } = req.params; // campaignId
   const { walletAddress } = req.query;
@@ -40,11 +40,14 @@ router.get('/:id/notifications', async (req, res) => {
     return;
   }
 
-  // fetch
-  const tonAddress = Address.parse(walletAddress.toString());
-  const notifs = await getUnreadNotificationsForWallet(tonAddress, id);
-  res.json(notifs);
-  return;
+  try {
+    const tonAddress = Address.parse(walletAddress.toString());
+    const notifs = await getUnreadNotificationsForWallet(tonAddress, id);
+    res.json(notifs);
+  } catch (err) {
+    Logger.error(`Error in GET /campaigns/${id}/notifications:`, err);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
 });
 
 
@@ -57,28 +60,22 @@ router.patch('/:id/notifications/:notificationId/read', async (req, res) => {
       return;
     }
 
-    // Call your service function
     const updatedNotif = await markNotificationAsRead(notifIdNum);
     res.json(updatedNotif);
-    return;
   } catch (err: any) {
     Logger.error(`Error in PATCH /campaigns/${req.params.id}/notifications/${req.params.notificationId}/read:`, err);
     res.status(500).json({ error: 'Internal Server Error' });
-    return;
   }
 });
+
 
 router.get('/byWallet/:address', async (req, res) => {
   try {
     const { address } = req.params;
-    const roleParam = req.query.role as string | undefined; 
-    // e.g. "advertiser" or "affiliate"
-
+    const roleParam = req.query.role as string | undefined;
+    
     let roleType: RoleType | undefined;
     if (roleParam) {
-      // Convert the incoming string to our RoleType enum
-      // If you have RoleType = { ADVERTISER = 'advertiser', AFFILIATE = 'affiliate' }
-      // then:
       if (roleParam.toLowerCase() === 'advertiser') {
         roleType = RoleType.ADVERTISER;
       } else if (roleParam.toLowerCase() === 'affiliate') {
@@ -88,13 +85,11 @@ router.get('/byWallet/:address', async (req, res) => {
 
     Logger.info(`GET /campaigns/byWallet/${address}?role=${roleParam}`);
 
-    // If roleType is undefined, decide whether to handle an error or default
     if (!roleType) {
       res.status(400).json({ error: 'Invalid or missing role query param' });
       return;
     }
 
-    // Now call your service with both the address and role
     const campaigns = await getAllCampaignsForWallet(Address.parse(address), roleType);
     res.json(campaigns);
   } catch (err) {
@@ -103,6 +98,10 @@ router.get('/byWallet/:address', async (req, res) => {
   }
 });
 
+/**
+ * POST /api/v1/campaigns
+ * Creates or updates a campaign after verifying the Telegram channel & admin status
+ */
 router.post('/', async (req, res) => {
   try {
     Logger.debug('POST /campaigns');
@@ -115,7 +114,6 @@ router.post('/', async (req, res) => {
       telegramType,
     } = req.body;
 
-
     if (!campaignId || !inviteLink || !telegramType) {
       res.status(400).json({
         error: 'Missing required fields: campaignId, inviteLink, telegramType',
@@ -123,33 +121,48 @@ router.post('/', async (req, res) => {
       return;
     }
 
-    // fetch Telegram info
+    // 1) Parse handle from the link (e.g. "https://t.me/MyPublicChannel" => "MyPublicChannel")
     const handle = parseHandleFromLink(inviteLink);
-    const telegramAsset = await fetchPublicChatInfo(handle);
+
+    // 2) Fetch Telegram info, including isPublic & botIsAdmin
+    const telegramAsset = await fetchChatInfo(handle);
     if (!telegramAsset) {
       res.status(400).json({ error: 'Could not fetch Telegram info' });
       return;
     }
 
-    Logger.info(`inviteLink: ${inviteLink}, telegramAsset.url: ${telegramAsset.url}`);
+    Logger.info(`inviteLink: ${inviteLink}, telegramAsset: ${JSON.stringify(telegramAsset)}`);
+    
+    // 3) Ensure it's a public channel and the bot is an admin
+    if (!telegramAsset.botIsAdmin) {
+      res.status(400).json({ 
+        error: 'Our verifier bot is not an admin in this channel. Please grant it admin rights & try again.' 
+      });
+      return;
+    }
 
-    // 3) Prepare campaign data
+
+    // 4) Prepare campaign data
     const campaignData = {
       id: campaignId,
       state: CampaignState.TELEGRAM_DETAILS_SET,
+      handle: handle,
+      inviteLink: telegramAsset.url,
       campaignName: campaignName,
       assetType: telegramType,
       assetCategory: category,
       assetName: telegramAsset.name,
       assetDescription: telegramAsset.description,
-      inviteLink: telegramAsset.url,
       assetPhoto: telegramAsset.photo ? Buffer.from(telegramAsset.photo) : null,
+      botIsAdmin: telegramAsset.botIsAdmin,
+      adminPrivileges: telegramAsset.adminPrivileges,
+      memberCount: telegramAsset.memberCount
     };
 
     Logger.debug('campaignData about to be created:', campaignData);
 
-    // 4) Create campaign
-    const newCampaign = await upsertCampaign(campaignData);
+    // 5) Create or update the campaign in DB
+    const newCampaign = await ensureCampaign(campaignData);
     res.status(201).json(newCampaign);
     return;
 
@@ -162,6 +175,10 @@ router.post('/', async (req, res) => {
 
 export default router;
 
+/** 
+ * e.g. "https://t.me/MyPublicChannel" => "MyPublicChannel" 
+ * If the link doesn't match, fallback to the entire link 
+ */
 function parseHandleFromLink(link: string): string {
   const match = link.match(/t\.me\/([^/]+)/i);
   if (match && match[1]) return match[1];

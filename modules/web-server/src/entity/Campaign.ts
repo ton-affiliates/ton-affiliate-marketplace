@@ -4,13 +4,9 @@ import {
   Column,
   CreateDateColumn,
   UpdateDateColumn,
-  ManyToOne,
-  JoinColumn,
 } from 'typeorm';
-import { Wallet } from './Wallet'; // <-- Make sure this path is correct
+import { TelegramAssetType, UserEventType } from '@common/models';
 
-
-// Define the enum for campaign states
 export enum CampaignState {
   DEPLOYED = 'DEPLOYED',
   TELEGRAM_DETAILS_SET = 'TELEGRAM_DETAILS_SET',
@@ -22,54 +18,130 @@ export class Campaign {
   @PrimaryColumn({ type: 'varchar', length: 255, name: 'id' })
   id: string;
 
-  /**
-   * The raw contract address string stored in the DB
-   */
-  @Column({
-    type: 'varchar',
-    length: 255,
-    name: 'campaign_contract_address',
-    nullable: true, // or false, depending on whether it's optional
-  })
+  @Column({ type: 'varchar', length: 255, name: 'handle', nullable: true })
+  handle: string | null;
+
+  @Column({ type: 'varchar', length: 255, name: 'campaign_contract_address' })
   campaignContractAddress: string;
 
-  @ManyToOne(() => Wallet, { eager: false })
-  @JoinColumn({ name: 'campaign_contract_address', referencedColumnName: 'address' })
-  campaignContractWallet: Wallet;
+  @Column({ type: 'varchar', length: 255, name: 'name', nullable: true })
+  campaignName: string | null;
 
-  @Column({ length: 255, nullable: true, name: 'name' })
-  campaignName: string;
+  @Column({ type: 'varchar', length: 255, name: 'asset_type', nullable: true })
+  assetType: string | null;
 
-  @Column({ length: 255, nullable: true, name: 'asset_type' })
-  assetType: string;
+  @Column({ type: 'varchar', length: 255, name: 'asset_name', nullable: true })
+  assetName: string | null;
 
-  @Column({ length: 255, nullable: true, name: 'asset_name' })
-  assetName: string;
-
-  @Column({ length: 255, nullable: true, name: 'asset_category' })
-  assetCategory: string;
+  @Column({ type: 'varchar', length: 255, name: 'asset_category', nullable: true })
+  assetCategory: string | null;
 
   @Column({ type: 'text', nullable: true, name: 'asset_description' })
-  assetDescription: string;
+  assetDescription: string | null;
 
-  @Column({ length: 500, nullable: true, name: 'invite_link' })
-  inviteLink: string;
+  @Column({ type: 'varchar', length: 500, name: 'invite_link', nullable: true })
+  inviteLink: string | null;
 
   @Column({ type: 'bytea', nullable: true, name: 'asset_photo' })
   assetPhoto: Buffer | null;
 
   @Column({
-    type: 'enum',
-    enum: CampaignState,
-    default: CampaignState.DEPLOYED,
+    type: 'varchar',
+    length: 50,
     name: 'state',
+    default: CampaignState.DEPLOYED,
   })
   state: CampaignState;
+
+  @Column({ type: 'boolean', name: 'bot_is_admin', default: false })
+  botIsAdmin: boolean;
+
+  @Column({ type: 'text', array: true, name: 'admin_privileges', default: [] })
+  adminPrivileges: string[];
+
+  @Column({ type: 'int', name: 'member_count', default: 0 })
+  memberCount: number;
+
+  @Column({
+    type: 'enum',
+    enum: UserEventType,
+    array: true,
+    name: 'verified_events',
+    default: [],
+  })
+  eventsToVerify: UserEventType[];
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 
-  // If you need updated_at:
   @UpdateDateColumn({ name: 'updated_at' })
   updatedAt: Date;
+
+  /**
+   * Helper: interpret the DB's assetType string as an enum.
+   */
+  private stringToTelegramAssetType(value: string | null): TelegramAssetType | null {
+    if (!value) return null;
+    switch (value.toUpperCase()) {
+      case 'CHANNEL':
+        return TelegramAssetType.CHANNEL;
+      // Add other cases if needed
+      default:
+        return null;
+    }
+  }
+
+  /**
+   * Returns an array of privileges that are required to verify
+   * the events in `eventsToVerify`.
+   *
+   * Customize this logic as needed.
+   */
+  getRequiredPrivileges(): string[] {
+    const needed = new Set<string>();
+
+    needed.add('can_invite_users');  // for all events we need this
+
+    // If verifying RETAINED events, we might need membership-check privileges
+    const wantsRetained =
+      this.eventsToVerify.includes(UserEventType.JOINED) ||
+      this.eventsToVerify.includes(UserEventType.RETAINED_TWO_WEEKS) ||
+      this.eventsToVerify.includes(UserEventType.RETAINED_ONE_MONTH);
+
+    if (wantsRetained) {
+      // For example, assume we need 'can_manage_chat' or 'can_restrict_members'
+      // to track membership over time
+      if (!this.adminPrivileges.includes('can_manage_chat') &&
+          !this.adminPrivileges.includes('can_restrict_members')) {
+        needed.add('can_manage_chat or can_restrict_members');
+      }
+    }
+
+    return Array.from(needed);
+  }
+
+  /**
+   * Checks if the bot is able to verify the campaign's chosen events,
+   * i.e. if it is an admin, the campaign is a channel, and the bot
+   * has all required privileges.
+   */
+  canBotVerifyEvents(): boolean {
+    // 1) Must be admin
+    if (!this.botIsAdmin) {
+      return false;
+    }
+
+    // 2) Must be a channel to do membership-based checks (or adjust as needed)
+    const assetEnum = this.stringToTelegramAssetType(this.assetType);
+    if (assetEnum !== TelegramAssetType.CHANNEL) {
+      return false;
+    }
+
+    // 3) Check if we have all required privileges
+    const requiredPrivs = this.getRequiredPrivileges();
+
+    // If your logic is "all privileges must be included" in the adminPrivileges,
+    // do an 'every' check. 
+    return requiredPrivs.every((p) => this.adminPrivileges.includes(p));
+  }
 }

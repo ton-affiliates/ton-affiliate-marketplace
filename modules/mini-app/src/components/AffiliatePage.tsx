@@ -6,13 +6,21 @@ import { useCampaignContract } from '../hooks/useCampaignContract';
 import { useTonConnectFetchContext } from './TonConnectProvider';
 import { useTonWalletConnect } from '../hooks/useTonConnect';
 
-import { advertiserRemoveAffiliate } from '../blockchain/campaign/advertiserRemoveAffiliate';
-import { advertiserApproveAffiliate } from '../blockchain/campaign/advertiserApproveAffiliate';
-import { affiliateWithdrawEarnings } from '../blockchain/campaign/affiliateWithdrawEarnings';
+import { advertiserRemoveAffiliate } from '../blockchain/advertiserRemoveAffiliate';
+import { advertiserApproveAffiliate } from '../blockchain/advertiserApproveAffiliate';
+import { affiliateWithdrawEarnings } from '../blockchain/affiliateWithdrawEarnings';
 
 import { AffiliateData, CampaignData, UserActionStats } from '../contracts/Campaign';
-import { CampaignApiResponse, UserApiResponse } from '../models/apiResponses';
-import { BOT_ACTION_LABELS } from '@common/constants';
+import { CampaignApiResponse, UserApiResponse } from '../models/ApiResponses';
+
+import {BOT_OP_CODE_USER_JOIN, BOT_OP_CODE_USER_RETAINED_TWO_WEEKS } from "@common/models"
+
+// Dictionary mapping each opcode to a friendly label
+export const BOT_ACTION_LABELS = new Map<bigint, string>([
+  [BOT_OP_CODE_USER_JOIN, 'User Click'],
+  [BOT_OP_CODE_USER_RETAINED_TWO_WEEKS, 'User Retained For 2 Weeks'],
+]);
+
 
 // 1) fetch the single affiliate from DB
 async function fetchSingleAffiliate(campaignId: string, affiliateId: string): Promise<UserApiResponse> {
@@ -236,7 +244,7 @@ export function AffiliatePage() {
   const showWithdrawButton = isUserTheAffiliate;
 
   // 13) Example affiliate link
-  const affiliateLink = `https://t.me/${import.meta.env.VITE_TON_AFFILIATES_VERIFIER_BOT}/${campaignId}_${affiliateId}`;
+  const affiliateLink = `https://t.me/${import.meta.env.VITE_TON_AFFILIATES_BOT}/?start=${campaignId}_${affiliateId}`;
   function copyLink() {
     navigator.clipboard.writeText(affiliateLink).then(() => {
       alert('Affiliate link copied to clipboard!');

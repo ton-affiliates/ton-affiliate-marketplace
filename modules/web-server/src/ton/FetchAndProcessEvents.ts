@@ -5,7 +5,7 @@ import { getLatestEvents, EmitLogEvent } from './ListenToEvents';
 import { wss } from '../App';
 import { Logger } from '../utils/Logger';
 import { createEventEntity } from '../services/EventsService';
-import { upsertCampaign } from '../services/CampaignsService';
+import { ensureCampaign } from '../services/CampaignsService';
 import {
   createCampaignRole,
   deleteCampaignRoleByCampaignAndWallet,
@@ -16,6 +16,13 @@ import { createNotification } from '../services/NotificationsService';
 import { RoleType } from '../entity/CampaignRole';
 import { Address } from '@ton/core';
 import { CampaignState } from '../entity/Campaign';
+import { getHttpV4Endpoint } from "@orbs-network/ton-access";
+import {TonConfig} from "../config/TonConfig"
+import { TonClient4 } from "@ton/ton";
+import { Campaign } from "../contracts/Campaign";
+import {getCampaignByIdWithAdvertiser} from "../services/CampaignsService";
+import { error } from 'console';
+import {opCodeToUserEvent, UserEventType} from "@common/models";
 
 // Helper for BigInt serialization
 function bigintReplacer(_: string, value: any) {
@@ -68,7 +75,7 @@ async function processEvents(events: EmitLogEvent[]) {
           );
 
           // upsert
-          await upsertCampaign({
+          await ensureCampaign({
             id: campaignId,
             state: CampaignState.DEPLOYED,
             campaignContractAddress: campaignContractTon.toString()
@@ -110,9 +117,66 @@ async function processEvents(events: EmitLogEvent[]) {
             `[AdvertiserSignedCampaignDetailsEvent] - campaignId: ${campaignId}, advertiser: ${advertiserTon}`
           );
 
-          await upsertCampaign({
+          const campaignFromDB = await getCampaignByIdWithAdvertiser(campaignId);
+          if (!campaignFromDB) {
+            Logger.error("No such campaign in DB: " + campaignId);
+            throw error("No such campaign in DB: " + campaignId);
+          }
+
+          // Load client
+          const endpoint = TonConfig.HTTP_ENDPOINT_NETWORK == "testnet" ? 
+                  await getHttpV4Endpoint({ network: TonConfig.HTTP_ENDPOINT_NETWORK }) :
+                  await getHttpV4Endpoint();
+          const client = new TonClient4({ endpoint });
+
+
+          const campaignInstance = client.open(Campaign.fromAddress(Address.parse(campaignFromDB!.campaignContractAddress)));
+
+        //   export type CampaignDetails = {
+        //     $$type: 'CampaignDetails';
+        //     regularUsersCostPerAction: Dictionary<bigint, bigint>;
+        //     premiumUsersCostPerAction: Dictionary<bigint, bigint>;
+        //     isPublicCampaign: boolean;
+        //     campaignValidForNumDays: bigint | null;
+        //     paymentMethod: bigint;
+        //     requiresAdvertiserApprovalForWithdrawl: boolean;
+        // }
+          // 1) Fetch the campaign details from the contract
+          let campaignDetails = (await campaignInstance.getCampaignData()).campaignDetails;
+
+          // 2) Initialize a Set (to avoid duplicates) for storing UserEventTypes
+          const eventsToVerifySet = new Set<UserEventType>();
+
+          // 3) Traverse regularUsersCostPerAction
+          for (const opCode of campaignDetails.regularUsersCostPerAction.keys()) {
+            const eventType = opCodeToUserEvent[opCode.toString()]; // Convert bigint to string before lookup
+            if (eventType) {
+              eventsToVerifySet.add(eventType);
+            } else {
+              Logger.error("Invalid op code: " + opCode.toString());
+              throw error("Invalid op code: " + opCode.toString());
+            }
+          }
+
+          // 4) Traverse premiumUsersCostPerAction
+          for (const opCode of campaignDetails.premiumUsersCostPerAction.keys()) {
+            const eventType = opCodeToUserEvent[opCode.toString()]; // Convert bigint to string before lookup
+            if (eventType) {
+              eventsToVerifySet.add(eventType);
+            } else {
+              Logger.error("Invalid op code: " + opCode.toString());
+              throw error("Invalid op code: " + opCode.toString());
+            }
+          }
+
+          // 5) Convert Set to Array (since DB usually stores arrays, not Sets)
+          const eventsToVerifyArray = Array.from(eventsToVerifySet);
+
+          // 6) Save the campaign with the extracted events
+          await ensureCampaign({
             id: campaignId,
             state: CampaignState.BLOCKCHAIN_DETAILS_SET,
+            eventsToVerify: eventsToVerifyArray,
           });
 
           Logger.info(
@@ -271,6 +335,7 @@ async function processEvents(events: EmitLogEvent[]) {
             error instanceof Error ? error.stack : 'No stack trace available.'
           }`
       );
+      throw error;
     }
   }
 };

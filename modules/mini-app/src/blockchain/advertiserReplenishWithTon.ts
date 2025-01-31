@@ -1,6 +1,6 @@
 // replenishWithTon.ts
 import { toNano, OpenedContract, Sender } from '@ton/core';
-import { Campaign } from '../../contracts/Campaign';
+import { Campaign } from '../contracts/Campaign';
 import { pollUntil } from './pollUntil';
 
 export async function replenishWithTon(

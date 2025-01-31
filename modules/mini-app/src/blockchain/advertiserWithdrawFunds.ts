@@ -1,7 +1,7 @@
 // advertiserWithdrawFunds.ts
 import { toNano, OpenedContract, Sender } from '@ton/core';
-import { Campaign } from '../../contracts/Campaign';
-import { GAS_FEE } from '@common/constants';
+import { Campaign } from '../contracts/Campaign';
+import { TonConfig } from '../config/TonConfig'
 import { pollUntil } from './pollUntil'; // import our helper
 
 export async function advertiserWithdrawFunds(
@@ -21,7 +21,7 @@ export async function advertiserWithdrawFunds(
   const numWithdrawBefore = campaignDataBefore.numAdvertiserWithdrawls;
 
   // 2) Send transaction
-  await campaignContract.send(sender, { value: GAS_FEE }, {
+  await campaignContract.send(sender, { value: TonConfig.GAS_FEE }, {
     $$type: 'AdvertiserWithdrawFunds',
     amount: toNano(withdrawAmount.toString()),
   });

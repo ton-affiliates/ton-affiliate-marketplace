@@ -2,9 +2,9 @@
 import { Address } from '@ton/core';
 import { TonClient4 } from '@ton/ton';
 import { getHttpV4Endpoint } from '@orbs-network/ton-access';
-import { HTTP_ENDPOINT_NETWORK } from '@common/constants';
 import { OpenedContract } from '@ton/core';
-import { Campaign } from '../../contracts/Campaign';
+import { Campaign } from '../contracts/Campaign';
+import { TonConfig } from '../config/TonConfig';
 
 // This attempts to look up the last transactions and figure out if we hit a known contract error.
 export async function checkTxFailureReason(
@@ -13,8 +13,8 @@ export async function checkTxFailureReason(
 ): Promise<void> {
   // Decide endpoint
   const endpoint =
-    HTTP_ENDPOINT_NETWORK === 'testnet'
-      ? await getHttpV4Endpoint({ network: HTTP_ENDPOINT_NETWORK })
+    TonConfig.HTTP_ENDPOINT_NETWORK === 'testnet'
+      ? await getHttpV4Endpoint({ network: TonConfig.HTTP_ENDPOINT_NETWORK })
       : await getHttpV4Endpoint();
 
   const client = new TonClient4({ endpoint });

@@ -577,26 +577,26 @@ contract Campaign with Resumable {
         });
     }
 
-    receive(msg: AdvertiserAddNewUserOpCode) {
-        require(sender() == self.advertiser, "Adding user op code failed: only advertiser can do this.");
-        require(self.isCampaignActive(), "Cannot add user op code: campaign is inactive.");
+    // receive(msg: AdvertiserAddNewUserOpCode) {
+    //     require(sender() == self.advertiser, "Adding user op code failed: only advertiser can do this.");
+    //     require(self.isCampaignActive(), "Cannot add user op code: campaign is inactive.");
 
-        let newUserOpCode: Int = msg.userOpCode;
-        let isPremiumUserOpCode: Bool = msg.isPremiumUserOpCode;
-        let cpa: Int = msg.costPerAction;
+    //     let newUserOpCode: Int = msg.userOpCode;
+    //     let isPremiumUserOpCode: Bool = msg.isPremiumUserOpCode;
+    //     let cpa: Int = msg.costPerAction;
 
-        if (isPremiumUserOpCode) {
-            require(self.campaignDetails.premiumUsersCostPerAction.get(newUserOpCode) != null, 
-                "Add op code failed: code not recognized in premium user dictionary.");
-            self.updateMaxCpaValue(cpa);
-            self.campaignDetails.premiumUsersCostPerAction.set(newUserOpCode, cpa);
-        } else {
-            require(self.campaignDetails.regularUsersCostPerAction.get(newUserOpCode) != null, 
-                "Add op code failed: code not recognized in regular user dictionary.");
-            self.updateMaxCpaValue(cpa);
-            self.campaignDetails.regularUsersCostPerAction.set(newUserOpCode, cpa);
-        }
-    }
+    //     if (isPremiumUserOpCode) {
+    //         require(self.campaignDetails.premiumUsersCostPerAction.get(newUserOpCode) != null, 
+    //             "Add op code failed: code not recognized in premium user dictionary.");
+    //         self.updateMaxCpaValue(cpa);
+    //         self.campaignDetails.premiumUsersCostPerAction.set(newUserOpCode, cpa);
+    //     } else {
+    //         require(self.campaignDetails.regularUsersCostPerAction.get(newUserOpCode) != null, 
+    //             "Add op code failed: code not recognized in regular user dictionary.");
+    //         self.updateMaxCpaValue(cpa);
+    //         self.campaignDetails.regularUsersCostPerAction.set(newUserOpCode, cpa);
+    //     }
+    // }
 
     receive(msg: AdvertiserUserAction) {
         require(sender() == self.advertiser, 

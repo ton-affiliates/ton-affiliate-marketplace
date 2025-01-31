@@ -61,7 +61,7 @@ const LoginScreen: React.FC = () => {
 
         if (dbResp.success) {
           // If the bot can't message the user, just warn but don't block
-          if (dbResp.canMessage === false) {
+          if (dbResp.user.canMessage === false) {
             setErrorMessage(`
               We verified your Telegram info, but our bot can't message you yet. 
               To recieve direct messages open Telegram and tap "Start" on @${botName}:

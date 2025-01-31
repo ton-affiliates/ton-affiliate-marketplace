@@ -1,8 +1,10 @@
 // src/blockchain/campaign/advertiserSetCampaignDetails.ts
 import { Dictionary, Sender, OpenedContract } from '@ton/core';
-import { Campaign } from '../../contracts/Campaign';
-import { GAS_FEE, BOT_OP_CODE_USER_CLICK } from '@common/constants';
+import { Campaign } from '../contracts/Campaign';
+import { TonConfig } from '../config/TonConfig'
+import { userEventToOpCode, UserEventType } from '@common/models';
 import { pollUntil } from './pollUntil'; // or wherever you keep pollUntil
+
 
 interface CommissionValues {
   userReferred: string;       // e.g. '0.1'
@@ -46,8 +48,9 @@ export async function advertiserSetCampaignDetails(
   const premiumUsersMap = Dictionary.empty<bigint, bigint>();
 
   // Example usage: store a cost per "BOT_OP_CODE_USER_CLICK"
-  regularUsersMap.set(BOT_OP_CODE_USER_CLICK, userRefVal);
-  premiumUsersMap.set(BOT_OP_CODE_USER_CLICK, premiumRefVal);
+  let opCode = userEventToOpCode[UserEventType.JOINED];
+  regularUsersMap.set(opCode, userRefVal);
+  premiumUsersMap.set(opCode, premiumRefVal);
 
   // 2) Calculate optional expiration in days
   let campaignValidForNumDays: bigint | null = null;
@@ -70,7 +73,7 @@ export async function advertiserSetCampaignDetails(
   // Send the transaction
   await campaignContract.send(
     sender,
-    { value: GAS_FEE },
+    { value: TonConfig.GAS_FEE },
     {  $$type: 'AdvertiserSetCampaignDetails',
         campaignDetails: {
           $$type: 'CampaignDetails',

@@ -1,16 +1,48 @@
 // src/components/TelegramSetupCampaign.tsx
+
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useTonConnectFetchContext } from './TonConnectProvider';
-import { TelegramCategory, TelegramAssetType } from '@common/models';
+import { TelegramAssetType } from '@common/models';
 
+export enum TelegramCategory {
+  GAMING = 'Gaming',
+  CRYPTO = 'Crypto',
+  TECHNOLOGY = 'Technology',
+  LIFESTYLE = 'Lifestyle',
+  EDUCATION = 'Education',
+  HEALTH = 'Health',
+  TRAVEL = 'Travel',
+  FINANCE = 'Finance',
+  ENTERTAINMENT = 'Entertainment',
+  POLITICS = 'Politics',
+  SOCIAL = 'Social',
+  SPORTS = 'Sports',
+  NEWS = 'News',
+  SCIENCE = 'Science',
+  ART = 'Art',
+  MUSIC = 'Music',
+  OTHER = 'Other', // For uncategorized or unique cases
+}
+
+
+/**
+ *  We load the bot's name/username from an environment variable
+ *  (e.g. 'VITE_TON_AFFILIATES_BOT' = "TonVerifierBot").
+ */
+const verifierBotName = import.meta.env.VITE_TON_AFFILIATES_BOT;
+
+/**
+ * This component guides the user to set up a Telegram channel (or mini-app).
+ * They must add our verifier bot as admin, so the server can confirm.
+ */
 function TelegramSetupCampaign() {
-  // 1) Grab the campaignId from the URL (e.g. /telegram-setup/123)
+  // 1) Grab the campaignId from the URL
   const { campaignId } = useParams<{ campaignId: string }>();
   console.log('[TelegramSetupCampaign] rendered with campaignId:', campaignId);
 
-  // 2) Local state for form inputs
+  // 2) Local states for form inputs
   const [campaignName, setCampaignName] = useState('');
   const [category, setCategory] = useState<TelegramCategory | ''>('');
   const [inviteLink, setInviteLink] = useState('');
@@ -21,20 +53,17 @@ function TelegramSetupCampaign() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-  // 4) Access the user’s TonConnect wallet address
+  // 4) Access the user’s wallet
   const { userAccount } = useTonConnectFetchContext();
-
-  // 5) React Router hook to navigate to the next page
   const navigate = useNavigate();
 
-  // 6) Handler for the “Verify Setup” button
   async function handleVerify() {
     console.log('[TelegramSetupCampaign] handleVerify clicked!');
     setIsVerifying(true);
     setErrorMessage(null);
     setSuccessMessage(null);
 
-    // Make sure user is connected
+    // Must have a wallet connected
     if (!userAccount?.address) {
       console.warn('[TelegramSetupCampaign] No wallet address found');
       setErrorMessage('No wallet address found. Please connect your wallet first.');
@@ -42,7 +71,7 @@ function TelegramSetupCampaign() {
       return;
     }
 
-    // Prepare the POST body
+    // Prepare data for server
     const bodyData = {
       campaignId,
       walletAddress: userAccount.address,
@@ -63,7 +92,6 @@ function TelegramSetupCampaign() {
 
       if (!response.ok) {
         let serverError = 'Unknown server error';
-        // Attempt to parse JSON
         try {
           const errorBody = await response.json();
           if (errorBody.error) {
@@ -77,12 +105,12 @@ function TelegramSetupCampaign() {
         throw new Error(serverError);
       }
 
-      // If successful
+      // If success
       const data = await response.json();
       console.log('[TelegramSetupCampaign] Verification successful:', data);
-      setSuccessMessage('Campaign created successfully!');
+      setSuccessMessage('Campaign created & verified successfully!');
 
-      // If the server returns the final campaign ID in `data.id`, use that
+      // Navigate to the next step
       const nextId = data.id || campaignId;
       console.log('[TelegramSetupCampaign] Navigating to /blockchain-setup/', nextId);
       navigate(`/blockchain-setup/${nextId}`);
@@ -94,7 +122,6 @@ function TelegramSetupCampaign() {
     }
   }
 
-  // Helper for “telegramType”
   function handleTelegramTypeChange(value: string) {
     const mapped = stringToTelegramAssetType(value);
     setTelegramType(mapped ?? '');
@@ -104,8 +131,8 @@ function TelegramSetupCampaign() {
     switch (value.toUpperCase()) {
       case 'CHANNEL':
         return TelegramAssetType.CHANNEL;
-      case 'MINI_APP':
-        return TelegramAssetType.MINI_APP;
+      // case 'MINI_APP':
+      //   return TelegramAssetType.MINI_APP;
       default:
         return undefined;
     }
@@ -120,8 +147,7 @@ function TelegramSetupCampaign() {
       <div className="card">
         {/* MAIN HEADING */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <h2 style={{ margin: 0 }}>Deploy New Campaign</h2>
-          {/* Info icon with tooltip */}
+          <h2 style={{ margin: 0 }}>Deploy New Telegram Campaign</h2>
           <div
             style={{
               position: 'relative',
@@ -129,9 +155,7 @@ function TelegramSetupCampaign() {
               cursor: 'pointer',
               fontSize: '1.2rem',
             }}
-            title="We create a new campaign contract on the blockchain. 
-This can take ~20–30 seconds because we wait for 
-the 'CampaignCreatedEvent' on our server before moving on."
+            title="Setup Telegram Details for your Campaign."
           >
             ℹ️
           </div>
@@ -139,12 +163,33 @@ the 'CampaignCreatedEvent' on our server before moving on."
 
         {/* EXPLANATORY TEXT */}
         <p style={{ marginTop: '0.5rem', fontSize: '0.95rem', color: '#555' }}>
-          By clicking "Verify Setup," we will deploy a new campaign contract on the TON blockchain
-          and wait for our server to confirm creation. Once confirmed, you will
-          automatically proceed to the next step. This can take up to 30 seconds.
+          To finish setting up your Telegram campaign, please add our verifier bot as an administrator to your <strong>public Telegram channel</strong>. 
+          The bot must have the privileges to see members joining or leaving, remove or ban users if needed, and post messages. 
+          This ensures we can verify channel membership and user actions correctly.
         </p>
 
-        {/* Display the campaign ID if available */}
+        {/* BOT NAME */}
+        <p style={{ marginBottom: '0.5rem', fontSize: '0.95rem', color: '#333' }}>
+          <strong>Verifier Bot Username:</strong> @{verifierBotName}
+        </p>
+
+        <p style={{ marginTop: '0.5rem', fontSize: '0.95rem', color: '#777' }}>
+          <em>
+            1. Make sure your Telegram channel is set to <strong>public</strong>.<br />
+            2. Go to channel settings &gt; Administrators &gt; Add Admin &gt; select <strong>@{verifierBotName}</strong>.<br />
+            3. Grant it these privileges: 
+            <ul style={{ marginLeft: '1.5rem', marginTop: 0, marginBottom: 0 }}>
+              <li>Can invite users via link</li>
+            </ul>
+            4. Once the bot is an admin with those privileges, paste your channel invite link below and click "Verify Setup."
+          </em>
+        </p>
+
+        <p style={{ marginTop: '1rem', fontSize: '0.95rem', color: '#555' }}>
+          Our server will confirm the bot is admin. If it's not, you'll see an error and need to fix that before continuing.
+        </p>
+
+        {/* Show the campaign ID if we have it */}
         <p>
           <strong>Campaign ID:</strong> {campaignId || 'No campaign ID provided'}
         </p>
@@ -198,31 +243,31 @@ the 'CampaignCreatedEvent' on our server before moving on."
           </select>
         </div>
 
-        {/* Invite Link (Required) */}
+        {/* Invite Link */}
         <div className="form-group">
-          <label htmlFor="inviteLink">*Copy invite link to channel here:</label>
+          <label htmlFor="inviteLink">*Public Channel Invite Link:</label>
           <input
             id="inviteLink"
             type="text"
             value={inviteLink}
             onChange={(e) => setInviteLink(e.target.value)}
+            placeholder="e.g. https://t.me/MyPublicChannel"
           />
         </div>
 
-        {/* Error or success messages */}
+        {/* Error or success */}
         {errorMessage && (
           <div className="error-popup">
             <p style={{ color: 'red', whiteSpace: 'pre-line' }}>{errorMessage}</p>
           </div>
         )}
-
         {successMessage && (
           <div className="success-popup">
             <p style={{ color: 'green', whiteSpace: 'pre-line' }}>{successMessage}</p>
           </div>
         )}
 
-        {/* "Verify Setup" button */}
+        {/* Verify Setup button */}
         <button
           className="telegram-campaign-button"
           disabled={
@@ -235,12 +280,12 @@ the 'CampaignCreatedEvent' on our server before moving on."
           onClick={handleVerify}
           title={
             !campaignName || !category || !inviteLink || !telegramType
-              ? 'Please fill all the mandatory fields marked with *'
+              ? 'Please fill all required fields'
               : ''
           }
           style={{ marginTop: '1rem' }}
         >
-          {isVerifying ? 'Deploying... Please wait' : 'Verify Setup'}
+          {isVerifying ? 'Verifying... Please wait' : 'Verify Setup'}
         </button>
       </div>
     </motion.div>

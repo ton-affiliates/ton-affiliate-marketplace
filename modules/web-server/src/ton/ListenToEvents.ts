@@ -1,5 +1,5 @@
 
-import { AFFILIATE_MARKETPLACE_ADDRESS, HTTP_ENDPOINT_NETWORK } from "@common/constants"
+import {TonConfig} from "../config/TonConfig"
 import { getHttpV4Endpoint } from "@orbs-network/ton-access";
 import { TonClient4 } from "@ton/ton";
 import { 
@@ -93,21 +93,21 @@ function getEventType(cell: Cell): 'AdvertiserWithdrawFundsEvent' | 'CampaignCre
 export async function getLatestEvents(lastProcessedEventLt = BigInt(0)) {
 
     // Load client
-    const endpoint = HTTP_ENDPOINT_NETWORK == "testnet" ? 
-            await getHttpV4Endpoint({ network: HTTP_ENDPOINT_NETWORK }) :
+    const endpoint = TonConfig.HTTP_ENDPOINT_NETWORK == "testnet" ? 
+            await getHttpV4Endpoint({ network: TonConfig.HTTP_ENDPOINT_NETWORK }) :
             await getHttpV4Endpoint();
     const client = new TonClient4({ endpoint });
 
     // Load transactions
     const block = (await client.getLastBlock()).last.seqno;
-    const account = await client.getAccount(block, AFFILIATE_MARKETPLACE_ADDRESS);
+    const account = await client.getAccount(block, TonConfig.AFFILIATE_MARKETPLACE_ADDRESS);
 
     if (account.account.state.type !== 'active') {
         throw new Error('Account is not active');
     }
 
     const transactions = (await client.getAccountTransactions(
-        AFFILIATE_MARKETPLACE_ADDRESS,
+        TonConfig.AFFILIATE_MARKETPLACE_ADDRESS,
         BigInt(account.account.last!.lt),
         Buffer.from(account.account.last!.hash, 'base64')
     ))

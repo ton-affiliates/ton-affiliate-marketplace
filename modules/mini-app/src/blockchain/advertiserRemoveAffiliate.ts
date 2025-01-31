@@ -1,7 +1,7 @@
 // advertiserRemoveAffiliate.ts
 import { OpenedContract, Sender } from '@ton/core';
-import { Campaign } from '../../contracts/Campaign';
-import { GAS_FEE } from '@common/constants';
+import { Campaign } from '../contracts/Campaign';
+import { TonConfig } from '../config/TonConfig'
 import { pollUntil } from './pollUntil'; // adjust path as needed
 
 /**
@@ -31,7 +31,7 @@ export async function advertiserRemoveAffiliate(
   console.log(`[advertiserRemoveAffiliate] Removing affiliate ${affiliateId}.`);
 
   // Send the AdvertiserRemoveAffiliate message
-  await campaignContract.send(sender, { value: GAS_FEE }, {
+  await campaignContract.send(sender, { value: TonConfig.GAS_FEE }, {
     $$type: 'AdvertiserRemoveAffiliate',
     affiliateId,
   });

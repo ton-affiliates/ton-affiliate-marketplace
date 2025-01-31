@@ -2,7 +2,7 @@ import appDataSource from '../ormconfig';
 import { Campaign } from '../entity/Campaign';
 import { Logger } from '../utils/Logger';
 import { CampaignRole, RoleType } from '../entity/CampaignRole';
-import {Address} from "@ton/core";
+import { Address } from '@ton/core';
 
 function campaignRepository() {
   return appDataSource.getRepository(Campaign);
@@ -12,7 +12,7 @@ function campaignRoleRepository() {
   return appDataSource.getRepository(CampaignRole);
 }
 
-export async function upsertCampaign(data: Partial<Campaign>): Promise<Campaign> {
+export async function ensureCampaign(data: Partial<Campaign>): Promise<Campaign> {
   try {
     const repo = campaignRepository();
 
@@ -37,11 +37,20 @@ export async function upsertCampaign(data: Partial<Campaign>): Promise<Campaign>
 
 /** 
  * Fetch a single campaign AND find the advertiser address. 
- * Return a combined object with an extra `advertiserAddress` field.
+ * Return a combined object with extra fields:
+ *   - advertiserAddress
+ *   - assetPhotoBase64
+ *   - canBotVerify
+ *   - requiredPrivileges
  */
 export async function getCampaignByIdWithAdvertiser(
   id: string
-): Promise<(Campaign & { advertiserAddress?: string }) | null> {
+): Promise<(Campaign & {
+  advertiserAddress?: string;
+  assetPhotoBase64?: string;
+  canBotVerify?: boolean;
+  requiredPrivileges?: string[];
+}) | null> {
   try {
     // 1) Get the campaign
     const campaign = await campaignRepository().findOne({ where: { id } });
@@ -49,8 +58,7 @@ export async function getCampaignByIdWithAdvertiser(
       return null; // Not found
     }
 
-    // 2) Find the CampaignRole for "advertiser"
-    //    (assuming there's only one advertiser per campaign)
+    // 2) Find the CampaignRole for "advertiser" (assuming there's only one advertiser per campaign)
     const advertiserRole = await campaignRoleRepository().findOne({
       where: {
         campaignId: id,
@@ -58,18 +66,23 @@ export async function getCampaignByIdWithAdvertiser(
       },
     });
 
-    // If the campaign has a photo in `assetPhoto`, convert it to base64
+    // 3) If the campaign has a photo in `assetPhoto`, convert it to base64
     let assetPhotoBase64: string | undefined = undefined;
     if (campaign.assetPhoto) {
       assetPhotoBase64 = Buffer.from(campaign.assetPhoto).toString('base64');
     }
 
-    // 3) Attach it to the campaign result
-    const campaignWithAdvertiser = {
-      ...campaign,
+    // 4) Compute canBotVerifyEvents and requiredPrivileges from the entity
+    const canBotVerify = campaign.canBotVerifyEvents();
+    const requiredPrivileges = campaign.getRequiredPrivileges();
+
+    // 5) Use Object.assign() to extend the campaign without losing TypeORM methods
+    const campaignWithAdvertiser = Object.assign(campaign, {
       advertiserAddress: advertiserRole ? advertiserRole.walletAddress : undefined,
-      assetPhotoBase64
-    };
+      assetPhotoBase64,
+      canBotVerify,
+      requiredPrivileges,
+    });
 
     return campaignWithAdvertiser;
   } catch (err) {
@@ -78,14 +91,18 @@ export async function getCampaignByIdWithAdvertiser(
   }
 }
 
+
 /**
  * Get all campaigns for a given wallet address.
  */
-export async function getAllCampaignsForWallet(walletAddress: Address, roleType: RoleType): Promise<Campaign[]> {
+export async function getAllCampaignsForWallet(
+  walletAddress: Address,
+  roleType: RoleType
+): Promise<Campaign[]> {
   try {
     // 1) Find all campaign roles for this wallet address, loading the related Campaign
     const roles = await campaignRoleRepository().find({
-      where: { walletAddress: walletAddress.toString(), role: roleType }, 
+      where: { walletAddress: walletAddress.toString(), role: roleType },
       relations: ['campaign'],
     });
 
@@ -94,8 +111,8 @@ export async function getAllCampaignsForWallet(walletAddress: Address, roleType:
 
     // 3) Remove duplicates if the same wallet has multiple roles in the same campaign
     const uniqueByCampaignId = new Map<string, Campaign>();
-    campaigns.forEach((campaign) => {
-      uniqueByCampaignId.set(campaign.id, campaign);
+    campaigns.forEach((camp) => {
+      uniqueByCampaignId.set(camp.id, camp);
     });
 
     // 4) Return the unique Campaigns

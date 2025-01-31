@@ -27,12 +27,7 @@ export function useCampaignContract(
         setIsLoading(true);
 
         // 4) Open the Campaign contract from that address
-        console.log(campaignContractAddress);
         const campaignInstance = client.open(Campaign.fromAddress(Address.parse(campaignContractAddress)));
-
-        console.log("campaignInstance");
-        console.log(campaignInstance);
-
         setCampaignContract(campaignInstance);
       } catch (err: any) {
         console.error('Error in useCampaignContract:', err);

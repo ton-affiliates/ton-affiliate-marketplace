@@ -10,15 +10,22 @@ export interface NotificationApiResponse {
 
 export interface CampaignApiResponse {
   id: string;
+  handle: string;
   campaignContractAddress: string;
+  advertiserAddress: string;
   campaignName: string;
   assetName: string;
+  memberCount?: number;
+  botIsAdmin?: boolean;
+  adminPrivileges?: string[];
   assetType?: string;
   assetTitle?: string;
   assetDescription?: string;
   inviteLink?: string;
   createdAt?: string;
   assetPhotoBase64?: string;
+  canBotVerify?: boolean;          
+  requiredPrivileges?: string[];    
 }
 
 export interface UserApiResponse {

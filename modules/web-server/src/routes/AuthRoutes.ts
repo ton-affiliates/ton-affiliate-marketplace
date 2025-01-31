@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import crypto from 'crypto';
 import { Logger } from '../utils/Logger';
-import {ensureUser  } from '../services/UsersService';
+import {ensureUser, getUserById  } from '../services/UsersService';
 import dotenv from 'dotenv';
 import { sendTelegramMessage } from '../services/TelegramService'
 
@@ -42,17 +42,17 @@ router.post(
         lastName: last_name,
         telegramUsername: username,
         photoUrl: photo_url,
-        // Convert auth_date (seconds) to a JS Date
         authDate: new Date(Number(auth_date) * 1000),
       };
 
       // upsert user in DB
-      const user = await ensureUser(userData);
-
-      if (!user.canMessage) {
+      const createdOrUpdatedUser = await ensureUser(userData);
+      if (!createdOrUpdatedUser.canMessage) {
           await sendTelegramMessage(Number(id), userData.firstName + ', you successfuly logged in to TonAffiliates!');
       } 
-      res.json({ success: true, user, canMessage: user.canMessage });
+
+      const user = await getUserById(createdOrUpdatedUser.id);  // must get it back from DB to get the latest 'canMessage'
+      res.json({ success: true, user });
     } catch (err: any) {
       Logger.error('Error in POST /telegram-verify route', err);
       return void res.status(500).json({ error: err.message || 'Internal Server Error' });

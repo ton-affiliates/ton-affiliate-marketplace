@@ -4,12 +4,12 @@ import { useParams, useSearchParams, Link } from 'react-router-dom';
 import { Dictionary, Address } from '@ton/core';
 
 import { useCampaignContract } from '../hooks/useCampaignContract';
-import { advertiserApproveAffiliate } from '../blockchain/campaign/advertiserApproveAffiliate';
-import { advertiserRemoveAffiliate } from '../blockchain/campaign/advertiserRemoveAffiliate';
+import { advertiserApproveAffiliate } from '../blockchain/advertiserApproveAffiliate';
+import { advertiserRemoveAffiliate } from '../blockchain/advertiserRemoveAffiliate';
 import { AffiliateData, CampaignData } from '../contracts/Campaign';
 import { useTonConnectFetchContext } from './TonConnectProvider';
 import { useTonWalletConnect } from '../hooks/useTonConnect';
-import { CampaignRoleApiResponse } from '../models/apiResponses';
+import { CampaignRoleApiResponse } from '../models/ApiResponses';
 
 /** 1) DB call: fetch paged affiliates */
 async function fetchPagedAffiliates(

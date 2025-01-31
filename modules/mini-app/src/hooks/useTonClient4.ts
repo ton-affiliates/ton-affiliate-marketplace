@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { HTTP_ENDPOINT_NETWORK } from "../common/constants";
+import { TonConfig } from "../config/TonConfig";
 import { getHttpV4Endpoint } from "@orbs-network/ton-access";
 import { TonClient4 } from "@ton/ton";
 
@@ -9,8 +9,8 @@ export const useTonClient = (): TonClient4 | null => {
   useEffect(() => {
     const fetchClient = async () => {
       try {
-        const endpoint = HTTP_ENDPOINT_NETWORK == "testnet" ? 
-          await getHttpV4Endpoint({ network: HTTP_ENDPOINT_NETWORK }) :
+        const endpoint = TonConfig.HTTP_ENDPOINT_NETWORK == "testnet" ? 
+          await getHttpV4Endpoint({ network: TonConfig.HTTP_ENDPOINT_NETWORK }) :
           await getHttpV4Endpoint();
         const client = new TonClient4({ endpoint });
         setClient(client);

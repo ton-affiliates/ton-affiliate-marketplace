@@ -1,6 +1,6 @@
 import { Address, beginCell, OpenedContract, Sender, Cell, toNano } from '@ton/core';
-import { Campaign } from '../../contracts/Campaign';
-import { GAS_FEE, USDT_MASTER_ADDRESS } from '@common/constants';
+import { Campaign } from '../contracts/Campaign';
+import { TonConfig } from '../config/TonConfig'
 import { randomBytes } from 'crypto';
 import { TonClient } from '@ton/ton';
 import { pollUntil } from './pollUntil'; // adjust path to your pollUntil
@@ -9,7 +9,7 @@ import { pollUntil } from './pollUntil'; // adjust path to your pollUntil
 async function getUSDTWalletAddress(ownerAddress: Address, client: TonClient) {
   const ownerAddressCell = beginCell().storeAddress(ownerAddress).endCell();
   const result = await client.runMethod(
-    USDT_MASTER_ADDRESS,
+    TonConfig.USDT_MASTER_ADDRESS,
     'get_wallet_address',
     [{ type: 'slice', cell: ownerAddressCell }]
   );
@@ -74,14 +74,14 @@ export async function replenishWithUsdt(
     .storeAddress(campaignContract.address) // Recipient address
     .storeAddress(campaignContract.address) // Response address for excess gas
     .storeBit(0) // No custom payload
-    .storeCoins(GAS_FEE) // Forwarded TON amount
+    .storeCoins(TonConfig.GAS_FEE) // Forwarded TON amount
     .storeBit(1) // Forward payload is stored as a reference
     .storeRef(forwardPayload)
     .endCell();
 
   // Gas fee for the transaction
   const fixedGasFee = toNano('0.05');
-  const totalValueToSend = GAS_FEE + fixedGasFee;
+  const totalValueToSend = TonConfig.GAS_FEE + fixedGasFee;
 
   // Send the Jetton transfer from the user's jetton wallet
   await sender.send({

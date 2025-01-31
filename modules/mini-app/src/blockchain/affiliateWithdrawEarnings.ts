@@ -1,8 +1,7 @@
 import { OpenedContract, Sender } from '@ton/core';
-import { Campaign } from '../../contracts/Campaign';
-import { GAS_FEE } from '@common/constants';
+import { Campaign } from '../contracts/Campaign';
 import { pollUntil } from './pollUntil'; // adjust path
-
+import { TonConfig } from '../config/TonConfig'
 /**
  * Allows the affiliate to withdraw their earnings for the given campaign.
  * Waits until the affiliate’s `withdrawEarnings` changes (presumably to 0).
@@ -38,7 +37,7 @@ export async function affiliateWithdrawEarnings(
   }
 
   // Send the transaction
-  await campaignContract.send(sender, { value: GAS_FEE }, {
+  await campaignContract.send(sender, { value: TonConfig.GAS_FEE }, {
     $$type: 'AffiliateWithdrawEarnings',
     affiliateId: affiliateId,
   });

@@ -1,8 +1,8 @@
 // advertiserApproveAffiliate.ts
 import { OpenedContract, Sender } from '@ton/core';
-import { Campaign } from '../../contracts/Campaign';
-import { GAS_FEE } from '@common/constants';
+import { Campaign } from '../contracts/Campaign';
 import { pollUntil } from './pollUntil';
+import { TonConfig } from '../config/TonConfig';
 
 export async function advertiserApproveAffiliate(
   campaignContract: OpenedContract<Campaign> | null,
@@ -28,7 +28,7 @@ export async function advertiserApproveAffiliate(
   );
 
   // Send message
-  await campaignContract.send(sender, { value: GAS_FEE }, {
+  await campaignContract.send(sender, { value: TonConfig.GAS_FEE }, {
     $$type: 'AdvertiserApproveAffiliate',
     affiliateId: affiliateId,
   });

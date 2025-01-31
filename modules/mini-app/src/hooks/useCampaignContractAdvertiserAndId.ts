@@ -5,7 +5,7 @@ import { Address } from '@ton/core';
 import { useTonClient } from './useTonClient4';
 import { AffiliateMarketplace } from '../contracts/AffiliateMarketplace';
 import { Campaign } from '../contracts/Campaign';
-import { AFFILIATE_MARKETPLACE_ADDRESS } from '@common/constants';
+import { TonConfig } from '../config/TonConfig';
 import { OpenedContract } from "@ton/core";
 
 /**
@@ -40,7 +40,7 @@ export function useCampaignContractAdvertiserAndId(
         setIsLoading(true);
         // 1) Create the affiliate marketplace instance
         const affiliateMarketplace = client.open(
-          AffiliateMarketplace.fromAddress(AFFILIATE_MARKETPLACE_ADDRESS)
+          AffiliateMarketplace.fromAddress(TonConfig.AFFILIATE_MARKETPLACE_ADDRESS)
         );
 
         console.log("affiliateMarketplace");

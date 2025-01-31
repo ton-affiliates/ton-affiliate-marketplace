@@ -1,8 +1,8 @@
 // pollUntil.ts
 import { OpenedContract } from '@ton/core';
-import { Campaign } from '../../contracts/Campaign';
+import { Campaign } from '../contracts/Campaign';
 import { checkTxFailureReason } from './checkTxFailureReason';
-import { MAX_ATTEMPTS } from '@common/constants';
+import { TonConfig } from '../config/TonConfig'
 
 /**
  * Generic polling helper. Repeatedly calls `conditionFn` until
@@ -14,7 +14,7 @@ export async function pollUntil(
   conditionFn: () => Promise<boolean>,
   campaignContract: OpenedContract<Campaign>,
   userAccountAddress?: string,
-  maxAttempts = MAX_ATTEMPTS,
+  maxAttempts = TonConfig.MAX_ATTEMPTS,
   intervalMs = 2000
 ) {
   let attempt = 0;

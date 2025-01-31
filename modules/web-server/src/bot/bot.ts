@@ -1,27 +1,31 @@
 // src/bot.ts
+
 import { Telegraf } from 'telegraf';
 import dotenv from 'dotenv';
 import * as svgCaptcha from 'svg-captcha';
 import sharp from 'sharp';
 import { Logger } from '../utils/Logger';
 import { getCampaignByIdWithAdvertiser } from '../services/CampaignsService';
+import { createEvent } from '../services/UserEventsService';
+import {UserEventType} from "@common/models";
 
 dotenv.config();
 
-export const bot = new Telegraf(process.env.VERIFIER_BOT_TOKEN || '');
+export const bot = new Telegraf(process.env.BOT_USERNAME || '');
 
 interface CaptchaData {
   captchaText: string;
   campaignId: string;
   affiliateId: string;
+  tries: number;
 }
 
-// In-memory captcha store
+// Store captchas while user is solving
 const activeCaptchas = new Map<number, CaptchaData>();
 
 /**
- * The user does /start <campaignId>_<affiliateId>.
- * We show a CAPTCHA, store the data, and wait for them to solve.
+ * /start <campaignId>_<affiliateId>
+ * Generate captcha, store in activeCaptchas, wait for solution
  */
 bot.start(async (ctx) => {
   const userId = ctx.from.id;
@@ -41,24 +45,24 @@ bot.start(async (ctx) => {
     background: '#f2f2f2',
   });
 
-  // Convert SVG to PNG
   const pngBuffer = await sharp(Buffer.from(captcha.data)).png().toBuffer();
 
-  // Save in memory
+  // Save captcha (init tries=0)
   activeCaptchas.set(userId, {
-    captchaText: captcha.text,  // correct solution
+    captchaText: captcha.text,
     campaignId,
     affiliateId,
+    tries: 0,
   });
 
   await ctx.replyWithPhoto({ source: pngBuffer }, {
-    caption: 'Solve this CAPTCHA to continue.'
+    caption: 'Solve this CAPTCHA to continue.',
   });
 });
 
 /**
- * When user sends text, we check if it matches the CAPTCHA.
- * If correct => show them an inline button with callback_data
+ * On text: check if matches current captcha
+ * If correct => event: "solved-captcha" => show a callback button
  */
 bot.on('text', async (ctx) => {
   const userId = ctx.from.id;
@@ -72,72 +76,158 @@ bot.on('text', async (ctx) => {
   const { captchaText, campaignId, affiliateId } = data;
   const userSolution = ctx.message.text.trim();
 
+  // Compare ignoring case
   if (userSolution.toLowerCase() !== captchaText.toLowerCase()) {
-    await ctx.reply('❌ Incorrect CAPTCHA. Please try again.');
+    data.tries += 1;
+    if (data.tries >= 5) {
+      activeCaptchas.delete(userId);
+      await ctx.reply('❌ You have used all 5 attempts. Please /start again.');
+      return;
+    }
+    // Generate new captcha
+    const newCaptcha = svgCaptcha.create({
+      size: 5,
+      noise: 5,
+      color: true,
+      background: '#f2f2f2',
+    });
+    const newPngBuffer = await sharp(Buffer.from(newCaptcha.data)).png().toBuffer();
+
+    data.captchaText = newCaptcha.text;
+    activeCaptchas.set(userId, data);
+
+    await ctx.reply('❌ Incorrect CAPTCHA. Here is a new one:');
+    await ctx.replyWithPhoto({ source: newPngBuffer }, {
+      caption: `Attempt #${data.tries + 1} of 5. Please try again.`,
+    });
     return;
   }
 
-  // Remove from memory
+  // Captcha correct
   activeCaptchas.delete(userId);
 
-  // Fetch the campaign from DB
+  // Create an event: "solved-captcha"
+  const isPremium = ctx.from.is_premium === true; // Telegram user object might have is_premium
+  await createEvent({
+    userId,
+    isPremium,
+    eventType: UserEventType.SOLVED_CAPTCHA,
+    campaignId,
+    affiliateId,
+  });
+
+  // Check DB for campaign
   const campaign = await getCampaignByIdWithAdvertiser(campaignId);
   if (!campaign || !campaign.inviteLink) {
     await ctx.reply('Invalid or missing campaign invite link. Contact support.');
     return;
   }
 
-  Logger.info(`User ${userId} solved captcha. Now showing inline button => campaign=${campaignId}`);
+  Logger.info(`User ${userId} solved captcha => showing "Finish Join" button`);
+  const callbackData = `finish_join:${campaignId}:${affiliateId}`;
 
-  // We send an inline button that triggers a callback query
-  // The user sees "Go to Channel"
-  // Tapping it => triggers bot.on('callback_query') => we open campaign.inviteLink
-  const callbackData = `openLink:${campaignId}:${affiliateId}`;
-  await ctx.reply('CAPTCHA solved! Tap the button to go to the channel:', {
+  await ctx.reply('CAPTCHA solved! Tap the button to finalize joining:', {
     reply_markup: {
       inline_keyboard: [
         [
           {
-            text: 'Go to Channel',
-            callback_data: callbackData
-          }
-        ]
-      ]
-    }
+            text: 'Finish Join',
+            callback_data: callbackData,
+          },
+        ],
+      ],
+    },
   });
 });
 
 /**
- *  If the user taps that inline button => we get a callback query.
- *  We'll parse it => then "redirect" them immediately with answerCbQuery({ url: ... }).
+ * Callback: user taps "Finish Join".
+ *  => event: "clicked-join"
+ *  => send a link button for the channel
  */
 bot.on('callback_query', async (ctx) => {
   const cb = ctx.callbackQuery;
-  // Type-assert if necessary: (cb as DataCallbackQuery).data
-  const data = (cb as any).data as string; // or use a type guard
+  const data = (cb as any).data as string;
+  if (!data.startsWith('finish_join:')) return;
 
-  if (!data.startsWith('openLink:')) return;
+  const [_, campaignId, affiliateId] = data.split(':');
+  const userId = ctx.from.id;
+  const isPremium = ctx.from.is_premium === true;
 
-  const parts = data.split(':'); // e.g. ["openLink", "123", "456"]
-  const campaignId = parts[1];
-  const affiliateId = parts[2];
+  // Create an event: "clicked-join"
+  await createEvent({
+    userId,
+    isPremium,
+    eventType: UserEventType.JOINED,
+    campaignId,
+    affiliateId,
+  });
 
-  Logger.info(`User ${ctx.from.id} tapped inline button => campaign=${campaignId}, affiliate=${affiliateId}`);
-  
-  // We can fetch campaign again or have stored it earlier
+  // Mark user as "pending join" so we can track in chat_member update
+  // pendingJoins.set(userId, { campaignId, affiliateId });
+
+  // Retrieve the campaign again just to confirm invite link
   const campaign = await getCampaignByIdWithAdvertiser(campaignId);
   if (!campaign || !campaign.inviteLink) {
-    // fallback
     await ctx.answerCbQuery('No invite link found.', { show_alert: true });
     return;
   }
 
-  // "Redirect" them by providing the url param in answerCbQuery
-  // This opens the link in Telegram's external browser or channel.
-  // The user must confirm to open the link on their side. 
-  await ctx.answerCbQuery('Opening channel...', {
-    url: campaign.inviteLink
-  });
+  await ctx.answerCbQuery('Logging done. Please see the next message.');
 
-  // TODO Guy write event to Blockchain here 
+  // Send a second message with a direct URL button
+  await ctx.reply('All set! Tap below to join the channel:', {
+    reply_markup: {
+      inline_keyboard: [
+        [
+          {
+            text: 'Join Channel',
+            url: campaign.inviteLink, // e.g. https://t.me/+SomePrivateHash
+          },
+        ],
+      ],
+    },
+  });
 });
+
+/**
+ * Listen for 'chat_member' updates to detect if user actually joined the channel.
+ * The bot must be an admin in that channel to receive these updates.
+ */
+bot.on('chat_member', async (ctx) => {
+  try {
+    const chatMemberUpdate = ctx.update.chat_member;
+    if (!chatMemberUpdate) return;
+
+    const oldStatus = chatMemberUpdate.old_chat_member.status;
+    const newStatus = chatMemberUpdate.new_chat_member.status;
+    const userId = chatMemberUpdate.new_chat_member.user.id;
+    const isPremium = chatMemberUpdate.new_chat_member.user.is_premium === true;
+
+    // We only care if user just switched from 'left'/'kicked' to 'member'
+    if ((oldStatus === 'left' || oldStatus === 'kicked') && newStatus === 'member') {
+      // Check if user is in pendingJoins
+      // const pending = pendingJoins.get(userId);
+      // if (pending) {
+      //   const { campaignId, affiliateId } = pending;
+
+      //   // Create event: "joined-channel"
+      //   await UserEventsService.createEvent({
+      //     userId,
+      //     isPremium,
+      //     eventType: 'joined-channel',
+      //     campaignId,
+      //     affiliateId,
+      //   });
+
+      //   Logger.info(`User ${userId} joined channel => campaign=${campaignId}, affiliate=${affiliateId}`);
+      // }
+    }
+  } catch (err) {
+    Logger.error('Error in chat_member update:', err);
+  }
+});
+
+// In your main file, you'd do something like:
+// bot.launch();
+// Logger.info("Verifier Bot is running...");

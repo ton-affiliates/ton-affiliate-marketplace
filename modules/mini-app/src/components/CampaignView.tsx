@@ -1,5 +1,3 @@
-// src/components/CampaignView.tsx
-
 import { useEffect, useState, useRef, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { Address, Dictionary, fromNano } from '@ton/core';
@@ -9,13 +7,13 @@ import { useTonConnectFetchContext } from './TonConnectProvider';
 import { useTonWalletConnect } from '../hooks/useTonConnect';
 import { useTonClient } from '../hooks/useTonClient';
 
-import { replenishWithTon } from '../blockchain/campaign/advertiserReplenishWithTon';
-import { replenishWithUsdt } from '../blockchain/campaign/advertiserReplenishWithUsdt';
-import { replenishGasFeesForUsdtCampaign } from '../blockchain/campaign/advertiserReplenishCampaignGasFees';
-import { advertiserWithdrawFunds } from '../blockchain/campaign/advertiserWithdrawFunds';
-import { advertiserApproveAffiliate } from '../blockchain/campaign/advertiserApproveAffiliate';
-import { advertiserRemoveAffiliate } from '../blockchain/campaign/advertiserRemoveAffiliate';
-import { affiliateCreateNewAffiliate } from '../blockchain/campaign/affiliateCreateNewAffiliate';
+import { replenishWithTon } from '../blockchain/advertiserReplenishWithTon';
+import { replenishWithUsdt } from '../blockchain/advertiserReplenishWithUsdt';
+import { replenishGasFeesForUsdtCampaign } from '../blockchain/advertiserReplenishCampaignGasFees';
+import { advertiserWithdrawFunds } from '../blockchain/advertiserWithdrawFunds';
+import { advertiserApproveAffiliate } from '../blockchain/advertiserApproveAffiliate';
+import { advertiserRemoveAffiliate } from '../blockchain/advertiserRemoveAffiliate';
+import { affiliateCreateNewAffiliate } from '../blockchain/affiliateCreateNewAffiliate';
 
 import { useAffiliateWebSocket } from '../hooks/useAffiliateWebSocket';
 
@@ -24,9 +22,9 @@ import {
   UserApiResponse,
   NotificationApiResponse,
   CampaignRoleApiResponse,
-} from '../models/apiResponses';
+} from '../models/ApiResponses';
 import { CampaignData, AffiliateData } from '../contracts/Campaign';
-import { BOT_OP_CODE_USER_CLICK } from '@common/constants';
+import { BOT_OP_CODE_USER_JOIN } from '@common/models';
 
 import TransactionButton from '../components/TransactionButton';
 import Spinner from '../components/Spinner';
@@ -107,7 +105,7 @@ export default function CampaignView() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // 2) Campaign from DB
+  // 2) Campaign from DB (includes canBotVerify, requiredPrivileges, etc.)
   const [campaign, setCampaign] = useState<CampaignApiResponse | null>(null);
 
   // 3) On-chain data (advertiser, isActive, etc.)
@@ -115,7 +113,6 @@ export default function CampaignView() {
   const [chainLoading, setChainLoading] = useState(false);
   const [chainError, setChainError] = useState<string | null>(null);
 
-  // "Top affiliates" from on-chain
   const [topAffiliatesData, setTopAffiliatesData] = useState<
     { affiliateId: bigint; affiliateAddr: string; totalEarnings: bigint; state: bigint }[]
   >([]);
@@ -124,7 +121,7 @@ export default function CampaignView() {
   const [advertiserUser, setAdvertiserUser] = useState<UserApiResponse | null>(null);
   const [loadingUser, setLoadingUser] = useState(false);
 
-  // 4) For the contract, we get `campaignContractAddress` from the DB campaign
+  // For the contract, we get `campaignContractAddress` from the DB
   const campaignContractAddress = campaign?.campaignContractAddress;
   const {
     campaignContract,
@@ -132,12 +129,12 @@ export default function CampaignView() {
     error: chainHookError,
   } = useCampaignContract(campaignContractAddress);
 
-  // 5) Are we the advertiser? => from onChainData.advertiser
-  const advertiserAddr = onChainData?.advertiser;
+  // Are we the advertiser?
+  const [advertiserAddr, setAdvertiserAddr] = useState<string | null>(null);
   const isUserAdvertiser = useMemo(() => {
     if (!userAccount?.address || !advertiserAddr) return false;
     try {
-      return Address.parse(userAccount.address).toString() === advertiserAddr!.toString();
+      return Address.parse(userAccount.address).toString() === advertiserAddr;
     } catch {
       return false;
     }
@@ -161,7 +158,7 @@ export default function CampaignView() {
   const [affiliatesError, setAffiliatesError] = useState<string | null>(null);
 
   //------------------------------------------------------------------
-  // 1) Fetch the campaign from DB -> we get e.g. campaignContractAddress
+  // 1) Fetch the campaign from DB -> includes canBotVerify & requiredPrivileges
   //------------------------------------------------------------------
   useEffect(() => {
     if (!id) {
@@ -177,6 +174,11 @@ export default function CampaignView() {
         }
         const data: CampaignApiResponse = await resp.json();
         setCampaign(data);
+
+        // We might have 'advertiserAddress' from the combined object
+        if (data.advertiserAddress) {
+          setAdvertiserAddr(data.advertiserAddress);
+        }
       } catch (err: any) {
         setError(err.message);
       } finally {
@@ -186,7 +188,7 @@ export default function CampaignView() {
   }, [id]);
 
   //------------------------------------------------------------------
-  // 2) Once we know onChainData.advertiser => fetch advertiser user from DB
+  // 2) Once we know advertiserAddr => fetch advertiser user
   //------------------------------------------------------------------
   useEffect(() => {
     if (!advertiserAddr) return;
@@ -379,6 +381,31 @@ export default function CampaignView() {
   }
 
   //------------------------------------------------------------------
+  // 9) Refresh Bot Admin Status
+  //------------------------------------------------------------------
+  async function handleRefreshBotAdmin() {
+    if (!id) return;
+    try {
+      // Hypothetical endpoint that re-checks the Telegram chat privileges,
+      // updates the DB, and returns the updated campaign
+      await fetch(`/api/v1/campaigns/${id}/refresh-bot-admin`, {
+        method: 'POST',
+      });
+
+      // Re-fetch the updated campaign
+      const resp = await fetch(`/api/v1/campaigns/${id}`);
+      if (!resp.ok) {
+        throw new Error(`Failed to refetch campaign. Status: ${resp.status}`);
+      }
+      const updated = await resp.json();
+      setCampaign(updated);
+    } catch (err) {
+      console.error('Error re-checking bot admin privileges:', err);
+      alert(`Error re-checking bot admin privileges: ${String(err)}`);
+    }
+  }
+
+  //------------------------------------------------------------------
   // Helpers
   //------------------------------------------------------------------
   function formatTonFriendly(rawAddr: string): string {
@@ -399,10 +426,9 @@ export default function CampaignView() {
     });
   }
 
-  // Helper to see if campaign is truly "active"
-  const isCampaignReallyActive = useMemo(() => {
+  // On-chain check for partial "active"
+  const isCampaignOnChainActive = useMemo(() => {
     if (!onChainData) return false;
-    // same logic you have in the code for realTonBalance vs requiredGas, etc.
     const realTonBalance = Number(onChainData.contractTonBalance) / 1e9;
     const isUSDT = onChainData.campaignDetails.paymentMethod === 1n;
     const requiredGas = isUSDT ? 0.5 : 1;
@@ -415,6 +441,12 @@ export default function CampaignView() {
       hasSufficientGas
     );
   }, [onChainData]);
+
+  // The bot’s canBotVerify property from DB
+  const botCanVerify = campaign?.canBotVerify || false;
+
+  // Final "Active" = onChain active && bot can verify
+  const isFullyActive = isCampaignOnChainActive && botCanVerify;
 
   //------------------------------------------------------------------
   // Load checks
@@ -433,7 +465,6 @@ export default function CampaignView() {
     pausedOrExpiredMsg = 'This campaign has expired.';
   }
 
-  // Copy link
   function handleCopyInviteUrl() {
     const affiliateInviteUrl = window.location.href;
     navigator.clipboard.writeText(affiliateInviteUrl).then(
@@ -555,21 +586,16 @@ export default function CampaignView() {
       <h2 style={{ marginBottom: '0.5rem' }}>Campaign ID: {campaign.id}</h2>
       <h2 style={{ marginBottom: '0.5rem' }}>Campaign Name: {campaign.campaignName}</h2>
 
-      {/* Show the campaign contract address if we have onChainData */}
       {onChainData && (
         <h3 style={{ marginBottom: '1rem' }}>
           Campaign Contract Address: {formatTonFriendly(onChainData.contractAddress.toString())}
         </h3>
       )}
 
-      {/* ============ Show the "Active or Not" at the top ============ */}
-      {onChainData && (
-        <div style={{ marginBottom: '2rem' }}>
-          {(() => {
-            return <ActiveStatusDot isActive={isCampaignReallyActive} />;
-          })()}
-        </div>
-      )}
+      {/* "Fully Active" dot at the top: must be on-chain active & bot can verify */}
+      <div style={{ marginBottom: '2rem' }}>
+        <ActiveStatusDot isActive={isFullyActive} />
+      </div>
 
       {/* The row with Advertiser on left, main info on right */}
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: '2rem' }}>
@@ -584,7 +610,7 @@ export default function CampaignView() {
                 <strong>Telegram Username:</strong> {advertiserUser.telegramUsername}
               </p>
               <p>
-                <strong>Ton Address:</strong> {advertiserAddr!.toString()}
+                <strong>Ton Address:</strong> {advertiserAddr}
               </p>
               <p>
                 <strong>First Name:</strong> {advertiserUser.firstName}
@@ -631,16 +657,14 @@ export default function CampaignView() {
           )}
 
           {/* If user is not advertiser => show affiliate creation / listing */}
-          {/* Also hide the entire block if the campaign is NOT active. */}
           {!isUserAdvertiser &&
-            isCampaignReallyActive && // Only show if active
+            isCampaignOnChainActive && // Only show if on-chain is active (bot privileges don't matter for affiliates)
             campaignContract &&
             sender && (
               <div
                 style={{ marginTop: '2rem', borderTop: '1px solid #ccc', paddingTop: '1rem' }}
               >
                 <h3>Become an Affiliate</h3>
-                {/* If private => "Ask to Join Campaign", else => "Create Affiliate" */}
                 {onChainData?.campaignDetails.isPublicCampaign ? (
                   <p>Generate your affiliate ID in this campaign:</p>
                 ) : (
@@ -863,8 +887,8 @@ export default function CampaignView() {
             {(() => {
               const dictReg = onChainData.campaignDetails.regularUsersCostPerAction;
               const dictPrem = onChainData.campaignDetails.premiumUsersCostPerAction;
-              const regCostBn = dictReg.get(BOT_OP_CODE_USER_CLICK) || 0n;
-              const premCostBn = dictPrem.get(BOT_OP_CODE_USER_CLICK) || 0n;
+              const regCostBn = dictReg.get(BOT_OP_CODE_USER_JOIN) || 0n;
+              const premCostBn = dictPrem.get(BOT_OP_CODE_USER_JOIN) || 0n;
               return (
                 <div style={{ marginTop: '1rem' }}>
                   <p>
@@ -894,23 +918,36 @@ export default function CampaignView() {
               const requiredGas = isUSDT ? 0.5 : 1;
               const hasSufficientGas = realTonBalance >= requiredGas;
 
-              const isReallyActive =
-                onChainData.isCampaignActive &&
-                !onChainData.isCampaignPausedByAdmin &&
-                !onChainData.isCampaignExpired &&
-                hasSufficientGas;
-
               return (
                 <>
-                  <ActiveStatusDot isActive={isReallyActive} />
+                  {/* Sufficient funds to pay affiliates (on-chain field) */}
                   <StatusDot
                     label="Sufficient Funds"
                     value={onChainData.campaignHasSufficientFundsToPayMaxCpa}
                   />
+                  {/* Enough TON for gas fees */}
+                  <StatusDot label="Sufficient Ton for Gas Fees" value={hasSufficientGas} />
+                  {/* Bot can verify events? (from DB campaign.canBotVerify) */}
+                  <StatusDot label="Bot can verify events" value={botCanVerify} />
+
+                  {/* If bot can't verify, show required privileges + button to recheck */}
+                  {!botCanVerify && isUserAdvertiser && (
+                    <div style={{ marginLeft: '1rem', marginTop: '0.5rem' }}>
+                      <p>
+                        <strong>Needed Privileges:</strong>{' '}
+                        {campaign.requiredPrivileges && campaign.requiredPrivileges.length > 0
+                          ? campaign.requiredPrivileges.join(', ')
+                          : '(none listed)'}
+                      </p>
+                      <button onClick={handleRefreshBotAdmin}>
+                        I updated the bot’s admin privileges. Re-check
+                      </button>
+                    </div>
+                  )}
 
                   {/* Add Funds (advertiser only) */}
                   {isUserAdvertiser && (
-                    <div style={{ marginLeft: '1rem', marginBottom: '1rem' }}>
+                    <div style={{ marginLeft: '1rem', marginTop: '1rem' }}>
                       <TransactionButton
                         buttonLabel="Add Funds"
                         showAmountField
@@ -933,10 +970,9 @@ export default function CampaignView() {
                     </div>
                   )}
 
-                  <StatusDot label="Sufficient Ton for Gas Fees" value={hasSufficientGas} />
-
+                  {/* Add TON for Gas Fees (advertiser only) */}
                   {isUserAdvertiser && (
-                    <div style={{ marginLeft: '1rem' }}>
+                    <div style={{ marginLeft: '1rem', marginTop: '1rem' }}>
                       <TransactionButton
                         buttonLabel="Add TON for Gas Fees"
                         showAmountField
@@ -969,29 +1005,26 @@ export default function CampaignView() {
             <h3 style={{ marginBottom: '0.8rem' }}>Campaign Data</h3>
             {(() => {
               const isTON = onChainData.campaignDetails.paymentMethod === 0n;
-              const displayCampaignBalance = isTON
-                ? '0.5'
-                : fromNano(onChainData.campaignBalance);
-              const displayContractTonBalance = isTON
-                ? '1'
-                : fromNano(onChainData.contractTonBalance);
-
               if (isTON) {
                 return (
                   <>
                     <p>
-                      <strong>Campaign Balance (TON):</strong> {displayCampaignBalance}
+                      <strong>Campaign Balance (TON):</strong>{' '}
+                      {fromNano(onChainData.campaignBalance)}
                     </p>
                     <p>
-                      <strong>Campaign Contract Ton Balance:</strong> {displayContractTonBalance}
+                      <strong>Campaign Contract Ton Balance:</strong>{' '}
+                      {fromNano(onChainData.contractTonBalance)}
                     </p>
                   </>
                 );
               } else {
+                // USDT
                 return (
                   <>
                     <p>
-                      <strong>Campaign Balance (USDT):</strong> {fromNano(onChainData.campaignBalance)}
+                      <strong>Campaign Balance (USDT):</strong>{' '}
+                      {fromNano(onChainData.campaignBalance)}
                     </p>
                     <p>
                       <strong>Campaign Contract Ton Balance:</strong>{' '}
@@ -1150,12 +1183,7 @@ export default function CampaignView() {
                   showAmountField
                   onTransaction={async (amount) => {
                     if (!amount) throw new Error('Invalid withdraw amount');
-                    await advertiserWithdrawFunds(
-                      campaignContract,
-                      amount,
-                      sender,
-                      userAccount?.address
-                    );
+                    await advertiserWithdrawFunds(campaignContract, amount, sender, userAccount?.address);
                   }}
                 />
               </div>

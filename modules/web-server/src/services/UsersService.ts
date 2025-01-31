@@ -3,7 +3,6 @@ import { User } from '../entity/User';
 import { Wallet } from '../entity/Wallet';
 import { Logger } from '../utils/Logger';
 import { Address } from '@ton/core';
-import { InsertResult } from 'typeorm';
 
 function userRepository() {
   return appDataSource.getRepository(User);

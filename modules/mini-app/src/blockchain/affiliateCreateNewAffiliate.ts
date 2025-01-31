@@ -1,6 +1,6 @@
 import { OpenedContract, Sender } from '@ton/core';
-import { Campaign } from '../../contracts/Campaign';
-import { GAS_FEE } from '@common/constants';
+import { Campaign } from '../contracts/Campaign';
+import { TonConfig } from '../config/TonConfig'
 import { pollUntil } from './pollUntil'; // adjust path
 
 /**
@@ -26,7 +26,7 @@ export async function affiliateCreateNewAffiliate(
   );
 
   // Send the transaction
-  await campaignContract.send(sender, { value: GAS_FEE }, {
+  await campaignContract.send(sender, { value: TonConfig.GAS_FEE }, {
     $$type: 'AffiliateCreateNewAffiliate',
   });
 

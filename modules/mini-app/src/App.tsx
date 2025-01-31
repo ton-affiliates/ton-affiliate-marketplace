@@ -11,7 +11,6 @@ import Campaigns from './components/Campaigns';
 import { TonConnectButton } from '@tonconnect/ui-react';
 import { TonConnectProvider } from './components/TonConnectProvider';
 import { TelegramProvider } from './components/TelegramContext';
-import { TelegramCampaignProvider } from './components/TelegramCampaignContext';
 import AffiliateOptions from 'components/AffiliateOptions';
 import ProtectedRoute from './components/ProtectedRoute';
 import { AffiliatePage } from './components/AffiliatePage';
@@ -25,11 +24,9 @@ function App() {
   return (
     <BrowserRouter>
       <TelegramProvider>
-        <TelegramCampaignProvider>
           <TonConnectProvider>
             <AppContent />
           </TonConnectProvider>
-        </TelegramCampaignProvider>
       </TelegramProvider>
     </BrowserRouter>
   );

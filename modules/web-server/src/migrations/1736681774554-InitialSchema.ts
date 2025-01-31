@@ -49,11 +49,12 @@ export class InitialSchema1736681774554 implements MigrationInterface {
     `);
 
     // 4) campaigns TABLE
-    //    We add `campaign_contract_address` with a foreign key to `wallets(address)`.
+    //    Changed "campaign_contract_address" to be NOT NULL
     await queryRunner.query(`
       CREATE TABLE IF NOT EXISTS "campaigns" (
         "id"                         VARCHAR(255) PRIMARY KEY,
-        "campaign_contract_address"  VARCHAR(255),
+        "handle"                     VARCHAR(255),
+        "campaign_contract_address"  VARCHAR(255) NOT NULL,  -- <--- NOW NOT NULL
         "name"                       VARCHAR(255),
         "asset_type"                 VARCHAR(255),
         "asset_name"                 VARCHAR(255),
@@ -62,8 +63,11 @@ export class InitialSchema1736681774554 implements MigrationInterface {
         "invite_link"                VARCHAR(500),
         "asset_photo"                BYTEA,
         "state"                      VARCHAR(50) NOT NULL DEFAULT 'DEPLOYED',
+        "bot_is_admin"               BOOLEAN NOT NULL DEFAULT false,
+        "admin_privileges"           TEXT[] DEFAULT '{}',
+        "member_count"               INT NOT NULL DEFAULT 0,
+        "verified_events"            user_event_type[] DEFAULT '{}',  -- We'll define user_event_type below
         "created_at"                 TIMESTAMP NOT NULL DEFAULT NOW(),
-        -- If you want an updated_at column in DB:
         "updated_at"                 TIMESTAMP NOT NULL DEFAULT NOW()
       );
     `);
@@ -141,44 +145,114 @@ export class InitialSchema1736681774554 implements MigrationInterface {
       );
     `);
 
-    // 9) notifications TABLE
+    // Create user_event_type enum (must happen before campaigns if we reference it in campaigns. 
+    // If campaigns references user_event_type in verified_events, we need the enum created first).
     await queryRunner.query(`
-      CREATE TABLE IF NOT EXISTS "notifications" (
-        "id"             SERIAL PRIMARY KEY,
-        "wallet_address" VARCHAR(255) NOT NULL,
-        "message"        TEXT NOT NULL,
-        "campaign_id"    VARCHAR(255),
-        "created_at"     TIMESTAMP NOT NULL DEFAULT NOW(),
-        "updated_at"     TIMESTAMP NOT NULL DEFAULT NOW(),
-        "read_at"        TIMESTAMP,
-        "link"           VARCHAR(500),
+      DO $$
+      BEGIN
+        CREATE TYPE user_event_type AS ENUM (
+          'SOLVED_CAPTCHA',
+          'JOINED',
+          'RETAINED_TWO_WEEKS',
+          'RETAINED_ONE_MONTH',
+          'LEFT_CHAT'
+        );
+      EXCEPTION
+        WHEN duplicate_object THEN null;
+      END
+      $$;
+    `);
 
-        CONSTRAINT "fk_wallet_notifications"
-          FOREIGN KEY ("wallet_address")
-          REFERENCES "wallets"("address"),
-        CONSTRAINT "fk_campaign_notifications"
-          FOREIGN KEY ("campaign_id")
-          REFERENCES "campaigns"("id")
+    // 9) Because we reference user_event_type in campaigns.verified_events, ensure it's there:
+    //    If you prefer a single CREATE TABLE statement for campaigns, move this block above
+    //    that creation or combine them. This snippet shows you can do it here or earlier.
+
+    // 10) user_events table
+    await queryRunner.query(`
+      CREATE TABLE IF NOT EXISTS "user_events" (
+        "id" SERIAL PRIMARY KEY,
+        "user_id" BIGINT NOT NULL,
+        "is_premium" BOOLEAN NOT NULL,
+        "event_type" user_event_type NOT NULL,
+        "is_processed" BOOLEAN NOT NULL DEFAULT false,
+        "campaign_id" VARCHAR(255) NOT NULL,
+        "affiliate_id" VARCHAR(255) NOT NULL,
+        "created_at" TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+        "updated_at" TIMESTAMP WITH TIME ZONE DEFAULT NOW()
       );
+    `);
+
+    // 11) We need to prevent isProcessed from going true->false or other fields from changing.
+    //     We'll do a trigger that checks:
+    //       - No other fields except is_processed changed.
+    //       - is_processed cannot go from true to false.
+    // Create a function:
+    await queryRunner.query(`
+      CREATE OR REPLACE FUNCTION enforce_user_events_one_way_update()
+      RETURNS TRIGGER AS $$
+      BEGIN
+          -- 1) If isProcessed changed from true to false, disallow
+          IF OLD.is_processed = TRUE AND NEW.is_processed = FALSE THEN
+              RAISE EXCEPTION 'Cannot change isProcessed from true back to false';
+          END IF;
+
+          -- 2) No other fields except is_processed can change.
+          IF (OLD.user_id IS DISTINCT FROM NEW.user_id)
+             OR (OLD.is_premium IS DISTINCT FROM NEW.is_premium)
+             OR (OLD.event_type IS DISTINCT FROM NEW.event_type)
+             OR (OLD.campaign_id IS DISTINCT FROM NEW.campaign_id)
+             OR (OLD.affiliate_id IS DISTINCT FROM NEW.affiliate_id)
+             OR (OLD.created_at IS DISTINCT FROM NEW.created_at)
+          THEN
+             RAISE EXCEPTION 'Cannot change fields other than isProcessed in user_events row.';
+          END IF;
+
+          RETURN NEW;
+      END;
+      $$ LANGUAGE plpgsql;
+    `);
+
+    // Attach the trigger to user_events
+    await queryRunner.query(`
+      CREATE TRIGGER user_events_one_way_update
+      BEFORE UPDATE ON "user_events"
+      FOR EACH ROW
+      EXECUTE FUNCTION enforce_user_events_one_way_update();
     `);
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
     // Reverse creation in the opposite order
+
+    // 1) Drop trigger & function for user_events
+    await queryRunner.query(`DROP TRIGGER IF EXISTS user_events_one_way_update ON "user_events";`);
+    await queryRunner.query(`DROP FUNCTION IF EXISTS enforce_user_events_one_way_update;`);
+
+    // 2) Drop user_events table
+    await queryRunner.query(`DROP TABLE IF EXISTS "user_events";`);
+
+    // 3) Drop notifications, events, processed_offsets, etc.
     await queryRunner.query(`DROP TABLE IF EXISTS "notifications";`);
     await queryRunner.query(`DROP TABLE IF EXISTS "events";`);
     await queryRunner.query(`DROP TABLE IF EXISTS "processed_offsets";`);
+
+    // 4) Drop campaign_roles
     await queryRunner.query(`DROP TABLE IF EXISTS "campaign_roles";`);
 
+    // 5) Drop triggers & function for campaigns
     await queryRunner.query(`DROP TRIGGER IF EXISTS prevent_final_state_modification ON "campaigns";`);
     await queryRunner.query(`DROP FUNCTION IF EXISTS prevent_modification_after_final_state;`);
 
+    // 6) Drop campaigns
     await queryRunner.query(`DROP TABLE IF EXISTS "campaigns";`);
 
+    // 7) Drop user_wallets, wallets, users
     await queryRunner.query(`DROP TABLE IF EXISTS "user_wallets";`);
     await queryRunner.query(`DROP TABLE IF EXISTS "wallets";`);
     await queryRunner.query(`DROP TABLE IF EXISTS "users";`);
 
+    // 8) Drop the enums (role_type, user_event_type)
     await queryRunner.query(`DROP TYPE IF EXISTS role_type;`);
+    await queryRunner.query(`DROP TYPE IF EXISTS user_event_type;`);
   }
 }

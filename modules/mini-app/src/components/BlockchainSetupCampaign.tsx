@@ -10,7 +10,7 @@ import { useCampaignContractAdvertiserAndId } from '../hooks/useCampaignContract
 import { useTonWalletConnect } from '../hooks/useTonConnect';
 
 // Transaction logic
-import { advertiserSetCampaignDetails } from '../blockchain/campaign/advertiserSetCampaignDetails';
+import { advertiserSetCampaignDetails } from '../blockchain/advertiserSetCampaignDetails';
 
 // A reusable button for Ton transactions
 import TransactionButton from './TransactionButton';
