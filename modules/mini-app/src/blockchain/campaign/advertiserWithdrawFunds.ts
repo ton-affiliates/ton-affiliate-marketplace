@@ -1,7 +1,7 @@
 // advertiserWithdrawFunds.ts
 import { toNano, OpenedContract, Sender } from '@ton/core';
 import { Campaign } from '../../contracts/Campaign';
-import { GAS_FEE } from '@common/constants';
+import { GAS_FEE } from '../../common/constants';
 import { pollUntil } from './pollUntil'; // import our helper
 
 export async function advertiserWithdrawFunds(

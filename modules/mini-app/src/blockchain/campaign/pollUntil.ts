@@ -2,7 +2,7 @@
 import { OpenedContract } from '@ton/core';
 import { Campaign } from '../../contracts/Campaign';
 import { checkTxFailureReason } from './checkTxFailureReason';
-import { MAX_ATTEMPTS } from '@common/constants';
+import { MAX_ATTEMPTS } from '../../common/constants';
 
 /**
  * Generic polling helper. Repeatedly calls `conditionFn` until

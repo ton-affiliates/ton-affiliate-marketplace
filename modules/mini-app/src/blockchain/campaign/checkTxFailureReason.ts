@@ -2,7 +2,7 @@
 import { Address } from '@ton/core';
 import { TonClient4 } from '@ton/ton';
 import { getHttpV4Endpoint } from '@orbs-network/ton-access';
-import { HTTP_ENDPOINT_NETWORK } from '@common/constants';
+import { HTTP_ENDPOINT_NETWORK } from '../../common/constants';
 import { OpenedContract } from '@ton/core';
 import { Campaign } from '../../contracts/Campaign';
 

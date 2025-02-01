@@ -1,6 +1,6 @@
 import { Address, beginCell, OpenedContract, Sender, Cell, toNano } from '@ton/core';
 import { Campaign } from '../../contracts/Campaign';
-import { GAS_FEE, USDT_MASTER_ADDRESS } from '@common/constants';
+import { GAS_FEE, USDT_MASTER_ADDRESS } from '../../common/constants';
 import { randomBytes } from 'crypto';
 import { TonClient } from '@ton/ton';
 import { pollUntil } from './pollUntil'; // adjust path to your pollUntil

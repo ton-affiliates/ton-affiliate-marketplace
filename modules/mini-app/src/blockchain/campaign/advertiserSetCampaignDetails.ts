@@ -1,7 +1,7 @@
 // src/blockchain/campaign/advertiserSetCampaignDetails.ts
 import { Dictionary, Sender, OpenedContract } from '@ton/core';
 import { Campaign } from '../../contracts/Campaign';
-import { GAS_FEE, BOT_OP_CODE_USER_CLICK } from '@common/constants';
+import { GAS_FEE, BOT_OP_CODE_USER_CLICK } from '../../common/constants';
 import { pollUntil } from './pollUntil'; // or wherever you keep pollUntil
 
 interface CommissionValues {

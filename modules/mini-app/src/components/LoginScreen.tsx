@@ -93,7 +93,7 @@ const LoginScreen: React.FC = () => {
     const script = document.createElement('script');
     script.async = true;
     // The official widget script
-    script.src = 'https://telegram.org/js/telegram-widget.js?15';
+    script.src = 'https://telegram.org/js/telegram-widget.js?22';
     // Use the bot name from the environment variable
     script.setAttribute('data-telegram-login', botName);
     script.setAttribute('data-size', 'large');

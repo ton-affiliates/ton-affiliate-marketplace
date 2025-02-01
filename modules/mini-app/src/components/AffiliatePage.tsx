@@ -12,7 +12,7 @@ import { affiliateWithdrawEarnings } from '../blockchain/campaign/affiliateWithd
 
 import { AffiliateData, CampaignData, UserActionStats } from '../contracts/Campaign';
 import { CampaignApiResponse, UserApiResponse } from '../models/apiResponses';
-import { BOT_ACTION_LABELS } from '@common/constants';
+import { BOT_ACTION_LABELS } from '../common/constants';
 
 // 1) fetch the single affiliate from DB
 async function fetchSingleAffiliate(campaignId: string, affiliateId: string): Promise<UserApiResponse> {

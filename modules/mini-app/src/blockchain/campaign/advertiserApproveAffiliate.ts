@@ -1,7 +1,7 @@
 // advertiserApproveAffiliate.ts
 import { OpenedContract, Sender } from '@ton/core';
 import { Campaign } from '../../contracts/Campaign';
-import { GAS_FEE } from '@common/constants';
+import { GAS_FEE } from '../../common/constants';
 import { pollUntil } from './pollUntil';
 
 export async function advertiserApproveAffiliate(

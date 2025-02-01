@@ -1,0 +1,1 @@
+../../../../build/AffiliateMarketplace/tact_AffiliateMarketplace.ts

@@ -5,7 +5,7 @@ import { Address } from '@ton/core';
 import { useTonClient } from './useTonClient4';
 import { AffiliateMarketplace } from '../contracts/AffiliateMarketplace';
 import { Campaign } from '../contracts/Campaign';
-import { AFFILIATE_MARKETPLACE_ADDRESS } from '@common/constants';
+import { AFFILIATE_MARKETPLACE_ADDRESS } from '../common/constants';
 import { OpenedContract } from "@ton/core";
 
 /**

@@ -1,6 +1,6 @@
 import { useTonClient } from "./useTonClient4";
 import { AffiliateMarketplace } from "../contracts/AffiliateMarketplace";
-import { AFFILIATE_MARKETPLACE_ADDRESS } from "@common/constants";
+import { AFFILIATE_MARKETPLACE_ADDRESS } from "../common/constants";
 
 export function useAffiliateMarketplace() {
   console.log("useAffiliateMarketplace is running at all!");

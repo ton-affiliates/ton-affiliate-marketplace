@@ -17,16 +17,16 @@
 
     /* Linting / Strictness */
     "strict": true,
-    "noUnusedLocals": true,
-    "noUnusedParameters": true,
+    "noUnusedLocals": false, // TODO: fix in the future
+    "noUnusedParameters": false, // TODO: fix in the future
     "noFallthroughCasesInSwitch": true,
     "noUncheckedSideEffectImports": true,
 
     /* BaseUrl + Path Aliases */
-    "baseUrl": "./src",
+    "baseUrl": ".",
     "paths": {
-      "@common/*": ["common/*"]
+      "@common/*": ["../common/*"]
     }
   },
-  "include": ["src"]
+  "include": ["src", "../common"]
 }

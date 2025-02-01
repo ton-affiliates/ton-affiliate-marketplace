@@ -1,0 +1,1 @@
+../../../../build/Campaign/tact_Campaign.ts

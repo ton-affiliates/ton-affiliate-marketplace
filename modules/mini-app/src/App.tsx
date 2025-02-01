@@ -12,7 +12,7 @@ import { TonConnectButton } from '@tonconnect/ui-react';
 import { TonConnectProvider } from './components/TonConnectProvider';
 import { TelegramProvider } from './components/TelegramContext';
 import { TelegramCampaignProvider } from './components/TelegramCampaignContext';
-import AffiliateOptions from 'components/AffiliateOptions';
+import AffiliateOptions from './components/AffiliateOptions';
 import ProtectedRoute from './components/ProtectedRoute';
 import { AffiliatePage } from './components/AffiliatePage';
 

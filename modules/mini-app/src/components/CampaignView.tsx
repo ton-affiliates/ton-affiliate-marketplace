@@ -26,7 +26,7 @@ import {
   CampaignRoleApiResponse,
 } from '../models/apiResponses';
 import { CampaignData, AffiliateData } from '../contracts/Campaign';
-import { BOT_OP_CODE_USER_CLICK } from '@common/constants';
+import { BOT_OP_CODE_USER_CLICK } from '../common/constants';
 
 import TransactionButton from '../components/TransactionButton';
 import Spinner from '../components/Spinner';
