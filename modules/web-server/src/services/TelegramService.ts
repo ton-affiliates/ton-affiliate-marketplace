@@ -8,8 +8,7 @@ import { getUserById, ensureUser } from '../services/UsersService';
 
 dotenv.config();
 
-const BOT_USERNAME = process.env.BOT_USERNAME || '';
-const TELEGRAM_API_URL = `https://api.telegram.org/bot${BOT_USERNAME}`;
+const TELEGRAM_API_URL = `https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}`;
 
 
 export interface TelegramAsset {
@@ -188,7 +187,7 @@ async function downloadTelegramImage(photoFileId: string): Promise<Buffer> {
   }
 
   // 2) Download the actual file
-  const fileUrl = `https://api.telegram.org/file/bot${BOT_USERNAME}/${filePath}`;
+  const fileUrl = `https://api.telegram.org/file/bot${process.env.TELEGRAM_BOT_TOKEN}/${filePath}`;
   const fileResponse = await axios.get(fileUrl, { responseType: 'arraybuffer' });
   return Buffer.from(fileResponse.data);
 }

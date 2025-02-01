@@ -11,7 +11,7 @@ import {UserEventType} from "@common/models";
 
 dotenv.config();
 
-export const bot = new Telegraf(process.env.BOT_USERNAME || '');
+export const bot = new Telegraf(process.env.TELEGRAM_BOT_TOKEN || '');
 
 interface CaptchaData {
   captchaText: string;

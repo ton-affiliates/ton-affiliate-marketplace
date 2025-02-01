@@ -19,7 +19,6 @@ export interface CampaignApiResponse {
   botIsAdmin?: boolean;
   adminPrivileges?: string[];
   assetType?: string;
-  assetTitle?: string;
   assetDescription?: string;
   inviteLink?: string;
   createdAt?: string;

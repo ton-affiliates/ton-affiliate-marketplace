@@ -31,7 +31,7 @@ services:
       - app-network
     env_file:
       - ./modules/web-server/.env.${NODE_ENV}
-      - ./modules/common/.env.${NETWORK_ENV}  # <-- Also load the "common" .env
+      - ./modules/common/.env.${NETWORK_ENV}
 
   db:
     image: postgres:15-alpine

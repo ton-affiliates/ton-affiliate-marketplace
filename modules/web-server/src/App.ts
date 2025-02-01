@@ -11,11 +11,10 @@ import { createServer } from 'http';
 
 import appDataSource from './ormconfig';
 import { Logger } from './utils/Logger';
-import { processBlockchainEvents } from './ton/FetchAndProcessEvents';
-
 import { bot } from './bot/bot';
+import { scheduleCampaignUpdates } from './schedulers/updateCampaignsTelegramInfo';
+import { BlockchainEventsScheduler } from './schedulers/processBlockchainEventsScheduler';
 
-// If you have these routes
 import { checkProxyJwt } from './middleware/checkProxyJwt';
 import UserRoutes from './routes/UserRoutes';
 import CampaignRoutes from './routes/CampaignRoutes';
@@ -35,7 +34,6 @@ try {
 }
 
 const PORT = process.env.PORT || 3000;
-const FETCH_INTERVAL = Number(process.env.FETCH_INTERVAL_BLOCKCHAIN_EVENTS || 10000);
 
 const app = express();
 app.use(express.json());
@@ -92,28 +90,28 @@ wss.on('connection', (ws) => {
   });
 });
 
-// 6) Schedule blockchain event processor
-const intervalId = setInterval(async () => {
-  Logger.debug('Running blockchain event processor...');
-  try {
-    await processBlockchainEvents();
-  } catch (error) {
-    Logger.error('Error processing blockchain events:', error);
-  }
-}, FETCH_INTERVAL);
+// 6) Schedule the periodic tasks
+// Create an instance of the blockchain events scheduler.
+const blockchainScheduler = new BlockchainEventsScheduler();
+// Start the blockchain events scheduler.
+blockchainScheduler.start();
+// Schedule campaign Telegram info updates as before.
+scheduleCampaignUpdates();
 
 // 7) Graceful shutdown
 async function shutdownGracefully(signal: string) {
   Logger.info(`Received ${signal}. Shutting down gracefully...`);
-  clearInterval(intervalId);
 
-  //  Stop the webSocket
+  // Stop the blockchain events scheduler
+  blockchainScheduler.stop();
+
+  // Stop the WebSocket server
   wss.close();
 
-  //  Stop the bot
+  // Stop the bot
   bot.stop(signal);
 
-  //  Destroy DB connection
+  // Destroy DB connection
   await appDataSource.destroy();
 
   Logger.info('Graceful shutdown complete.');

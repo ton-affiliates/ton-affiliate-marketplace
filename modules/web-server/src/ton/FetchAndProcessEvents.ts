@@ -41,8 +41,8 @@ function translateRawAddress(rawAddress: {
   return Address.parseRaw(`${workChain}:${hashBuffer.toString('hex')}`);
 }
 
-async function processEvents(events: EmitLogEvent[]) {
-  for (const event of events) {
+async function processEvent(event: EmitLogEvent) {
+    
     try {
       Logger.info(`Processing event of type ${event.type}: `);
 
@@ -337,24 +337,37 @@ async function processEvents(events: EmitLogEvent[]) {
       );
       throw error;
     }
-  }
-};
+  };
 
 export const processBlockchainEvents = async (): Promise<void> => {
   try {
     const lastProcessedLt = await getLastProcessedLt();
-    Logger.debug('Last Processed LT:' + lastProcessedLt);
+    Logger.debug('Last Processed LT: ' + lastProcessedLt);
 
     const events: EmitLogEvent[] = await getLatestEvents(lastProcessedLt);
     if (events.length > 0) {
-      await processEvents(events);
+      // We'll update the LT after processing each event
+      let currentLt = lastProcessedLt;
 
-      const maxLt = events.reduce(
-        (max, e) => (e.createdLt > max ? e.createdLt : max),
-        lastProcessedLt
-      );
-      await saveLastProcessedLt(maxLt);
-      Logger.debug('Updated Last Processed LT:' + maxLt);
+      for (const event of events) {
+        try {
+          await processEvent(event); // process each event individually
+          // Only update currentLt if this event's LT is greater
+          currentLt = event.createdLt > currentLt ? event.createdLt : currentLt;
+        } catch (error) {
+          Logger.error(
+            `Error processing event with LT ${event.createdLt}: ${error instanceof Error ? error.message : JSON.stringify(error)}`
+          );
+          // Optionally, you could decide to:
+          // - Continue to the next event (skipping the failed one)
+          // - Or re-throw after logging, depending on your needs
+          // For now, we continue to avoid blocking the batch.
+        }
+      }
+
+      // After processing, update last processed LT to the maximum LT processed
+      await saveLastProcessedLt(currentLt);
+      Logger.debug('Updated Last Processed LT: ' + currentLt);
     }
   } catch (error) {
     if (error instanceof Error) {
