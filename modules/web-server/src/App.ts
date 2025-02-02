@@ -12,7 +12,7 @@ import { createServer } from 'http';
 import appDataSource from './ormconfig';
 import { Logger } from './utils/Logger';
 import { bot } from './bot/bot';
-import { scheduleCampaignUpdates } from './schedulers/updateCampaignsTelegramInfo';
+import { scheduleTelegramAssetUpdates } from './schedulers/updateCampaignsTelegramInfo';
 import { BlockchainEventsScheduler } from './schedulers/processBlockchainEventsScheduler';
 
 import { checkProxyJwt } from './middleware/checkProxyJwt';
@@ -96,7 +96,7 @@ const blockchainScheduler = new BlockchainEventsScheduler();
 // Start the blockchain events scheduler.
 blockchainScheduler.start();
 // Schedule campaign Telegram info updates as before.
-scheduleCampaignUpdates();
+scheduleTelegramAssetUpdates();
 
 // 7) Graceful shutdown
 async function shutdownGracefully(signal: string) {

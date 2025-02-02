@@ -7,7 +7,7 @@ import { ProcessedOffset } from './entity/ProcessedOffset';
 import { EventEntity } from './entity/EventEntity';
 import { Notification } from './entity/Notification';
 import { UserEvent } from './entity/UserEvent';
-
+import { TelegramAsset } from './entity/TelegramAsset';
 
 //psql -h db -U my_user -d my_database
 export default new DataSource({
@@ -17,7 +17,7 @@ export default new DataSource({
   username: process.env.POSTGRES_USER || 'my_user',
   password: process.env.POSTGRES_PASSWORD || 'my_password',
   database: process.env.POSTGRES_DB || 'my_database',
-  entities: [User, Wallet, Campaign, CampaignRole, ProcessedOffset, EventEntity, Notification, UserEvent],
+  entities: [User, Wallet, Campaign, CampaignRole, ProcessedOffset, EventEntity, Notification, UserEvent, TelegramAsset],
   /**
    * Let TypeORM discover compiled migration files
    * in the s/ directory.

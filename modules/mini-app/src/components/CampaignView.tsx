@@ -122,7 +122,7 @@ export default function CampaignView() {
   const [loadingUser, setLoadingUser] = useState(false);
 
   // For the contract, we get `campaignContractAddress` from the DB
-  const campaignContractAddress = campaign?.campaignContractAddress;
+  const campaignContractAddress = campaign?.contractAddress;
   const {
     campaignContract,
     isLoading: chainHookLoading,

@@ -4,7 +4,6 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useTonConnectFetchContext } from './TonConnectProvider';
-import { TelegramAssetType } from '@common/models';
 
 export enum TelegramCategory {
   GAMING = 'Gaming',
@@ -46,7 +45,6 @@ function TelegramSetupCampaign() {
   const [campaignName, setCampaignName] = useState('');
   const [category, setCategory] = useState<TelegramCategory | ''>('');
   const [inviteLink, setInviteLink] = useState('');
-  const [telegramType, setTelegramType] = useState<TelegramAssetType | ''>('');
 
   // 3) UI states
   const [isVerifying, setIsVerifying] = useState(false);
@@ -78,7 +76,6 @@ function TelegramSetupCampaign() {
       campaignName,
       category,
       inviteLink,
-      telegramType,
     };
 
     console.log('[TelegramSetupCampaign] Sending POST /api/v1/campaigns with data:', bodyData);
@@ -119,22 +116,6 @@ function TelegramSetupCampaign() {
       setErrorMessage(err.message || 'Failed to verify the Telegram URL. Please try again.');
     } finally {
       setIsVerifying(false);
-    }
-  }
-
-  function handleTelegramTypeChange(value: string) {
-    const mapped = stringToTelegramAssetType(value);
-    setTelegramType(mapped ?? '');
-  }
-
-  function stringToTelegramAssetType(value: string): TelegramAssetType | undefined {
-    switch (value.toUpperCase()) {
-      case 'CHANNEL':
-        return TelegramAssetType.CHANNEL;
-      // case 'MINI_APP':
-      //   return TelegramAssetType.MINI_APP;
-      default:
-        return undefined;
     }
   }
 
@@ -224,25 +205,6 @@ function TelegramSetupCampaign() {
           </select>
         </div>
 
-        {/* Telegram Type (dropdown) */}
-        <div className="form-group">
-          <label htmlFor="telegramType">*Telegram Type:</label>
-          <select
-            id="telegramType"
-            value={telegramType}
-            onChange={(e) => handleTelegramTypeChange(e.target.value)}
-          >
-            <option value="" disabled>
-              Select Telegram Asset Type
-            </option>
-            {Object.values(TelegramAssetType).map((typeStr) => (
-              <option key={typeStr} value={typeStr}>
-                {typeStr}
-              </option>
-            ))}
-          </select>
-        </div>
-
         {/* Invite Link */}
         <div className="form-group">
           <label htmlFor="inviteLink">*Public Channel Invite Link:</label>
@@ -274,12 +236,11 @@ function TelegramSetupCampaign() {
             !campaignName ||
             !category ||
             !inviteLink ||
-            !telegramType ||
             isVerifying
           }
           onClick={handleVerify}
           title={
-            !campaignName || !category || !inviteLink || !telegramType
+            !campaignName || !category || !inviteLink
               ? 'Please fill all required fields'
               : ''
           }

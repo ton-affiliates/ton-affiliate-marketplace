@@ -3,81 +3,105 @@
 import axios from 'axios';
 import dotenv from 'dotenv';
 import { Logger } from '../utils/Logger';
-import { TelegramAssetType } from '@common/models';
-import { getUserById, ensureUser } from '../services/UsersService';
+import appDataSource from '../ormconfig';
+import { TelegramAsset } from '../entity/TelegramAsset';
+import { ensureUser, getUserById } from "../services/UsersService";
 
 dotenv.config();
 
 const TELEGRAM_API_URL = `https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}`;
 
-
-export interface TelegramAsset {
-  id: number; // Unique numeric identifier (e.g., "-1001234567890")
-  name: string; // from the API Public username (e.g., "Abu Ali Express Channel") 
-  description: string;  // from the API
-  type: TelegramAssetType; // Type of the Telegram asset (channel, group, etc.)
-  isPublic: boolean; // Is this asset public or private
-  url: string;  // invite link - which we will use as redirect URL (e.g., for private channels/groups: https://t.me/+1dKu7kfkdudmN2Y0 and for public: https://t.me/AbuAliExpress)
-  photo?: Buffer;       // Actual image data (if we want to store the raw bytes)
-  botIsAdmin: boolean,  // is our bot an admin in this asset
-  adminPrivileges: string[],  // list of admin priviliges of our bot
-  memberCount: number // num subscribers
-}
-
-export async function fetchChatInfo(telegramHandle: string): Promise<TelegramAsset> {
+/**
+ * Ensures that the Telegram asset corresponding to the given chat identifier
+ * is updated (or created) directly in the database.
+ *
+ * The chatIdentifier can be a handle (e.g. "MyChannel" or "@MyChannel") or a numeric chat ID (as string).
+ * This function gathers the required data from Telegram (chat info, photo, member count, and bot status)
+ * and then persists it via ensureTelegramAsset.
+ *
+ * @param chatIdentifier The identifier (handle or numeric ID) for the Telegram chat.
+ */
+export async function ensureTelegramAssetFromTelegram(chatIdentifier: string): Promise<TelegramAsset> {
   try {
-    const chatIdParam = `@${telegramHandle}`;
-    Logger.info(`Fetching public chat info for handle: ${chatIdParam}`);
+    Logger.info(`ensureTelegramAssetFromTelegram: Received chatIdentifier: "${chatIdentifier}"`);
+    
+    // If the chatIdentifier is actually an invite link, strip the prefix.
+    if (chatIdentifier.startsWith('https://t.me/')) {
+      chatIdentifier = chatIdentifier.replace('https://t.me/', '');
+      Logger.info(`Stripped URL prefix, new chatIdentifier: "${chatIdentifier}"`);
+    }
 
-    // 1) Get basic chat info
+    // Determine the chat_id parameter:
+    // If chatIdentifier can be converted to a number, we use that; otherwise, assume it's a handle.
+    let chatIdParam: string;
+    const numeric = Number(chatIdentifier);
+    Logger.info(`Conversion result of chatIdentifier to Number: ${numeric}`);
+    if (isNaN(numeric)) {
+      // It's a handle. Ensure it starts with '@'
+      chatIdParam = chatIdentifier.startsWith('@') ? chatIdentifier : '@' + chatIdentifier;
+      Logger.info(`Identifier is determined to be a handle. Normalized handle: "${chatIdParam}"`);
+    } else {
+      // It's numeric.
+      chatIdParam = numeric.toString();
+      Logger.info(`Identifier is numeric. Using chatId: "${chatIdParam}"`);
+    }
+
+    Logger.info(`Fetching chat info for identifier: ${chatIdParam}`);
+
+    // 1) Get basic chat info using the provided identifier.
     const chatResp = await axios.get(`${TELEGRAM_API_URL}/getChat`, {
       params: { chat_id: chatIdParam },
     });
+    Logger.info(`Response from getChat: ${JSON.stringify(chatResp.data)}`);
     if (!chatResp.data.ok) {
       throw new Error(`Telegram API returned not ok: ${JSON.stringify(chatResp.data)}`);
     }
     const chat = chatResp.data.result;
+    Logger.info(`Chat info received: ${JSON.stringify(chat)}`);
 
-    // 2) Extract fields
+    // 2) Extract photo file ID if available.
     const photoFileId = chat.photo?.big_file_id || null;
+    Logger.info(`Extracted photoFileId: ${photoFileId}`);
 
-    // Build a base asset
-    const telegramAsset: TelegramAsset = {
-      id: chat.id,
-      name: chat.title || telegramHandle,
-      isPublic: true,  // else we couldn't fetch the public data from await axios.get(`${TELEGRAM_API_URL}/getChat`
+    // 3) Build a partial asset data object.
+    const assetData: Partial<TelegramAsset> = {
+      chatId: chat.id.toString(),
+      // Use chat.username if available; otherwise, fallback to chat.title or remove '@' from the identifier.
+      handle: chat.username ? chat.username : (chat.title ? chat.title : chatIdParam.replace(/^@/, '')),
+      inviteLink: chat.username
+        ? `https://t.me/${chat.username}`
+        : `https://t.me/${chatIdParam.replace(/^@/, '')}`,
+      name: chat.title || chatIdParam.replace(/^@/, ''),
       description: chat.description || '',
-      type: mapChatTypeToAssetType(chat.type),
-      url: `https://t.me/${telegramHandle}`,
-      photo: undefined,
-      botIsAdmin: false,
+      // Pass chat.type directly; you may map it if needed.
+      type: chat.type,
+      botIsAdmin: false, // default; will update based on bot status below.
       adminPrivileges: [],
       memberCount: 0,
     };
+    Logger.info(`Initial assetData built: ${JSON.stringify(assetData)}`);
 
-    // 3) If there's a photo, download it
+    // 4) If there's a photo, attempt to download it.
     if (photoFileId) {
-      Logger.info(`Found photoFileId: ${photoFileId}, downloading image...`);
+      Logger.info(`Found photoFileId: ${photoFileId}, attempting to download image...`);
       try {
         const photoBuffer = await downloadTelegramImage(photoFileId);
-        telegramAsset.photo = photoBuffer;
+        assetData.photo = photoBuffer;
         Logger.info(`Downloaded photo successfully, size: ${photoBuffer.length} bytes`);
       } catch (error: any) {
         Logger.error(`Failed to download Telegram image: ${error.message}`);
       }
     }
 
-    // 4) Optional: fetch chat members count
-    //    If the bot is an admin with "can_invite_users", we can often do getChatMembersCount
-    let memberCount = 0;
+    // 5) Fetch chat members count.
     try {
       const countResp = await axios.get(`${TELEGRAM_API_URL}/getChatMembersCount`, {
         params: { chat_id: chatIdParam },
       });
+      Logger.info(`Response from getChatMembersCount: ${JSON.stringify(countResp.data)}`);
       if (countResp.data.ok) {
-        memberCount = countResp.data.result;
-        telegramAsset.memberCount = memberCount;
-        Logger.info(`Channel has ${memberCount} members (subscribers).`);
+        assetData.memberCount = countResp.data.result;
+        Logger.info(`Channel has ${assetData.memberCount} members (subscribers).`);
       } else {
         Logger.warn(`getChatMembersCount returned not ok: ${JSON.stringify(countResp.data)}`);
       }
@@ -85,88 +109,87 @@ export async function fetchChatInfo(telegramHandle: string): Promise<TelegramAss
       Logger.warn(`Could not fetch channel member count: ${String(err)}`);
     }
 
-    // 5) Verify bot is admin with "Add members" privilege (which Telegram calls "can_invite_users")
-    //    We'll do getChatMember(chat_id, user_id_of_bot)
+    // 6) Verify the bot's admin status.
     const botIdResp = await axios.get(`${TELEGRAM_API_URL}/getMe`);
+    Logger.info(`Response from getMe: ${JSON.stringify(botIdResp.data)}`);
     if (!botIdResp.data.ok) {
       throw new Error(`Telegram API getMe not ok: ${JSON.stringify(botIdResp.data)}`);
     }
-    const botUserId = botIdResp.data.result.id; // The numeric ID of our bot
-
-    // Now fetch our bot's status in this chat
-    const memberResp = await axios.get(`${TELEGRAM_API_URL}/getChatMember`, {
-      params: { chat_id: chatIdParam, user_id: botUserId },
-    });
-    if (!memberResp.data.ok) {
-      throw new Error(`Telegram API getChatMember not ok: ${JSON.stringify(memberResp.data)}`);
+    const botUserId = botIdResp.data.result.id;
+    Logger.info(`Bot user id: ${botUserId}`);
+    
+    let botStatus;
+    try {
+      const memberResp = await axios.get(`${TELEGRAM_API_URL}/getChatMember`, {
+        params: { chat_id: chatIdParam, user_id: botUserId },
+      });
+      Logger.info(`Response from getChatMember: ${JSON.stringify(memberResp.data)}`);
+      if (!memberResp.data.ok) {
+        Logger.warn(`getChatMember not ok: ${JSON.stringify(memberResp.data)}. Treating as not admin.`);
+        assetData.botIsAdmin = false;
+      } else {
+        botStatus = memberResp.data.result;
+      }
+    } catch (err) {
+      Logger.warn(`getChatMember call failed, treating bot as not admin. Error: ${JSON.stringify(err)}`);
+      assetData.botIsAdmin = false;
     }
 
-    const botStatus = memberResp.data.result;
-    Logger.debug("botStatus: " + JSON.stringify(botStatus));
-
-    if (botStatus.status === 'administrator') {
-      telegramAsset.botIsAdmin = true;
-    
+    if (botStatus && botStatus.status === 'administrator') {
+      assetData.botIsAdmin = true;
       const privileges: string[] = [];
-    
-      if (botStatus.can_be_edited) {
-        privileges.push('can_be_edited');
-      }
-      if (botStatus.can_manage_chat) {
-        privileges.push('can_manage_chat');
-      }
-      if (botStatus.can_change_info) {
-        privileges.push('can_change_info');
-      }
-      if (botStatus.can_post_messages) {
-        privileges.push('can_post_messages');
-      }
-      if (botStatus.can_edit_messages) {
-        privileges.push('can_edit_messages');
-      }
-      if (botStatus.can_delete_messages) {
-        privileges.push('can_delete_messages');
-      }
-      if (botStatus.can_invite_users) {
-        privileges.push('can_invite_users');
-      }
-      if (botStatus.can_restrict_members) {
-        privileges.push('can_restrict_members');
-      }
-      if (botStatus.can_promote_members) {
-        privileges.push('can_promote_members');
-      }
-      if (botStatus.can_manage_video_chats) {
-        privileges.push('can_manage_video_chats');
-      }
-      if (botStatus.can_manage_voice_chats) {
-        privileges.push('can_manage_voice_chats');
-      }
-      if (botStatus.can_post_stories) {
-        privileges.push('can_post_stories');
-      }
-      if (botStatus.can_edit_stories) {
-        privileges.push('can_edit_stories');
-      }
-      if (botStatus.can_delete_stories) {
-        privileges.push('can_delete_stories');
-      }
-      // In the raw object, you might also see `is_anonymous`, etc. 
-      // If you want to track that as a "privilege," you can add it as well:
-      if (botStatus.is_anonymous) {
-        privileges.push('is_anonymous');
-      }
-    
-      // Save them
-      telegramAsset.adminPrivileges = privileges;
+      if (botStatus.can_be_edited) privileges.push('can_be_edited');
+      if (botStatus.can_manage_chat) privileges.push('can_manage_chat');
+      if (botStatus.can_change_info) privileges.push('can_change_info');
+      if (botStatus.can_post_messages) privileges.push('can_post_messages');
+      if (botStatus.can_edit_messages) privileges.push('can_edit_messages');
+      if (botStatus.can_delete_messages) privileges.push('can_delete_messages');
+      if (botStatus.can_invite_users) privileges.push('can_invite_users');
+      if (botStatus.can_restrict_members) privileges.push('can_restrict_members');
+      if (botStatus.can_promote_members) privileges.push('can_promote_members');
+      if (botStatus.can_manage_video_chats) privileges.push('can_manage_video_chats');
+      if (botStatus.can_manage_voice_chats) privileges.push('can_manage_voice_chats');
+      if (botStatus.can_post_stories) privileges.push('can_post_stories');
+      if (botStatus.can_edit_stories) privileges.push('can_edit_stories');
+      if (botStatus.can_delete_stories) privileges.push('can_delete_stories');
+      if (botStatus.is_anonymous) privileges.push('is_anonymous');
+      assetData.adminPrivileges = privileges;
+      Logger.info(`Bot is administrator. Privileges: ${JSON.stringify(privileges)}`);
     } else {
-      Logger.warn(`Bot is not admin in this channel. Bot status: ${botStatus.status}`);
+      Logger.warn(`Bot is not admin in this channel. Bot status: ${botStatus ? botStatus.status : 'unknown'}`);
     }
 
-    return telegramAsset;
+    // 7) Persist the asset data to the database.
+    Logger.info(`Persisting assetData: ${JSON.stringify(assetData)}`);
+    return await ensureTelegramAsset(assetData);
   } catch (error: any) {
-    Logger.error(`Failed to fetch chat info for handle: ${telegramHandle}`, error);
-    throw new Error(`Could not retrieve info for Telegram handle: ${telegramHandle}. ${error.message}`);
+    Logger.error(`Failed to ensure Telegram asset for identifier ${chatIdentifier}`, error);
+    throw new Error(`Could not ensure Telegram asset for identifier ${chatIdentifier}. ${error.message}`);
+  }
+}
+
+/**
+ * Ensures that the Telegram asset corresponding to the given data
+ * is updated (or created) directly in the database.
+ *
+ * @param assetData Partial TelegramAsset data (must include chatId)
+ */
+async function ensureTelegramAsset(assetData: Partial<TelegramAsset>): Promise<TelegramAsset> {
+  try {
+    const repo = appDataSource.getRepository(TelegramAsset);
+    let existing = await repo.findOne({ where: { chatId: assetData.chatId } });
+    if (existing) {
+      Object.assign(existing, assetData);
+      Logger.info(`Updating existing Telegram asset with chatId=${assetData.chatId}`);
+      return await repo.save(existing);
+    } else {
+      Logger.info(`Creating new Telegram asset with chatId=${assetData.chatId}`);
+      const newAsset = repo.create(assetData);
+      return await repo.save(newAsset);
+    }
+  } catch (err) {
+    Logger.error('Error creating/updating Telegram asset: ' + err);
+    throw new Error('Could not create or update Telegram asset');
   }
 }
 
@@ -174,10 +197,11 @@ export async function fetchChatInfo(telegramHandle: string): Promise<TelegramAss
  * Download Telegram image by file ID using getFile, then fetch from the returned path.
  */
 async function downloadTelegramImage(photoFileId: string): Promise<Buffer> {
-  // 1) getFile to get file_path
+  // 1) Get file information.
   const getFileResponse = await axios.get(`${TELEGRAM_API_URL}/getFile`, {
     params: { file_id: photoFileId },
   });
+  Logger.info(`Response from getFile: ${JSON.stringify(getFileResponse.data)}`);
   if (!getFileResponse.data.ok) {
     throw new Error(`Error fetching file path: ${JSON.stringify(getFileResponse.data)}`);
   }
@@ -185,28 +209,11 @@ async function downloadTelegramImage(photoFileId: string): Promise<Buffer> {
   if (!filePath) {
     throw new Error(`File path not found in getFile result: ${JSON.stringify(getFileResponse.data.result)}`);
   }
-
-  // 2) Download the actual file
+  // 2) Download the file.
   const fileUrl = `https://api.telegram.org/file/bot${process.env.TELEGRAM_BOT_TOKEN}/${filePath}`;
+  Logger.info(`Downloading image from URL: ${fileUrl}`);
   const fileResponse = await axios.get(fileUrl, { responseType: 'arraybuffer' });
   return Buffer.from(fileResponse.data);
-}
-
-/**
- * Convert Telegram chat.type string to our enum
- */
-function mapChatTypeToAssetType(chatType: string): TelegramAssetType {
-  switch (chatType) {
-    case 'channel':
-      return TelegramAssetType.CHANNEL;
-    // case 'group':
-    //   return TelegramAssetType.GROUP;
-    // case 'supergroup':
-    //   return TelegramAssetType.SUPER_GROUP;
-    // If you have a "mini-app" concept, you'd handle differently - mini app is a chat between a user and a bot (no chatId)
-    default:
-      throw new Error(`Unsupported or unexpected chat type: ${chatType}`);
-  }
 }
 
 /**
@@ -217,6 +224,7 @@ export async function sendTelegramMessage(
   text: string,
   parseMode: string | null = null
 ) {
+  const { getUserById, ensureUser } = await import("../services/UsersService");
   const user = await getUserById(userId);
   if (!user) {
     Logger.error(`[sendTelegramMessage] Cannot find user with id: ${userId} in DB`);

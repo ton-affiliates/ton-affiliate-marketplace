@@ -1,10 +1,3 @@
-export enum TelegramAssetType {
-    CHANNEL = 'CHANNEL',
-    // MINI_APP = 'MINI_APP',
-    // GROUP = 'GROUP',
-    // SUPER_GROUP = 'SUPER_GROUP'
-}
-
 
 export enum UserEventType {
     SOLVED_CAPTCHA = 'SOLVED_CAPTCHA',

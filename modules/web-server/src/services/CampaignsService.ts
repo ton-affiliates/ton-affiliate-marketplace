@@ -1,3 +1,5 @@
+// src/services/CampaignsService.ts
+
 import appDataSource from '../ormconfig';
 import { Campaign } from '../entity/Campaign';
 import { Logger } from '../utils/Logger';
@@ -36,12 +38,12 @@ export async function ensureCampaign(data: Partial<Campaign>): Promise<Campaign>
 }
 
 /** 
- * Fetch a single campaign AND find the advertiser address. 
- * Return a combined object with extra fields:
- *   - advertiserAddress
- *   - assetPhotoBase64
- *   - canBotVerify
- *   - requiredPrivileges
+ * Fetch a single campaign and include extra fields from its associated Telegram asset.
+ * The returned object includes:
+ *   - advertiserAddress (from the CampaignRole for advertiser)
+ *   - assetPhotoBase64 (from telegramAsset.assetPhoto)
+ *   - canBotVerify (delegated to telegramAsset.canBotVerifyEvents)
+ *   - requiredPrivileges (delegated to telegramAsset.getRequiredPrivileges)
  */
 export async function getCampaignByIdWithAdvertiser(
   id: string
@@ -52,8 +54,11 @@ export async function getCampaignByIdWithAdvertiser(
   requiredPrivileges?: string[];
 }) | null> {
   try {
-    // 1) Get the campaign
-    const campaign = await campaignRepository().findOne({ where: { id } });
+    // 1) Get the campaign and include its associated Telegram asset.
+    const campaign = await campaignRepository().findOne({ 
+      where: { id },
+      relations: ['telegramAsset'] 
+    });
     if (!campaign) {
       return null; // Not found
     }
@@ -66,17 +71,18 @@ export async function getCampaignByIdWithAdvertiser(
       },
     });
 
-    // 3) If the campaign has a photo in `assetPhoto`, convert it to base64
+    // 3) If the campaign's Telegram asset has a photo, convert it to base64.
     let assetPhotoBase64: string | undefined = undefined;
-    if (campaign.assetPhoto) {
-      assetPhotoBase64 = Buffer.from(campaign.assetPhoto).toString('base64');
+    if (campaign.telegramAsset && campaign.telegramAsset.photo) {
+      assetPhotoBase64 = Buffer.from(campaign.telegramAsset.photo).toString('base64');
     }
 
-    // 4) Compute canBotVerifyEvents and requiredPrivileges from the entity
+    // 4) Delegate the verification logic to the campaign's methods.
+    // (These methods should use data from the associated Telegram asset.)
     const canBotVerify = campaign.canBotVerifyEvents();
     const requiredPrivileges = campaign.getRequiredPrivileges();
 
-    // 5) Use Object.assign() to extend the campaign without losing TypeORM methods
+    // 5) Merge additional fields into the campaign object.
     const campaignWithAdvertiser = Object.assign(campaign, {
       advertiserAddress: advertiserRole ? advertiserRole.walletAddress : undefined,
       assetPhotoBase64,
@@ -90,7 +96,6 @@ export async function getCampaignByIdWithAdvertiser(
     throw err;
   }
 }
-
 
 /**
  * Get all campaigns for a given wallet address.

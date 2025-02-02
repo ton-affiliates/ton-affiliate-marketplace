@@ -1,11 +1,12 @@
+
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
-export class NewMigrationFile1676543210000 implements MigrationInterface {
+export class InitialSchema1736681774554 implements MigrationInterface {
   // Disable wrapping this migration in a single transaction.
   public static transaction = false;
 
   public async up(queryRunner: QueryRunner): Promise<void> {
-    // 1) Create ENUM type *before* any table references it
+    // 1) Create ENUM type for user_event_type
     await queryRunner.query(`
       DO $$
       BEGIN
@@ -67,30 +68,43 @@ export class NewMigrationFile1676543210000 implements MigrationInterface {
       );
     `);
 
-    // 5) Create campaigns TABLE (without the immutability trigger)
+    // 5) Create telegram_assets TABLE
     await queryRunner.query(`
-      CREATE TABLE IF NOT EXISTS "campaigns" (
-        "id"                         VARCHAR(255) PRIMARY KEY,
-        "handle"                     VARCHAR(255),
-        "campaign_contract_address"  VARCHAR(255) NOT NULL,
-        "name"                       VARCHAR(255),
-        "asset_type"                 VARCHAR(255),
-        "asset_name"                 VARCHAR(255),
-        "asset_category"             VARCHAR(255),
-        "asset_description"          TEXT,
-        "invite_link"                VARCHAR(500),
-        "asset_photo"                BYTEA,
-        "state"                      VARCHAR(50) NOT NULL DEFAULT 'DEPLOYED',
-        "bot_is_admin"               BOOLEAN NOT NULL DEFAULT false,
-        "admin_privileges"           TEXT[] DEFAULT '{}',
-        "member_count"               INT NOT NULL DEFAULT 0,
-        "verified_events"            user_event_type[] DEFAULT '{}',
-        "created_at"                 TIMESTAMP NOT NULL DEFAULT NOW(),
-        "updated_at"                 TIMESTAMP NOT NULL DEFAULT NOW()
+      CREATE TABLE IF NOT EXISTS "telegram_assets" (
+        "chat_id"         VARCHAR(255) PRIMARY KEY,
+        "handle"          VARCHAR(255) NULL,
+        "invite_link"     VARCHAR(500) NULL,
+        "name"            VARCHAR(255) NULL,
+        "description"     TEXT NULL,
+        "type"            VARCHAR(255) NULL,
+        "photo"           BYTEA NULL,
+        "bot_is_admin"    BOOLEAN NOT NULL DEFAULT false,
+        "admin_privileges" TEXT[] NOT NULL DEFAULT '{}',
+        "member_count"    INT NOT NULL DEFAULT 0,
+        "created_at"      TIMESTAMP NOT NULL DEFAULT NOW(),
+        "updated_at"      TIMESTAMP NOT NULL DEFAULT NOW()
       );
     `);
 
-    // 6) Create role_type enum for campaign_roles TABLE
+    // 6) Create campaigns TABLE (campaigns now reference telegram_assets)
+    await queryRunner.query(`
+      CREATE TABLE IF NOT EXISTS "campaigns" (
+        "id"                         VARCHAR(255) PRIMARY KEY,
+        "contract_address"           VARCHAR(255) NOT NULL,
+        "name"                       VARCHAR(255) NULL,
+        "category"                   VARCHAR(255) NULL,
+        "verified_events"            user_event_type[] NOT NULL DEFAULT '{}',
+        "state"                      VARCHAR(50) NOT NULL DEFAULT 'DEPLOYED',
+        "telegram_asset_id"          VARCHAR(255) NULL,
+        "created_at"                 TIMESTAMP NOT NULL DEFAULT NOW(),
+        "updated_at"                 TIMESTAMP NOT NULL DEFAULT NOW(),
+        CONSTRAINT "fk_telegram_asset"
+          FOREIGN KEY ("telegram_asset_id")
+          REFERENCES "telegram_assets"("chat_id")
+      );
+    `);
+
+    // 7) Create ENUM type for role_type for campaign_roles TABLE
     await queryRunner.query(`
       DO $$
       BEGIN
@@ -101,7 +115,7 @@ export class NewMigrationFile1676543210000 implements MigrationInterface {
       $$;
     `);
 
-    // 7) Create campaign_roles TABLE
+    // 8) Create campaign_roles TABLE
     await queryRunner.query(`
       CREATE TABLE IF NOT EXISTS "campaign_roles" (
         "id"             SERIAL PRIMARY KEY,
@@ -120,7 +134,7 @@ export class NewMigrationFile1676543210000 implements MigrationInterface {
       );
     `);
 
-    // 8) Create processed_offsets TABLE
+    // 9) Create processed_offsets TABLE
     await queryRunner.query(`
       CREATE TABLE IF NOT EXISTS "processed_offsets" (
         "id"         SERIAL PRIMARY KEY,
@@ -129,7 +143,7 @@ export class NewMigrationFile1676543210000 implements MigrationInterface {
       );
     `);
 
-    // 9) Create events TABLE
+    // 10) Create events TABLE
     await queryRunner.query(`
       CREATE TABLE IF NOT EXISTS "events" (
         "id" SERIAL PRIMARY KEY,
@@ -147,6 +161,7 @@ export class NewMigrationFile1676543210000 implements MigrationInterface {
     await queryRunner.query(`DROP TABLE IF EXISTS "processed_offsets";`);
     await queryRunner.query(`DROP TABLE IF EXISTS "campaign_roles";`);
     await queryRunner.query(`DROP TABLE IF EXISTS "campaigns";`);
+    await queryRunner.query(`DROP TABLE IF EXISTS "telegram_assets";`);
     await queryRunner.query(`DROP TABLE IF EXISTS "user_wallets";`);
     await queryRunner.query(`DROP TABLE IF EXISTS "wallets";`);
     await queryRunner.query(`DROP TABLE IF EXISTS "users";`);

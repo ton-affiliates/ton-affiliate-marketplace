@@ -1,114 +1,59 @@
-// src/schedulers/updateCampaignsTelegramInfo.ts
+// src/schedulers/updateTelegramAssets.ts
 
 import { Logger } from '../utils/Logger';
-import { fetchChatInfo } from '../services/TelegramService';
-import { ensureCampaign } from '../services/CampaignsService';
+import { ensureTelegramAssetFromTelegram } from '../services/TelegramService';
 import appDataSource from '../ormconfig';
-import { Campaign } from '../entity/Campaign';
+import { TelegramAsset } from '../entity/TelegramAsset';
 
 /**
- * Helper function that extracts a Telegram handle from an invite link.
- * E.g. "https://t.me/MyPublicChannel" => "MyPublicChannel"
+ * Updates all Telegram assets by traversing each asset record in the database.
+ * For each asset, if a chatId is defined, it calls ensureTelegramAssetFromTelegram
+ * (which fetches updated data from Telegram and updates/creates the record in the DB).
  */
-function parseHandleFromLink(link: string): string {
-  const match = link.match(/t\.me\/([^/]+)/i);
-  if (match && match[1]) return match[1];
-  return link;
-}
-
-/**
- * Updates Telegram asset information for all campaigns in the DB.
- * For each campaign, it:
- *   1. Extracts the Telegram handle from the invite link.
- *   2. Fetches updated chat info (TelegramAsset) via the Telegram API.
- *   3. Updates the campaign's fields accordingly.
- */
-export async function updateCampaignsTelegramInfo(): Promise<void> {
+export async function updateTelegramAssets(): Promise<void> {
   try {
-    // Get the repository for Campaign
-    const campaignRepo = appDataSource.getRepository(Campaign);
-    
-    // Fetch all campaigns from the DB
-    const campaigns = await campaignRepo.find();
-    Logger.info(`Found ${campaigns.length} campaigns to update Telegram info.`);
-    
-    for (const campaign of campaigns) {
+    const telegramAssetRepo = appDataSource.getRepository(TelegramAsset);
+    // Fetch all TelegramAsset records.
+    const assets = await telegramAssetRepo.find();
+    Logger.info(`Found ${assets.length} Telegram assets to update.`);
+
+    for (const asset of assets) {
       try {
-        if (!campaign.inviteLink) {
-          Logger.warn(`Campaign ${campaign.id} has no inviteLink. Skipping update.`);
+        if (!asset.chatId) {
+          Logger.warn(`Telegram asset with undefined chatId found; skipping update.`);
           continue;
         }
 
-        // Extract Telegram handle from the invite link
-        const handle = parseHandleFromLink(campaign.inviteLink);
-        Logger.info(`Updating campaign ${campaign.id} using handle "${handle}"`);
-
-        let telegramAsset;
-        try {
-          // Attempt to fetch updated Telegram asset info
-          telegramAsset = await fetchChatInfo(handle);
-          Logger.info(`Fetched Telegram asset: ${JSON.stringify(telegramAsset)}`);
-        } catch (error: any) {
-          // If fetchChatInfo fails—likely due to bot not being admin—log a warning
-          Logger.error(
-            `Failed to fetch chat info for handle: ${handle}. ` +
-            `Assuming bot is not admin. Error: ${error instanceof Error ? error.message : JSON.stringify(error)}`
-          );
-          // Construct fallback asset info (using current campaign values for non-updateable fields)
-          telegramAsset = {
-            id: 0, // dummy value; not used here
-            name: campaign.assetName, // keep the existing asset name
-            description: campaign.assetDescription, // keep current description
-            type: 'channel', // assuming channel; adjust if needed
-            isPublic: true,
-            url: campaign.inviteLink, // keep the same invite link
-            photo: campaign.assetPhoto, // keep current photo
-            botIsAdmin: false,
-            adminPrivileges: [],
-            memberCount: campaign.memberCount // keep existing member count
-          };
-        }
-
-        // Update campaign fields based on the (fetched or fallback) Telegram asset
-        // Only update fields that are allowed to change from Telegram:
-        campaign.assetName = telegramAsset.name;
-        campaign.assetDescription = telegramAsset.description;
-        campaign.assetPhoto = telegramAsset.photo ?? null;
-        campaign.botIsAdmin = telegramAsset.botIsAdmin;
-        campaign.adminPrivileges = telegramAsset.adminPrivileges;
-        campaign.memberCount = telegramAsset.memberCount;
-        // Optionally, update the invite link if Telegram returns a canonical URL:
-        campaign.inviteLink = telegramAsset.url;
-
-        // Save the updated campaign to the DB
-        await campaignRepo.save(campaign);
-        Logger.info(`Campaign ${campaign.id} updated successfully.`);
+        Logger.info(`Updating Telegram asset with chatId "${asset.chatId}"`);
+        // Use the new function to ensure the asset is updated based on its chatId.
+        await ensureTelegramAssetFromTelegram(asset.chatId);
+        Logger.info(`Telegram asset with chatId "${asset.chatId}" updated successfully.`);
       } catch (innerError: any) {
         Logger.error(
-          `Error updating campaign ${campaign.id}: ` +
-          (innerError instanceof Error ? innerError.message : JSON.stringify(innerError))
+          `Error updating Telegram asset with chatId "${asset.chatId}": ` +
+            (innerError instanceof Error ? innerError.message : JSON.stringify(innerError))
         );
       }
     }
   } catch (error: any) {
     Logger.error(
-      `Error updating campaigns Telegram info: ` +
-      (error instanceof Error ? error.message : JSON.stringify(error))
+      `Error updating Telegram assets: ` +
+        (error instanceof Error ? error.message : JSON.stringify(error))
     );
   }
 }
 
 /**
- * Schedule the update to run every 5 minutes.
- * You can call this function from your main app initialization code.
+ * Schedules the Telegram asset update to run periodically.
+ * It runs immediately on startup and then every 10 minutes.
  */
-export function scheduleCampaignUpdates(): void {
-  // Run immediately once on startup
-  updateCampaignsTelegramInfo();
+export function scheduleTelegramAssetUpdates(): void {
+  // Run immediately on startup.
+  updateTelegramAssets();
 
-  // Schedule to run every 10 minutes (600,000 milliseconds)
+  // Then schedule updates every 10 minutes (600,000 milliseconds).
   setInterval(() => {
-    Logger.info('Running periodic campaign Telegram info update...');
-    updateCampaignsTelegramInfo();
-  }, 10 * 60 * 1000);
+    Logger.info('Running periodic Telegram asset update...');
+    updateTelegramAssets();
+  }, 1 * 60 * 1000);  // 1 minute for now
 }

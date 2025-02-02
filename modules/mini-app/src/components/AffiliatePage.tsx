@@ -68,7 +68,7 @@ export function AffiliatePage() {
   }, [campaignId]);
 
   // 4) Now we have campaign?.campaignContractAddress => pass that to useCampaignContract
-  const campaignContractAddress = campaign?.campaignContractAddress;
+  const campaignContractAddress = campaign?.contractAddress;
   const {
     campaignContract,
     isLoading: contractLoading,

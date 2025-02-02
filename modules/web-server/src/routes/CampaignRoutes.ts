@@ -1,16 +1,18 @@
 // src/routes/CampaignRoutes.ts
 
-import { Router } from 'express';
-import { ensureCampaign, getCampaignByIdWithAdvertiser, getAllCampaignsForWallet } from '../services/CampaignsService';
-import { fetchChatInfo } from '../services/TelegramService';
+import { Router, Request, Response } from 'express';
 import { Logger } from '../utils/Logger';
+import { ensureCampaign, getCampaignByIdWithAdvertiser, getAllCampaignsForWallet  } from '../services/CampaignsService';
+import { ensureTelegramAssetFromTelegram } from '../services/TelegramService';
+import { CampaignState } from "../entity/Campaign";
 import { getUnreadNotificationsForWallet, markNotificationAsRead } from '../services/NotificationsService';
 import { Address } from '@ton/core';
 import { RoleType } from '../entity/CampaignRole';
-import { CampaignState } from '../entity/Campaign';
+import dotenv from 'dotenv';
+
+dotenv.config();
 
 const router = Router();
-
 
 router.get('/:id', async (req, res) => {
   try {
@@ -68,7 +70,6 @@ router.patch('/:id/notifications/:notificationId/read', async (req, res) => {
   }
 });
 
-
 router.get('/byWallet/:address', async (req, res) => {
   try {
     const { address } = req.params;
@@ -98,89 +99,80 @@ router.get('/byWallet/:address', async (req, res) => {
   }
 });
 
+
+
+
+
+
+
 /**
- * POST /api/v1/campaigns
- * Creates or updates a campaign after verifying the Telegram channel & admin status
- */
-router.post('/', async (req, res) => {
-  try {
-    Logger.debug('POST /campaigns');
-
-    const {
-      campaignId,
-      campaignName,
-      category,
-      inviteLink,
-      telegramType,
-    } = req.body;
-
-    if (!campaignId || !inviteLink || !telegramType) {
-      res.status(400).json({
-        error: 'Missing required fields: campaignId, inviteLink, telegramType',
-      });
-      return;
-    }
-
-    // 1) Parse handle from the link (e.g. "https://t.me/MyPublicChannel" => "MyPublicChannel")
-    const handle = parseHandleFromLink(inviteLink);
-
-    // 2) Fetch Telegram info, including isPublic & botIsAdmin
-    const telegramAsset = await fetchChatInfo(handle);
-    if (!telegramAsset) {
-      res.status(400).json({ error: 'Could not fetch Telegram info' });
-      return;
-    }
-
-    Logger.info(`inviteLink: ${inviteLink}, telegramAsset: ${JSON.stringify(telegramAsset)}`);
-    
-    // 3) Ensure it's a public channel and the bot is an admin
-    if (!telegramAsset.botIsAdmin) {
-      res.status(400).json({ 
-        error: 'Our verifier bot is not an admin in this channel. Please grant it admin rights & try again.' 
-      });
-      return;
-    }
-
-
-    // 4) Prepare campaign data
-    const campaignData = {
-      id: campaignId,
-      state: CampaignState.TELEGRAM_DETAILS_SET,
-      handle: handle,
-      inviteLink: telegramAsset.url,
-      campaignName: campaignName,
-      assetType: telegramType,
-      assetCategory: category,
-      assetName: telegramAsset.name,
-      assetDescription: telegramAsset.description,
-      assetPhoto: telegramAsset.photo ? Buffer.from(telegramAsset.photo) : null,
-      botIsAdmin: telegramAsset.botIsAdmin,
-      adminPrivileges: telegramAsset.adminPrivileges,
-      memberCount: telegramAsset.memberCount
-    };
-
-    Logger.debug('campaignData about to be created:', campaignData);
-
-    // 5) Create or update the campaign in DB
-    const newCampaign = await ensureCampaign(campaignData);
-    res.status(201).json(newCampaign);
-    return;
-
-  } catch (err: any) {
-    Logger.error('Error in POST /campaigns:', err);
-    res.status(500).json({ error: 'Internal Server Error' });
-    return;
-  }
-});
-
-export default router;
-
-/** 
- * e.g. "https://t.me/MyPublicChannel" => "MyPublicChannel" 
- * If the link doesn't match, fallback to the entire link 
+ * Helper function to extract a Telegram handle from an invite link.
+ * For example: "https://t.me/MyPublicChannel" => "MyPublicChannel"
  */
 function parseHandleFromLink(link: string): string {
   const match = link.match(/t\.me\/([^/]+)/i);
   if (match && match[1]) return match[1];
-  return link; 
+  return link;
 }
+
+/**
+ * POST /api/v1/campaigns
+ *
+ * Creates or updates a campaign after verifying the Telegram channel & admin status.
+ * This route now simply calls:
+ *  1. ensureTelegramAssetFromTelegram to create or update the Telegram asset (using the invite link)
+ *  2. ensureCampaign to create or update the campaign and link it to the Telegram asset.
+ */
+router.post('/', async (req: Request, res: Response): Promise<void> => {
+  try {
+    Logger.debug('POST /campaigns');
+
+    const {
+      campaignId,    // Campaign ID from the blockchain
+      campaignName,  // Human-readable campaign name
+      category,      // (Optional) Category information (can be used for TelegramAsset.category)
+      inviteLink,    // Telegram invite link (e.g. "https://t.me/MyChannel")
+    } = req.body;
+
+    if (!campaignId || !inviteLink) {
+      res.status(400).json({
+        error: 'Missing required fields: campaignId, inviteLink',
+      });
+      return;
+    }
+
+    // (Optional) Extract the handle if needed for logging or further processing.
+    const handle = parseHandleFromLink(inviteLink);
+    Logger.info(`Extracted handle: ${handle}`);
+
+    // 1) Ensure that the Telegram asset is updated/created based on the invite link.
+    // This function should call the Telegram API internally and persist the asset.
+    const telegramAsset = await ensureTelegramAssetFromTelegram(inviteLink);
+    if (!telegramAsset) {
+      res.status(400).json({ error: 'Could not ensure Telegram asset' });
+      return;
+    }
+
+    // 2) Prepare campaign data.
+    // Note: The campaign itself holds blockchain-specific data,
+    // and its Telegram asset is referenced via a foreign key.
+    const campaignData = {
+      id: campaignId,
+      name: campaignName,
+      state: CampaignState.TELEGRAM_DETAILS_SET,
+      telegramAsset: telegramAsset,
+      category: category
+    };
+
+    Logger.debug('Campaign data about to be created:', campaignData);
+
+    // 3) Create or update the campaign in the database.
+    const newCampaign = await ensureCampaign(campaignData);
+    res.status(201).json(newCampaign);
+  } catch (err: any) {
+    Logger.error('Error in POST /campaigns:', err);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
+export default router;

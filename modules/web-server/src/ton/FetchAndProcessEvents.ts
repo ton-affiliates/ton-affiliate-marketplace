@@ -78,7 +78,7 @@ async function processEvent(event: EmitLogEvent) {
           await ensureCampaign({
             id: campaignId,
             state: CampaignState.DEPLOYED,
-            campaignContractAddress: campaignContractTon.toString()
+            contractAddress: campaignContractTon.toString()
           });
 
           // create advertiser role
@@ -130,7 +130,7 @@ async function processEvent(event: EmitLogEvent) {
           const client = new TonClient4({ endpoint });
 
 
-          const campaignInstance = client.open(Campaign.fromAddress(Address.parse(campaignFromDB!.campaignContractAddress)));
+          const campaignInstance = client.open(Campaign.fromAddress(Address.parse(campaignFromDB!.contractAddress)));
 
         //   export type CampaignDetails = {
         //     $$type: 'CampaignDetails';
