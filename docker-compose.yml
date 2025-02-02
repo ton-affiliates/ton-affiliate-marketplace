@@ -10,6 +10,7 @@ services:
       - 80:80
     volumes:
       - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./modules/mini-app/dist:/var/www/tonaffiliates.com/html
 
   web-server:
     build:

@@ -37,7 +37,7 @@
     "typescript": "~5.6.2",
     "typescript-eslint": "^8.18.1",
     "vite": "^6.0.4",
-    "vite-plugin-node-polyfills": "^0.17.0", // v0.22.0 broke building (https://github.com/davidmyersdev/vite-plugin-node-polyfills/issues/81)
+    "vite-plugin-node-polyfills": "^0.17.0",
     "vite-tsconfig-paths": "^5.1.4"
   },
   "overrides": {
