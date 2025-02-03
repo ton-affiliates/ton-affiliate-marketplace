@@ -118,7 +118,7 @@ bot.on('text', async (ctx) => {
 
   // Check DB for campaign
   const campaign = await getCampaignByIdWithAdvertiser(campaignId);
-  if (!campaign || !campaign.telegramAsset || !campaign.telegramAsset.inviteLink) {
+  if (!campaign || !campaign.inviteLink) {
     await ctx.reply('Invalid or missing campaign invite link. Contact support.');
     return;
   }
@@ -168,7 +168,7 @@ bot.on('callback_query', async (ctx) => {
 
   // Retrieve the campaign again just to confirm invite link
   const campaign = await getCampaignByIdWithAdvertiser(campaignId);
-  if (!campaign || !campaign.telegramAsset || !campaign.telegramAsset.inviteLink) {
+  if (!campaign || !campaign.inviteLink) {
     await ctx.answerCbQuery('No invite link found.', { show_alert: true });
     return;
   }
@@ -182,7 +182,7 @@ bot.on('callback_query', async (ctx) => {
         [
           {
             text: 'Join Channel',
-            url: campaign.telegramAsset.inviteLink, // e.g. https://t.me/+SomePrivateHash
+            url: campaign.inviteLink, // e.g. https://t.me/+SomePrivateHash
           },
         ],
       ],

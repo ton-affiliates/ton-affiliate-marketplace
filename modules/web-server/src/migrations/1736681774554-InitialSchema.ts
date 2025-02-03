@@ -143,7 +143,21 @@ export class InitialSchema1736681774554 implements MigrationInterface {
       );
     `);
 
-    // 10) Create events TABLE
+    // 10) Create notifications TABLE
+    await queryRunner.query(`
+      CREATE TABLE IF NOT EXISTS "notifications" (
+        "id" SERIAL PRIMARY KEY,
+        "wallet_address" VARCHAR(255) NOT NULL,
+        "message" TEXT NOT NULL,
+        "campaign_id" VARCHAR(255) NULL,
+        "created_at" TIMESTAMP NOT NULL DEFAULT NOW(),
+        "updated_at" TIMESTAMP NOT NULL DEFAULT NOW(),
+        "read_at" TIMESTAMP NULL,
+        "link" VARCHAR(500) NULL
+      );
+    `);
+
+    // 11) Create events TABLE
     await queryRunner.query(`
       CREATE TABLE IF NOT EXISTS "events" (
         "id" SERIAL PRIMARY KEY,
@@ -158,6 +172,7 @@ export class InitialSchema1736681774554 implements MigrationInterface {
   public async down(queryRunner: QueryRunner): Promise<void> {
     // Reverse creation order
     await queryRunner.query(`DROP TABLE IF EXISTS "events";`);
+    await queryRunner.query(`DROP TABLE IF EXISTS "notifications";`);
     await queryRunner.query(`DROP TABLE IF EXISTS "processed_offsets";`);
     await queryRunner.query(`DROP TABLE IF EXISTS "campaign_roles";`);
     await queryRunner.query(`DROP TABLE IF EXISTS "campaigns";`);

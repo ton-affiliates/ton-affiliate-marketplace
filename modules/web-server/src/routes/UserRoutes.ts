@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Router, Request, Response } from 'express';
 import { Logger } from '../utils/Logger';
 import { Address } from '@ton/core';
 import {
@@ -8,6 +8,7 @@ import {
   ensureWallet,
   connectUserAndWallet,
 } from '../services/UsersService';
+import { UserApiResponse } from '@common/ApiResponses';
 
 const router = Router();
 
@@ -15,7 +16,7 @@ const router = Router();
  * GET /users/:id
  * Retrieve a user by Telegram user ID (including their linked wallets).
  */
-router.get('/:id', async (req, res) => {
+router.get('/:id', async (req: Request, res: Response): Promise<void> => {
   try {
     Logger.debug(`GET /users/${req.params.id} - fetching user by ID`);
     const userId = Number(req.params.id);
@@ -24,7 +25,15 @@ router.get('/:id', async (req, res) => {
       res.status(404).json({ error: 'User not found' });
       return;
     }
-    res.json(user);
+    // Map the returned user to the UserApiResponse interface
+    const userApiResponse: UserApiResponse = {
+      id: user.id,
+      telegramUsername: user.telegramUsername,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      photoUrl: user.photoUrl,
+    };
+    res.json(userApiResponse);
   } catch (err: any) {
     Logger.error(`Error in GET /users/${req.params.id}`, err);
     res.status(500).json({ error: err.message || 'Internal Server Error' });
@@ -35,16 +44,26 @@ router.get('/:id', async (req, res) => {
  * GET /users/byWallet/:address
  * Retrieve *all* users associated with a wallet address
  */
-router.get('/byWallet/:address', async (req, res) => {
+router.get('/byWallet/:address', async (req: Request, res: Response): Promise<void> => {
   try {
     const { address } = req.params;
     Logger.debug(`GET /users/byWallet/${address} - fetching users by wallet address`);
+    
     const users = await getUsersByWalletAddress(Address.parse(address));
     if (users.length === 0) {
       res.status(404).json({ error: 'No users found for this wallet' });
       return;
     }
-    res.json(users);
+    // Map the users to the UserApiResponse interface.
+    const userApiResponses: UserApiResponse[] = users.map((user) => ({
+      id: user.id,
+      telegramUsername: user.telegramUsername,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      photoUrl: user.photoUrl,
+    }));
+    
+    res.json(userApiResponses);
   } catch (err: any) {
     Logger.error(`Error in GET /users/byWallet/${req.params.address}`, err);
     res.status(500).json({ error: err.message || 'Internal Server Error' });

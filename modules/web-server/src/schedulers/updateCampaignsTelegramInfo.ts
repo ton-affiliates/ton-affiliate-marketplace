@@ -55,5 +55,5 @@ export function scheduleTelegramAssetUpdates(): void {
   setInterval(() => {
     Logger.info('Running periodic Telegram asset update...');
     updateTelegramAssets();
-  }, 1 * 60 * 1000);  // 1 minute for now
+  }, 10 * 60 * 1000);  // every 10 minute for now
 }

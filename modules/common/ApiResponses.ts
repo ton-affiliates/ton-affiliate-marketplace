@@ -1,0 +1,52 @@
+// src/common/ApiResponses.ts
+
+export interface NotificationApiResponse {
+  id: number;
+  message: string;
+  createdAt: string;
+  readAt?: string | null;
+  link?: string | null;
+}
+
+export interface CampaignApiResponse {
+  id: string;
+  contractAddress: string;
+  name: string | null;  // renamed from campaignName
+  category?: string | null;
+  state: string;
+  createdAt: string;
+  updatedAt: string;
+  advertiserAddress?: string;
+  handle?: string;
+  inviteLink?: string;
+  assetName?: string;
+  assetDescription?: string;
+  assetType?: string;
+  memberCount?: number;
+  botIsAdmin?: boolean;
+  adminPrivileges?: string[];
+  assetPhotoBase64?: string;
+  canBotVerify?: boolean;
+  requiredPrivileges?: string[];
+}
+
+export interface UserApiResponse {
+  id: number;
+  telegramUsername: string;
+  firstName: string;
+  lastName: string;
+  photoUrl?: string;
+}
+
+/**
+ * Represents an affiliate (or advertiser) role record from /campaign-roles/affiliates/by-wallet
+ */
+export interface CampaignRoleApiResponse {
+  id: number;               // the DB primary key
+  campaignId: string;       // e.g. "3938614347"
+  walletAddress: string;    // e.g. "EQCsIGoFs0..."
+  role: 'advertiser' | 'affiliate';
+  affiliateId: number | null;
+  createdAt: string;        // date string
+  updatedAt: string;        // date string
+}

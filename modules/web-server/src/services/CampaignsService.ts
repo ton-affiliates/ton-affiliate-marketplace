@@ -5,6 +5,7 @@ import { Campaign } from '../entity/Campaign';
 import { Logger } from '../utils/Logger';
 import { CampaignRole, RoleType } from '../entity/CampaignRole';
 import { Address } from '@ton/core';
+import { CampaignApiResponse } from '@common/ApiResponses';
 
 function campaignRepository() {
   return appDataSource.getRepository(Campaign);
@@ -45,25 +46,24 @@ export async function ensureCampaign(data: Partial<Campaign>): Promise<Campaign>
  *   - canBotVerify (delegated to telegramAsset.canBotVerifyEvents)
  *   - requiredPrivileges (delegated to telegramAsset.getRequiredPrivileges)
  */
+/**
+ * Fetch a single campaign and flatten its associated Telegram asset fields.
+ * Returns a CampaignApiResponse.
+ */
 export async function getCampaignByIdWithAdvertiser(
   id: string
-): Promise<(Campaign & {
-  advertiserAddress?: string;
-  assetPhotoBase64?: string;
-  canBotVerify?: boolean;
-  requiredPrivileges?: string[];
-}) | null> {
+): Promise<CampaignApiResponse | null> {
   try {
-    // 1) Get the campaign and include its associated Telegram asset.
-    const campaign = await campaignRepository().findOne({ 
+    // 1) Get the campaign including its associated Telegram asset.
+    const campaign = await campaignRepository().findOne({
       where: { id },
-      relations: ['telegramAsset'] 
+      relations: ['telegramAsset'],
     });
     if (!campaign) {
-      return null; // Not found
+      return null;
     }
 
-    // 2) Find the CampaignRole for "advertiser" (assuming there's only one advertiser per campaign)
+    // 2) Find the CampaignRole for "advertiser" (if any)
     const advertiserRole = await campaignRoleRepository().findOne({
       where: {
         campaignId: id,
@@ -71,26 +71,53 @@ export async function getCampaignByIdWithAdvertiser(
       },
     });
 
-    // 3) If the campaign's Telegram asset has a photo, convert it to base64.
-    let assetPhotoBase64: string | undefined = undefined;
-    if (campaign.telegramAsset && campaign.telegramAsset.photo) {
-      assetPhotoBase64 = Buffer.from(campaign.telegramAsset.photo).toString('base64');
-    }
+    // 3) Flatten Telegram asset fields; if missing, provide defaults.
+    const telegram = campaign.telegramAsset || {
+      handle: '',
+      inviteLink: '',
+      name: '',
+      description: '',
+      assetType: '',
+      type: '',
+      memberCount: 0,
+      botIsAdmin: false,
+      adminPrivileges: [] as string[],
+      photo: null as Buffer | null,
+    };
 
-    // 4) Delegate the verification logic to the campaign's methods.
-    // (These methods should use data from the associated Telegram asset.)
+    // Convert photo to Base64 if available.
+    const assetPhotoBase64 = telegram.photo ? Buffer.from(telegram.photo).toString('base64') : '';
+
+    // 4) Compute verification fields using campaign methods.
     const canBotVerify = campaign.canBotVerifyEvents();
     const requiredPrivileges = campaign.getRequiredPrivileges();
 
-    // 5) Merge additional fields into the campaign object.
-    const campaignWithAdvertiser = Object.assign(campaign, {
-      advertiserAddress: advertiserRole ? advertiserRole.walletAddress : undefined,
+    // 5) Build the flattened response explicitly.
+    const response: CampaignApiResponse = {
+      id: campaign.id,
+      contractAddress: campaign.contractAddress,
+      name: campaign.name ?? '', // Map campaign.name to response.name
+      category: campaign.category ?? '',
+      state: campaign.state,
+      createdAt: campaign.createdAt.toISOString(),
+      updatedAt: campaign.updatedAt.toISOString(),
+      advertiserAddress: advertiserRole ? advertiserRole.walletAddress : '',
+      // Flattened Telegram asset fields:
+      handle: telegram.handle ?? '',
+      inviteLink: telegram.inviteLink ?? '',
+      assetName: telegram.name ?? '',
+      assetDescription: telegram.description ?? '',
+      assetType: telegram.type ?? '',
+      memberCount: telegram.memberCount,
+      botIsAdmin: telegram.botIsAdmin,
+      adminPrivileges: telegram.adminPrivileges,
       assetPhotoBase64,
+      // Verification fields:
       canBotVerify,
       requiredPrivileges,
-    });
+    };
 
-    return campaignWithAdvertiser;
+    return response;
   } catch (err) {
     Logger.error('Error fetching campaign with advertiser: ' + err);
     throw err;

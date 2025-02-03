@@ -9,7 +9,7 @@ import { advertiserRemoveAffiliate } from '../blockchain/advertiserRemoveAffilia
 import { AffiliateData, CampaignData } from '../contracts/Campaign';
 import { useTonConnectFetchContext } from './TonConnectProvider';
 import { useTonWalletConnect } from '../hooks/useTonConnect';
-import { CampaignRoleApiResponse } from '../models/ApiResponses';
+import { CampaignRoleApiResponse } from '@common/ApiResponses';
 
 /** 1) DB call: fetch paged affiliates */
 async function fetchPagedAffiliates(
@@ -46,8 +46,8 @@ export function AllAffiliatesPage() {
   // On-chain data (has advertiser: Address)
   const [onChainData, setOnChainData] = useState<CampaignData | null>(null);
 
-  // DB + chain affiliate data
-  const [dbMap, setDbMap] = useState<Map<bigint, CampaignRoleApiResponse>>(new Map());
+  // DB + chain affiliate data (using string keys for DB map)
+  const [dbMap, setDbMap] = useState<Map<string, CampaignRoleApiResponse>>(new Map());
   const [chainMap, setChainMap] = useState<Record<string, AffiliateData>>({});
 
   const [loading, setLoading] = useState(false);
@@ -72,7 +72,7 @@ export function AllAffiliatesPage() {
         setLoading(true);
         const dbCampaign = await fetchCampaign(campaignId);
         console.log('[AllAffiliatesPage] DB campaign =>', dbCampaign);
-        setCampaignContractAddress(dbCampaign.campaignContractAddress); // a string
+        setCampaignContractAddress(dbCampaign.contractAddress); // a string
       } catch (err: any) {
         setError(err.message);
       } finally {
@@ -133,10 +133,10 @@ export function AllAffiliatesPage() {
         const roles = await fetchPagedAffiliates(campaignId, offset, limit);
         console.log('[AllAffiliatesPage] Roles from DB =>', roles);
 
-        const newMap = new Map<bigint, CampaignRoleApiResponse>();
+        const newMap = new Map<string, CampaignRoleApiResponse>();
         for (const role of roles) {
-          if (role.affiliateId !== null) {
-            newMap.set(BigInt(role.affiliateId), role);
+          if (role.affiliateId !== null && role.affiliateId !== undefined) {
+            newMap.set(String(role.affiliateId), role);
           }
         }
         setDbMap(newMap);
@@ -153,36 +153,40 @@ export function AllAffiliatesPage() {
     if (!userAccount?.address || !onChainData?.advertiser) return false;
     try {
       const userAddrStr = Address.parse(userAccount.address).toString(); // normalize
-      const advAddrStr = onChainData.advertiser.toString(); // from `Address => string`
+      const advAddrStr = onChainData.advertiser.toString(); // from Address to string
       return userAddrStr === advAddrStr;
     } catch {
       return false;
     }
   }, [userAccount?.address, onChainData?.advertiser]);
 
+  // Determine if this is a private campaign.
+  // Modified so that if campaignDetails.isPublicCampaign is not explicitly true, we assume it is private.
+  const isPrivate = onChainData?.campaignDetails?.isPublicCampaign !== true;
+
   // Approve / Remove
-  async function handleApprove(affId: bigint) {
+  async function handleApprove(affId: number) {
     if (!campaignContract || !sender) {
       alert('Not ready to approve affiliate. Missing contract or sender.');
       return;
     }
     try {
-      await advertiserApproveAffiliate(campaignContract, affId, sender);
-      alert(`Approved affiliate ID: ${affId.toString()}`);
+      await advertiserApproveAffiliate(campaignContract, BigInt(affId), sender);
+      alert(`Approved affiliate ID: ${affId}`);
     } catch (err: any) {
       console.error(err);
       alert(`Failed to approve affiliate: ${String(err)}`);
     }
   }
 
-  async function handleRemove(affId: bigint) {
+  async function handleRemove(affId: number) {
     if (!campaignContract || !sender) {
       alert('Not ready to remove affiliate. Missing contract or sender.');
       return;
     }
     try {
-      await advertiserRemoveAffiliate(campaignContract, affId, sender);
-      alert(`Removed affiliate ID: ${affId.toString()}`);
+      await advertiserRemoveAffiliate(campaignContract, BigInt(affId), sender);
+      alert(`Removed affiliate ID: ${affId}`);
     } catch (err: any) {
       console.error(err);
       alert(`Failed to remove affiliate: ${String(err)}`);
@@ -206,15 +210,20 @@ export function AllAffiliatesPage() {
     return <p style={{ margin: '1rem' }}>Loading data...</p>;
   }
 
-  // Merge DB + chain affiliates
-  const allAffIds = new Set<bigint>([
-    ...dbMap.keys(),
-    ...Object.keys(chainMap).map((k) => BigInt(k)),
+  // Merge DB + chain affiliates by converting DB keys (strings) to numbers.
+  const allAffIds = new Set<number>([
+    ...Array.from(dbMap.keys()).map((idStr) => Number(idStr)),
+    ...Object.keys(chainMap).map((k) => Number(k)),
   ]);
-  const sortedAffIds = Array.from(allAffIds).sort((a, b) => Number(a - b));
+  const sortedAffIds = Array.from(allAffIds).sort((a, b) => a - b);
 
-  // Check if the campaign is private => advertiser must Approve
-  const isPrivate = onChainData?.campaignDetails?.isPublicCampaign === false;
+  // Compute a flag to indicate if at least one affiliate row will have a manage action.
+  const hasManageActions = sortedAffIds.some((affId) => {
+    const chainItem = chainMap[String(affId)] || null;
+    const showApprove = isUserAdvertiser && isPrivate && chainItem?.state === 0n;
+    const showRemove = isUserAdvertiser && isPrivate;
+    return showApprove || showRemove;
+  });
 
   return (
     <div style={{ margin: '1rem' }}>
@@ -222,7 +231,7 @@ export function AllAffiliatesPage() {
       {contractError && <p style={{ color: 'red' }}>{contractError}</p>}
 
       {/* Table of affiliates */}
-      {!loadingState && onChainData && (
+      {!loadingState && (
         <table style={{ borderCollapse: 'collapse', width: '100%' }}>
           <thead>
             <tr>
@@ -230,28 +239,33 @@ export function AllAffiliatesPage() {
               <th style={{ border: '1px solid #ccc', padding: '8px' }}>DB Info</th>
               <th style={{ border: '1px solid #ccc', padding: '8px' }}>On-chain Earnings</th>
               <th style={{ border: '1px solid #ccc', padding: '8px' }}>State</th>
-              <th style={{ border: '1px solid #ccc', padding: '8px' }}>Manage</th>
+              {hasManageActions && (
+                <th style={{ border: '1px solid #ccc', padding: '8px' }}>Manage</th>
+              )}
             </tr>
           </thead>
           <tbody>
             {sortedAffIds.map((affId) => {
-              const dbRec = dbMap.get(affId) || null;
-              const chainItem = chainMap[affId.toString()] || null;
+              // Look up using string keys
+              const dbRec = dbMap.get(String(affId)) || null;
+              const chainItem = chainMap[String(affId)] || null;
 
               let stateLabel = 'Unknown';
               if (chainItem?.state === 0n) stateLabel = 'Pending Approval';
               if (chainItem?.state === 1n) stateLabel = 'Active';
 
               const totalEarnings = chainItem ? chainItem.totalEarnings.toString() : 'N/A';
-              const affLink = `/campaign/${campaignId}/affiliate/${affId.toString()}`;
+              const affLink = `/campaign/${campaignId}/affiliate/${affId}`;
 
+              // Show approve only if the affiliate is pending (state 0) and this is a private campaign.
               const showApprove = isUserAdvertiser && isPrivate && chainItem?.state === 0n;
+              // Remove button should always show for a private campaign if the current user is the advertiser.
               const showRemove = isUserAdvertiser && isPrivate;
 
               return (
-                <tr key={affId.toString()}>
+                <tr key={affId}>
                   <td style={{ border: '1px solid #ccc', padding: '8px' }}>
-                    <Link to={affLink}>{affId.toString()}</Link>
+                    <Link to={affLink}>{affId}</Link>
                   </td>
                   <td style={{ border: '1px solid #ccc', padding: '8px' }}>
                     {dbRec ? (
@@ -265,18 +279,20 @@ export function AllAffiliatesPage() {
                   </td>
                   <td style={{ border: '1px solid #ccc', padding: '8px' }}>{totalEarnings}</td>
                   <td style={{ border: '1px solid #ccc', padding: '8px' }}>{stateLabel}</td>
-                  <td style={{ border: '1px solid #ccc', padding: '8px' }}>
-                    {showApprove && (
-                      <button style={{ marginRight: '0.5rem' }} onClick={() => handleApprove(affId)}>
-                        Approve
-                      </button>
-                    )}
-                    {showRemove && (
-                      <button onClick={() => handleRemove(affId)}>
-                        Remove
-                      </button>
-                    )}
-                  </td>
+                  {hasManageActions && (
+                    <td style={{ border: '1px solid #ccc', padding: '8px' }}>
+                      {showApprove && (
+                        <button style={{ marginRight: '0.5rem' }} onClick={() => handleApprove(affId)}>
+                          Approve
+                        </button>
+                      )}
+                      {showRemove && (
+                        <button onClick={() => handleRemove(affId)}>
+                          Remove
+                        </button>
+                      )}
+                    </td>
+                  )}
                 </tr>
               );
             })}

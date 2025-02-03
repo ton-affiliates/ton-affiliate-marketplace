@@ -22,7 +22,7 @@ import {
   UserApiResponse,
   NotificationApiResponse,
   CampaignRoleApiResponse,
-} from '../models/ApiResponses';
+} from '@common/ApiResponses';
 import { CampaignData, AffiliateData } from '../contracts/Campaign';
 import { BOT_OP_CODE_USER_JOIN } from '@common/models';
 
@@ -201,15 +201,22 @@ export default function CampaignView() {
           setLoadingUser(false);
           return;
         }
-        const data: UserApiResponse = await resp.json();
-        setAdvertiserUser(data);
-      } catch (err) {
+        // Assume the API returns an array of users
+        const data: UserApiResponse[] = await resp.json();
+        console.log("UserApiResponse: " + JSON.stringify(data));
+        if (data && data.length > 0) {
+          setAdvertiserUser(data[0]); // Set the first (and likely only) element
+        } else {
+          setAdvertiserUser(null);
+        }
+      } catch (err: any) {
         console.error('Error fetching advertiser user:', err);
       } finally {
         setLoadingUser(false);
       }
     })();
   }, [advertiserAddr]);
+  
 
   //------------------------------------------------------------------
   // 3) Once we have the contract, fetch on-chain data
@@ -296,6 +303,8 @@ export default function CampaignView() {
   //------------------------------------------------------------------
   // 6) My affiliates
   //------------------------------------------------------------------
+  
+
   async function fetchMyAffiliates() {
     if (!userAccount?.address) return;
     try {
@@ -312,8 +321,13 @@ export default function CampaignView() {
         throw new Error(`Error fetching affiliates: ${resp.status} ${resp.statusText}`);
       }
       const data: CampaignRoleApiResponse[] = await resp.json();
+      // Filter roles by the current campaign ID.
       const relevant = data.filter((r) => r.campaignId === id);
-      setMyAffiliates(relevant);
+      // Deduplicate the array by affiliateId.
+      const unique = Array.from(
+        new Map(relevant.map((role) => [role.affiliateId, role])).values()
+      );
+      setMyAffiliates(unique);
     } catch (err: any) {
       console.error('Error fetching my affiliates:', err);
       setAffiliatesError(err.message);
@@ -321,6 +335,7 @@ export default function CampaignView() {
       setAffiliatesLoading(false);
     }
   }
+
 
   // If not advertiser => fetch affiliates
   useEffect(() => {
@@ -386,20 +401,19 @@ export default function CampaignView() {
   async function handleRefreshBotAdmin() {
     if (!id) return;
     try {
-      // Hypothetical endpoint that re-checks the Telegram chat privileges,
-      // updates the DB, and returns the updated campaign
+      // Call the refresh endpoint to update the Telegram asset for this campaign.
       await fetch(`/api/v1/campaigns/${id}/refresh-bot-admin`, {
         method: 'POST',
       });
-
-      // Re-fetch the updated campaign
+  
+      // After the refresh, re-fetch the updated campaign data.
       const resp = await fetch(`/api/v1/campaigns/${id}`);
       if (!resp.ok) {
         throw new Error(`Failed to refetch campaign. Status: ${resp.status}`);
       }
-      const updated = await resp.json();
-      setCampaign(updated);
-    } catch (err) {
+      const updatedCampaign: CampaignApiResponse = await resp.json();
+      setCampaign(updatedCampaign);
+    } catch (err: any) {
       console.error('Error re-checking bot admin privileges:', err);
       alert(`Error re-checking bot admin privileges: ${String(err)}`);
     }
@@ -584,7 +598,7 @@ export default function CampaignView() {
         Campaign Page for: {campaign.assetName || '(Unnamed)'}
       </h1>
       <h2 style={{ marginBottom: '0.5rem' }}>Campaign ID: {campaign.id}</h2>
-      <h2 style={{ marginBottom: '0.5rem' }}>Campaign Name: {campaign.campaignName}</h2>
+      <h2 style={{ marginBottom: '0.5rem' }}>Campaign Name: {campaign.name}</h2>
 
       {onChainData && (
         <h3 style={{ marginBottom: '1rem' }}>
@@ -658,70 +672,68 @@ export default function CampaignView() {
 
           {/* If user is not advertiser => show affiliate creation / listing */}
           {!isUserAdvertiser &&
-            isCampaignOnChainActive && // Only show if on-chain is active (bot privileges don't matter for affiliates)
-            campaignContract &&
-            sender && (
-              <div
-                style={{ marginTop: '2rem', borderTop: '1px solid #ccc', paddingTop: '1rem' }}
+          isCampaignOnChainActive && // Only show if on-chain is active (bot privileges don't matter for affiliates)
+          campaignContract &&
+          sender && (
+            <div style={{ marginTop: '2rem', borderTop: '1px solid #ccc', paddingTop: '1rem' }}>
+              <h3>Become an Affiliate</h3>
+              {onChainData?.campaignDetails.isPublicCampaign ? (
+                <p>Generate your affiliate referral link in this campaign:</p>
+              ) : (
+                <p>Request permission to join this private campaign:</p>
+              )}
+
+              {waitingForTx && !txTimeout && !txSuccess && (
+                <div style={{ marginBottom: '1rem' }}>
+                  <Spinner />
+                  <p>Waiting for server confirmation... (can take up to 1 minute)</p>
+                </div>
+              )}
+              {txTimeout && !txSuccess && (
+                <div style={{ marginBottom: '1rem', color: 'red' }}>
+                  Timed out waiting for the server event. The transaction might still be pending...
+                </div>
+              )}
+              {txSuccess && (
+                <div style={{ marginBottom: '1rem' }}>
+                  <SuccessIcon />
+                  <p>Affiliate created successfully!</p>
+                </div>
+              )}
+              {txFailed && (
+                <div style={{ marginBottom: '1rem', color: 'red' }}>
+                  Transaction failed or was canceled.
+                </div>
+              )}
+
+              <button
+                onClick={handleCreateAffiliate}
+                disabled={waitingForTx || txSuccess}
+                style={{ marginBottom: '1rem' }}
               >
-                <h3>Become an Affiliate</h3>
-                {onChainData?.campaignDetails.isPublicCampaign ? (
-                  <p>Generate your affiliate ID in this campaign:</p>
-                ) : (
-                  <p>Request permission to join this private campaign:</p>
-                )}
+                {onChainData?.campaignDetails.isPublicCampaign
+                  ? 'Generate Referral Link'
+                  : 'Ask to Join Campaign'}
+              </button>
 
-                {waitingForTx && !txTimeout && !txSuccess && (
-                  <div style={{ marginBottom: '1rem' }}>
-                    <Spinner />
-                    <p>Waiting for server confirmation... (can take up to 1 minute)</p>
-                  </div>
-                )}
-                {txTimeout && !txSuccess && (
-                  <div style={{ marginBottom: '1rem', color: 'red' }}>
-                    Timed out waiting for the server event. The transaction might still be pending...
-                  </div>
-                )}
-                {txSuccess && (
-                  <div style={{ marginBottom: '1rem' }}>
-                    <SuccessIcon />
-                    <p>Affiliate created successfully!</p>
-                  </div>
-                )}
-                {txFailed && (
-                  <div style={{ marginBottom: '1rem', color: 'red' }}>
-                    Transaction failed or was canceled.
-                  </div>
-                )}
-
-                <button
-                  onClick={handleCreateAffiliate}
-                  disabled={waitingForTx || txSuccess}
-                  style={{ marginBottom: '1rem' }}
+              {newAffiliateId !== null && (
+                <div
+                  style={{
+                    border: '1px solid #ccc',
+                    padding: '0.5rem',
+                    backgroundColor: '#f5f5f5',
+                  }}
                 >
-                  {onChainData?.campaignDetails.isPublicCampaign
-                    ? 'Create Affiliate'
-                    : 'Ask to Join Campaign'}
-                </button>
-
-                {newAffiliateId !== null && (
-                  <div
-                    style={{
-                      border: '1px solid #ccc',
-                      padding: '0.5rem',
-                      backgroundColor: '#f5f5f5',
-                    }}
-                  >
-                    <strong>Your new Affiliate ID:</strong> {newAffiliateId.toString()}
-                    <br />
-                    <strong>Your affiliate page: </strong>
-                    <Link to={`/campaign/${campaign.id}/affiliate/${newAffiliateId.toString()}`}>
-                      {`/campaign/${campaign.id}/affiliate/${newAffiliateId.toString()}`}
-                    </Link>
-                  </div>
-                )}
-              </div>
-            )}
+                  <strong>Your new Affiliate ID:</strong> {newAffiliateId.toString()}
+                  <br />
+                  <strong>Your affiliate page: </strong>
+                  <Link to={`/campaign/${campaign.id}/affiliate/${newAffiliateId.toString()}`}>
+                    {`/campaign/${campaign.id}/affiliate/${newAffiliateId.toString()}`}
+                  </Link>
+                </div>
+              )}
+            </div>
+          )}
 
           {!isUserAdvertiser && (
             <div style={{ marginTop: '2rem', borderTop: '1px solid #ccc', paddingTop: '1rem' }}>

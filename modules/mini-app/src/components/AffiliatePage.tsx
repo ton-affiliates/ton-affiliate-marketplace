@@ -11,7 +11,7 @@ import { advertiserApproveAffiliate } from '../blockchain/advertiserApproveAffil
 import { affiliateWithdrawEarnings } from '../blockchain/affiliateWithdrawEarnings';
 
 import { AffiliateData, CampaignData, UserActionStats } from '../contracts/Campaign';
-import { CampaignApiResponse, UserApiResponse } from '../models/ApiResponses';
+import { CampaignApiResponse, UserApiResponse } from '@common/ApiResponses';
 
 import {BOT_OP_CODE_USER_JOIN, BOT_OP_CODE_USER_RETAINED_TWO_WEEKS } from "@common/models"
 
