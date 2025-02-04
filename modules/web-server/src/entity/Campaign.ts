@@ -9,23 +9,21 @@ import {
   ManyToOne,
   JoinColumn,
 } from 'typeorm';
-import { UserEventType } from '@common/models';
 import { TelegramAsset } from './TelegramAsset';
+import {
+  getEventDefinitionByOpCode,
+} from '@common/UserEventsConfig';
 
-export enum CampaignState {
-  DEPLOYED = 'DEPLOYED',
-  TELEGRAM_DETAILS_SET = 'TELEGRAM_DETAILS_SET',
-  BLOCKCHAIN_DETAILS_SET = 'BLOCKCHAIN_DETAILS_SET',
+export interface RequiredPrivileges {
+  internal: string[];
+  external: string[];
 }
 
 @Entity('campaigns')
 export class Campaign {
-  // The campaign ID coming from the blockchain.
   @PrimaryColumn({ type: 'varchar', length: 255, name: 'id' })
   id: string;
 
-  // Foreign key: the Telegram asset associated with this campaign.
-  // (This could be nullable if not set yet.)
   @ManyToOne(() => TelegramAsset, (telegramAsset) => telegramAsset.campaigns, {
     nullable: true,
     cascade: true,
@@ -39,27 +37,20 @@ export class Campaign {
   @Column({ type: 'varchar', length: 255, name: 'name', nullable: true })
   name: string | null;
 
-  // The category of the telegram asset 
   @Column({ type: 'varchar', length: 255, name: 'category', nullable: true })
   category: string | null;
 
-  // This field stores which events (from the blockchain) need verifying.
+  /**
+   * We store an array of numeric op codes (e.g., [0, 1, 2])
+   * instead of an enum array of `UserEventType`.
+   */
   @Column({
-    type: 'enum',
-    enum: UserEventType,
+    type: 'bigint',
     array: true,
     name: 'verified_events',
     default: [],
   })
-  eventsToVerify: UserEventType[];
-
-  @Column({
-    type: 'varchar',
-    length: 50,
-    name: 'state',
-    default: CampaignState.DEPLOYED,
-  })
-  state: CampaignState;
+  eventsToVerify: number[];
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
@@ -68,67 +59,75 @@ export class Campaign {
   updatedAt: Date;
 
   /**
-   * Determines if the bot is able to verify events for this campaign.
-   *
-   * Logic:
-   *   - If there is no associated Telegram asset or the bot is not admin, return false.
-   *   - The bot must have 'can_invite_users' privilege.
-   *   - If the campaign's eventsToVerify include any retained events (JOINED,
-   *     RETAINED_TWO_WEEKS, or RETAINED_ONE_MONTH), then the bot must have either
-   *     'can_manage_chat' or 'can_restrict_members'.
-   *
-   * @returns True if the bot can verify events; false otherwise.
+   * 1) Checks if the bot can verify events
+   *    - Must have an associated TelegramAsset
+   *    - Bot must be admin (`botIsAdmin === true`)
+   *    - Must have the required privileges for *all* events in `eventsToVerify`.
    */
   canBotVerifyEvents(): boolean {
-    if (!this.telegramAsset) {
+    if (!this.telegramAsset || !this.telegramAsset.botIsAdmin) {
       return false;
     }
-    // Check if the bot is admin in the associated Telegram asset.
-    if (!this.telegramAsset.botIsAdmin) {
-      return false;
-    }
-    // The bot must always have 'can_invite_users'
-    if (!this.telegramAsset.adminPrivileges.includes('can_invite_users')) {
-      return false;
-    }
-    // Determine if any retained events need to be verified.
-    const needsRetained =
-      this.eventsToVerify.includes(UserEventType.JOINED) ||
-      this.eventsToVerify.includes(UserEventType.RETAINED_TWO_WEEKS) ||
-      this.eventsToVerify.includes(UserEventType.RETAINED_ONE_MONTH);
-    if (needsRetained) {
-      // For retained events, check if at least one of the required privileges is present.
-      if (
-        !this.telegramAsset.adminPrivileges.includes('can_manage_chat') &&
-        !this.telegramAsset.adminPrivileges.includes('can_restrict_members')
-      ) {
+
+    // Which privileges do we need for the eventsToVerify array?
+    const requiredPrivs = this.getRequiredAdminPrivilegesToVerifyEvents();
+
+    // Check if the Telegram asset's `adminPrivileges` includes them all.
+    // (Your existing code might do partial or all-match logic. This example does "must have all.")
+    for (const needed of requiredPrivs.internal) {
+      if (!this.telegramAsset.adminPrivileges.includes(needed)) {
         return false;
       }
     }
     return true;
   }
 
+  
+
   /**
-   * Computes and returns the list of privileges required to verify the campaign's events.
-   *
-   * Logic:
-   *   - For any event verification, 'can_invite_users' is required.
-   *   - If any retained events (JOINED, RETAINED_TWO_WEEKS, RETAINED_ONE_MONTH) are present,
-   *     then 'can_manage_chat or can_restrict_members' is also required.
-   *
-   * @returns An array of required privilege strings.
+   * 2) Returns an array of required privileges based on the events in `eventsToVerify`.
+   *    We read from the config => find each event => gather its required interal privileges
+   *    for the relevant asset type (e.g. "supergroup" vs. "channel").
    */
-  getRequiredPrivileges(): string[] {
-    const required: string[] = [];
-    // Always required.
-    required.push('can_invite_users');
-    const needsRetained =
-      this.eventsToVerify.includes(UserEventType.JOINED) ||
-      this.eventsToVerify.includes(UserEventType.RETAINED_TWO_WEEKS) ||
-      this.eventsToVerify.includes(UserEventType.RETAINED_ONE_MONTH);
-    if (needsRetained) {
-      required.push('can_manage_chat or can_restrict_members');
+  getRequiredAdminPrivilegesToVerifyEvents(): RequiredPrivileges {
+    
+    if (!this.telegramAsset) {
+      throw new Error("No assetType associated with campaign: " + this.id);
     }
-    return required;
-  }
+
+    // We'll load definitions from the config and gather unique privileges in two Sets.
+    const requiredInternal = new Set<string>();
+    const requiredExternal = new Set<string>();
+
+    for (const opCodeNum of this.eventsToVerify) {
+      // Retrieve the full event definition (which has .assetTypes).
+      const def = getEventDefinitionByOpCode(opCodeNum);
+      if (!def) {
+        continue; // not in config
+      }
+
+      // Among def.assetTypes, find the one that matches this.telegramAsset!.type (e.g. 'channel' or 'supergroup')
+      const assetPrivileges = def.assetTypes.find((a) => a.type === this.telegramAsset!.type);
+      if (!assetPrivileges) {
+        // If we don't have a matching asset type definition, skip
+        continue;
+      }
+
+      // Add required INTERNAL privileges to our Set
+      for (const priv of assetPrivileges.internalRequiredAdminPrivileges) {
+        requiredInternal.add(priv);
+      }
+
+      // Add required EXTERNAL privileges to our Set
+      for (const priv of assetPrivileges.externalRequiredAdminPrivileges) {
+        requiredExternal.add(priv);
+      }
+    }
+
+    // Return an object with both arrays
+    return {
+      internal: [...requiredInternal],
+      external: [...requiredExternal],
+    }
+  };
 }

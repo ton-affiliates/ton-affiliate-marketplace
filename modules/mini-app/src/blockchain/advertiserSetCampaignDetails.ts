@@ -2,13 +2,12 @@
 import { Dictionary, Sender, OpenedContract } from '@ton/core';
 import { Campaign } from '../contracts/Campaign';
 import { TonConfig } from '../config/TonConfig'
-import { userEventToOpCode, UserEventType } from '@common/models';
 import { pollUntil } from './pollUntil'; // or wherever you keep pollUntil
-
+import { getEventNameByOpCode } from "@common/UserEventsConfig.ts"
 
 interface CommissionValues {
-  userReferred: string;       // e.g. '0.1'
-  premiumUserReferred: string; // e.g. '0.1'
+  regularUsers: Dictionary<bigint, string>;  // opCode -> comissionValue as string (e.g. '0.1')
+  premiumUsers: Dictionary<bigint, string>;  // opCode -> comissionValue as string (e.g. '0.1')
 }
 
 /**
@@ -40,17 +39,53 @@ export async function advertiserSetCampaignDetails(
     throw new Error('Sender is not set. Could not send transaction.');
   }
 
+  const regularUsers = Dictionary.empty<bigint, bigint>();
+  const premiumUsers = Dictionary.empty<bigint, bigint>();
+
   // 1) Build cost-per-action dictionaries
-  const userRefVal = BigInt(Math.floor(parseFloat(commissionValues.userReferred) * 1e9));
-  const premiumRefVal = BigInt(Math.floor(parseFloat(commissionValues.premiumUserReferred) * 1e9));
+  for (const opCode of commissionValues.regularUsers.keys()) {
+    // Retrieve the event name for this opCode.
+    const eventName = getEventNameByOpCode(opCode);
+    if (!eventName) {
+      throw new Error("Unsupported opCode: " + opCode);
+    }
+    
+    // Retrieve the commission value for this opCode.
+    // (Assuming commissionValues.regularUsers stores values as strings, e.g. "0.1")
+    const commissionStr = commissionValues.regularUsers.get(opCode);
+    if (commissionStr === undefined) {
+      throw new Error("Commission value for opCode " + opCode + " is missing.");
+    }
+    
+    // Multiply by 1e9 to convert from TON to nanoTON.
+    // This is necessary because blockchain amounts are stored in their smallest unit to avoid floating-point issues.
+    const multipliedCommission = BigInt(Math.floor(parseFloat(commissionStr) * 1e9));
+    
+    // Update the dictionary with the converted commission value.
+    regularUsers.set(opCode, multipliedCommission);
+}
 
-  const regularUsersMap = Dictionary.empty<bigint, bigint>();
-  const premiumUsersMap = Dictionary.empty<bigint, bigint>();
-
-  // Example usage: store a cost per "BOT_OP_CODE_USER_CLICK"
-  let opCode = userEventToOpCode[UserEventType.JOINED];
-  regularUsersMap.set(opCode, userRefVal);
-  premiumUsersMap.set(opCode, premiumRefVal);
+  for (const opCode of commissionValues.premiumUsers.keys()) {
+      // Retrieve the event name for this opCode.
+      const eventName = getEventNameByOpCode(opCode);
+      if (!eventName) {
+        throw new Error("Unsupported opCode: " + opCode);
+      }
+      
+      // Retrieve the commission value for this opCode.
+      // (Assuming commissionValues.premiumUsers stores values as strings, e.g. "0.1")
+      const commissionStr = commissionValues.premiumUsers.get(opCode);
+      if (commissionStr === undefined) {
+        throw new Error("Commission value for opCode " + opCode + " is missing.");
+      }
+      
+      // Multiply by 1e9 to convert from TON to nanoTON.
+      // This is necessary because blockchain amounts are stored in their smallest unit to avoid floating-point issues.
+      const multipliedCommission = BigInt(Math.floor(parseFloat(commissionStr) * 1e9));
+      
+      // Update the dictionary with the converted commission value.
+      premiumUsers.set(opCode, multipliedCommission);
+  }
 
   // 2) Calculate optional expiration in days
   let campaignValidForNumDays: bigint | null = null;
@@ -77,8 +112,8 @@ export async function advertiserSetCampaignDetails(
     {  $$type: 'AdvertiserSetCampaignDetails',
         campaignDetails: {
           $$type: 'CampaignDetails',
-          regularUsersCostPerAction: regularUsersMap,
-          premiumUsersCostPerAction: premiumUsersMap,
+          regularUsersCostPerAction: regularUsers,
+          premiumUsersCostPerAction: premiumUsers,
           isPublicCampaign: isPublicCampaign,
           campaignValidForNumDays: campaignValidForNumDays,
           paymentMethod: paymentMethod,

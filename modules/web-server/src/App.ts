@@ -12,8 +12,8 @@ import { createServer } from 'http';
 import appDataSource from './ormconfig';
 import { Logger } from './utils/Logger';
 import { bot } from './bot/bot';
-import { scheduleTelegramAssetUpdates } from './schedulers/updateCampaignsTelegramInfo';
-import { BlockchainEventsScheduler } from './schedulers/processBlockchainEventsScheduler';
+import { TelegramAssetsScheduler } from './schedulers/TelegramAssetsScheduler';
+import { BlockchainEventsScheduler } from './schedulers/BlockchainEventsScheduler';
 
 import { checkProxyJwt } from './middleware/checkProxyJwt';
 import UserRoutes from './routes/UserRoutes';
@@ -91,12 +91,12 @@ wss.on('connection', (ws) => {
 });
 
 // 6) Schedule the periodic tasks
-// Create an instance of the blockchain events scheduler.
 const blockchainScheduler = new BlockchainEventsScheduler();
-// Start the blockchain events scheduler.
 blockchainScheduler.start();
-// Schedule campaign Telegram info updates as before.
-scheduleTelegramAssetUpdates();
+
+const telegramAssetsScheduler = new TelegramAssetsScheduler();
+telegramAssetsScheduler.start()
+
 
 // 7) Graceful shutdown
 async function shutdownGracefully(signal: string) {

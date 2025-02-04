@@ -5,7 +5,6 @@ import dotenv from 'dotenv';
 import { Logger } from '../utils/Logger';
 import appDataSource from '../ormconfig';
 import { TelegramAsset } from '../entity/TelegramAsset';
-import { ensureUser, getUserById } from "../services/UsersService";
 
 dotenv.config();
 
@@ -23,45 +22,45 @@ const TELEGRAM_API_URL = `https://api.telegram.org/bot${process.env.TELEGRAM_BOT
  */
 export async function ensureTelegramAssetFromTelegram(chatIdentifier: string): Promise<TelegramAsset> {
   try {
-    Logger.info(`ensureTelegramAssetFromTelegram: Received chatIdentifier: "${chatIdentifier}"`);
+    Logger.debug(`ensureTelegramAssetFromTelegram: Received chatIdentifier: "${chatIdentifier}"`);
     
     // If the chatIdentifier is actually an invite link, strip the prefix.
     if (chatIdentifier.startsWith('https://t.me/')) {
       chatIdentifier = chatIdentifier.replace('https://t.me/', '');
-      Logger.info(`Stripped URL prefix, new chatIdentifier: "${chatIdentifier}"`);
+      Logger.debug(`Stripped URL prefix, new chatIdentifier: "${chatIdentifier}"`);
     }
 
     // Determine the chat_id parameter:
     // If chatIdentifier can be converted to a number, we use that; otherwise, assume it's a handle.
     let chatIdParam: string;
     const numeric = Number(chatIdentifier);
-    Logger.info(`Conversion result of chatIdentifier to Number: ${numeric}`);
+    Logger.debug(`Conversion result of chatIdentifier to Number: ${numeric}`);
     if (isNaN(numeric)) {
       // It's a handle. Ensure it starts with '@'
       chatIdParam = chatIdentifier.startsWith('@') ? chatIdentifier : '@' + chatIdentifier;
-      Logger.info(`Identifier is determined to be a handle. Normalized handle: "${chatIdParam}"`);
+      Logger.debug(`Identifier is determined to be a handle. Normalized handle: "${chatIdParam}"`);
     } else {
       // It's numeric.
       chatIdParam = numeric.toString();
-      Logger.info(`Identifier is numeric. Using chatId: "${chatIdParam}"`);
+      Logger.debug(`Identifier is numeric. Using chatId: "${chatIdParam}"`);
     }
 
-    Logger.info(`Fetching chat info for identifier: ${chatIdParam}`);
+    Logger.debug(`Fetching chat info for identifier: ${chatIdParam}`);
 
     // 1) Get basic chat info using the provided identifier.
     const chatResp = await axios.get(`${TELEGRAM_API_URL}/getChat`, {
       params: { chat_id: chatIdParam },
     });
-    Logger.info(`Response from getChat: ${JSON.stringify(chatResp.data)}`);
+    Logger.debug(`Response from getChat: ${JSON.stringify(chatResp.data)}`);
     if (!chatResp.data.ok) {
       throw new Error(`Telegram API returned not ok: ${JSON.stringify(chatResp.data)}`);
     }
     const chat = chatResp.data.result;
-    Logger.info(`Chat info received: ${JSON.stringify(chat)}`);
+    Logger.debug(`Chat info received: ${JSON.stringify(chat)}`);
 
     // 2) Extract photo file ID if available.
     const photoFileId = chat.photo?.big_file_id || null;
-    Logger.info(`Extracted photoFileId: ${photoFileId}`);
+    Logger.debug(`Extracted photoFileId: ${photoFileId}`);
 
     // 3) Build a partial asset data object.
     const assetData: Partial<TelegramAsset> = {
@@ -79,15 +78,14 @@ export async function ensureTelegramAssetFromTelegram(chatIdentifier: string): P
       adminPrivileges: [],
       memberCount: 0,
     };
-    Logger.info(`Initial assetData built: ${JSON.stringify(assetData)}`);
 
     // 4) If there's a photo, attempt to download it.
     if (photoFileId) {
-      Logger.info(`Found photoFileId: ${photoFileId}, attempting to download image...`);
+      Logger.debug(`Found photoFileId: ${photoFileId}, attempting to download image...`);
       try {
         const photoBuffer = await downloadTelegramImage(photoFileId);
         assetData.photo = photoBuffer;
-        Logger.info(`Downloaded photo successfully, size: ${photoBuffer.length} bytes`);
+        Logger.debug(`Downloaded photo successfully, size: ${photoBuffer.length} bytes`);
       } catch (error: any) {
         Logger.error(`Failed to download Telegram image: ${error.message}`);
       }
@@ -98,7 +96,7 @@ export async function ensureTelegramAssetFromTelegram(chatIdentifier: string): P
       const countResp = await axios.get(`${TELEGRAM_API_URL}/getChatMembersCount`, {
         params: { chat_id: chatIdParam },
       });
-      Logger.info(`Response from getChatMembersCount: ${JSON.stringify(countResp.data)}`);
+      Logger.debug(`Response from getChatMembersCount: ${JSON.stringify(countResp.data)}`);
       if (countResp.data.ok) {
         assetData.memberCount = countResp.data.result;
         Logger.info(`Channel has ${assetData.memberCount} members (subscribers).`);
@@ -111,19 +109,19 @@ export async function ensureTelegramAssetFromTelegram(chatIdentifier: string): P
 
     // 6) Verify the bot's admin status.
     const botIdResp = await axios.get(`${TELEGRAM_API_URL}/getMe`);
-    Logger.info(`Response from getMe: ${JSON.stringify(botIdResp.data)}`);
+    Logger.debug(`Response from getMe: ${JSON.stringify(botIdResp.data)}`);
     if (!botIdResp.data.ok) {
       throw new Error(`Telegram API getMe not ok: ${JSON.stringify(botIdResp.data)}`);
     }
     const botUserId = botIdResp.data.result.id;
-    Logger.info(`Bot user id: ${botUserId}`);
+    Logger.debug(`Bot user id: ${botUserId}`);
     
     let botStatus;
     try {
       const memberResp = await axios.get(`${TELEGRAM_API_URL}/getChatMember`, {
         params: { chat_id: chatIdParam, user_id: botUserId },
       });
-      Logger.info(`Response from getChatMember: ${JSON.stringify(memberResp.data)}`);
+      Logger.debug(`Response from getChatMember: ${JSON.stringify(memberResp.data)}`);
       if (!memberResp.data.ok) {
         Logger.warn(`getChatMember not ok: ${JSON.stringify(memberResp.data)}. Treating as not admin.`);
         assetData.botIsAdmin = false;
@@ -154,13 +152,13 @@ export async function ensureTelegramAssetFromTelegram(chatIdentifier: string): P
       if (botStatus.can_delete_stories) privileges.push('can_delete_stories');
       if (botStatus.is_anonymous) privileges.push('is_anonymous');
       assetData.adminPrivileges = privileges;
-      Logger.info(`Bot is administrator. Privileges: ${JSON.stringify(privileges)}`);
+      Logger.debug(`Bot is administrator. Privileges: ${JSON.stringify(privileges)}`);
     } else {
       Logger.warn(`Bot is not admin in this channel. Bot status: ${botStatus ? botStatus.status : 'unknown'}`);
     }
 
     // 7) Persist the asset data to the database.
-    Logger.info(`Persisting assetData: ${JSON.stringify(assetData)}`);
+    Logger.debug(`Persisting assetData: ${JSON.stringify(assetData)}`);
     return await ensureTelegramAsset(assetData);
   } catch (error: any) {
     Logger.error(`Failed to ensure Telegram asset for identifier ${chatIdentifier}`, error);
@@ -180,10 +178,10 @@ async function ensureTelegramAsset(assetData: Partial<TelegramAsset>): Promise<T
     let existing = await repo.findOne({ where: { chatId: assetData.chatId } });
     if (existing) {
       Object.assign(existing, assetData);
-      Logger.info(`Updating existing Telegram asset with chatId=${assetData.chatId}`);
+      Logger.debug(`Updating existing Telegram asset with chatId=${assetData.chatId}`);
       return await repo.save(existing);
     } else {
-      Logger.info(`Creating new Telegram asset with chatId=${assetData.chatId}`);
+      Logger.debug(`Creating new Telegram asset with chatId=${assetData.chatId}`);
       const newAsset = repo.create(assetData);
       return await repo.save(newAsset);
     }
@@ -201,7 +199,7 @@ async function downloadTelegramImage(photoFileId: string): Promise<Buffer> {
   const getFileResponse = await axios.get(`${TELEGRAM_API_URL}/getFile`, {
     params: { file_id: photoFileId },
   });
-  Logger.info(`Response from getFile: ${JSON.stringify(getFileResponse.data)}`);
+  Logger.debug(`Response from getFile: ${JSON.stringify(getFileResponse.data)}`);
   if (!getFileResponse.data.ok) {
     throw new Error(`Error fetching file path: ${JSON.stringify(getFileResponse.data)}`);
   }
@@ -211,7 +209,7 @@ async function downloadTelegramImage(photoFileId: string): Promise<Buffer> {
   }
   // 2) Download the file.
   const fileUrl = `https://api.telegram.org/file/bot${process.env.TELEGRAM_BOT_TOKEN}/${filePath}`;
-  Logger.info(`Downloading image from URL: ${fileUrl}`);
+  Logger.debug(`Downloading image from URL: ${fileUrl}`);
   const fileResponse = await axios.get(fileUrl, { responseType: 'arraybuffer' });
   return Buffer.from(fileResponse.data);
 }

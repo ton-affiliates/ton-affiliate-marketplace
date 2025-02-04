@@ -5,6 +5,8 @@
     "target": "ES2020",
     "module": "commonjs",
     "esModuleInterop": true,
+    /* for JSON configuration file in common */
+    "resolveJsonModule": true,
     "allowSyntheticDefaultImports": true,
     "strict": true,
     "allowJs": true,

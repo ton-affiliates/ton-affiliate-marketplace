@@ -13,7 +13,6 @@ export interface CampaignApiResponse {
   contractAddress: string;
   name: string | null;  // renamed from campaignName
   category?: string | null;
-  state: string;
   createdAt: string;
   updatedAt: string;
   advertiserAddress?: string;

@@ -30,7 +30,7 @@ export enum TelegramCategory {
  *  We load the bot's name/username from an environment variable
  *  (e.g. 'VITE_TON_AFFILIATES_BOT' = "TonVerifierBot").
  */
-const verifierBotName = import.meta.env.VITE_TON_AFFILIATES_BOT;
+// const verifierBotName = import.meta.env.VITE_TON_AFFILIATES_BOT;
 
 /**
  * This component guides the user to set up a Telegram channel (or mini-app).
@@ -104,7 +104,6 @@ function TelegramSetupCampaign() {
 
       // If success
       const data = await response.json();
-      console.log('[TelegramSetupCampaign] Verification successful:', data);
       setSuccessMessage('Campaign created & verified successfully!');
 
       // Navigate to the next step
@@ -141,34 +140,6 @@ function TelegramSetupCampaign() {
             ℹ️
           </div>
         </div>
-
-        {/* EXPLANATORY TEXT */}
-        <p style={{ marginTop: '0.5rem', fontSize: '0.95rem', color: '#555' }}>
-          To finish setting up your Telegram campaign, please add our verifier bot as an administrator to your <strong>public Telegram channel</strong>. 
-          The bot must have the privileges to see members joining or leaving, remove or ban users if needed, and post messages. 
-          This ensures we can verify channel membership and user actions correctly.
-        </p>
-
-        {/* BOT NAME */}
-        <p style={{ marginBottom: '0.5rem', fontSize: '0.95rem', color: '#333' }}>
-          <strong>Verifier Bot Username:</strong> @{verifierBotName}
-        </p>
-
-        <p style={{ marginTop: '0.5rem', fontSize: '0.95rem', color: '#777' }}>
-          <em>
-            1. Make sure your Telegram channel is set to <strong>public</strong>.<br />
-            2. Go to channel settings &gt; Administrators &gt; Add Admin &gt; select <strong>@{verifierBotName}</strong>.<br />
-            3. Grant it these privileges: 
-            <ul style={{ marginLeft: '1.5rem', marginTop: 0, marginBottom: 0 }}>
-              <li>Can invite users via link</li>
-            </ul>
-            4. Once the bot is an admin with those privileges, paste your channel invite link below and click "Verify Setup."
-          </em>
-        </p>
-
-        <p style={{ marginTop: '1rem', fontSize: '0.95rem', color: '#555' }}>
-          Our server will confirm the bot is admin. If it's not, you'll see an error and need to fix that before continuing.
-        </p>
 
         {/* Show the campaign ID if we have it */}
         <p>

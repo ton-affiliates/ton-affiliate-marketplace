@@ -1,27 +1,12 @@
+// src/migrations/InitialSchema1736681774554.ts
 
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
 export class InitialSchema1736681774554 implements MigrationInterface {
-  // Disable wrapping this migration in a single transaction.
+  // Disable wrapping this migration in a single transaction (if desired).
   public static transaction = false;
 
   public async up(queryRunner: QueryRunner): Promise<void> {
-    // 1) Create ENUM type for user_event_type
-    await queryRunner.query(`
-      DO $$
-      BEGIN
-        CREATE TYPE user_event_type AS ENUM (
-          'SOLVED_CAPTCHA',
-          'JOINED',
-          'RETAINED_TWO_WEEKS',
-          'RETAINED_ONE_MONTH',
-          'LEFT_CHAT'
-        );
-      EXCEPTION
-        WHEN duplicate_object THEN null;
-      END
-      $$;
-    `);
 
     // 2) Create users TABLE
     await queryRunner.query(`
@@ -86,15 +71,14 @@ export class InitialSchema1736681774554 implements MigrationInterface {
       );
     `);
 
-    // 6) Create campaigns TABLE (campaigns now reference telegram_assets)
+    // 6) Create campaigns TABLE
     await queryRunner.query(`
       CREATE TABLE IF NOT EXISTS "campaigns" (
         "id"                         VARCHAR(255) PRIMARY KEY,
         "contract_address"           VARCHAR(255) NOT NULL,
         "name"                       VARCHAR(255) NULL,
         "category"                   VARCHAR(255) NULL,
-        "verified_events"            user_event_type[] NOT NULL DEFAULT '{}',
-        "state"                      VARCHAR(50) NOT NULL DEFAULT 'DEPLOYED',
+        "verified_events"            BIGINT[] NOT NULL DEFAULT '{}',
         "telegram_asset_id"          VARCHAR(255) NULL,
         "created_at"                 TIMESTAMP NOT NULL DEFAULT NOW(),
         "updated_at"                 TIMESTAMP NOT NULL DEFAULT NOW(),
@@ -167,10 +151,50 @@ export class InitialSchema1736681774554 implements MigrationInterface {
         "created_at" TIMESTAMP WITH TIME ZONE DEFAULT NOW()
       );
     `);
+
+    // 12) Create user_events TABLE
+    await queryRunner.query(`
+      CREATE TABLE IF NOT EXISTS "user_events" (
+        "id" SERIAL PRIMARY KEY,
+        "user_telegram_id" BIGINT NOT NULL,
+        "is_premium" BOOLEAN NOT NULL,
+        "event_op_code" BIGINT NOT NULL,
+        "event_name" VARCHAR(255) NOT NULL,
+        "is_processed" BOOLEAN NOT NULL DEFAULT false,
+        "campaign_id" VARCHAR(255) NOT NULL,
+        "affiliate_id" VARCHAR(255) NOT NULL,
+        "created_at" TIMESTAMP NOT NULL DEFAULT NOW(),
+        "updated_at" TIMESTAMP NOT NULL DEFAULT NOW()
+      );
+    `);
+
+    // 13) Create the function with EXACT SAME NAME as the trigger usage
+    await queryRunner.query(`
+      CREATE OR REPLACE FUNCTION prevent_isProcessed_regression()
+      RETURNS TRIGGER AS $$
+      BEGIN
+        IF OLD.is_processed = true AND NEW.is_processed = false THEN
+          RAISE EXCEPTION 'Cannot revert is_processed from true to false';
+        END IF;
+        RETURN NEW;
+      END;
+      $$ LANGUAGE plpgsql;
+    `);
+
+    // 14) Create trigger on user_events table referencing that function
+    await queryRunner.query(`
+      CREATE TRIGGER trg_prevent_isProcessed_regression
+      BEFORE UPDATE ON "user_events"
+      FOR EACH ROW
+      EXECUTE PROCEDURE prevent_isProcessed_regression();
+    `);
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
     // Reverse creation order
+    await queryRunner.query(`DROP TRIGGER IF EXISTS trg_prevent_isProcessed_regression ON "user_events";`);
+    await queryRunner.query(`DROP FUNCTION IF EXISTS prevent_isProcessed_regression();`);
+    await queryRunner.query(`DROP TABLE IF EXISTS "user_events";`);
     await queryRunner.query(`DROP TABLE IF EXISTS "events";`);
     await queryRunner.query(`DROP TABLE IF EXISTS "notifications";`);
     await queryRunner.query(`DROP TABLE IF EXISTS "processed_offsets";`);
@@ -183,6 +207,5 @@ export class InitialSchema1736681774554 implements MigrationInterface {
 
     // Drop ENUM types last
     await queryRunner.query(`DROP TYPE IF EXISTS role_type;`);
-    await queryRunner.query(`DROP TYPE IF EXISTS user_event_type;`);
   }
 }

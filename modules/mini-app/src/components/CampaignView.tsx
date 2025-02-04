@@ -24,7 +24,12 @@ import {
   CampaignRoleApiResponse,
 } from '@common/ApiResponses';
 import { CampaignData, AffiliateData } from '../contracts/Campaign';
-import { BOT_OP_CODE_USER_JOIN } from '@common/models';
+
+// --- NEW IMPORTS for dynamic event listing ---
+import {
+  getEventNameByOpCode,
+  getEventDefinition,
+} from '@common/UserEventsConfig';
 
 import TransactionButton from '../components/TransactionButton';
 import Spinner from '../components/Spinner';
@@ -216,7 +221,6 @@ export default function CampaignView() {
       }
     })();
   }, [advertiserAddr]);
-  
 
   //------------------------------------------------------------------
   // 3) Once we have the contract, fetch on-chain data
@@ -303,8 +307,6 @@ export default function CampaignView() {
   //------------------------------------------------------------------
   // 6) My affiliates
   //------------------------------------------------------------------
-  
-
   async function fetchMyAffiliates() {
     if (!userAccount?.address) return;
     try {
@@ -335,7 +337,6 @@ export default function CampaignView() {
       setAffiliatesLoading(false);
     }
   }
-
 
   // If not advertiser => fetch affiliates
   useEffect(() => {
@@ -405,7 +406,7 @@ export default function CampaignView() {
       await fetch(`/api/v1/campaigns/${id}/refresh-bot-admin`, {
         method: 'POST',
       });
-  
+
       // After the refresh, re-fetch the updated campaign data.
       const resp = await fetch(`/api/v1/campaigns/${id}`);
       if (!resp.ok) {
@@ -672,68 +673,68 @@ export default function CampaignView() {
 
           {/* If user is not advertiser => show affiliate creation / listing */}
           {!isUserAdvertiser &&
-          isCampaignOnChainActive && // Only show if on-chain is active (bot privileges don't matter for affiliates)
-          campaignContract &&
-          sender && (
-            <div style={{ marginTop: '2rem', borderTop: '1px solid #ccc', paddingTop: '1rem' }}>
-              <h3>Become an Affiliate</h3>
-              {onChainData?.campaignDetails.isPublicCampaign ? (
-                <p>Generate your affiliate referral link in this campaign:</p>
-              ) : (
-                <p>Request permission to join this private campaign:</p>
-              )}
+            isCampaignOnChainActive && // Only show if on-chain is active (bot privileges don't matter for affiliates)
+            campaignContract &&
+            sender && (
+              <div style={{ marginTop: '2rem', borderTop: '1px solid #ccc', paddingTop: '1rem' }}>
+                <h3>Become an Affiliate</h3>
+                {onChainData?.campaignDetails.isPublicCampaign ? (
+                  <p>Generate your affiliate referral link in this campaign:</p>
+                ) : (
+                  <p>Request permission to join this private campaign:</p>
+                )}
 
-              {waitingForTx && !txTimeout && !txSuccess && (
-                <div style={{ marginBottom: '1rem' }}>
-                  <Spinner />
-                  <p>Waiting for server confirmation... (can take up to 1 minute)</p>
-                </div>
-              )}
-              {txTimeout && !txSuccess && (
-                <div style={{ marginBottom: '1rem', color: 'red' }}>
-                  Timed out waiting for the server event. The transaction might still be pending...
-                </div>
-              )}
-              {txSuccess && (
-                <div style={{ marginBottom: '1rem' }}>
-                  <SuccessIcon />
-                  <p>Affiliate created successfully!</p>
-                </div>
-              )}
-              {txFailed && (
-                <div style={{ marginBottom: '1rem', color: 'red' }}>
-                  Transaction failed or was canceled.
-                </div>
-              )}
+                {waitingForTx && !txTimeout && !txSuccess && (
+                  <div style={{ marginBottom: '1rem' }}>
+                    <Spinner />
+                    <p>Waiting for server confirmation... (can take up to 1 minute)</p>
+                  </div>
+                )}
+                {txTimeout && !txSuccess && (
+                  <div style={{ marginBottom: '1rem', color: 'red' }}>
+                    Timed out waiting for the server event. The transaction might still be pending...
+                  </div>
+                )}
+                {txSuccess && (
+                  <div style={{ marginBottom: '1rem' }}>
+                    <SuccessIcon />
+                    <p>Affiliate created successfully!</p>
+                  </div>
+                )}
+                {txFailed && (
+                  <div style={{ marginBottom: '1rem', color: 'red' }}>
+                    Transaction failed or was canceled.
+                  </div>
+                )}
 
-              <button
-                onClick={handleCreateAffiliate}
-                disabled={waitingForTx || txSuccess}
-                style={{ marginBottom: '1rem' }}
-              >
-                {onChainData?.campaignDetails.isPublicCampaign
-                  ? 'Generate Referral Link'
-                  : 'Ask to Join Campaign'}
-              </button>
-
-              {newAffiliateId !== null && (
-                <div
-                  style={{
-                    border: '1px solid #ccc',
-                    padding: '0.5rem',
-                    backgroundColor: '#f5f5f5',
-                  }}
+                <button
+                  onClick={handleCreateAffiliate}
+                  disabled={waitingForTx || txSuccess}
+                  style={{ marginBottom: '1rem' }}
                 >
-                  <strong>Your new Affiliate ID:</strong> {newAffiliateId.toString()}
-                  <br />
-                  <strong>Your affiliate page: </strong>
-                  <Link to={`/campaign/${campaign.id}/affiliate/${newAffiliateId.toString()}`}>
-                    {`/campaign/${campaign.id}/affiliate/${newAffiliateId.toString()}`}
-                  </Link>
-                </div>
-              )}
-            </div>
-          )}
+                  {onChainData?.campaignDetails.isPublicCampaign
+                    ? 'Generate Referral Link'
+                    : 'Ask to Join Campaign'}
+                </button>
+
+                {newAffiliateId !== null && (
+                  <div
+                    style={{
+                      border: '1px solid #ccc',
+                      padding: '0.5rem',
+                      backgroundColor: '#f5f5f5',
+                    }}
+                  >
+                    <strong>Your new Affiliate ID:</strong> {newAffiliateId.toString()}
+                    <br />
+                    <strong>Your affiliate page: </strong>
+                    <Link to={`/campaign/${campaign.id}/affiliate/${newAffiliateId.toString()}`}>
+                      {`/campaign/${campaign.id}/affiliate/${newAffiliateId.toString()}`}
+                    </Link>
+                  </div>
+                )}
+              </div>
+            )}
 
           {!isUserAdvertiser && (
             <div style={{ marginTop: '2rem', borderTop: '1px solid #ccc', paddingTop: '1rem' }}>
@@ -863,6 +864,7 @@ export default function CampaignView() {
               {onChainData.campaignDetails.isPublicCampaign ? 'Public' : 'Private'}
             </p>
 
+            {/* Expiration logic */}
             {onChainData.campaignDetails.campaignValidForNumDays != null ? (
               (() => {
                 const days = Number(onChainData.campaignDetails.campaignValidForNumDays);
@@ -896,19 +898,66 @@ export default function CampaignView() {
               </p>
             )}
 
+            {/* Show events & commissions in a table */}
             {(() => {
               const dictReg = onChainData.campaignDetails.regularUsersCostPerAction;
               const dictPrem = onChainData.campaignDetails.premiumUsersCostPerAction;
-              const regCostBn = dictReg.get(BOT_OP_CODE_USER_JOIN) || 0n;
-              const premCostBn = dictPrem.get(BOT_OP_CODE_USER_JOIN) || 0n;
+
+              // Gather a unique set of all opCodes from both dictionaries
+              const allOpCodes = new Set<bigint>([...dictReg.keys(), ...dictPrem.keys()]);
+
+              if (allOpCodes.size === 0) {
+                return (
+                  <div style={{ marginTop: '1rem' }}>
+                    <h3>Events &amp; Commission</h3>
+                    <p>No events defined in this campaign.</p>
+                  </div>
+                );
+              }
+
+              const rows: JSX.Element[] = [];
+              for (const opCode of allOpCodes) {
+                const regBn = dictReg.get(opCode) || 0n;
+                const premBn = dictPrem.get(opCode) || 0n;
+                const currency = onChainData.campaignDetails.paymentMethod === 0n ? 'TON' : 'USDT';
+
+                const eventName = getEventNameByOpCode(opCode);
+                const eventDef = eventName ? getEventDefinition(eventName) : undefined;
+                const displayName = eventDef?.eventName || `Unknown (#${opCode.toString()})`;
+                const displayDesc = eventDef?.description || '';
+
+                rows.push(
+                  <tr key={opCode.toString()}>
+                    <td style={{ border: '1px solid #ccc', padding: '6px' }}>
+                      <strong>{displayName}</strong>
+                    </td>
+                    <td style={{ border: '1px solid #ccc', padding: '6px' }}>
+                      {displayDesc}
+                    </td>
+                    <td style={{ border: '1px solid #ccc', padding: '6px' }}>
+                      {fromNano(regBn)} {currency}
+                    </td>
+                    <td style={{ border: '1px solid #ccc', padding: '6px' }}>
+                      {fromNano(premBn)} {currency}
+                    </td>
+                  </tr>
+                );
+              }
+
               return (
                 <div style={{ marginTop: '1rem' }}>
-                  <p>
-                    <strong>Regular CPC:</strong> {fromNano(regCostBn)} TON
-                  </p>
-                  <p>
-                    <strong>Premium CPC:</strong> {fromNano(premCostBn)} TON
-                  </p>
+                  <h3>Events &amp; Commission</h3>
+                  <table style={{ borderCollapse: 'collapse', width: '100%' }}>
+                    <thead>
+                      <tr>
+                        <th style={{ border: '1px solid #ccc', padding: '6px' }}>Event</th>
+                        <th style={{ border: '1px solid #ccc', padding: '6px' }}>Description</th>
+                        <th style={{ border: '1px solid #ccc', padding: '6px' }}>Regular User CPA</th>
+                        <th style={{ border: '1px solid #ccc', padding: '6px' }}>Premium User CPA</th>
+                      </tr>
+                    </thead>
+                    <tbody>{rows}</tbody>
+                  </table>
                 </div>
               );
             })()}
@@ -932,7 +981,7 @@ export default function CampaignView() {
 
               return (
                 <>
-                  {/* Sufficient funds to pay affiliates (on-chain field) */}
+                  {/* Sufficient funds to pay affiliates */}
                   <StatusDot
                     label="Sufficient Funds"
                     value={onChainData.campaignHasSufficientFundsToPayMaxCpa}
@@ -1165,7 +1214,13 @@ export default function CampaignView() {
                     if (onChainData.campaignDetails.paymentMethod === 0n) {
                       await replenishWithTon(campaignContract, amount, sender);
                     } else {
-                      await replenishWithUsdt(campaignContract, amount, sender, userAccount?.address, client);
+                      await replenishWithUsdt(
+                        campaignContract,
+                        amount,
+                        sender,
+                        userAccount?.address,
+                        client
+                      );
                     }
                   }}
                 />
@@ -1195,7 +1250,12 @@ export default function CampaignView() {
                   showAmountField
                   onTransaction={async (amount) => {
                     if (!amount) throw new Error('Invalid withdraw amount');
-                    await advertiserWithdrawFunds(campaignContract, amount, sender, userAccount?.address);
+                    await advertiserWithdrawFunds(
+                      campaignContract,
+                      amount,
+                      sender,
+                      userAccount?.address
+                    );
                   }}
                 />
               </div>

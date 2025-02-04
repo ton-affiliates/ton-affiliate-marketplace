@@ -4,7 +4,6 @@ import { Router, Request, Response } from 'express';
 import { Logger } from '../utils/Logger';
 import { ensureCampaign, getCampaignByIdWithAdvertiser, getAllCampaignsForWallet } from '../services/CampaignsService';
 import { ensureTelegramAssetFromTelegram } from '../services/TelegramService';
-import { CampaignState } from "../entity/Campaign";
 import { getUnreadNotificationsForWallet, markNotificationAsRead } from '../services/NotificationsService';
 import { Address } from '@ton/core';
 import { RoleType } from '../entity/CampaignRole';
@@ -140,9 +139,6 @@ router.post('/', async (req: Request, res: Response): Promise<void> => {
       res.status(400).json({ error: 'Missing required fields: campaignId, inviteLink' });
       return;
     }
-    // (Optional) Extract the handle if needed for logging.
-    const handle = parseHandleFromLink(inviteLink);
-    Logger.info(`Extracted handle: ${handle}`);
     // 1) Ensure that the Telegram asset is updated/created based on the invite link.
     const telegramAsset = await ensureTelegramAssetFromTelegram(inviteLink);
     if (!telegramAsset) {
@@ -153,7 +149,6 @@ router.post('/', async (req: Request, res: Response): Promise<void> => {
     const campaignData = {
       id: campaignId,
       name: campaignName,
-      state: CampaignState.TELEGRAM_DETAILS_SET,
       telegramAsset: telegramAsset,
       category: category
     };

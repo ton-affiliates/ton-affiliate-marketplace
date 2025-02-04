@@ -9,11 +9,11 @@ export class BlockchainEventsScheduler {
 
   /**
    * The scheduler will use the provided interval in milliseconds,
-   * or fall back to the FETCH_INTERVAL_BLOCKCHAIN_EVENTS env variable (or default of 10000 ms).
+   * or fall back to the FETCH_INTERVAL_BLOCKCHAIN_EVENTS_IN_MILISECONDS env variable (or default of 10000 ms).
    */
   constructor(intervalMs?: number) {
     this.intervalMs =
-      intervalMs ?? Number(process.env.FETCH_INTERVAL_BLOCKCHAIN_EVENTS || 10000);
+      intervalMs ?? Number(process.env.FETCH_INTERVAL_BLOCKCHAIN_EVENTS_IN_MILISECONDS || 10000);
   }
 
   /**

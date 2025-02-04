@@ -1,0 +1,84 @@
+{
+  "events": [
+    {
+      "eventName": "SOLVED_CAPTCHA",
+      "opCode": 100,
+      "description": "User solved a CAPTCHA and was verified as human",
+      "assetTypes": [
+        {
+          "type": "supergroup",
+          "internalRequiredAdminPrivileges": [
+            "can_manage_chat"
+          ],
+          "externalRequiredAdminPrivileges": [
+            "Change channel info"
+          ]
+        },
+        {
+          "type": "channel",
+          "internalRequiredAdminPrivileges": [],
+          "externalRequiredAdminPrivileges": []
+        }
+      ]
+    },
+    {
+      "eventName": "JOINED",
+      "opCode": 0,
+      "description": "User joined the group or channel",
+      "assetTypes": [
+        {
+          "type": "supergroup",
+          "internalRequiredAdminPrivileges": [
+            "can_manage_chat"
+          ],
+          "externalRequiredAdminPrivileges": [
+            "Change channel info"
+          ]
+        },
+        {
+          "type": "channel",
+          "internalRequiredAdminPrivileges": [
+            "can_manage_chat"
+          ],
+          "externalRequiredAdminPrivileges": [
+            "Manage channel"
+          ]
+        }
+      ]
+    },
+    {
+      "eventName": "RETAINED_TWO_WEEKS",
+      "opCode": 1,
+      "description": "User remained in the group/channel for 2 weeks",
+      "assetTypes": [
+        {
+          "type": "supergroup",
+          "internalRequiredAdminPrivileges": [],
+          "externalRequiredAdminPrivileges": []
+        },
+        {
+          "type": "channel",
+          "internalRequiredAdminPrivileges": [],
+          "externalRequiredAdminPrivileges": []
+        }
+      ]
+    },
+    {
+      "eventName": "RETAINED_ONE_MONTH",
+      "opCode": 2,
+      "description": "User remained in the group/channel for 1 month",
+      "assetTypes": [
+        {
+          "type": "supergroup",
+          "internalRequiredAdminPrivileges": [],
+          "externalRequiredAdminPrivileges": []
+        },
+        {
+          "type": "channel",
+          "internalRequiredAdminPrivileges": [],
+          "externalRequiredAdminPrivileges": []
+        }
+      ]
+    }
+  ]
+}

@@ -1,5 +1,3 @@
-// src/components/BlockchainSetupCampaign.tsx
-
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useParams, useNavigate } from 'react-router-dom';
@@ -12,6 +10,15 @@ import { useTonWalletConnect } from '../hooks/useTonConnect';
 // Transaction logic
 import { advertiserSetCampaignDetails } from '../blockchain/advertiserSetCampaignDetails';
 
+// Ton utilities
+import { Dictionary } from '@ton/core';
+
+// Our user-events config
+import {
+  eventsConfig,
+  getOpCodeByEventName,
+} from '@common/UserEventsConfig';
+
 // A reusable button for Ton transactions
 import TransactionButton from './TransactionButton';
 
@@ -19,11 +26,19 @@ function BlockchainSetupCampaign() {
   const { campaignId } = useParams<{ campaignId: string }>();
   const navigate = useNavigate();
 
+  // ----------------------------------------------------------------
   // Local form states
-  const [commissionValues, setCommissionValues] = useState({
-    userReferred: '0.1',
-    premiumUserReferred: '0.1',
+  // ----------------------------------------------------------------
+  // We'll store the user-entered cost strings per eventName
+  // in two sub-objects: regularUsers and premiumUsers.
+  const [commissionValues, setCommissionValues] = useState<{
+    regularUsers: Record<string, string>;
+    premiumUsers: Record<string, string>;
+  }>({
+    regularUsers: {},
+    premiumUsers: {},
   });
+
   const [isPublicCampaign, setIsPublicCampaign] = useState(true);
   const [paymentMethod, setPaymentMethod] = useState<bigint>(0n);
   const [expirationDateEnabled, setExpirationDateEnabled] = useState(false);
@@ -43,10 +58,11 @@ function BlockchainSetupCampaign() {
   const numericCampaignId = campaignId ? BigInt(campaignId) : undefined;
 
   // Load the campaign contract
-  const { campaignContract, isLoading, error } = useCampaignContractAdvertiserAndId(
-    advertiserAddress,
-    numericCampaignId
-  );
+  const { campaignContract, isLoading, error } =
+    useCampaignContractAdvertiserAndId(
+      advertiserAddress,
+      numericCampaignId
+    );
 
   // Navigation after success
   function navigateToCampaignPage() {
@@ -57,6 +73,24 @@ function BlockchainSetupCampaign() {
     navigate(`/campaign/${campaignId}`);
   }
 
+  /**
+   * Build the on-chain dictionaries from the user’s typed costs,
+   * always storing the cost string if `opCode` is valid.
+   * No local validation here — let advertiserSetCampaignDetails handle it.
+   */
+  function buildCommissionDictionary(
+    costRecord: Record<string, string>
+  ): Dictionary<bigint, string> {
+    const dict = Dictionary.empty<bigint, string>();
+    for (const [eventName, costStr] of Object.entries(costRecord)) {
+      const opCode = getOpCodeByEventName(eventName);
+      if (opCode !== undefined) {
+        dict.set(opCode, costStr);
+      }
+    }
+    return dict;
+  }
+
   return (
     <motion.div
       className="screen-container"
@@ -65,7 +99,8 @@ function BlockchainSetupCampaign() {
     >
       <div className="card">
         <p>
-          <strong>Campaign ID:</strong> {campaignId || 'No campaign ID provided'}
+          <strong>Campaign ID:</strong>{' '}
+          {campaignId || 'No campaign ID provided'}
         </p>
 
         {isLoading && <p>Loading Campaign Contract...</p>}
@@ -117,43 +152,89 @@ function BlockchainSetupCampaign() {
           </label>
         </div>
 
-        {/* Commission fields */}
+        {/* List all events in 2 columns: Regular vs. Premium */}
         <div className="card container-column" style={{ marginTop: '1rem' }}>
-          <label>Commissionable Events Fees</label>
-          <div style={{ display: 'flex', gap: '1rem', marginTop: '0.5rem' }}>
-            <div>
-              <label>User Referred:</label>
-              <input
-                type="number"
-                step="0.01"
-                min="0"
-                value={commissionValues.userReferred}
-                onChange={(e) =>
-                  setCommissionValues({
-                    ...commissionValues,
-                    userReferred: e.target.value,
-                  })
-                }
-                style={{ width: '5rem' }}
-              />
-            </div>
-            <div>
-              <label>Premium User Referred:</label>
-              <input
-                type="number"
-                step="0.01"
-                min="0"
-                value={commissionValues.premiumUserReferred}
-                onChange={(e) =>
-                  setCommissionValues({
-                    ...commissionValues,
-                    premiumUserReferred: e.target.value,
-                  })
-                }
-                style={{ width: '5rem' }}
-              />
-            </div>
-          </div>
+          <h3>Commissionable Events</h3>
+          <p style={{ fontSize: '0.9rem' }}>
+            Specify how much to pay for each event (in TON, e.g. "0.1").
+            Leave blank or 0 to pay nothing. 
+          </p>
+
+          <table style={{ borderCollapse: 'collapse', width: '100%' }}>
+            <thead>
+              <tr>
+                <th style={{ border: '1px solid #ccc', padding: '6px' }}>
+                  Event Name
+                </th>
+                <th style={{ border: '1px solid #ccc', padding: '6px' }}>
+                  Regular Users
+                </th>
+                <th style={{ border: '1px solid #ccc', padding: '6px' }}>
+                  Premium Users
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {eventsConfig.events.map((evt) => {
+                const regVal =
+                  commissionValues.regularUsers[evt.eventName] || '';
+                const premVal =
+                  commissionValues.premiumUsers[evt.eventName] || '';
+
+                return (
+                  <tr key={evt.eventName}>
+                    <td style={{ border: '1px solid #ccc', padding: '6px' }}>
+                      <strong>{evt.eventName}</strong>
+                      <br />
+                      {evt.description && (
+                        <small style={{ color: '#666' }}>
+                          {evt.description}
+                        </small>
+                      )}
+                    </td>
+                    <td style={{ border: '1px solid #ccc', padding: '6px' }}>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        style={{ width: '5rem' }}
+                        value={regVal}
+                        onChange={(e) => {
+                          const newVal = e.target.value;
+                          setCommissionValues((prev) => ({
+                            ...prev,
+                            regularUsers: {
+                              ...prev.regularUsers,
+                              [evt.eventName]: newVal,
+                            },
+                          }));
+                        }}
+                      />
+                    </td>
+                    <td style={{ border: '1px solid #ccc', padding: '6px' }}>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        style={{ width: '5rem' }}
+                        value={premVal}
+                        onChange={(e) => {
+                          const newVal = e.target.value;
+                          setCommissionValues((prev) => ({
+                            ...prev,
+                            premiumUsers: {
+                              ...prev.premiumUsers,
+                              [evt.eventName]: newVal,
+                            },
+                          }));
+                        }}
+                      />
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
 
         {/* Expiration date => sets a "campaignValidForNumDays" or null */}
@@ -190,7 +271,9 @@ function BlockchainSetupCampaign() {
           disabled={isLoading || !campaignContract}
           onTransaction={async () => {
             if (!connectedStatus || !advertiserAddress) {
-              throw new Error('No wallet connected. Please connect your wallet first.');
+              throw new Error(
+                'No wallet connected. Please connect your wallet first.'
+              );
             }
             if (!campaignContract) {
               throw new Error(error || 'Campaign contract not loaded yet.');
@@ -199,12 +282,23 @@ function BlockchainSetupCampaign() {
               throw new Error('Sender is not set. Could not send transaction.');
             }
 
-            // Execute the blockchain logic
+            // 1) Build the dictionaries from local state
+            const regularDict = buildCommissionDictionary(
+              commissionValues.regularUsers
+            );
+            const premiumDict = buildCommissionDictionary(
+              commissionValues.premiumUsers
+            );
+
+            // 2) Execute the blockchain logic
             await advertiserSetCampaignDetails(
               campaignContract,
               sender,
               advertiserAddress,
-              commissionValues,
+              {
+                regularUsers: regularDict,
+                premiumUsers: premiumDict,
+              },
               isPublicCampaign,
               paymentMethod,
               expirationDateEnabled,
@@ -228,7 +322,6 @@ function BlockchainSetupCampaign() {
 
 /**
  * Sub-component for selecting an expiration date or disabling it.
- * (Identical to your code, just left intact.)
  */
 function ExpirationDateSelector({
   expirationDateEnabled,
@@ -261,8 +354,8 @@ function ExpirationDateSelector({
         />
       )}
       <p style={{ fontSize: '0.85em', marginTop: '0.5em' }}>
-        We compute days from now until the chosen date.
-        If it’s 0 or negative, we use “no expiration”.
+        We compute days from now until the chosen date. If it’s 0 or negative,
+        we use “no expiration”.
       </p>
     </div>
   );

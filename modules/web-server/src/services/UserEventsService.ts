@@ -1,32 +1,50 @@
+// src/services/UserEventsService.ts
+
 import { UserEvent } from '../entity/UserEvent';
 import appDataSource from '../ormconfig';
-import {UserEventType} from "@common/models";
-
 
 function userEventsRepository() {
   return appDataSource.getRepository(UserEvent);
 }
 
+/**
+ * Create a new user event in the DB, based on the new columns:
+ *  userTelegramId, eventOpCode, eventName, etc.
+ */
 export async function createEvent(params: {
-  userId: number;
+  userTelegramId: number;
   isPremium: boolean;
-  eventType: UserEventType;     // <-- Use the enum
+  eventOpCode: number;
+  eventName: string;
   campaignId: string;
   affiliateId: string;
 }) {
-  const { userId, isPremium, eventType, campaignId, affiliateId } = params;
+  const {
+    userTelegramId,
+    isPremium,
+    eventOpCode,
+    eventName,
+    campaignId,
+    affiliateId,
+  } = params;
+
   const repo = userEventsRepository();
 
   const newEvent = repo.create({
-    userId,
+    userTelegramId,
     isPremium,
-    eventType,  
+    eventOpCode,
+    eventName,
     campaignId,
     affiliateId,
   });
+
   return await repo.save(newEvent);
 }
 
+/**
+ * Mark the given event as processed (by setting isProcessed = true).
+ */
 export async function markProcessed(eventId: number) {
   const repo = userEventsRepository();
   await repo.update({ id: eventId }, { isProcessed: true });

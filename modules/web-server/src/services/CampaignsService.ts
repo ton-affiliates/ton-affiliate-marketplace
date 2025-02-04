@@ -90,7 +90,7 @@ export async function getCampaignByIdWithAdvertiser(
 
     // 4) Compute verification fields using campaign methods.
     const canBotVerify = campaign.canBotVerifyEvents();
-    const requiredPrivileges = campaign.getRequiredPrivileges();
+    const requiredPrivileges = campaign.getRequiredAdminPrivilegesToVerifyEvents().external;
 
     // 5) Build the flattened response explicitly.
     const response: CampaignApiResponse = {
@@ -98,7 +98,6 @@ export async function getCampaignByIdWithAdvertiser(
       contractAddress: campaign.contractAddress,
       name: campaign.name ?? '', // Map campaign.name to response.name
       category: campaign.category ?? '',
-      state: campaign.state,
       createdAt: campaign.createdAt.toISOString(),
       updatedAt: campaign.updatedAt.toISOString(),
       advertiserAddress: advertiserRole ? advertiserRole.walletAddress : '',

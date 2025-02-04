@@ -13,17 +13,16 @@ import { affiliateWithdrawEarnings } from '../blockchain/affiliateWithdrawEarnin
 import { AffiliateData, CampaignData, UserActionStats } from '../contracts/Campaign';
 import { CampaignApiResponse, UserApiResponse } from '@common/ApiResponses';
 
-import {BOT_OP_CODE_USER_JOIN, BOT_OP_CODE_USER_RETAINED_TWO_WEEKS } from "@common/models"
-
-// Dictionary mapping each opcode to a friendly label
-export const BOT_ACTION_LABELS = new Map<bigint, string>([
-  [BOT_OP_CODE_USER_JOIN, 'User Click'],
-  [BOT_OP_CODE_USER_RETAINED_TWO_WEEKS, 'User Retained For 2 Weeks'],
-]);
-
+// ---- NEW IMPORTS from config instead of the old local map
+import {
+  getEventNameByOpCode,
+} from '@common/UserEventsConfig';
 
 // 1) fetch the single affiliate from DB
-async function fetchSingleAffiliate(campaignId: string, affiliateId: string): Promise<UserApiResponse> {
+async function fetchSingleAffiliate(
+  campaignId: string,
+  affiliateId: string
+): Promise<UserApiResponse> {
   const resp = await fetch(`/api/v1/campaign-roles/affiliates/${campaignId}/${affiliateId}`);
   if (!resp.ok) {
     throw new Error(`Failed to fetch affiliate. Status ${resp.status}`);
@@ -53,7 +52,9 @@ export function AffiliatePage() {
   const { userAccount } = useTonConnectFetchContext();
   const { sender } = useTonWalletConnect();
 
-  // 3) Fetch the campaign from DB => we get e.g. campaign.campaignContractAddress
+  // ----------------------------------------------------------------
+  // 3) Fetch the campaign from DB => e.g. get campaignContractAddress
+  // ----------------------------------------------------------------
   useEffect(() => {
     if (!campaignId) return;
     setLoading(true);
@@ -67,7 +68,9 @@ export function AffiliatePage() {
       .finally(() => setLoading(false));
   }, [campaignId]);
 
-  // 4) Now we have campaign?.campaignContractAddress => pass that to useCampaignContract
+  // ----------------------------------------------------------------
+  // 4) Now we have campaign?.contractAddress => pass to useCampaignContract
+  // ----------------------------------------------------------------
   const campaignContractAddress = campaign?.contractAddress;
   const {
     campaignContract,
@@ -75,7 +78,9 @@ export function AffiliatePage() {
     error: contractError,
   } = useCampaignContract(campaignContractAddress);
 
+  // ----------------------------------------------------------------
   // 5) Once contract is ready, fetch affiliate data (DB + on-chain)
+  // ----------------------------------------------------------------
   useEffect(() => {
     if (!campaignId || !affiliateId || !campaignContract) return;
 
@@ -108,7 +113,9 @@ export function AffiliatePage() {
     })();
   }, [campaignId, affiliateId, campaignContract]);
 
-  // 6) isUserAdvertiser => compare user address to onChainData.advertiser
+  // ----------------------------------------------------------------
+  // 6) isUserAdvertiser => compare user wallet to onChainData.advertiser
+  // ----------------------------------------------------------------
   const isUserAdvertiser = useMemo(() => {
     if (!userAccount?.address || !onChainData?.advertiser) return false;
     try {
@@ -120,7 +127,9 @@ export function AffiliatePage() {
     }
   }, [userAccount?.address, onChainData?.advertiser]);
 
-  // 7) isUserTheAffiliate => compare user address to affiliateChainData.affiliate
+  // ----------------------------------------------------------------
+  // 7) isUserTheAffiliate => compare user wallet to affiliateChainData.affiliate
+  // ----------------------------------------------------------------
   const isUserTheAffiliate = useMemo(() => {
     if (!userAccount?.address || !affiliateChainData?.affiliate) return false;
     try {
@@ -132,7 +141,9 @@ export function AffiliatePage() {
     }
   }, [userAccount?.address, affiliateChainData]);
 
-  // 8) Approve / Remove / Withdraw
+  // ----------------------------------------------------------------
+  // 8) Approve / Remove / Withdraw logic
+  // ----------------------------------------------------------------
   async function handleApprove() {
     if (!affiliateId || !campaignContract || !sender) {
       alert('Not ready to approve affiliate. Missing ID, contract, or sender.');
@@ -180,7 +191,9 @@ export function AffiliatePage() {
     }
   }
 
-  // 9) Helpers to render user stats
+  // ----------------------------------------------------------------
+  // 9) Helper to render user stats from a dictionary
+  // ----------------------------------------------------------------
   function renderUserActionStats(dict?: Dictionary<bigint, UserActionStats>) {
     if (!dict) return null;
     const entries: JSX.Element[] = [];
@@ -189,7 +202,15 @@ export function AffiliatePage() {
       const stats = dict.get(key);
       if (!stats) continue;
 
-      const actionLabel = BOT_ACTION_LABELS.get(key) ?? `Unknown Action (#${key.toString()})`;
+      // Look up event name from config
+      const eventName = getEventNameByOpCode(key);
+      // Optionally, look up the event definition for a description
+      // const def = eventName ? getEventDefinition(eventName) : undefined;
+
+      const actionLabel = eventName
+        ? eventName
+        : `Unknown Action (#${key.toString()})`;
+
       entries.push(
         <div key={key.toString()} style={{ marginBottom: '0.5rem' }}>
           <strong>{actionLabel}:</strong>
@@ -204,7 +225,9 @@ export function AffiliatePage() {
     return <div>{entries}</div>;
   }
 
+  // ----------------------------------------------------------------
   // 10) Basic checks
+  // ----------------------------------------------------------------
   if (!campaignId || !affiliateId) {
     return <div>Missing campaignId or affiliateId in the URL.</div>;
   }
@@ -218,12 +241,13 @@ export function AffiliatePage() {
     return <div style={{ color: 'red' }}>Contract error: {contractError}</div>;
   }
 
+  // If neither DB nor chain data is found
   const notFound = !affiliateUser && !affiliateChainData;
   if (notFound) {
     return <div>Affiliate data not found in DB or on-chain.</div>;
   }
 
-  // 11) Show affiliate state
+  // 11) Show affiliate state (0=pending, 1=active, else unknown)
   const affiliateState = affiliateChainData?.state ?? -1n;
   let stateDisplay;
   if (affiliateState === 0n) {
@@ -243,7 +267,7 @@ export function AffiliatePage() {
   const showRemoveButton = isUserAdvertiser && isPrivate;
   const showWithdrawButton = isUserTheAffiliate;
 
-  // 13) Example affiliate link
+  // 13) Build affiliate link
   const affiliateLink = `https://t.me/${import.meta.env.VITE_TON_AFFILIATES_BOT}/?start=${campaignId}_${affiliateId}`;
   function copyLink() {
     navigator.clipboard.writeText(affiliateLink).then(() => {
