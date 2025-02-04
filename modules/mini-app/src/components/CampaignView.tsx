@@ -25,7 +25,7 @@ import {
 } from '@common/ApiResponses';
 import { CampaignData, AffiliateData } from '../contracts/Campaign';
 
-// --- NEW IMPORTS for dynamic event listing ---
+// NEW imports for event listing
 import {
   getEventNameByOpCode,
   getEventDefinition,
@@ -35,6 +35,10 @@ import TransactionButton from '../components/TransactionButton';
 import Spinner from '../components/Spinner';
 import SuccessIcon from '../components/SuccessIcon';
 
+// ------------------------------------------
+//  BOT name from environment
+// ------------------------------------------
+const verifierBotName = import.meta.env.VITE_TON_AFFILIATES_BOT;
 //
 // 1) A small blink for "Active" dot
 //
@@ -208,7 +212,7 @@ export default function CampaignView() {
         }
         // Assume the API returns an array of users
         const data: UserApiResponse[] = await resp.json();
-        console.log("UserApiResponse: " + JSON.stringify(data));
+        console.log('UserApiResponse: ' + JSON.stringify(data));
         if (data && data.length > 0) {
           setAdvertiserUser(data[0]); // Set the first (and likely only) element
         } else {
@@ -673,7 +677,7 @@ export default function CampaignView() {
 
           {/* If user is not advertiser => show affiliate creation / listing */}
           {!isUserAdvertiser &&
-            isCampaignOnChainActive && // Only show if on-chain is active (bot privileges don't matter for affiliates)
+            isCampaignOnChainActive &&
             campaignContract &&
             sender && (
               <div style={{ marginTop: '2rem', borderTop: '1px solid #ccc', paddingTop: '1rem' }}>
@@ -994,14 +998,35 @@ export default function CampaignView() {
                   {/* If bot can't verify, show required privileges + button to recheck */}
                   {!botCanVerify && isUserAdvertiser && (
                     <div style={{ marginLeft: '1rem', marginTop: '0.5rem' }}>
-                      <p>
-                        <strong>Needed Privileges:</strong>{' '}
-                        {campaign.requiredPrivileges && campaign.requiredPrivileges.length > 0
-                          ? campaign.requiredPrivileges.join(', ')
-                          : '(none listed)'}
+                      {/* EXPLANATORY TEXT */}
+                      <p style={{ marginTop: '0.5rem', fontSize: '0.95rem', color: '#555' }}>
+                        To finish setting up your Telegram campaign, please add our verifier bot as
+                        an administrator to your <strong>public Telegram channel</strong>.
+                        This ensures we can verify channel membership and user actions correctly.
+                      </p>
+
+                      {/* BOT NAME */}
+                      <p style={{ marginBottom: '0.5rem', fontSize: '0.95rem', color: '#333' }}>
+                        <strong>Verifier Bot Username:</strong> @{verifierBotName}
+                      </p>
+
+                      <p style={{ marginTop: '0.5rem', fontSize: '0.95rem', color: '#777' }}>
+                        <em>
+                          1. Make sure your Telegram channel is <strong>public</strong>.<br />
+                          2. Go to channel settings &gt; Administrators &gt; Add Admin &gt; select
+                          <strong> @{verifierBotName}</strong>.<br />
+                          3. Grant it these privileges:
+                          <div>
+                          <strong>Needed Privileges:</strong>{' '}
+                          {campaign.requiredPrivileges && campaign.requiredPrivileges.length > 0
+                            ? campaign.requiredPrivileges.join(', ')
+                            : '(none listed)'}
+                        </div>
+                          4. Once the bot is an admin with those privileges, click "Verify Bot Setup"
+                        </em>
                       </p>
                       <button onClick={handleRefreshBotAdmin}>
-                        I updated the bot’s admin privileges. Re-check
+                        Verify Bot Setup
                       </button>
                     </div>
                   )}
@@ -1214,13 +1239,7 @@ export default function CampaignView() {
                     if (onChainData.campaignDetails.paymentMethod === 0n) {
                       await replenishWithTon(campaignContract, amount, sender);
                     } else {
-                      await replenishWithUsdt(
-                        campaignContract,
-                        amount,
-                        sender,
-                        userAccount?.address,
-                        client
-                      );
+                      await replenishWithUsdt(campaignContract, amount, sender, userAccount?.address, client);
                     }
                   }}
                 />
@@ -1250,12 +1269,7 @@ export default function CampaignView() {
                   showAmountField
                   onTransaction={async (amount) => {
                     if (!amount) throw new Error('Invalid withdraw amount');
-                    await advertiserWithdrawFunds(
-                      campaignContract,
-                      amount,
-                      sender,
-                      userAccount?.address
-                    );
+                    await advertiserWithdrawFunds(campaignContract, amount, sender, userAccount?.address);
                   }}
                 />
               </div>
