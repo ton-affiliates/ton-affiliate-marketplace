@@ -1,7 +1,7 @@
 // src/schedulers/updateTelegramAssets.ts
 
 import { Logger } from '../utils/Logger';
-import { ensureTelegramAssetFromTelegram } from '../services/TelegramService';
+import { createAndPersistTelegramAsset } from '../services/TelegramService';
 import appDataSource from '../ormconfig';
 import { TelegramAsset } from '../entity/TelegramAsset';
 
@@ -39,7 +39,7 @@ export class TelegramAssetsScheduler {
 
           Logger.info(`Updating Telegram asset with chatId "${asset.chatId}"`);
           // Ensure the asset is updated based on its chatId.
-          await ensureTelegramAssetFromTelegram(asset.chatId);
+          await createAndPersistTelegramAsset(asset.chatId);
           Logger.info(`Telegram asset with chatId "${asset.chatId}" updated successfully.`);
         } catch (innerError: any) {
           Logger.error(

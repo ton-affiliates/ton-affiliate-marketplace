@@ -3,12 +3,13 @@
 import { Router, Request, Response } from 'express';
 import { Logger } from '../utils/Logger';
 import { ensureCampaign, getCampaignByIdWithAdvertiser, getAllCampaignsForWallet } from '../services/CampaignsService';
-import { ensureTelegramAssetFromTelegram } from '../services/TelegramService';
+import { getTelegramAssetDataFromTelegram, createAndPersistTelegramAsset } from '../services/TelegramService';
 import { getUnreadNotificationsForWallet, markNotificationAsRead } from '../services/NotificationsService';
 import { Address } from '@ton/core';
 import { RoleType } from '../entity/CampaignRole';
 import dotenv from 'dotenv';
 import { CampaignApiResponse, NotificationApiResponse } from '@common/ApiResponses';
+import { getOpCodeByEventName } from "@common/UserEventsConfig";
 
 dotenv.config();
 
@@ -108,56 +109,127 @@ router.get('/byWallet/:address', async (req: Request, res: Response): Promise<vo
   }
 });
 
-/**
- * Helper function to extract a Telegram handle from an invite link.
- * For example: "https://t.me/MyPublicChannel" => "MyPublicChannel"
- */
-function parseHandleFromLink(link: string): string {
-  const match = link.match(/t\.me\/([^/]+)/i);
-  if (match && match[1]) return match[1];
-  return link;
-}
 
-/**
- * POST /api/v1/campaigns
- *
- * Creates or updates a campaign after verifying the Telegram channel & admin status.
- * This route calls:
- *  1. ensureTelegramAssetFromTelegram to create or update the Telegram asset (using the invite link)
- *  2. ensureCampaign to create or update the campaign and link it to the Telegram asset.
- */
 router.post('/', async (req: Request, res: Response): Promise<void> => {
   try {
     Logger.debug('POST /campaigns');
+
     const {
-      campaignId,    // Campaign ID from the blockchain
-      campaignName,  // Human-readable campaign name
-      category,      // (Optional) Category information (for TelegramAsset.category)
-      inviteLink,    // Telegram invite link (e.g. "https://t.me/MyChannel")
+      campaignId,       // e.g. "123"
+      campaignName,     // e.g. "My Campaign"
+      category,         // optional
+      inviteLink,       // e.g. "https://t.me/MyChannel"
+
+      // We expect something like:
+      // {
+      //   "regularUsers": { "JOINED": "0.03", "RETAINED_ONE_MONTH": "0.02" },
+      //   "premiumUsers": { "JOINED": "0.03", "RETAINED_TWO_WEEKS": "0.02" }
+      // }
+      commissionValues,
     } = req.body;
+
+    // Validate required fields
     if (!campaignId || !inviteLink) {
       res.status(400).json({ error: 'Missing required fields: campaignId, inviteLink' });
       return;
     }
+
     // 1) Ensure that the Telegram asset is updated/created based on the invite link.
-    const telegramAsset = await ensureTelegramAssetFromTelegram(inviteLink);
+    const telegramAsset = await createAndPersistTelegramAsset(inviteLink);
     if (!telegramAsset) {
       res.status(400).json({ error: 'Could not ensure Telegram asset' });
       return;
     }
-    // 2) Prepare campaign data.
+
+    // 2) Build a Set of numeric op codes from all events in regularUsers & premiumUsers
+    const eventsToVerifySet = new Set<number>();
+
+    if (commissionValues) {
+      const { regularUsers, premiumUsers } = commissionValues;
+
+      // A) regularUsers
+      if (regularUsers && typeof regularUsers === 'object') {
+        for (const [eventName, costStr] of Object.entries(regularUsers)) {
+          const opCodeBigInt = getOpCodeByEventName(eventName); // returns bigint | undefined
+          if (opCodeBigInt !== undefined) {
+            eventsToVerifySet.add(Number(opCodeBigInt));
+          } else {
+            Logger.warn(`Unrecognized event name in regularUsers: ${eventName}`);
+          }
+        }
+      }
+
+      // B) premiumUsers
+      if (premiumUsers && typeof premiumUsers === 'object') {
+        for (const [eventName, costStr] of Object.entries(premiumUsers)) {
+          const opCodeBigInt = getOpCodeByEventName(eventName);
+          if (opCodeBigInt !== undefined) {
+            eventsToVerifySet.add(Number(opCodeBigInt));
+          } else {
+            Logger.warn(`Unrecognized event name in premiumUsers: ${eventName}`);
+          }
+        }
+      }
+    }
+
+    // Convert the Set to an array
+    const eventsToVerify = Array.from(eventsToVerifySet);
+    Logger.info(`Derived eventsToVerify: ${JSON.stringify(eventsToVerify)}`);
+
+    // 3) Build the campaign data object
     const campaignData = {
       id: campaignId,
       name: campaignName,
+      category: category,
       telegramAsset: telegramAsset,
-      category: category
+      eventsToVerify: eventsToVerify,
     };
-    Logger.debug('Campaign data about to be created:', campaignData);
-    // 3) Create or update the campaign in the database.
+
+    Logger.info(`Campaign data about to be created/updated: ${JSON.stringify(campaignData)}`);
+
+    // 4) Create or update the campaign in the database.
     const newCampaign = await ensureCampaign(campaignData);
+
+    Logger.info(`New Campaign data: ${JSON.stringify(campaignData)}`);
+
+    // 5) Return the newly created/updated campaign
     res.status(201).json(newCampaign);
+
   } catch (err: any) {
     Logger.error('Error in POST /campaigns:', err);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
+
+
+/**
+ * POST /api/v1/campaigns/telegram-asset
+ *
+ * Creates or updates a Telegram asset (via `ensureTelegramAssetFromTelegram`),
+ * returning the resulting asset so the user can confirm details before finalizing.
+ */
+router.post('/telegram-asset', async (req: Request, res: Response): Promise<void> => {
+  try {
+    Logger.debug('POST /api/v1/campaigns/telegram-asset');
+
+    const { inviteLink } = req.body;
+    if (!inviteLink) {
+      res.status(400).json({ error: 'Missing required field: inviteLink' });
+      return;
+    }
+
+    // 1) Ensure that the Telegram asset is updated/created based on the invite link.
+    const telegramAsset = await getTelegramAssetDataFromTelegram(inviteLink);
+    if (!telegramAsset) {
+      res.status(400).json({ error: 'Could not ensure Telegram asset' });
+      return;
+    }
+
+    // 2) Return the asset so the client can confirm the details (title, photo, etc.).
+    res.status(200).json(telegramAsset);
+  } catch (err: any) {
+    Logger.error('Error in POST /campaigns/telegram-asset:', err);
     res.status(500).json({ error: 'Internal Server Error' });
   }
 });
@@ -178,7 +250,7 @@ router.post('/:id/refresh-bot-admin', async (req: Request, res: Response): Promi
       return;
     }
     // Re-check the Telegram asset using the invite link.
-    await ensureTelegramAssetFromTelegram(campaign.inviteLink);
+    await createAndPersistTelegramAsset(campaign.inviteLink);
     // Optionally, re-read the campaign from the DB if you need the updated data.
     const updatedCampaign = await getCampaignByIdWithAdvertiser(id);
     res.json(updatedCampaign);

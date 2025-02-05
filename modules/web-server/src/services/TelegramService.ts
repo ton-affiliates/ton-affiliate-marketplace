@@ -11,19 +11,17 @@ dotenv.config();
 const TELEGRAM_API_URL = `https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}`;
 
 /**
- * Ensures that the Telegram asset corresponding to the given chat identifier
- * is updated (or created) directly in the database.
- *
- * The chatIdentifier can be a handle (e.g. "MyChannel" or "@MyChannel") or a numeric chat ID (as string).
- * This function gathers the required data from Telegram (chat info, photo, member count, and bot status)
- * and then persists it via ensureTelegramAsset.
+ * 1) Gathers Telegram asset data (but does NOT persist to DB).
  *
  * @param chatIdentifier The identifier (handle or numeric ID) for the Telegram chat.
+ * @returns A partial TelegramAsset with the relevant fields populated.
  */
-export async function ensureTelegramAssetFromTelegram(chatIdentifier: string): Promise<TelegramAsset> {
+export async function getTelegramAssetDataFromTelegram(
+  chatIdentifier: string
+): Promise<Partial<TelegramAsset>> {
   try {
-    Logger.debug(`ensureTelegramAssetFromTelegram: Received chatIdentifier: "${chatIdentifier}"`);
-    
+    Logger.debug(`getTelegramAssetDataFromTelegram: Received chatIdentifier: "${chatIdentifier}"`);
+
     // If the chatIdentifier is actually an invite link, strip the prefix.
     if (chatIdentifier.startsWith('https://t.me/')) {
       chatIdentifier = chatIdentifier.replace('https://t.me/', '');
@@ -66,7 +64,11 @@ export async function ensureTelegramAssetFromTelegram(chatIdentifier: string): P
     const assetData: Partial<TelegramAsset> = {
       chatId: chat.id.toString(),
       // Use chat.username if available; otherwise, fallback to chat.title or remove '@' from the identifier.
-      handle: chat.username ? chat.username : (chat.title ? chat.title : chatIdParam.replace(/^@/, '')),
+      handle: chat.username
+        ? chat.username
+        : chat.title
+        ? chat.title
+        : chatIdParam.replace(/^@/, ''),
       inviteLink: chat.username
         ? `https://t.me/${chat.username}`
         : `https://t.me/${chatIdParam.replace(/^@/, '')}`,
@@ -115,7 +117,7 @@ export async function ensureTelegramAssetFromTelegram(chatIdentifier: string): P
     }
     const botUserId = botIdResp.data.result.id;
     Logger.debug(`Bot user id: ${botUserId}`);
-    
+
     let botStatus;
     try {
       const memberResp = await axios.get(`${TELEGRAM_API_URL}/getChatMember`, {
@@ -146,25 +148,49 @@ export async function ensureTelegramAssetFromTelegram(chatIdentifier: string): P
       if (botStatus.can_restrict_members) privileges.push('can_restrict_members');
       if (botStatus.can_promote_members) privileges.push('can_promote_members');
       if (botStatus.can_manage_video_chats) privileges.push('can_manage_video_chats');
+      // Depending on Telegram Bot API version, these might be relevant or not:
       if (botStatus.can_manage_voice_chats) privileges.push('can_manage_voice_chats');
       if (botStatus.can_post_stories) privileges.push('can_post_stories');
       if (botStatus.can_edit_stories) privileges.push('can_edit_stories');
       if (botStatus.can_delete_stories) privileges.push('can_delete_stories');
       if (botStatus.is_anonymous) privileges.push('is_anonymous');
+
       assetData.adminPrivileges = privileges;
       Logger.debug(`Bot is administrator. Privileges: ${JSON.stringify(privileges)}`);
     } else {
       Logger.warn(`Bot is not admin in this channel. Bot status: ${botStatus ? botStatus.status : 'unknown'}`);
     }
 
-    // 7) Persist the asset data to the database.
-    Logger.debug(`Persisting assetData: ${JSON.stringify(assetData)}`);
-    return await ensureTelegramAsset(assetData);
+    Logger.debug(`Final assetData (not persisted): ${JSON.stringify(assetData)}`);
+    return assetData;
   } catch (error: any) {
-    Logger.error(`Failed to ensure Telegram asset for identifier ${chatIdentifier}`, error);
-    throw new Error(`Could not ensure Telegram asset for identifier ${chatIdentifier}. ${error.message}`);
+    Logger.error(`Failed to gather Telegram asset data for identifier ${chatIdentifier}`, error);
+    throw new Error(
+      `Could not gather Telegram asset data for identifier ${chatIdentifier}. ${error.message}`
+    );
   }
 }
+
+/**
+ * Convenience function that fetches Telegram asset data and persists it in one go.
+ *
+ * @param chatIdentifier The identifier (handle or numeric ID) for the Telegram chat.
+ * @returns The fully persisted TelegramAsset.
+ */
+export async function createAndPersistTelegramAsset(
+  chatIdentifier: string
+): Promise<TelegramAsset> {
+  try {
+    // Step A: Gather all data from Telegram
+    const assetData = await getTelegramAssetDataFromTelegram(chatIdentifier);
+    // Step B: Persist it to the DB
+    return await ensureTelegramAsset(assetData);
+  } catch (error: any) {
+    Logger.error(`Failed to create and persist Telegram asset for ${chatIdentifier}`, error);
+    throw error;
+  }
+}
+
 
 /**
  * Ensures that the Telegram asset corresponding to the given data

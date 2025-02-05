@@ -20,10 +20,26 @@ import { TonConfig } from '../config/TonConfig';
 import { TonClient4 } from '@ton/ton';
 import { Campaign } from '../contracts/Campaign';
 import { getCampaignByIdWithAdvertiser } from '../services/CampaignsService';
+import { CampaignApiResponse } from "@common/ApiResponses";
 
 // Helper for BigInt serialization
 function bigintReplacer(_: string, value: any) {
   return typeof value === 'bigint' ? value.toString() : value;
+}
+
+function sameElements(a: number[], b: number[]): boolean {
+  if (!a || !b) return false;
+  if (a.length !== b.length) return false;
+
+  const setA = new Set(a);
+  const setB = new Set(b);
+  if (setA.size !== setB.size) return false;
+
+  // Check that every item in A is in B
+  for (const value of setA) {
+    if (!setB.has(value)) return false;
+  }
+  return true;
 }
 
 /**
@@ -112,7 +128,7 @@ async function processEvent(event: EmitLogEvent) {
           `[AdvertiserSignedCampaignDetailsEvent] - campaignId: ${campaignId}, advertiser: ${advertiserTon}`
         );
 
-        const campaignFromDB = await getCampaignByIdWithAdvertiser(campaignId);
+        const campaignFromDB: CampaignApiResponse | null = await getCampaignByIdWithAdvertiser(campaignId);
         if (!campaignFromDB) {
           Logger.error('No such campaign in DB: ' + campaignId);
           throw new Error('No such campaign in DB: ' + campaignId);
@@ -148,19 +164,45 @@ async function processEvent(event: EmitLogEvent) {
         }
 
         // 5) Convert Set to an array of numbers
-        const eventsToVerifyArray = Array.from(opCodesToVerify);
+        const eventsToVerifyFromBlockchain: number[] = Array.from(opCodesToVerify);
+        const eventsToVerifyFromDB: number[] = Array
+                  .from(campaignFromDB.eventsToVerify ?? [])
+                  .map((eventToVerify) => parseInt(eventToVerify.toString(), 10));
 
-        // 6) Save the campaign with the extracted numeric opCodes
+        const arraysMatch = sameElements(eventsToVerifyFromDB, eventsToVerifyFromBlockchain);
+        if (!arraysMatch) {
+          throw new Error(`Inconsistent OP Codes coming from Blockcahin: From DB: ${JSON.stringify(eventsToVerifyFromDB)}, from Blockchain: ${JSON.stringify(eventsToVerifyFromBlockchain)}  `);
+        }
+
+        // TODO Guy update state
         await ensureCampaign({
           id: campaignId,
-          eventsToVerify: eventsToVerifyArray,
+          eventsToVerify: eventsToVerifyFromBlockchain,
         });
 
         Logger.info(
           `Campaign ${campaignId} is now BLOCKCHAIN_DETAILS_SET (advertiser signed). Stored opCodes: ${JSON.stringify(
-            eventsToVerifyArray
+            eventsToVerifyFromBlockchain
           )}`
         );
+
+
+        // broadcast
+        Logger.info('Broadcasting AdvertiserSignedCampaignDetailsEvent');
+        wss.clients.forEach((client) => {
+          if (client.readyState === 1) {
+            client.send(
+              JSON.stringify(
+                {
+                  type: 'AdvertiserSignedCampaignDetailsEvent',
+                  data: event.data,
+                },
+                bigintReplacer
+              )
+            );
+          }
+        });
+
         break;
       }
 

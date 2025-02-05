@@ -31,7 +31,7 @@ const DeployEmptyCampaign: React.FC<DeployEmptyCampaignProps> = () => {
   // Now we call useCampaignWebSocket with 5 arguments.
   useCampaignWebSocket(
     userAccount,
-    setNumCampaigns,
+    undefined,  // no campaignId
     setTxSuccess,
     setWaitingForTx,
     setTxFailed

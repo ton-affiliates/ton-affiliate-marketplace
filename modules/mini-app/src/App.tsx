@@ -3,8 +3,7 @@ import { motion } from 'framer-motion';
 import MainScreen from './components/MainScreen';
 import AdvertiserOptions from './components/AdvertiserOptions';
 import DeployEmptyCampaign from './components/DeployEmptyCampaign';
-import TelegramSetupCampaign from './components/TelegramSetupCampaign';
-import BlockchainSetupCampaign from './components/BlockchainSetupCampaign';
+import WizardSetupCampaign from './components/WizardSetupCampaign.tsx';
 import CampaignView from './components/CampaignView';
 import LoginScreen from './components/LoginScreen';
 import Campaigns from './components/Campaigns';
@@ -89,18 +88,10 @@ function AppContent() {
             }
           />
           <Route
-            path="/telegram-setup/:campaignId"
+            path="/campaign-setup/:campaignId"
             element={
               <ProtectedRoute>
-                <TelegramSetupCampaign />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/blockchain-setup/:campaignId"
-            element={
-              <ProtectedRoute>
-                <BlockchainSetupCampaign />
+                <WizardSetupCampaign />
               </ProtectedRoute>
             }
           />

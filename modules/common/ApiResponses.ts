@@ -22,6 +22,7 @@ export interface CampaignApiResponse {
   assetDescription?: string;
   assetType?: string;
   memberCount?: number;
+  eventsToVerify?: number[];
   botIsAdmin?: boolean;
   adminPrivileges?: string[];
   assetPhotoBase64?: string;

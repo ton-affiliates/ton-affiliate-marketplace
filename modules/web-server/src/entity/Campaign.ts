@@ -13,6 +13,8 @@ import { TelegramAsset } from './TelegramAsset';
 import {
   getEventDefinitionByOpCode,
 } from '@common/UserEventsConfig';
+import { Logger } from '../utils/Logger';
+
 
 export interface RequiredPrivileges {
   internal: string[];
@@ -89,29 +91,56 @@ export class Campaign {
    *    We read from the config => find each event => gather its required interal privileges
    *    for the relevant asset type (e.g. "supergroup" vs. "channel").
    */
-  getRequiredAdminPrivilegesToVerifyEvents(): RequiredPrivileges {
-    
+  public getRequiredAdminPrivilegesToVerifyEvents(): RequiredPrivileges {
     if (!this.telegramAsset) {
-      throw new Error("No assetType associated with campaign: " + this.id);
+      throw new Error('No assetType associated with campaign: ' + this.id);
     }
 
     // We'll load definitions from the config and gather unique privileges in two Sets.
     const requiredInternal = new Set<string>();
     const requiredExternal = new Set<string>();
 
-    for (const opCodeNum of this.eventsToVerify) {
+    Logger.debug(`[Campaign ${this.id}] getRequiredAdminPrivilegesToVerifyEvents: 
+      eventsToVerify = ${JSON.stringify(this.eventsToVerify)}, 
+      assetType = ${this.telegramAsset.type}`);
+
+      for (const opCodeStr of this.eventsToVerify) {
+        // Convert string to number
+      const opCodeNum = parseInt(opCodeStr.toString(), 10);
+      Logger.debug(`Checking opCodeNum: ${opCodeNum}`);
+
       // Retrieve the full event definition (which has .assetTypes).
       const def = getEventDefinitionByOpCode(opCodeNum);
       if (!def) {
-        continue; // not in config
-      }
-
-      // Among def.assetTypes, find the one that matches this.telegramAsset!.type (e.g. 'channel' or 'supergroup')
-      const assetPrivileges = def.assetTypes.find((a) => a.type === this.telegramAsset!.type);
-      if (!assetPrivileges) {
-        // If we don't have a matching asset type definition, skip
+        Logger.warn(
+          `[Campaign ${this.id}] No event definition found for opCode ${opCodeNum}. Skipping.`
+        );
         continue;
       }
+
+      Logger.debug(
+        `[Campaign ${this.id}] Found event definition for opCode ${opCodeNum}: ${JSON.stringify(def)}`
+      );
+
+      // Among def.assetTypes, find the one that matches this.telegramAsset!.type (e.g. 'channel' or 'supergroup')
+      const assetPrivileges = def.assetTypes.find(
+        (a) => a.type === this.telegramAsset!.type
+      );
+
+      if (!assetPrivileges) {
+        Logger.warn(
+          `[Campaign ${this.id}] Could not find matching assetType for opCode ${opCodeNum}. 
+          Looking for assetType = "${this.telegramAsset!.type}", 
+          but def.assetTypes = ${JSON.stringify(def.assetTypes)}.
+          Skipping.`
+        );
+        continue;
+      }
+
+      Logger.debug(
+        `[Campaign ${this.id}] Found matching assetPrivileges for opCode ${opCodeNum}: 
+        ${JSON.stringify(assetPrivileges)}`
+      );
 
       // Add required INTERNAL privileges to our Set
       for (const priv of assetPrivileges.internalRequiredAdminPrivileges) {
@@ -124,10 +153,16 @@ export class Campaign {
       }
     }
 
+    Logger.debug(
+      `[Campaign ${this.id}] Final required internal: ${JSON.stringify([...requiredInternal])}, 
+      external: ${JSON.stringify([...requiredExternal])}`
+    );
+
     // Return an object with both arrays
     return {
       internal: [...requiredInternal],
       external: [...requiredExternal],
-    }
-  };
+    };
+}
+
 }

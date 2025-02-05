@@ -23,6 +23,8 @@ interface UserEventsJson {
 
 const doc: UserEventsJson = eventsDoc as UserEventsJson;
 
+// console.log(`Loaded doc.events:\n${JSON.stringify(doc.events, null, 2)}`);
+
 /**
  * Build in-memory maps:
  *   - eventName -> opCode
@@ -65,7 +67,7 @@ export function getEventDefinition(eventName: string): UserEvent | undefined {
  */
 export function getEventDefinitionByOpCode(opCode: number): UserEvent | undefined {
     return doc.events.find((e) => e.opCode === opCode);
-  }
+}
 
 /**
  * Get all user event names (for a dropdown, UI list, etc.).

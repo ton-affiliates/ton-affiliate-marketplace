@@ -1012,7 +1012,7 @@ export default function CampaignView() {
 
                       <p style={{ marginTop: '0.5rem', fontSize: '0.95rem', color: '#777' }}>
                         <em>
-                          1. Make sure your Telegram channel is <strong>public</strong>.<br />
+                          1. Make sure your Telegram channel/group is <strong>public</strong>.<br />
                           2. Go to channel settings &gt; Administrators &gt; Add Admin &gt; select
                           <strong> @{verifierBotName}</strong>.<br />
                           3. Grant it these privileges:
