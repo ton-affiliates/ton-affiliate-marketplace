@@ -86,8 +86,8 @@ export const useCampaignSSE = (
           setWaitingForTx(false);
           setTxFailed(false);
           setTimeout(() => {
-            console.log('[useCampaignSSE] Navigating to /affiliate/' + payload.affiliateId + '...');
-            navigate(`/affiliate/${payload.affiliateId}`);
+            console.log(`[useCampaignSSE] Navigating to /campaign/${campaignId}/affiliate/${payload.affiliateId}`);
+            navigate(`affiliate/${payload.affiliateId}`);
           }, 1000);
         }
       }

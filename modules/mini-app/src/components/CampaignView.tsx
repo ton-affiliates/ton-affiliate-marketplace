@@ -1,3 +1,4 @@
+// src/components/CampaignView.tsx
 import { useEffect, useState, useRef, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { Address, Dictionary, fromNano } from '@ton/core';
@@ -15,6 +16,7 @@ import { advertiserApproveAffiliate } from '../blockchain/advertiserApproveAffil
 import { advertiserRemoveAffiliate } from '../blockchain/advertiserRemoveAffiliate';
 import { affiliateCreateNewAffiliate } from '../blockchain/affiliateCreateNewAffiliate';
 
+// Use the unified SSE hook for campaign events.
 import { useCampaignSSE } from '../hooks/useCampaignSSE';
 
 import {
@@ -39,6 +41,7 @@ import SuccessIcon from '../components/SuccessIcon';
 //  BOT name from environment
 // ------------------------------------------
 const verifierBotName = import.meta.env.VITE_TON_AFFILIATES_BOT;
+
 //
 // 1) A small blink for "Active" dot
 //
@@ -154,7 +157,6 @@ export default function CampaignView() {
   const [showNotifications, setShowNotifications] = useState(false);
 
   // Affiliate creation states
-  const [newAffiliateId, setNewAffiliateId] = useState<bigint | null>(null);
   const [waitingForTx, setWaitingForTx] = useState(false);
   const [txSuccess, setTxSuccess] = useState(false);
   const [txFailed, setTxFailed] = useState(false);
@@ -183,8 +185,6 @@ export default function CampaignView() {
         }
         const data: CampaignApiResponse = await resp.json();
         setCampaign(data);
-
-        // We might have 'advertiserAddress' from the combined object
         if (data.advertiserAddress) {
           setAdvertiserAddr(data.advertiserAddress);
         }
@@ -210,11 +210,10 @@ export default function CampaignView() {
           setLoadingUser(false);
           return;
         }
-        // Assume the API returns an array of users
         const data: UserApiResponse[] = await resp.json();
         console.log('UserApiResponse: ' + JSON.stringify(data));
         if (data && data.length > 0) {
-          setAdvertiserUser(data[0]); // Set the first (and likely only) element
+          setAdvertiserUser(data[0]);
         } else {
           setAdvertiserUser(null);
         }
@@ -234,12 +233,9 @@ export default function CampaignView() {
     (async () => {
       setChainLoading(true);
       setChainError(null);
-
       try {
         const cData = await campaignContract.getCampaignData();
         setOnChainData(cData);
-
-        // fetch top affiliates
         const dict: Dictionary<bigint, bigint> = cData.topAffiliates;
         const affArray: {
           affiliateId: bigint;
@@ -247,7 +243,6 @@ export default function CampaignView() {
           totalEarnings: bigint;
           state: bigint;
         }[] = [];
-
         for (const [affId] of dict) {
           const affData: AffiliateData | null = await campaignContract.getAffiliateData(affId);
           if (affData) {
@@ -274,7 +269,6 @@ export default function CampaignView() {
   useEffect(() => {
     const walletAddr = userAccount?.address;
     if (!id || !walletAddr) return;
-
     (async () => {
       try {
         const resp = await fetch(`/api/v1/campaigns/${id}/notifications?walletAddress=${walletAddr}`);
@@ -291,11 +285,9 @@ export default function CampaignView() {
   }, [id, userAccount?.address]);
 
   //------------------------------------------------------------------
-  // 5) WebSocket for affiliate created
+  // 5) Use SSE for campaign events
   //------------------------------------------------------------------
- 
-useCampaignSSE(userAccount, id!, setTxSuccess, setWaitingForTx, setTxFailed);
-
+  useCampaignSSE(userAccount, id!, setTxSuccess, setWaitingForTx, setTxFailed);
 
   //------------------------------------------------------------------
   // 6) My affiliates
@@ -305,7 +297,6 @@ useCampaignSSE(userAccount, id!, setTxSuccess, setWaitingForTx, setTxFailed);
     try {
       setAffiliatesLoading(true);
       setAffiliatesError(null);
-
       const encoded = Address.parse(userAccount.address).toString();
       const resp = await fetch(`/api/v1/campaign-roles/affiliates/by-wallet/${encoded}`);
       if (!resp.ok) {
@@ -316,12 +307,8 @@ useCampaignSSE(userAccount, id!, setTxSuccess, setWaitingForTx, setTxFailed);
         throw new Error(`Error fetching affiliates: ${resp.status} ${resp.statusText}`);
       }
       const data: CampaignRoleApiResponse[] = await resp.json();
-      // Filter roles by the current campaign ID.
       const relevant = data.filter((r) => r.campaignId === id);
-      // Deduplicate the array by affiliateId.
-      const unique = Array.from(
-        new Map(relevant.map((role) => [role.affiliateId, role])).values()
-      );
+      const unique = Array.from(new Map(relevant.map((role) => [role.affiliateId, role])).values());
       setMyAffiliates(unique);
     } catch (err: any) {
       console.error('Error fetching my affiliates:', err);
@@ -331,7 +318,6 @@ useCampaignSSE(userAccount, id!, setTxSuccess, setWaitingForTx, setTxFailed);
     }
   }
 
-  // If not advertiser => fetch affiliates
   useEffect(() => {
     if (!isUserAdvertiser && userAccount?.address) {
       fetchMyAffiliates();
@@ -365,22 +351,18 @@ useCampaignSSE(userAccount, id!, setTxSuccess, setWaitingForTx, setTxFailed);
   //------------------------------------------------------------------
   async function handleCreateAffiliate() {
     if (!campaignContract || !sender || !userAccount?.address) return;
-
     setWaitingForTx(true);
     setTxSuccess(false);
     setTxFailed(false);
     setTxTimeout(false);
-    setNewAffiliateId(null);
-
-    // fallback if no WS event in 60s
     timeoutRef.current = window.setTimeout(() => {
       setTxTimeout(true);
       setWaitingForTx(false);
     }, 60_000);
-
     try {
       await affiliateCreateNewAffiliate(campaignContract, sender, userAccount.address);
-      console.log('TX sent... waiting for WS event');
+      console.log('TX sent... waiting for SSE event');
+      // The SSE hook will pick up the AffiliateCreatedEvent and navigate accordingly.
     } catch (err) {
       console.error('TX failed or canceled:', err);
       setWaitingForTx(false);
@@ -395,12 +377,7 @@ useCampaignSSE(userAccount, id!, setTxSuccess, setWaitingForTx, setTxFailed);
   async function handleRefreshBotAdmin() {
     if (!id) return;
     try {
-      // Call the refresh endpoint to update the Telegram asset for this campaign.
-      await fetch(`/api/v1/campaigns/${id}/refresh-bot-admin`, {
-        method: 'POST',
-      });
-
-      // After the refresh, re-fetch the updated campaign data.
+      await fetch(`/api/v1/campaigns/${id}/refresh-bot-admin`, { method: 'POST' });
       const resp = await fetch(`/api/v1/campaigns/${id}`);
       if (!resp.ok) {
         throw new Error(`Failed to refetch campaign. Status: ${resp.status}`);
@@ -434,14 +411,12 @@ useCampaignSSE(userAccount, id!, setTxSuccess, setWaitingForTx, setTxFailed);
     });
   }
 
-  // On-chain check for partial "active"
   const isCampaignOnChainActive = useMemo(() => {
     if (!onChainData) return false;
     const realTonBalance = Number(onChainData.contractTonBalance) / 1e9;
     const isUSDT = onChainData.campaignDetails.paymentMethod === 1n;
     const requiredGas = isUSDT ? 0.5 : 1;
     const hasSufficientGas = realTonBalance >= requiredGas;
-
     return (
       onChainData.isCampaignActive &&
       !onChainData.isCampaignPausedByAdmin &&
@@ -450,20 +425,13 @@ useCampaignSSE(userAccount, id!, setTxSuccess, setWaitingForTx, setTxFailed);
     );
   }, [onChainData]);
 
-  // The bot’s canBotVerify property from DB
   const botCanVerify = campaign?.canBotVerify || false;
-
-  // Final "Active" = onChain active && bot can verify
   const isFullyActive = isCampaignOnChainActive && botCanVerify;
 
-  //------------------------------------------------------------------
-  // Load checks
-  //------------------------------------------------------------------
   if (loading) return <div>Loading campaign data...</div>;
   if (error) return <div style={{ color: 'red' }}>{error}</div>;
   if (!campaign) return <div>No campaign found</div>;
 
-  // Paused or expired?
   const showPausedOrExpiredError =
     onChainData && (onChainData.isCampaignPausedByAdmin || onChainData.isCampaignExpired);
   let pausedOrExpiredMsg = '';
@@ -486,7 +454,7 @@ useCampaignSSE(userAccount, id!, setTxSuccess, setWaitingForTx, setTxFailed);
   //------------------------------------------------------------------
   return (
     <div style={{ margin: '1rem' }}>
-      {/* Notification bell at top-left */}
+      {/* Notification bell */}
       <div style={{ position: 'absolute', top: 10, left: 10 }}>
         <div
           style={{
@@ -524,7 +492,6 @@ useCampaignSSE(userAccount, id!, setTxSuccess, setWaitingForTx, setTxFailed);
             </span>
           )}
         </div>
-
         {showNotifications && (
           <div
             style={{
@@ -553,19 +520,12 @@ useCampaignSSE(userAccount, id!, setTxSuccess, setWaitingForTx, setTxFailed);
                   <p style={{ margin: 0 }}>{n.message}</p>
                   {n.link && (
                     <p style={{ margin: '0.25rem 0' }}>
-                      <a
-                        href={n.link}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        style={{ color: 'blue' }}
-                      >
+                      <a href={n.link} target="_blank" rel="noopener noreferrer" style={{ color: 'blue' }}>
                         Open link
                       </a>
                     </p>
                   )}
-                  <small style={{ color: '#999' }}>
-                    {new Date(n.createdAt).toLocaleString()}
-                  </small>
+                  <small style={{ color: '#999' }}>{new Date(n.createdAt).toLocaleString()}</small>
                 </div>
               ))
             )}
@@ -573,24 +533,13 @@ useCampaignSSE(userAccount, id!, setTxSuccess, setWaitingForTx, setTxFailed);
         )}
       </div>
 
-      {/* If paused or expired */}
       {showPausedOrExpiredError && (
-        <div
-          style={{
-            backgroundColor: '#fdd',
-            color: '#900',
-            padding: '0.8rem',
-            marginBottom: '1rem',
-          }}
-        >
+        <div style={{ backgroundColor: '#fdd', color: '#900', padding: '0.8rem', marginBottom: '1rem' }}>
           <strong>{pausedOrExpiredMsg}</strong> It is therefore not active.
         </div>
       )}
 
-      {/* The page title and ID */}
-      <h1 style={{ marginBottom: '0.5rem' }}>
-        Campaign Page for: {campaign.assetName || '(Unnamed)'}
-      </h1>
+      <h1 style={{ marginBottom: '0.5rem' }}>Campaign Page for: {campaign.assetName || '(Unnamed)'}</h1>
       <h2 style={{ marginBottom: '0.5rem' }}>Campaign ID: {campaign.id}</h2>
       <h2 style={{ marginBottom: '0.5rem' }}>Campaign Name: {campaign.name}</h2>
 
@@ -600,12 +549,10 @@ useCampaignSSE(userAccount, id!, setTxSuccess, setWaitingForTx, setTxFailed);
         </h3>
       )}
 
-      {/* "Fully Active" dot at the top: must be on-chain active & bot can verify */}
       <div style={{ marginBottom: '2rem' }}>
         <ActiveStatusDot isActive={isFullyActive} />
       </div>
 
-      {/* The row with Advertiser on left, main info on right */}
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: '2rem' }}>
         {/* LEFT: Advertiser info & affiliate invites */}
         <div style={{ flex: '0 0 300px' }}>
@@ -614,18 +561,10 @@ useCampaignSSE(userAccount, id!, setTxSuccess, setWaitingForTx, setTxFailed);
             <p>Loading owner data...</p>
           ) : advertiserUser ? (
             <div style={{ border: '1px solid #ccc', padding: '0.5rem', borderRadius: '4px' }}>
-              <p>
-                <strong>Telegram Username:</strong> {advertiserUser.telegramUsername}
-              </p>
-              <p>
-                <strong>Ton Address:</strong> {advertiserAddr}
-              </p>
-              <p>
-                <strong>First Name:</strong> {advertiserUser.firstName}
-              </p>
-              <p>
-                <strong>Last Name:</strong> {advertiserUser.lastName}
-              </p>
+              <p><strong>Telegram Username:</strong> {advertiserUser.telegramUsername}</p>
+              <p><strong>Ton Address:</strong> {advertiserAddr}</p>
+              <p><strong>First Name:</strong> {advertiserUser.firstName}</p>
+              <p><strong>Last Name:</strong> {advertiserUser.lastName}</p>
               {advertiserUser.photoUrl && (
                 <img
                   src={advertiserUser.photoUrl}
@@ -657,77 +596,58 @@ useCampaignSSE(userAccount, id!, setTxSuccess, setWaitingForTx, setTxFailed);
                 />
                 <button onClick={handleCopyInviteUrl}>Copy Link</button>
               </div>
-
               <p style={{ marginTop: '1rem' }}>
                 <Link to={`/campaign/${campaign.id}/affiliates`}>View All Affiliates</Link>
               </p>
             </div>
           )}
 
-          {/* If user is not advertiser => show affiliate creation / listing */}
-          {!isUserAdvertiser &&
-            isCampaignOnChainActive &&
-            campaignContract &&
-            sender && (
-              <div style={{ marginTop: '2rem', borderTop: '1px solid #ccc', paddingTop: '1rem' }}>
-                <h3>Become an Affiliate</h3>
-                {onChainData?.campaignDetails.isPublicCampaign ? (
-                  <p>Generate your affiliate referral link in this campaign:</p>
-                ) : (
-                  <p>Request permission to join this private campaign:</p>
-                )}
-
-                {waitingForTx && !txTimeout && !txSuccess && (
-                  <div style={{ marginBottom: '1rem' }}>
-                    <Spinner />
-                    <p>Waiting for server confirmation... (can take up to 1 minute)</p>
-                  </div>
-                )}
-                {txTimeout && !txSuccess && (
-                  <div style={{ marginBottom: '1rem', color: 'red' }}>
-                    Timed out waiting for the server event. The transaction might still be pending...
-                  </div>
-                )}
-                {txSuccess && (
-                  <div style={{ marginBottom: '1rem' }}>
-                    <SuccessIcon />
-                    <p>Affiliate created successfully!</p>
-                  </div>
-                )}
-                {txFailed && (
-                  <div style={{ marginBottom: '1rem', color: 'red' }}>
-                    Transaction failed or was canceled.
-                  </div>
-                )}
-
-                <button
-                  onClick={handleCreateAffiliate}
-                  disabled={waitingForTx || txSuccess}
-                  style={{ marginBottom: '1rem' }}
-                >
-                  {onChainData?.campaignDetails.isPublicCampaign
-                    ? 'Generate Referral Link'
-                    : 'Ask to Join Campaign'}
-                </button>
-
-                {newAffiliateId !== null && (
-                  <div
-                    style={{
-                      border: '1px solid #ccc',
-                      padding: '0.5rem',
-                      backgroundColor: '#f5f5f5',
-                    }}
-                  >
-                    <strong>Your new Affiliate ID:</strong> {newAffiliateId.toString()}
-                    <br />
-                    <strong>Your affiliate page: </strong>
-                    <Link to={`/campaign/${campaign.id}/affiliate/${newAffiliateId.toString()}`}>
-                      {`/campaign/${campaign.id}/affiliate/${newAffiliateId.toString()}`}
-                    </Link>
-                  </div>
-                )}
-              </div>
-            )}
+          {/* If user is not advertiser: show affiliate creation/listing */}
+          {/* Affiliate info section for non-advertisers */}
+        {!isUserAdvertiser &&
+          isCampaignOnChainActive &&
+          campaignContract &&
+          sender && (
+            <div style={{ marginTop: '2rem', borderTop: '1px solid #ccc', paddingTop: '1rem' }}>
+              <h3>Become an Affiliate</h3>
+              {onChainData?.campaignDetails.isPublicCampaign ? (
+                <p>Generate your affiliate referral link in this campaign:</p>
+              ) : (
+                <p>Request permission to join this private campaign:</p>
+              )}
+              {waitingForTx && !txTimeout && !txSuccess && (
+                <div style={{ marginBottom: '1rem' }}>
+                  <Spinner />
+                  <p>Waiting for server confirmation... (can take up to 1 minute)</p>
+                </div>
+              )}
+              {txTimeout && !txSuccess && (
+                <div style={{ marginBottom: '1rem', color: 'red' }}>
+                  Timed out waiting for the server event. The transaction might still be pending...
+                </div>
+              )}
+              {txSuccess && (
+                <div style={{ marginBottom: '1rem' }}>
+                  <SuccessIcon />
+                  <p>Affiliate created successfully!</p>
+                </div>
+              )}
+              {txFailed && (
+                <div style={{ marginBottom: '1rem', color: 'red' }}>
+                  Transaction failed or was canceled.
+                </div>
+              )}
+              <button
+                onClick={handleCreateAffiliate}
+                disabled={waitingForTx || txSuccess}
+                style={{ marginBottom: '1rem' }}
+              >
+                {onChainData?.campaignDetails.isPublicCampaign
+                  ? 'Generate Referral Link'
+                  : 'Ask to Join Campaign'}
+              </button>
+            </div>
+          )}
 
           {!isUserAdvertiser && (
             <div style={{ marginTop: '2rem', borderTop: '1px solid #ccc', paddingTop: '1rem' }}>
@@ -738,7 +658,7 @@ useCampaignSSE(userAccount, id!, setTxSuccess, setWaitingForTx, setTxFailed);
                 <p>No affiliates found for your wallet in this campaign.</p>
               )}
               {myAffiliates.length > 0 && (
-                <table style={{ borderCollapse: 'collapse' }}>
+                <table style={{ borderCollapse: 'collapse', width: '100%' }}>
                   <thead>
                     <tr>
                       <th style={{ border: '1px solid #ccc', padding: '4px' }}>Affiliate ID</th>
@@ -749,12 +669,8 @@ useCampaignSSE(userAccount, id!, setTxSuccess, setWaitingForTx, setTxFailed);
                   <tbody>
                     {myAffiliates.map((role) => (
                       <tr key={role.id}>
-                        <td style={{ border: '1px solid #ccc', padding: '4px' }}>
-                          {role.affiliateId}
-                        </td>
-                        <td style={{ border: '1px solid #ccc', padding: '4px' }}>
-                          {formatDate(role.createdAt)}
-                        </td>
+                        <td style={{ border: '1px solid #ccc', padding: '4px' }}>{role.affiliateId}</td>
+                        <td style={{ border: '1px solid #ccc', padding: '4px' }}>{formatDate(role.createdAt)}</td>
                         <td style={{ border: '1px solid #ccc', padding: '4px' }}>
                           <Link to={`/campaign/${campaign.id}/affiliate/${role.affiliateId?.toString()}`}>
                             View Affiliate
@@ -772,7 +688,6 @@ useCampaignSSE(userAccount, id!, setTxSuccess, setWaitingForTx, setTxFailed);
         {/* RIGHT: main campaign info */}
         <div style={{ flex: 1 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '2rem' }}>
-            {/* Campaign image */}
             <div>
               {campaign.assetPhotoBase64 ? (
                 <img
@@ -798,8 +713,6 @@ useCampaignSSE(userAccount, id!, setTxSuccess, setWaitingForTx, setTxFailed);
                 />
               )}
             </div>
-
-            {/* Basic campaign text info */}
             <div>
               <p style={{ marginBottom: '0.5rem' }}>
                 <strong>Description:</strong> {campaign.assetDescription || 'N/A'}
@@ -812,9 +725,7 @@ useCampaignSSE(userAccount, id!, setTxSuccess, setWaitingForTx, setTxFailed);
                   </a>
                 </p>
               )}
-              <p style={{ color: '#666', fontSize: '0.9rem' }}>
-                Created: {formatDate(campaign.createdAt)}
-              </p>
+              <p style={{ color: '#666', fontSize: '0.9rem' }}>Created: {formatDate(campaign.createdAt)}</p>
             </div>
           </div>
         </div>
@@ -856,8 +767,6 @@ useCampaignSSE(userAccount, id!, setTxSuccess, setWaitingForTx, setTxFailed);
               <strong>Campaign Type:</strong>{' '}
               {onChainData.campaignDetails.isPublicCampaign ? 'Public' : 'Private'}
             </p>
-
-            {/* Expiration logic */}
             {onChainData.campaignDetails.campaignValidForNumDays != null ? (
               (() => {
                 const days = Number(onChainData.campaignDetails.campaignValidForNumDays);
@@ -890,15 +799,10 @@ useCampaignSSE(userAccount, id!, setTxSuccess, setWaitingForTx, setTxFailed);
                 <strong>Valid For (days):</strong> No expiration
               </p>
             )}
-
-            {/* Show events & commissions in a table */}
             {(() => {
               const dictReg = onChainData.campaignDetails.regularUsersCostPerAction;
               const dictPrem = onChainData.campaignDetails.premiumUsersCostPerAction;
-
-              // Gather a unique set of all opCodes from both dictionaries
               const allOpCodes = new Set<bigint>([...dictReg.keys(), ...dictPrem.keys()]);
-
               if (allOpCodes.size === 0) {
                 return (
                   <div style={{ marginTop: '1rem' }}>
@@ -907,26 +811,21 @@ useCampaignSSE(userAccount, id!, setTxSuccess, setWaitingForTx, setTxFailed);
                   </div>
                 );
               }
-
               const rows: JSX.Element[] = [];
               for (const opCode of allOpCodes) {
                 const regBn = dictReg.get(opCode) || 0n;
                 const premBn = dictPrem.get(opCode) || 0n;
                 const currency = onChainData.campaignDetails.paymentMethod === 0n ? 'TON' : 'USDT';
-
                 const eventName = getEventNameByOpCode(opCode);
                 const eventDef = eventName ? getEventDefinition(eventName) : undefined;
                 const displayName = eventDef?.eventName || `Unknown (#${opCode.toString()})`;
                 const displayDesc = eventDef?.description || '';
-
                 rows.push(
                   <tr key={opCode.toString()}>
                     <td style={{ border: '1px solid #ccc', padding: '6px' }}>
                       <strong>{displayName}</strong>
                     </td>
-                    <td style={{ border: '1px solid #ccc', padding: '6px' }}>
-                      {displayDesc}
-                    </td>
+                    <td style={{ border: '1px solid #ccc', padding: '6px' }}>{displayDesc}</td>
                     <td style={{ border: '1px solid #ccc', padding: '6px' }}>
                       {fromNano(regBn)} {currency}
                     </td>
@@ -936,7 +835,6 @@ useCampaignSSE(userAccount, id!, setTxSuccess, setWaitingForTx, setTxFailed);
                   </tr>
                 );
               }
-
               return (
                 <div style={{ marginTop: '1rem' }}>
                   <h3>Events &amp; Commission</h3>
@@ -971,56 +869,37 @@ useCampaignSSE(userAccount, id!, setTxSuccess, setWaitingForTx, setTxFailed);
               const isUSDT = onChainData.campaignDetails.paymentMethod === 1n;
               const requiredGas = isUSDT ? 0.5 : 1;
               const hasSufficientGas = realTonBalance >= requiredGas;
-
               return (
                 <>
-                  {/* Sufficient funds to pay affiliates */}
-                  <StatusDot
-                    label="Sufficient Funds"
-                    value={onChainData.campaignHasSufficientFundsToPayMaxCpa}
-                  />
-                  {/* Enough TON for gas fees */}
+                  <StatusDot label="Sufficient Funds" value={onChainData.campaignHasSufficientFundsToPayMaxCpa} />
                   <StatusDot label="Sufficient Ton for Gas Fees" value={hasSufficientGas} />
-                  {/* Bot can verify events? (from DB campaign.canBotVerify) */}
                   <StatusDot label="Bot can verify events" value={botCanVerify} />
-
-                  {/* If bot can't verify, show required privileges + button to recheck */}
                   {!botCanVerify && isUserAdvertiser && (
                     <div style={{ marginLeft: '1rem', marginTop: '0.5rem' }}>
-                      {/* EXPLANATORY TEXT */}
                       <p style={{ marginTop: '0.5rem', fontSize: '0.95rem', color: '#555' }}>
-                        To finish setting up your Telegram campaign, please add our verifier bot as
-                        an administrator to your <strong>public Telegram channel</strong>.
-                        This ensures we can verify channel membership and user actions correctly.
+                        To finish setting up your Telegram campaign, please add our verifier bot as an administrator to your{' '}
+                        <strong>public Telegram channel</strong>. This ensures we can verify channel membership and user actions correctly.
                       </p>
-
-                      {/* BOT NAME */}
                       <p style={{ marginBottom: '0.5rem', fontSize: '0.95rem', color: '#333' }}>
                         <strong>Verifier Bot Username:</strong> @{verifierBotName}
                       </p>
-
                       <p style={{ marginTop: '0.5rem', fontSize: '0.95rem', color: '#777' }}>
                         <em>
                           1. Make sure your Telegram channel/group is <strong>public</strong>.<br />
-                          2. Go to channel settings &gt; Administrators &gt; Add Admin &gt; select
-                          <strong> @{verifierBotName}</strong>.<br />
+                          2. Go to channel settings &gt; Administrators &gt; Add Admin &gt; select <strong>@{verifierBotName}</strong>.<br />
                           3. Grant it these privileges:
                           <div>
-                          <strong>Needed Privileges:</strong>{' '}
-                          {campaign.requiredPrivileges && campaign.requiredPrivileges.length > 0
-                            ? campaign.requiredPrivileges.join(', ')
-                            : '(none listed)'}
-                        </div>
+                            <strong>Needed Privileges:</strong>{' '}
+                            {campaign.requiredPrivileges && campaign.requiredPrivileges.length > 0
+                              ? campaign.requiredPrivileges.join(', ')
+                              : '(none listed)'}
+                          </div>
                           4. Once the bot is an admin with those privileges, click "Verify Bot Setup"
                         </em>
                       </p>
-                      <button onClick={handleRefreshBotAdmin}>
-                        Verify Bot Setup
-                      </button>
+                      <button onClick={handleRefreshBotAdmin}>Verify Bot Setup</button>
                     </div>
                   )}
-
-                  {/* Add Funds (advertiser only) */}
                   {isUserAdvertiser && (
                     <div style={{ marginLeft: '1rem', marginTop: '1rem' }}>
                       <TransactionButton
@@ -1030,13 +909,7 @@ useCampaignSSE(userAccount, id!, setTxSuccess, setWaitingForTx, setTxFailed);
                         onTransaction={async (amount) => {
                           if (!amount) throw new Error('Invalid amount');
                           if (isUSDT) {
-                            await replenishWithUsdt(
-                              campaignContract,
-                              amount,
-                              sender,
-                              userAccount?.address,
-                              client
-                            );
+                            await replenishWithUsdt(campaignContract, amount, sender, userAccount?.address, client);
                           } else {
                             await replenishWithTon(campaignContract, amount, sender);
                           }
@@ -1044,8 +917,6 @@ useCampaignSSE(userAccount, id!, setTxSuccess, setWaitingForTx, setTxFailed);
                       />
                     </div>
                   )}
-
-                  {/* Add TON for Gas Fees (advertiser only) */}
                   {isUserAdvertiser && (
                     <div style={{ marginLeft: '1rem', marginTop: '1rem' }}>
                       <TransactionButton
@@ -1084,48 +955,41 @@ useCampaignSSE(userAccount, id!, setTxSuccess, setWaitingForTx, setTxFailed);
                 return (
                   <>
                     <p>
-                      <strong>Campaign Balance (TON):</strong>{' '}
-                      {fromNano(onChainData.campaignBalance)}
+                      <strong>Campaign Balance (TON):</strong> {fromNano(onChainData.campaignBalance)}
                     </p>
                     <p>
-                      <strong>Campaign Contract Ton Balance:</strong>{' '}
-                      {fromNano(onChainData.contractTonBalance)}
+                      <strong>Campaign Contract Ton Balance:</strong> {fromNano(onChainData.contractTonBalance)}
                     </p>
                   </>
                 );
               } else {
-                // USDT
                 return (
                   <>
                     <p>
-                      <strong>Campaign Balance (USDT):</strong>{' '}
-                      {fromNano(onChainData.campaignBalance)}
+                      <strong>Campaign Balance (USDT):</strong> {fromNano(onChainData.campaignBalance)}
                     </p>
                     <p>
-                      <strong>Campaign Contract Ton Balance:</strong>{' '}
-                      {fromNano(onChainData.contractTonBalance)}
+                      <strong>Campaign Contract Ton Balance:</strong> {fromNano(onChainData.contractTonBalance)}
                     </p>
                   </>
                 );
               }
             })()}
-
             <p>
               <strong># Affiliates:</strong> {onChainData.numAffiliates.toString()}
             </p>
-
             {onChainData.campaignStartTimestamp !== 0n ? (
               <p>
                 <strong>Campaign Start Date:</strong>{' '}
-                {new Date(Number(onChainData.campaignStartTimestamp) * 1000).toLocaleDateString(
-                  'en-US',
-                  { day: 'numeric', month: 'short', year: 'numeric' }
-                )}
+                {new Date(Number(onChainData.campaignStartTimestamp) * 1000).toLocaleDateString('en-US', {
+                  day: 'numeric',
+                  month: 'short',
+                  year: 'numeric',
+                })}
               </p>
             ) : (
               <p>Campaign has not started yet</p>
             )}
-
             {onChainData.lastUserActionTimestamp === 0n ? (
               <p>
                 <strong>Last User Action Date:</strong> No user actions yet
@@ -1133,23 +997,21 @@ useCampaignSSE(userAccount, id!, setTxSuccess, setWaitingForTx, setTxFailed);
             ) : (
               <p>
                 <strong>Last User Action Date:</strong>{' '}
-                {new Date(Number(onChainData.lastUserActionTimestamp) * 1000).toLocaleDateString(
-                  'en-US',
-                  { day: 'numeric', month: 'short', year: 'numeric' }
-                )}
+                {new Date(Number(onChainData.lastUserActionTimestamp) * 1000).toLocaleDateString('en-US', {
+                  day: 'numeric',
+                  month: 'short',
+                  year: 'numeric',
+                })}
               </p>
             )}
-
             <p>
               <strong># User Actions:</strong> {onChainData.numUserActions.toString()}
             </p>
             <p>
-              <strong>Advertiser Fee (%):</strong>{' '}
-              {(Number(onChainData.advertiserFeePercentage) / 100).toFixed(2)}%
+              <strong>Advertiser Fee (%):</strong> {(Number(onChainData.advertiserFeePercentage) / 100).toFixed(2)}%
             </p>
             <p>
-              <strong>Affiliate Fee (%):</strong>{' '}
-              {(Number(onChainData.affiliateFeePercentage) / 100).toFixed(2)}%
+              <strong>Affiliate Fee (%):</strong> {(Number(onChainData.affiliateFeePercentage) / 100).toFixed(2)}%
             </p>
           </div>
         </div>
@@ -1186,18 +1048,10 @@ useCampaignSSE(userAccount, id!, setTxSuccess, setWaitingForTx, setTxFailed);
                 <tbody>
                   {topAffiliatesData.map((aff) => (
                     <tr key={aff.affiliateId.toString()}>
-                      <td style={{ border: '1px solid #ccc', padding: '4px' }}>
-                        {aff.affiliateId.toString()}
-                      </td>
-                      <td style={{ border: '1px solid #ccc', padding: '4px' }}>
-                        {formatTonFriendly(aff.affiliateAddr)}
-                      </td>
-                      <td style={{ border: '1px solid #ccc', padding: '4px' }}>
-                        {fromNano(aff.totalEarnings)} TON
-                      </td>
-                      <td style={{ border: '1px solid #ccc', padding: '4px' }}>
-                        {aff.state.toString()}
-                      </td>
+                      <td style={{ border: '1px solid #ccc', padding: '4px' }}>{aff.affiliateId.toString()}</td>
+                      <td style={{ border: '1px solid #ccc', padding: '4px' }}>{formatTonFriendly(aff.affiliateAddr)}</td>
+                      <td style={{ border: '1px solid #ccc', padding: '4px' }}>{fromNano(aff.totalEarnings)} TON</td>
+                      <td style={{ border: '1px solid #ccc', padding: '4px' }}>{aff.state.toString()}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -1216,8 +1070,6 @@ useCampaignSSE(userAccount, id!, setTxSuccess, setWaitingForTx, setTxFailed);
               }}
             >
               <h2>Actions</h2>
-
-              {/* Add Funds */}
               <div style={{ marginBottom: '1rem' }}>
                 <TransactionButton
                   buttonLabel="Add Funds"
@@ -1233,8 +1085,6 @@ useCampaignSSE(userAccount, id!, setTxSuccess, setWaitingForTx, setTxFailed);
                   }}
                 />
               </div>
-
-              {/* Add TON for Gas Fees */}
               <div style={{ marginBottom: '1rem' }}>
                 <TransactionButton
                   buttonLabel="Add TON for Gas Fees"
@@ -1250,8 +1100,6 @@ useCampaignSSE(userAccount, id!, setTxSuccess, setWaitingForTx, setTxFailed);
                   }}
                 />
               </div>
-
-              {/* Withdraw Funds */}
               <div style={{ marginBottom: '1rem' }}>
                 <TransactionButton
                   buttonLabel="Withdraw Funds"
@@ -1262,8 +1110,832 @@ useCampaignSSE(userAccount, id!, setTxSuccess, setWaitingForTx, setTxFailed);
                   }}
                 />
               </div>
-
-              {/* Approve/Remove (private) */}
+              {!onChainData.campaignDetails.isPublicCampaign && (
+                <div style={{ marginTop: '1.5rem' }}>
+                  <button
+                    style={{ marginRight: '1rem' }}
+                    onClick={async () => {
+                      const affIdStr = prompt('Enter affiliate ID to approve:');
+                      if (!affIdStr) return;
+                      const affIdBn = BigInt(affIdStr);
+                      await advertiserApproveAffiliate(campaignContract, affIdBn, sender);
+                      alert(`Approved affiliate ID: ${affIdStr}`);
+                    }}
+                  >
+                    Approve Affiliate
+                  </button>
+                  <button
+                    onClick={async () => {
+                      const affIdStr = prompt('Enter affiliate ID to remove:');
+                      if (!affIdStr) return;
+                      const affIdBn = BigInt(affIdStr);
+                      await advertiserRemoveAffiliate(campaignContract, affIdBn, sender);
+                      alert(`Removed affiliate ID: ${affIdStr}`);
+                    }}
+                  >
+                    Remove Affiliate
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+      <hr style={{ margin: '2rem 0' }} />
+      {onChainData && (
+        <div style={{ display: 'flex', gap: '2rem' }}>
+          <div
+            style={{
+              flex: '0 0 50%',
+              border: '1px solid #ccc',
+              borderRadius: '4px',
+              padding: '0.8rem',
+            }}
+          >
+            <h2>Top Affiliates</h2>
+            {topAffiliatesData.length === 0 ? (
+              <p>No top affiliates found.</p>
+            ) : (
+              <table style={{ borderCollapse: 'collapse', width: '100%' }}>
+                <thead>
+                  <tr>
+                    <th style={{ border: '1px solid #ccc', padding: '4px' }}>Affiliate ID</th>
+                    <th style={{ border: '1px solid #ccc', padding: '4px' }}>Address</th>
+                    <th style={{ border: '1px solid #ccc', padding: '4px' }}>Total Earnings</th>
+                    <th style={{ border: '1px solid #ccc', padding: '4px' }}>State</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {topAffiliatesData.map((aff) => (
+                    <tr key={aff.affiliateId.toString()}>
+                      <td style={{ border: '1px solid #ccc', padding: '4px' }}>{aff.affiliateId.toString()}</td>
+                      <td style={{ border: '1px solid #ccc', padding: '4px' }}>{formatTonFriendly(aff.affiliateAddr)}</td>
+                      <td style={{ border: '1px solid #ccc', padding: '4px' }}>{fromNano(aff.totalEarnings)} TON</td>
+                      <td style={{ border: '1px solid #ccc', padding: '4px' }}>{aff.state.toString()}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+          {isUserAdvertiser && (
+            <div
+              style={{
+                flex: 1,
+                border: '1px solid #ccc',
+                borderRadius: '4px',
+                padding: '0.8rem',
+              }}
+            >
+              <h2>Actions</h2>
+              <div style={{ marginBottom: '1rem' }}>
+                <TransactionButton
+                  buttonLabel="Add Funds"
+                  showAmountField
+                  defaultAmount={1}
+                  onTransaction={async (amount) => {
+                    if (!amount) throw new Error('Invalid amount');
+                    if (onChainData.campaignDetails.paymentMethod === 0n) {
+                      await replenishWithTon(campaignContract, amount, sender);
+                    } else {
+                      await replenishWithUsdt(campaignContract, amount, sender, userAccount?.address, client);
+                    }
+                  }}
+                />
+              </div>
+              <div style={{ marginBottom: '1rem' }}>
+                <TransactionButton
+                  buttonLabel="Add TON for Gas Fees"
+                  showAmountField
+                  defaultAmount={1}
+                  onTransaction={async (amount) => {
+                    if (!amount) throw new Error('Invalid amount');
+                    if (onChainData.campaignDetails.paymentMethod === 0n) {
+                      await replenishWithTon(campaignContract, amount, sender);
+                    } else {
+                      await replenishGasFeesForUsdtCampaign(campaignContract, amount, sender);
+                    }
+                  }}
+                />
+              </div>
+              <div style={{ marginBottom: '1rem' }}>
+                <TransactionButton
+                  buttonLabel="Withdraw Funds"
+                  showAmountField
+                  onTransaction={async (amount) => {
+                    if (!amount) throw new Error('Invalid withdraw amount');
+                    await advertiserWithdrawFunds(campaignContract, amount, sender, userAccount?.address);
+                  }}
+                />
+              </div>
+              {!onChainData.campaignDetails.isPublicCampaign && (
+                <div style={{ marginTop: '1.5rem' }}>
+                  <button
+                    style={{ marginRight: '1rem' }}
+                    onClick={async () => {
+                      const affIdStr = prompt('Enter affiliate ID to approve:');
+                      if (!affIdStr) return;
+                      const affIdBn = BigInt(affIdStr);
+                      await advertiserApproveAffiliate(campaignContract, affIdBn, sender);
+                      alert(`Approved affiliate ID: ${affIdStr}`);
+                    }}
+                  >
+                    Approve Affiliate
+                  </button>
+                  <button
+                    onClick={async () => {
+                      const affIdStr = prompt('Enter affiliate ID to remove:');
+                      if (!affIdStr) return;
+                      const affIdBn = BigInt(affIdStr);
+                      await advertiserRemoveAffiliate(campaignContract, affIdBn, sender);
+                      alert(`Removed affiliate ID: ${affIdStr}`);
+                    }}
+                  >
+                    Remove Affiliate
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+      <hr style={{ margin: '2rem 0' }} />
+      {onChainData && (
+        <div style={{ display: 'flex', gap: '2rem' }}>
+          <div
+            style={{
+              flex: '0 0 50%',
+              border: '1px solid #ccc',
+              borderRadius: '4px',
+              padding: '0.8rem',
+            }}
+          >
+            <h2>Top Affiliates</h2>
+            {topAffiliatesData.length === 0 ? (
+              <p>No top affiliates found.</p>
+            ) : (
+              <table style={{ borderCollapse: 'collapse', width: '100%' }}>
+                <thead>
+                  <tr>
+                    <th style={{ border: '1px solid #ccc', padding: '4px' }}>Affiliate ID</th>
+                    <th style={{ border: '1px solid #ccc', padding: '4px' }}>Address</th>
+                    <th style={{ border: '1px solid #ccc', padding: '4px' }}>Total Earnings</th>
+                    <th style={{ border: '1px solid #ccc', padding: '4px' }}>State</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {topAffiliatesData.map((aff) => (
+                    <tr key={aff.affiliateId.toString()}>
+                      <td style={{ border: '1px solid #ccc', padding: '4px' }}>{aff.affiliateId.toString()}</td>
+                      <td style={{ border: '1px solid #ccc', padding: '4px' }}>{formatTonFriendly(aff.affiliateAddr)}</td>
+                      <td style={{ border: '1px solid #ccc', padding: '4px' }}>{fromNano(aff.totalEarnings)} TON</td>
+                      <td style={{ border: '1px solid #ccc', padding: '4px' }}>{aff.state.toString()}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+          {isUserAdvertiser && (
+            <div
+              style={{
+                flex: 1,
+                border: '1px solid #ccc',
+                borderRadius: '4px',
+                padding: '0.8rem',
+              }}
+            >
+              <h2>Actions</h2>
+              <div style={{ marginBottom: '1rem' }}>
+                <TransactionButton
+                  buttonLabel="Add Funds"
+                  showAmountField
+                  defaultAmount={1}
+                  onTransaction={async (amount) => {
+                    if (!amount) throw new Error('Invalid amount');
+                    if (onChainData.campaignDetails.paymentMethod === 0n) {
+                      await replenishWithTon(campaignContract, amount, sender);
+                    } else {
+                      await replenishWithUsdt(campaignContract, amount, sender, userAccount?.address, client);
+                    }
+                  }}
+                />
+              </div>
+              <div style={{ marginBottom: '1rem' }}>
+                <TransactionButton
+                  buttonLabel="Add TON for Gas Fees"
+                  showAmountField
+                  defaultAmount={1}
+                  onTransaction={async (amount) => {
+                    if (!amount) throw new Error('Invalid amount');
+                    if (onChainData.campaignDetails.paymentMethod === 0n) {
+                      await replenishWithTon(campaignContract, amount, sender);
+                    } else {
+                      await replenishGasFeesForUsdtCampaign(campaignContract, amount, sender);
+                    }
+                  }}
+                />
+              </div>
+              <div style={{ marginBottom: '1rem' }}>
+                <TransactionButton
+                  buttonLabel="Withdraw Funds"
+                  showAmountField
+                  onTransaction={async (amount) => {
+                    if (!amount) throw new Error('Invalid withdraw amount');
+                    await advertiserWithdrawFunds(campaignContract, amount, sender, userAccount?.address);
+                  }}
+                />
+              </div>
+              {!onChainData.campaignDetails.isPublicCampaign && (
+                <div style={{ marginTop: '1.5rem' }}>
+                  <button
+                    style={{ marginRight: '1rem' }}
+                    onClick={async () => {
+                      const affIdStr = prompt('Enter affiliate ID to approve:');
+                      if (!affIdStr) return;
+                      const affIdBn = BigInt(affIdStr);
+                      await advertiserApproveAffiliate(campaignContract, affIdBn, sender);
+                      alert(`Approved affiliate ID: ${affIdStr}`);
+                    }}
+                  >
+                    Approve Affiliate
+                  </button>
+                  <button
+                    onClick={async () => {
+                      const affIdStr = prompt('Enter affiliate ID to remove:');
+                      if (!affIdStr) return;
+                      const affIdBn = BigInt(affIdStr);
+                      await advertiserRemoveAffiliate(campaignContract, affIdBn, sender);
+                      alert(`Removed affiliate ID: ${affIdStr}`);
+                    }}
+                  >
+                    Remove Affiliate
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+      <hr style={{ margin: '2rem 0' }} />
+      {onChainData && (
+        <div style={{ display: 'flex', gap: '2rem' }}>
+          <div
+            style={{
+              flex: '0 0 50%',
+              border: '1px solid #ccc',
+              borderRadius: '4px',
+              padding: '0.8rem',
+            }}
+          >
+            <h2>Top Affiliates</h2>
+            {topAffiliatesData.length === 0 ? (
+              <p>No top affiliates found.</p>
+            ) : (
+              <table style={{ borderCollapse: 'collapse', width: '100%' }}>
+                <thead>
+                  <tr>
+                    <th style={{ border: '1px solid #ccc', padding: '4px' }}>Affiliate ID</th>
+                    <th style={{ border: '1px solid #ccc', padding: '4px' }}>Address</th>
+                    <th style={{ border: '1px solid #ccc', padding: '4px' }}>Total Earnings</th>
+                    <th style={{ border: '1px solid #ccc', padding: '4px' }}>State</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {topAffiliatesData.map((aff) => (
+                    <tr key={aff.affiliateId.toString()}>
+                      <td style={{ border: '1px solid #ccc', padding: '4px' }}>{aff.affiliateId.toString()}</td>
+                      <td style={{ border: '1px solid #ccc', padding: '4px' }}>{formatTonFriendly(aff.affiliateAddr)}</td>
+                      <td style={{ border: '1px solid #ccc', padding: '4px' }}>{fromNano(aff.totalEarnings)} TON</td>
+                      <td style={{ border: '1px solid #ccc', padding: '4px' }}>{aff.state.toString()}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+          {isUserAdvertiser && (
+            <div
+              style={{
+                flex: 1,
+                border: '1px solid #ccc',
+                borderRadius: '4px',
+                padding: '0.8rem',
+              }}
+            >
+              <h2>Actions</h2>
+              <div style={{ marginBottom: '1rem' }}>
+                <TransactionButton
+                  buttonLabel="Add Funds"
+                  showAmountField
+                  defaultAmount={1}
+                  onTransaction={async (amount) => {
+                    if (!amount) throw new Error('Invalid amount');
+                    if (onChainData.campaignDetails.paymentMethod === 0n) {
+                      await replenishWithTon(campaignContract, amount, sender);
+                    } else {
+                      await replenishWithUsdt(campaignContract, amount, sender, userAccount?.address, client);
+                    }
+                  }}
+                />
+              </div>
+              <div style={{ marginBottom: '1rem' }}>
+                <TransactionButton
+                  buttonLabel="Add TON for Gas Fees"
+                  showAmountField
+                  defaultAmount={1}
+                  onTransaction={async (amount) => {
+                    if (!amount) throw new Error('Invalid amount');
+                    if (onChainData.campaignDetails.paymentMethod === 0n) {
+                      await replenishWithTon(campaignContract, amount, sender);
+                    } else {
+                      await replenishGasFeesForUsdtCampaign(campaignContract, amount, sender);
+                    }
+                  }}
+                />
+              </div>
+              <div style={{ marginBottom: '1rem' }}>
+                <TransactionButton
+                  buttonLabel="Withdraw Funds"
+                  showAmountField
+                  onTransaction={async (amount) => {
+                    if (!amount) throw new Error('Invalid withdraw amount');
+                    await advertiserWithdrawFunds(campaignContract, amount, sender, userAccount?.address);
+                  }}
+                />
+              </div>
+              {!onChainData.campaignDetails.isPublicCampaign && (
+                <div style={{ marginTop: '1.5rem' }}>
+                  <button
+                    style={{ marginRight: '1rem' }}
+                    onClick={async () => {
+                      const affIdStr = prompt('Enter affiliate ID to approve:');
+                      if (!affIdStr) return;
+                      const affIdBn = BigInt(affIdStr);
+                      await advertiserApproveAffiliate(campaignContract, affIdBn, sender);
+                      alert(`Approved affiliate ID: ${affIdStr}`);
+                    }}
+                  >
+                    Approve Affiliate
+                  </button>
+                  <button
+                    onClick={async () => {
+                      const affIdStr = prompt('Enter affiliate ID to remove:');
+                      if (!affIdStr) return;
+                      const affIdBn = BigInt(affIdStr);
+                      await advertiserRemoveAffiliate(campaignContract, affIdBn, sender);
+                      alert(`Removed affiliate ID: ${affIdStr}`);
+                    }}
+                  >
+                    Remove Affiliate
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+      <hr style={{ margin: '2rem 0' }} />
+      {onChainData && (
+        <div style={{ display: 'flex', gap: '2rem' }}>
+          <div
+            style={{
+              flex: '0 0 50%',
+              border: '1px solid #ccc',
+              borderRadius: '4px',
+              padding: '0.8rem',
+            }}
+          >
+            <h2>Top Affiliates</h2>
+            {topAffiliatesData.length === 0 ? (
+              <p>No top affiliates found.</p>
+            ) : (
+              <table style={{ borderCollapse: 'collapse', width: '100%' }}>
+                <thead>
+                  <tr>
+                    <th style={{ border: '1px solid #ccc', padding: '4px' }}>Affiliate ID</th>
+                    <th style={{ border: '1px solid #ccc', padding: '4px' }}>Address</th>
+                    <th style={{ border: '1px solid #ccc', padding: '4px' }}>Total Earnings</th>
+                    <th style={{ border: '1px solid #ccc', padding: '4px' }}>State</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {topAffiliatesData.map((aff) => (
+                    <tr key={aff.affiliateId.toString()}>
+                      <td style={{ border: '1px solid #ccc', padding: '4px' }}>{aff.affiliateId.toString()}</td>
+                      <td style={{ border: '1px solid #ccc', padding: '4px' }}>{formatTonFriendly(aff.affiliateAddr)}</td>
+                      <td style={{ border: '1px solid #ccc', padding: '4px' }}>{fromNano(aff.totalEarnings)} TON</td>
+                      <td style={{ border: '1px solid #ccc', padding: '4px' }}>{aff.state.toString()}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+          {isUserAdvertiser && (
+            <div
+              style={{
+                flex: 1,
+                border: '1px solid #ccc',
+                borderRadius: '4px',
+                padding: '0.8rem',
+              }}
+            >
+              <h2>Actions</h2>
+              <div style={{ marginBottom: '1rem' }}>
+                <TransactionButton
+                  buttonLabel="Add Funds"
+                  showAmountField
+                  defaultAmount={1}
+                  onTransaction={async (amount) => {
+                    if (!amount) throw new Error('Invalid amount');
+                    if (onChainData.campaignDetails.paymentMethod === 0n) {
+                      await replenishWithTon(campaignContract, amount, sender);
+                    } else {
+                      await replenishWithUsdt(campaignContract, amount, sender, userAccount?.address, client);
+                    }
+                  }}
+                />
+              </div>
+              <div style={{ marginBottom: '1rem' }}>
+                <TransactionButton
+                  buttonLabel="Add TON for Gas Fees"
+                  showAmountField
+                  defaultAmount={1}
+                  onTransaction={async (amount) => {
+                    if (!amount) throw new Error('Invalid amount');
+                    if (onChainData.campaignDetails.paymentMethod === 0n) {
+                      await replenishWithTon(campaignContract, amount, sender);
+                    } else {
+                      await replenishGasFeesForUsdtCampaign(campaignContract, amount, sender);
+                    }
+                  }}
+                />
+              </div>
+              <div style={{ marginBottom: '1rem' }}>
+                <TransactionButton
+                  buttonLabel="Withdraw Funds"
+                  showAmountField
+                  onTransaction={async (amount) => {
+                    if (!amount) throw new Error('Invalid withdraw amount');
+                    await advertiserWithdrawFunds(campaignContract, amount, sender, userAccount?.address);
+                  }}
+                />
+              </div>
+              {!onChainData.campaignDetails.isPublicCampaign && (
+                <div style={{ marginTop: '1.5rem' }}>
+                  <button
+                    style={{ marginRight: '1rem' }}
+                    onClick={async () => {
+                      const affIdStr = prompt('Enter affiliate ID to approve:');
+                      if (!affIdStr) return;
+                      const affIdBn = BigInt(affIdStr);
+                      await advertiserApproveAffiliate(campaignContract, affIdBn, sender);
+                      alert(`Approved affiliate ID: ${affIdStr}`);
+                    }}
+                  >
+                    Approve Affiliate
+                  </button>
+                  <button
+                    onClick={async () => {
+                      const affIdStr = prompt('Enter affiliate ID to remove:');
+                      if (!affIdStr) return;
+                      const affIdBn = BigInt(affIdStr);
+                      await advertiserRemoveAffiliate(campaignContract, affIdBn, sender);
+                      alert(`Removed affiliate ID: ${affIdStr}`);
+                    }}
+                  >
+                    Remove Affiliate
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+      <hr style={{ margin: '2rem 0' }} />
+      {onChainData && (
+        <div style={{ display: 'flex', gap: '2rem' }}>
+          <div
+            style={{
+              flex: '0 0 50%',
+              border: '1px solid #ccc',
+              borderRadius: '4px',
+              padding: '0.8rem',
+            }}
+          >
+            <h2>Top Affiliates</h2>
+            {topAffiliatesData.length === 0 ? (
+              <p>No top affiliates found.</p>
+            ) : (
+              <table style={{ borderCollapse: 'collapse', width: '100%' }}>
+                <thead>
+                  <tr>
+                    <th style={{ border: '1px solid #ccc', padding: '4px' }}>Affiliate ID</th>
+                    <th style={{ border: '1px solid #ccc', padding: '4px' }}>Address</th>
+                    <th style={{ border: '1px solid #ccc', padding: '4px' }}>Total Earnings</th>
+                    <th style={{ border: '1px solid #ccc', padding: '4px' }}>State</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {topAffiliatesData.map((aff) => (
+                    <tr key={aff.affiliateId.toString()}>
+                      <td style={{ border: '1px solid #ccc', padding: '4px' }}>{aff.affiliateId.toString()}</td>
+                      <td style={{ border: '1px solid #ccc', padding: '4px' }}>{formatTonFriendly(aff.affiliateAddr)}</td>
+                      <td style={{ border: '1px solid #ccc', padding: '4px' }}>{fromNano(aff.totalEarnings)} TON</td>
+                      <td style={{ border: '1px solid #ccc', padding: '4px' }}>{aff.state.toString()}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+          {isUserAdvertiser && (
+            <div
+              style={{
+                flex: 1,
+                border: '1px solid #ccc',
+                borderRadius: '4px',
+                padding: '0.8rem',
+              }}
+            >
+              <h2>Actions</h2>
+              <div style={{ marginBottom: '1rem' }}>
+                <TransactionButton
+                  buttonLabel="Add Funds"
+                  showAmountField
+                  defaultAmount={1}
+                  onTransaction={async (amount) => {
+                    if (!amount) throw new Error('Invalid amount');
+                    if (onChainData.campaignDetails.paymentMethod === 0n) {
+                      await replenishWithTon(campaignContract, amount, sender);
+                    } else {
+                      await replenishWithUsdt(campaignContract, amount, sender, userAccount?.address, client);
+                    }
+                  }}
+                />
+              </div>
+              <div style={{ marginBottom: '1rem' }}>
+                <TransactionButton
+                  buttonLabel="Add TON for Gas Fees"
+                  showAmountField
+                  defaultAmount={1}
+                  onTransaction={async (amount) => {
+                    if (!amount) throw new Error('Invalid amount');
+                    if (onChainData.campaignDetails.paymentMethod === 0n) {
+                      await replenishWithTon(campaignContract, amount, sender);
+                    } else {
+                      await replenishGasFeesForUsdtCampaign(campaignContract, amount, sender);
+                    }
+                  }}
+                />
+              </div>
+              <div style={{ marginBottom: '1rem' }}>
+                <TransactionButton
+                  buttonLabel="Withdraw Funds"
+                  showAmountField
+                  onTransaction={async (amount) => {
+                    if (!amount) throw new Error('Invalid withdraw amount');
+                    await advertiserWithdrawFunds(campaignContract, amount, sender, userAccount?.address);
+                  }}
+                />
+              </div>
+              {!onChainData.campaignDetails.isPublicCampaign && (
+                <div style={{ marginTop: '1.5rem' }}>
+                  <button
+                    style={{ marginRight: '1rem' }}
+                    onClick={async () => {
+                      const affIdStr = prompt('Enter affiliate ID to approve:');
+                      if (!affIdStr) return;
+                      const affIdBn = BigInt(affIdStr);
+                      await advertiserApproveAffiliate(campaignContract, affIdBn, sender);
+                      alert(`Approved affiliate ID: ${affIdStr}`);
+                    }}
+                  >
+                    Approve Affiliate
+                  </button>
+                  <button
+                    onClick={async () => {
+                      const affIdStr = prompt('Enter affiliate ID to remove:');
+                      if (!affIdStr) return;
+                      const affIdBn = BigInt(affIdStr);
+                      await advertiserRemoveAffiliate(campaignContract, affIdBn, sender);
+                      alert(`Removed affiliate ID: ${affIdStr}`);
+                    }}
+                  >
+                    Remove Affiliate
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+      <hr style={{ margin: '2rem 0' }} />
+      {onChainData && (
+        <div style={{ display: 'flex', gap: '2rem' }}>
+          <div
+            style={{
+              flex: '0 0 50%',
+              border: '1px solid #ccc',
+              borderRadius: '4px',
+              padding: '0.8rem',
+            }}
+          >
+            <h2>Top Affiliates</h2>
+            {topAffiliatesData.length === 0 ? (
+              <p>No top affiliates found.</p>
+            ) : (
+              <table style={{ borderCollapse: 'collapse', width: '100%' }}>
+                <thead>
+                  <tr>
+                    <th style={{ border: '1px solid #ccc', padding: '4px' }}>Affiliate ID</th>
+                    <th style={{ border: '1px solid #ccc', padding: '4px' }}>Address</th>
+                    <th style={{ border: '1px solid #ccc', padding: '4px' }}>Total Earnings</th>
+                    <th style={{ border: '1px solid #ccc', padding: '4px' }}>State</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {topAffiliatesData.map((aff) => (
+                    <tr key={aff.affiliateId.toString()}>
+                      <td style={{ border: '1px solid #ccc', padding: '4px' }}>{aff.affiliateId.toString()}</td>
+                      <td style={{ border: '1px solid #ccc', padding: '4px' }}>{formatTonFriendly(aff.affiliateAddr)}</td>
+                      <td style={{ border: '1px solid #ccc', padding: '4px' }}>{fromNano(aff.totalEarnings)} TON</td>
+                      <td style={{ border: '1px solid #ccc', padding: '4px' }}>{aff.state.toString()}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+          {isUserAdvertiser && (
+            <div
+              style={{
+                flex: 1,
+                border: '1px solid #ccc',
+                borderRadius: '4px',
+                padding: '0.8rem',
+              }}
+            >
+              <h2>Actions</h2>
+              <div style={{ marginBottom: '1rem' }}>
+                <TransactionButton
+                  buttonLabel="Add Funds"
+                  showAmountField
+                  defaultAmount={1}
+                  onTransaction={async (amount) => {
+                    if (!amount) throw new Error('Invalid amount');
+                    if (onChainData.campaignDetails.paymentMethod === 0n) {
+                      await replenishWithTon(campaignContract, amount, sender);
+                    } else {
+                      await replenishWithUsdt(campaignContract, amount, sender, userAccount?.address, client);
+                    }
+                  }}
+                />
+              </div>
+              <div style={{ marginBottom: '1rem' }}>
+                <TransactionButton
+                  buttonLabel="Add TON for Gas Fees"
+                  showAmountField
+                  defaultAmount={1}
+                  onTransaction={async (amount) => {
+                    if (!amount) throw new Error('Invalid amount');
+                    if (onChainData.campaignDetails.paymentMethod === 0n) {
+                      await replenishWithTon(campaignContract, amount, sender);
+                    } else {
+                      await replenishGasFeesForUsdtCampaign(campaignContract, amount, sender);
+                    }
+                  }}
+                />
+              </div>
+              <div style={{ marginBottom: '1rem' }}>
+                <TransactionButton
+                  buttonLabel="Withdraw Funds"
+                  showAmountField
+                  onTransaction={async (amount) => {
+                    if (!amount) throw new Error('Invalid withdraw amount');
+                    await advertiserWithdrawFunds(campaignContract, amount, sender, userAccount?.address);
+                  }}
+                />
+              </div>
+              {!onChainData.campaignDetails.isPublicCampaign && (
+                <div style={{ marginTop: '1.5rem' }}>
+                  <button
+                    style={{ marginRight: '1rem' }}
+                    onClick={async () => {
+                      const affIdStr = prompt('Enter affiliate ID to approve:');
+                      if (!affIdStr) return;
+                      const affIdBn = BigInt(affIdStr);
+                      await advertiserApproveAffiliate(campaignContract, affIdBn, sender);
+                      alert(`Approved affiliate ID: ${affIdStr}`);
+                    }}
+                  >
+                    Approve Affiliate
+                  </button>
+                  <button
+                    onClick={async () => {
+                      const affIdStr = prompt('Enter affiliate ID to remove:');
+                      if (!affIdStr) return;
+                      const affIdBn = BigInt(affIdStr);
+                      await advertiserRemoveAffiliate(campaignContract, affIdBn, sender);
+                      alert(`Removed affiliate ID: ${affIdStr}`);
+                    }}
+                  >
+                    Remove Affiliate
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+      <hr style={{ margin: '2rem 0' }} />
+      {onChainData && (
+        <div style={{ display: 'flex', gap: '2rem' }}>
+          <div
+            style={{
+              flex: '0 0 50%',
+              border: '1px solid #ccc',
+              borderRadius: '4px',
+              padding: '0.8rem',
+            }}
+          >
+            <h2>Top Affiliates</h2>
+            {topAffiliatesData.length === 0 ? (
+              <p>No top affiliates found.</p>
+            ) : (
+              <table style={{ borderCollapse: 'collapse', width: '100%' }}>
+                <thead>
+                  <tr>
+                    <th style={{ border: '1px solid #ccc', padding: '4px' }}>Affiliate ID</th>
+                    <th style={{ border: '1px solid #ccc', padding: '4px' }}>Address</th>
+                    <th style={{ border: '1px solid #ccc', padding: '4px' }}>Total Earnings</th>
+                    <th style={{ border: '1px solid #ccc', padding: '4px' }}>State</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {topAffiliatesData.map((aff) => (
+                    <tr key={aff.affiliateId.toString()}>
+                      <td style={{ border: '1px solid #ccc', padding: '4px' }}>{aff.affiliateId.toString()}</td>
+                      <td style={{ border: '1px solid #ccc', padding: '4px' }}>{formatTonFriendly(aff.affiliateAddr)}</td>
+                      <td style={{ border: '1px solid #ccc', padding: '4px' }}>{fromNano(aff.totalEarnings)} TON</td>
+                      <td style={{ border: '1px solid #ccc', padding: '4px' }}>{aff.state.toString()}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+          {isUserAdvertiser && (
+            <div
+              style={{
+                flex: 1,
+                border: '1px solid #ccc',
+                borderRadius: '4px',
+                padding: '0.8rem',
+              }}
+            >
+              <h2>Actions</h2>
+              <div style={{ marginBottom: '1rem' }}>
+                <TransactionButton
+                  buttonLabel="Add Funds"
+                  showAmountField
+                  defaultAmount={1}
+                  onTransaction={async (amount) => {
+                    if (!amount) throw new Error('Invalid amount');
+                    if (onChainData.campaignDetails.paymentMethod === 0n) {
+                      await replenishWithTon(campaignContract, amount, sender);
+                    } else {
+                      await replenishWithUsdt(campaignContract, amount, sender, userAccount?.address, client);
+                    }
+                  }}
+                />
+              </div>
+              <div style={{ marginBottom: '1rem' }}>
+                <TransactionButton
+                  buttonLabel="Add TON for Gas Fees"
+                  showAmountField
+                  defaultAmount={1}
+                  onTransaction={async (amount) => {
+                    if (!amount) throw new Error('Invalid amount');
+                    if (onChainData.campaignDetails.paymentMethod === 0n) {
+                      await replenishWithTon(campaignContract, amount, sender);
+                    } else {
+                      await replenishGasFeesForUsdtCampaign(campaignContract, amount, sender);
+                    }
+                  }}
+                />
+              </div>
+              <div style={{ marginBottom: '1rem' }}>
+                <TransactionButton
+                  buttonLabel="Withdraw Funds"
+                  showAmountField
+                  onTransaction={async (amount) => {
+                    if (!amount) throw new Error('Invalid withdraw amount');
+                    await advertiserWithdrawFunds(campaignContract, amount, sender, userAccount?.address);
+                  }}
+                />
+              </div>
               {!onChainData.campaignDetails.isPublicCampaign && (
                 <div style={{ marginTop: '1.5rem' }}>
                   <button

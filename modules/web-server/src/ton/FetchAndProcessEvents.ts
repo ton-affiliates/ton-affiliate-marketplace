@@ -98,13 +98,13 @@ async function processEvent(event: EmitLogEvent) {
           Logger.info(`Received AdvertiserSignedCampaignDetailsEvent with payload: ${JSON.stringify(payload, bigintReplacer)}`);
           const { campaignId, advertiser } = payload;
           const advertiserTon = translateRawAddress(advertiser);
-          Logger.info(`[AdvertiserSignedCampaignDetailsEvent] - campaignId: ${campaignId}, advertiser (translated): ${advertiserTon}`);
+          Logger.debug(`[AdvertiserSignedCampaignDetailsEvent] - campaignId: ${campaignId}, advertiser (translated): ${advertiserTon}`);
           const campaignFromDB: CampaignApiResponse | null = await getCampaignByIdWithAdvertiser(campaignId);
           if (!campaignFromDB) {
             Logger.error('No such campaign in DB: ' + campaignId);
             throw new Error('No such campaign in DB: ' + campaignId);
           }
-          Logger.info(`Campaign details fetched from DB: ${JSON.stringify(campaignFromDB, bigintReplacer)}`);
+          Logger.debug(`Campaign details fetched from DB: ${JSON.stringify(campaignFromDB, bigintReplacer)}`);
           let endpoint;
           if (TonConfig.HTTP_ENDPOINT_NETWORK === 'testnet') {
             Logger.info('Getting HTTP V4 endpoint for testnet');
@@ -113,48 +113,32 @@ async function processEvent(event: EmitLogEvent) {
             Logger.info('Getting HTTP V4 endpoint for mainnet');
             endpoint = await getHttpV4Endpoint();
           }
-          Logger.info(`Endpoint obtained: ${endpoint}`);
+          
           const client = new TonClient4({ endpoint });
-          Logger.info(`TonClient4 instantiated with endpoint: ${endpoint}`);
           const campaignAddress = Address.parse(campaignFromDB.contractAddress);
-          Logger.info(`Parsed campaign contract address: ${campaignFromDB.contractAddress} to: ${campaignAddress.toString()}`);
           const campaignInstance = client.open(Campaign.fromAddress(campaignAddress));
-          Logger.info(`Campaign instance opened for address: ${campaignAddress.toString()}`);
-          Logger.info(`Fetching on-chain campaign data for campaignId: ${campaignId}`);
           const onChainData = await campaignInstance.getCampaignData();
-          Logger.info(`On-chain data received: ${JSON.stringify(onChainData, bigintReplacer)}`);
           const campaignDetails = onChainData.campaignDetails;
-          Logger.info(`Campaign details extracted: ${JSON.stringify(campaignDetails, bigintReplacer)}`);
           const opCodesToVerify = new Set<number>();
-          Logger.info('Traversing regularUsersCostPerAction keys');
           for (const opCode of campaignDetails.regularUsersCostPerAction.keys()) {
             const numericOpCode = Number(opCode);
-            Logger.info(`Found regular user opCode: ${opCode} converted to: ${numericOpCode}`);
             opCodesToVerify.add(numericOpCode);
           }
-          Logger.info('Traversing premiumUsersCostPerAction keys');
           for (const opCode of campaignDetails.premiumUsersCostPerAction.keys()) {
             const numericOpCode = Number(opCode);
-            Logger.info(`Found premium user opCode: ${opCode} converted to: ${numericOpCode}`);
             opCodesToVerify.add(numericOpCode);
           }
           const eventsToVerifyFromBlockchain: number[] = Array.from(opCodesToVerify);
-          Logger.info(`Numeric opCodes from blockchain: ${JSON.stringify(eventsToVerifyFromBlockchain, bigintReplacer)}`);
           const eventsToVerifyFromDB: number[] = Array.from(campaignFromDB.eventsToVerify ?? []).map(e => parseInt(e.toString(), 10));
-          Logger.info(`Numeric opCodes from DB: ${JSON.stringify(eventsToVerifyFromDB, bigintReplacer)}`);
           const arraysMatch = sameElements(eventsToVerifyFromDB, eventsToVerifyFromBlockchain);
-          Logger.info(`Do opCodes arrays match? ${arraysMatch}`);
           if (!arraysMatch) {
             const errorMessage = `Inconsistent OP Codes coming from Blockchain: From DB: ${JSON.stringify(eventsToVerifyFromDB)}, from Blockchain: ${JSON.stringify(eventsToVerifyFromBlockchain, bigintReplacer)}`;
             Logger.error(errorMessage);
             throw new Error(errorMessage);
           }
-          Logger.info(`Updating campaign state with campaignId: ${campaignId}`);
           await ensureCampaign({ id: campaignId });
-          Logger.info(`Campaign ${campaignId} state updated to BLOCKCHAIN_DETAILS_SET (advertiser signed).`);
 
           Logger.info(`Broadcasting AdvertiserSignedCampaignDetailsEvent to SSE clients`);
-          Logger.info(`num clients: ${sseClients.length}`);
 
           const sseMessage = `id: ${Date.now()}\n` +
             `data: ${JSON.stringify(
