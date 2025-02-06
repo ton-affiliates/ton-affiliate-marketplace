@@ -8,10 +8,11 @@ import { useTonConnectFetchContext } from './TonConnectProvider';
 import { useAffiliateMarketplace } from '../hooks/useAffiliateMarketplace';
 import Spinner from './Spinner';
 import SuccessIcon from './SuccessIcon';
-import { useCampaignWebSocket } from '../hooks/useCampaignWebSocket';
+// Import the SSE hook instead of the WebSocket hook.
+import { useNewCampaignSSE } from '../hooks/useNewCampaignSSE';
 
 interface DeployEmptyCampaignProps {
-  // We removed setScreen and setCampaignId, since we don't rely on them here.
+  // No props for now.
 }
 
 const DeployEmptyCampaign: React.FC<DeployEmptyCampaignProps> = () => {
@@ -23,21 +24,18 @@ const DeployEmptyCampaign: React.FC<DeployEmptyCampaignProps> = () => {
   const [waitingForTx, setWaitingForTx] = useState(false);
   const [txSuccess, setTxSuccess] = useState(false);
   const [txFailed, setTxFailed] = useState(false);
-  const [txTimeout, setTxTimeout] = useState(false); // up to you if you keep a “timeout” state
+  const [txTimeout, setTxTimeout] = useState(false);
 
   const timeoutRef = useRef<number | null>(null);
 
-  // Real-time campaign updates via WebSocket:
-  // Now we call useCampaignWebSocket with 5 arguments.
-  useCampaignWebSocket(
+  useNewCampaignSSE(
     userAccount,
-    undefined,  // no campaignId
     setTxSuccess,
     setWaitingForTx,
     setTxFailed
   );
 
-  // Fetch initial number of campaigns
+  // Fetch initial number of campaigns.
   useEffect(() => {
     const fetchNumCampaigns = async () => {
       if (!affiliateMarketplace) return;
@@ -51,7 +49,7 @@ const DeployEmptyCampaign: React.FC<DeployEmptyCampaignProps> = () => {
     fetchNumCampaigns();
   }, [affiliateMarketplace]);
 
-  // Cleanup if unmounted
+  // Cleanup if unmounted.
   useEffect(() => {
     return () => {
       if (timeoutRef.current) {
@@ -68,7 +66,7 @@ const DeployEmptyCampaign: React.FC<DeployEmptyCampaignProps> = () => {
     setTxFailed(false);
     setTxTimeout(false);
 
-    // Start a 60-second timer in case no event arrives
+    // Start a 60-second timer in case no event arrives.
     timeoutRef.current = window.setTimeout(() => {
       setTxTimeout(true);
       setWaitingForTx(false);
@@ -83,12 +81,10 @@ const DeployEmptyCampaign: React.FC<DeployEmptyCampaignProps> = () => {
 
       console.log('Waiting for user to confirm the transaction...');
       await txPromise;
-
       console.log('Transaction sent successfully!');
-      // The WebSocket event (CampaignCreatedEvent) will handle setting txSuccess, etc.
+      // The SSE event (e.g. CampaignCreatedEvent) will handle updating txSuccess, etc.
     } catch (error) {
       console.error('Transaction failed or was canceled:', error);
-
       setWaitingForTx(false);
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
 

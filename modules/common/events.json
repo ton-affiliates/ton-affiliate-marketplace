@@ -4,7 +4,20 @@
       "eventName": "JOINED",
       "opCode": 0,
       "description": "User joined the group or channel",
+      "api": {
+        "trigger": "new_chat_members",
+        "notes": "Listen to Telegram Bot API updates that include the new_chat_members field. This notifies the bot when a user joins."
+      },
       "assetTypes": [
+        {
+          "type": "group",
+          "internalRequiredAdminPrivileges": [
+            "can_manage_chat"
+          ],
+          "externalRequiredAdminPrivileges": [
+            "Change group info"
+          ]
+        },
         {
           "type": "supergroup",
           "internalRequiredAdminPrivileges": [
@@ -12,6 +25,15 @@
           ],
           "externalRequiredAdminPrivileges": [
             "Change channel info"
+          ]
+        },
+        {
+          "type": "giga group",
+          "internalRequiredAdminPrivileges": [
+            "can_manage_chat"
+          ],
+          "externalRequiredAdminPrivileges": [
+            "Manage giga group"
           ]
         },
         {
@@ -29,9 +51,24 @@
       "eventName": "RETAINED_TWO_WEEKS",
       "opCode": 1,
       "description": "User remained in the group/channel for 2 weeks",
+      "api": {
+        "trigger": "cron_job",
+        "method": "getChatMember",
+        "notes": "Run on a scheduled cron job that calls the getChatMember API to check if the user is still a member."
+      },
       "assetTypes": [
         {
+          "type": "group",
+          "internalRequiredAdminPrivileges": [],
+          "externalRequiredAdminPrivileges": []
+        },
+        {
           "type": "supergroup",
+          "internalRequiredAdminPrivileges": [],
+          "externalRequiredAdminPrivileges": []
+        },
+        {
+          "type": "giga group",
           "internalRequiredAdminPrivileges": [],
           "externalRequiredAdminPrivileges": []
         },
@@ -46,9 +83,24 @@
       "eventName": "RETAINED_ONE_MONTH",
       "opCode": 2,
       "description": "User remained in the group/channel for 1 month",
+      "api": {
+        "trigger": "cron_job",
+        "method": "getChatMember",
+        "notes": "Run on a scheduled cron job that calls the getChatMember API to verify continued membership."
+      },
       "assetTypes": [
         {
+          "type": "group",
+          "internalRequiredAdminPrivileges": [],
+          "externalRequiredAdminPrivileges": []
+        },
+        {
           "type": "supergroup",
+          "internalRequiredAdminPrivileges": [],
+          "externalRequiredAdminPrivileges": []
+        },
+        {
+          "type": "giga group",
           "internalRequiredAdminPrivileges": [],
           "externalRequiredAdminPrivileges": []
         },

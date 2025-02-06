@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import MainScreen from './components/MainScreen';
 import AdvertiserOptions from './components/AdvertiserOptions';
 import DeployEmptyCampaign from './components/DeployEmptyCampaign';
-import WizardSetupCampaign from './components/WizardSetupCampaign.tsx';
+import WizardSetupCampaign from './components/WizardSetupCampaign';
 import CampaignView from './components/CampaignView';
 import LoginScreen from './components/LoginScreen';
 import Campaigns from './components/Campaigns';
@@ -23,9 +23,9 @@ function App() {
   return (
     <BrowserRouter>
       <TelegramProvider>
-          <TonConnectProvider>
-            <AppContent />
-          </TonConnectProvider>
+        <TonConnectProvider>
+          <AppContent />
+        </TonConnectProvider>
       </TelegramProvider>
     </BrowserRouter>
   );

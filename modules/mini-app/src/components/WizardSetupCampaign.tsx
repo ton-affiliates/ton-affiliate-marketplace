@@ -18,8 +18,8 @@ import { Dictionary } from '@ton/core';
 // The custom hook that loads the contract
 import { useCampaignContract } from '../hooks/useCampaignContract';
 
-// WebSocket hook if you want to replicate the spinner approach:
-import { useCampaignWebSocket } from '../hooks/useCampaignWebSocket';
+// Instead of the WebSocket hook, we import our SSE hook:
+import { useCampaignSSE } from '../hooks/useCampaignSSE';
 
 // Utility types
 import { CampaignApiResponse } from '@common/ApiResponses';
@@ -28,6 +28,7 @@ import { CampaignApiResponse } from '@common/ApiResponses';
 import Spinner from './Spinner';
 // import SuccessIcon from './SuccessIcon';
 
+// Define Telegram categories
 export enum TelegramCategory {
   GAMING = 'Gaming',
   CRYPTO = 'Crypto',
@@ -87,7 +88,7 @@ function WizardSetupCampaign() {
   const [expirationDateEnabled, setExpirationDateEnabled] = useState(false);
   const [expirationDate, setExpirationDate] = useState('');
 
-  // Spinner-based states, if we want the “DeployEmptyCampaign” approach
+  // Spinner-based states
   const [waitingForTx, setWaitingForTx] = useState(false);
   const [txSuccess, setTxSuccess] = useState(false);
   const [txFailed, setTxFailed] = useState(false);
@@ -103,10 +104,11 @@ function WizardSetupCampaign() {
     error: contractError,
   } = useCampaignContract(contractAddress);
 
-  // 5) Optionally use your WebSocket hook, passing the same style signature
-  useCampaignWebSocket(
+  // 5) Use the SSE hook for real-time events.
+  // Pass in the userAccount, campaignId (from URL), and the setters.
+  useCampaignSSE(
     userAccount,
-    campaignId, // pass your campaignId here
+    campaignId!, // Now we pass the campaignId so that the SSE endpoint can filter events for this campaign.
     setTxSuccess,
     setWaitingForTx,
     setTxFailed
@@ -226,7 +228,7 @@ function WizardSetupCampaign() {
         throw new Error(msg);
       }
 
-      // 2) partial campaign from response
+      // 2) Partial campaign from response
       const partialCampaign = (await resp.json()) as CampaignApiResponse;
 
       // 3) Re-fetch for full fields
@@ -327,7 +329,6 @@ function WizardSetupCampaign() {
     setTxFailed(false);
     setTxTimeout(false);
 
-    // 60-second timer
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
     timeoutRef.current = window.setTimeout(() => {
       setTxTimeout(true);
@@ -353,8 +354,8 @@ function WizardSetupCampaign() {
         expirationDate
       );
 
-      console.log('[WizardSetupCampaign] On-chain tx broadcast. Waiting for WS ack or final event...');
-      // The WS event "AdvertiserSignedCampaignDetailsEvent" should set txSuccess(true)
+      console.log('[WizardSetupCampaign] On-chain tx broadcast. Waiting for SSE ack or final event...');
+      // The SSE event "AdvertiserSignedCampaignDetailsEvent" should set txSuccess(true)
     } catch (err: any) {
       console.error('On-chain setup error:', err);
       setWaitingForTx(false);
@@ -376,7 +377,6 @@ function WizardSetupCampaign() {
         <h2>Unified Wizard Setup (Steps 1-4, No Step 5)</h2>
         <p><strong>Current Step:</strong> {step}</p>
 
-        {/* Display error if any */}
         {errorMessage && <p style={{ color: 'red' }}>{errorMessage}</p>}
 
         {/* ---------------- Step 1 ---------------- */}
@@ -421,7 +421,6 @@ function WizardSetupCampaign() {
               {isLoading ? 'Loading...' : 'Load Telegram Info'}
             </button>
 
-            {/* If telegramAsset is loaded, show partial info */}
             {telegramAsset && (
               <div style={{ border: '1px solid #ccc', marginTop: '1rem', padding: '1rem' }}>
                 <p><strong>Chat ID:</strong> {telegramAsset.chatId}</p>
@@ -528,7 +527,6 @@ function WizardSetupCampaign() {
             <p><strong>Campaign ID:</strong> {createdCampaign.id}</p>
             <p><strong>Bot Admin?:</strong> {createdCampaign.botIsAdmin ? 'Yes' : 'No'}</p>
 
-            {/* Render required privileges if available */}
             {createdCampaign.requiredPrivileges && createdCampaign.requiredPrivileges.length > 0 && (
               <div style={{ margin: '1rem 0' }}>
                 <strong>Required Privileges:</strong>
@@ -540,7 +538,6 @@ function WizardSetupCampaign() {
               </div>
             )}
 
-            {/* Optionally, render adminPrivileges if you want to display all privileges */}
             {createdCampaign.adminPrivileges && createdCampaign.adminPrivileges.length > 0 && (
               <div style={{ margin: '1rem 0' }}>
                 <strong>Admin Privileges:</strong>
@@ -659,14 +656,16 @@ function WizardSetupCampaign() {
 
         {txTimeout && !txSuccess && (
           <div style={{ marginTop: '1rem', background: '#fff3cd', padding: '1rem' }}>
-            <p>No confirmation event yet. Possibly still processing. You can wait or refresh.</p>
+            <p>
+              No confirmation event yet. Possibly still processing. You can wait or refresh.
+            </p>
           </div>
         )}
 
         {txSuccess && (
           <div style={{ marginTop: '1rem', background: '#d4edda', padding: '1rem' }}>
             {/* <SuccessIcon /> if available */}
-            <p>Transaction successful! (Received WS ack)</p>
+            <p>Transaction successful! (Received SSE ack)</p>
           </div>
         )}
 

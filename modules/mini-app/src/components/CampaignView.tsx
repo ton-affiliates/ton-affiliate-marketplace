@@ -15,7 +15,7 @@ import { advertiserApproveAffiliate } from '../blockchain/advertiserApproveAffil
 import { advertiserRemoveAffiliate } from '../blockchain/advertiserRemoveAffiliate';
 import { affiliateCreateNewAffiliate } from '../blockchain/affiliateCreateNewAffiliate';
 
-import { useAffiliateWebSocket } from '../hooks/useAffiliateWebSocket';
+import { useCampaignSSE } from '../hooks/useCampaignSSE';
 
 import {
   CampaignApiResponse,
@@ -293,20 +293,9 @@ export default function CampaignView() {
   //------------------------------------------------------------------
   // 5) WebSocket for affiliate created
   //------------------------------------------------------------------
-  useAffiliateWebSocket(
-    userAccount?.address,
-    (createdId) => {
-      console.log('[CampaignView] AffiliateCreatedEvent arrived from server');
-      setWaitingForTx(false);
-      setTxSuccess(true);
-      setTxFailed(false);
-      setTxTimeout(false);
-      if (timeoutRef.current) clearTimeout(timeoutRef.current);
-      setNewAffiliateId(createdId);
-      fetchMyAffiliates();
-    },
-    id
-  );
+ 
+useCampaignSSE(userAccount, id!, setTxSuccess, setWaitingForTx, setTxFailed);
+
 
   //------------------------------------------------------------------
   // 6) My affiliates

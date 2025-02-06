@@ -6,7 +6,6 @@ import fs from 'fs';
 import path from 'path';
 
 import express from 'express';
-import WebSocket from 'ws';
 import { createServer } from 'http';
 
 import appDataSource from './ormconfig';
@@ -20,6 +19,7 @@ import UserRoutes from './routes/UserRoutes';
 import CampaignRoutes from './routes/CampaignRoutes';
 import CampaignRoleRoutes from './routes/CampaignRoleRoutes';
 import AuthRoutes from './routes/AuthRoutes';
+import { addSseClient, removeSseClient, sseClients, SSEClient } from './sseClients';
 
 dotenv.config();
 
@@ -75,18 +75,38 @@ httpServer.listen(PORT, () => {
   Logger.info(`Server is running on port ${PORT}`);
 });
 
-// 5) Setup WebSocket server (if needed)
-export const wss = new WebSocket.Server({ server: httpServer });
-wss.on('connection', (ws) => {
-  Logger.info('WebSocket client connected.');
-  ws.on('message', (message) => {
-    Logger.debug('WS message received', { message });
+// 5) SSE endpoint
+app.get('/api/sse', (req, res) => {
+  // Set SSE headers.
+  res.set({
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-cache',
+    Connection: 'keep-alive'
   });
-  ws.on('error', (error) => {
-    Logger.error('WebSocket error:', error);
-  });
-  ws.on('close', () => {
-    Logger.info('WebSocket client disconnected.');
+  res.flushHeaders(); // flush the headers to establish SSE with client
+
+  // Optionally, retrieve lastEventId from the query if provided.
+  const lastEventId = req.query.lastEventId;
+  if (lastEventId) {
+    // You could look up missed events and send them here.
+    // e.g., sendMissedEvents(lastEventId, res);
+  }
+
+  // Retrieve additional subscription parameters:
+  const campaignId = req.query.campaignId as string | undefined;
+  const type = req.query.type as string | undefined;
+
+  // Create an SSE client object with the response and context.
+  const client: SSEClient = { res, campaignId, type };
+
+  // Add this client to your global list.
+  addSseClient(client);
+  Logger.info('SSE client connected. Total clients:', sseClients.length);
+
+  // When the client closes the connection, remove it.
+  req.on('close', () => {
+    Logger.info('SSE client disconnected.');
+    removeSseClient(client);
   });
 });
 
@@ -95,8 +115,7 @@ const blockchainScheduler = new BlockchainEventsScheduler();
 blockchainScheduler.start();
 
 const telegramAssetsScheduler = new TelegramAssetsScheduler();
-telegramAssetsScheduler.start()
-
+telegramAssetsScheduler.start();
 
 // 7) Graceful shutdown
 async function shutdownGracefully(signal: string) {
@@ -104,9 +123,6 @@ async function shutdownGracefully(signal: string) {
 
   // Stop the blockchain events scheduler
   blockchainScheduler.stop();
-
-  // Stop the WebSocket server
-  wss.close();
 
   // Stop the bot
   bot.stop(signal);
