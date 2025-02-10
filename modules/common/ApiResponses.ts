@@ -28,6 +28,7 @@ export interface CampaignApiResponse {
   assetPhotoBase64?: string;
   canBotVerify?: boolean;
   requiredPrivileges?: string[];
+  requiredInternalPrivileges?: string[];
 }
 
 export interface UserApiResponse {

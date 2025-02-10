@@ -12,37 +12,45 @@
         {
           "type": "group",
           "internalRequiredAdminPrivileges": [
-            "can_manage_chat"
+            "can_manage_chat",
+            "can_invite_users"
           ],
           "externalRequiredAdminPrivileges": [
-            "Change channel info"
+            "Change channel info",
+            "Add members"
           ]
         },
         {
           "type": "supergroup",
           "internalRequiredAdminPrivileges": [
-            "can_manage_chat"
+            "can_manage_chat",
+            "can_invite_users"
           ],
           "externalRequiredAdminPrivileges": [
-            "Change channel info"
+            "Change channel info",
+            "Add members"
           ]
         },
         {
           "type": "giga group",
           "internalRequiredAdminPrivileges": [
-            "can_manage_chat"
+            "can_manage_chat",
+            "can_invite_users"
           ],
           "externalRequiredAdminPrivileges": [
-            "Change channel info"
+            "Change channel info",
+            "Add members"
           ]
         },
         {
           "type": "channel",
           "internalRequiredAdminPrivileges": [
-            "can_manage_chat"
+            "can_manage_chat",
+            "can_invite_users"
           ],
           "externalRequiredAdminPrivileges": [
-            "Change channel info"
+            "Change channel info",
+            "Add members"
           ]
         }
       ]
@@ -59,23 +67,23 @@
       "assetTypes": [
         {
           "type": "group",
-          "internalRequiredAdminPrivileges": ["can_get_members"],
-          "externalRequiredAdminPrivileges": ["Change channel info"]
+          "internalRequiredAdminPrivileges": ["can_manage_chat"],
+          "externalRequiredAdminPrivileges": ["Add members"]
         },
         {
           "type": "supergroup",
-          "internalRequiredAdminPrivileges": ["can_get_members"],
-          "externalRequiredAdminPrivileges": ["Change channel info"]
+          "internalRequiredAdminPrivileges": ["can_manage_chat"],
+          "externalRequiredAdminPrivileges": ["Add members"]
         },
         {
           "type": "giga group",
-          "internalRequiredAdminPrivileges": ["can_get_members"],
-          "externalRequiredAdminPrivileges": ["Change channel info"]
+          "internalRequiredAdminPrivileges": ["can_manage_chat"],
+          "externalRequiredAdminPrivileges": ["Add members"]
         },
         {
           "type": "channel",
-          "internalRequiredAdminPrivileges": ["can_get_members"],
-          "externalRequiredAdminPrivileges": ["Change channel info"]
+          "internalRequiredAdminPrivileges": ["can_manage_chat"],
+          "externalRequiredAdminPrivileges": ["Add members"]
         }
       ]
     },
@@ -91,23 +99,23 @@
       "assetTypes": [
         {
           "type": "group",
-          "internalRequiredAdminPrivileges": ["can_get_members"],
-          "externalRequiredAdminPrivileges": ["Change channel info"]
+          "internalRequiredAdminPrivileges": ["can_manage_chat"],
+          "externalRequiredAdminPrivileges": ["Add members"]
         },
         {
           "type": "supergroup",
-          "internalRequiredAdminPrivileges": ["can_get_members"],
-          "externalRequiredAdminPrivileges": ["Change channel info"]
+          "internalRequiredAdminPrivileges": ["can_manage_chat"],
+          "externalRequiredAdminPrivileges": ["Add members"]
         },
         {
           "type": "giga group",
-          "internalRequiredAdminPrivileges": ["can_get_members"],
-          "externalRequiredAdminPrivileges": ["Change channel info"]
+          "internalRequiredAdminPrivileges": ["can_manage_chat"],
+          "externalRequiredAdminPrivileges": ["Add members"]
         },
         {
           "type": "channel",
-          "internalRequiredAdminPrivileges": ["can_get_members"],
-          "externalRequiredAdminPrivileges": ["Change channel info"]
+          "internalRequiredAdminPrivileges": ["can_manage_chat"],
+          "externalRequiredAdminPrivileges": ["Add members"]
         }
       ]
     }

@@ -85,12 +85,10 @@ export async function getCampaignByIdWithAdvertiser(
       photo: null as Buffer | null,
     };
 
-    // Convert photo to Base64 if available.
-    const assetPhotoBase64 = telegram.photo ? Buffer.from(telegram.photo).toString('base64') : '';
-
     // 4) Compute verification fields using campaign methods.
     const canBotVerify = campaign.canBotVerifyEvents();
     const requiredPrivileges = campaign.getRequiredAdminPrivilegesToVerifyEvents().external;
+    const requiredInternalPrivileges =  campaign.getRequiredAdminPrivilegesToVerifyEvents().internal;
 
     // 5) Build the flattened response explicitly.
     const response: CampaignApiResponse = {
@@ -111,10 +109,11 @@ export async function getCampaignByIdWithAdvertiser(
       eventsToVerify: campaign.eventsToVerify,
       botIsAdmin: telegram.botIsAdmin,
       adminPrivileges: telegram.adminPrivileges,
-      assetPhotoBase64,
+      assetPhotoBase64: telegram.photo ? Buffer.from(telegram.photo).toString('base64') : '',
       // Verification fields:
-      canBotVerify,
-      requiredPrivileges,
+      canBotVerify: canBotVerify,
+      requiredPrivileges: requiredPrivileges,
+      requiredInternalPrivileges: requiredInternalPrivileges
     };
 
     return response;
