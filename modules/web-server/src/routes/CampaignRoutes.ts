@@ -10,6 +10,7 @@ import { RoleType } from '../entity/CampaignRole';
 import dotenv from 'dotenv';
 import { CampaignApiResponse, NotificationApiResponse } from '@common/ApiResponses';
 import { getOpCodeByEventName } from "@common/UserEventsConfig";
+import { CampaignState } from "../entity/Campaign";
 
 dotenv.config();
 
@@ -183,6 +184,7 @@ router.post('/', async (req: Request, res: Response): Promise<void> => {
       category: category,
       telegramAsset: telegramAsset,
       eventsToVerify: eventsToVerify,
+      state: CampaignState.TELEGRAM_DETAILS_SET
     };
 
     Logger.info(`Campaign data about to be created/updated: ${JSON.stringify(campaignData)}`);

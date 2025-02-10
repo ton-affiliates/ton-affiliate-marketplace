@@ -1,5 +1,3 @@
-// src/migrations/InitialSchema1736681774554.ts
-
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
 export class InitialSchema1736681774554 implements MigrationInterface {
@@ -7,7 +5,6 @@ export class InitialSchema1736681774554 implements MigrationInterface {
   public static transaction = false;
 
   public async up(queryRunner: QueryRunner): Promise<void> {
-
     // 2) Create users TABLE
     await queryRunner.query(`
       CREATE TABLE IF NOT EXISTS "users" (
@@ -71,21 +68,62 @@ export class InitialSchema1736681774554 implements MigrationInterface {
       );
     `);
 
-    // 6) Create campaigns TABLE
+    // 6) Create campaigns TABLE (with new state column and check constraint)
     await queryRunner.query(`
       CREATE TABLE IF NOT EXISTS "campaigns" (
-        "id"                         VARCHAR(255) PRIMARY KEY,
-        "contract_address"           VARCHAR(255) NOT NULL,
-        "name"                       VARCHAR(255) NULL,
-        "category"                   VARCHAR(255) NULL,
-        "verified_events"            BIGINT[] NOT NULL DEFAULT '{}',
-        "telegram_asset_id"          VARCHAR(255) NULL,
-        "created_at"                 TIMESTAMP NOT NULL DEFAULT NOW(),
-        "updated_at"                 TIMESTAMP NOT NULL DEFAULT NOW(),
+        "id"                VARCHAR(255) PRIMARY KEY,
+        "contract_address"  VARCHAR(255) NOT NULL,
+        "name"              VARCHAR(255) NULL,
+        "category"          VARCHAR(255) NULL,
+        "verified_events"   BIGINT[] NOT NULL DEFAULT '{}',
+        "telegram_asset_id" VARCHAR(255) NULL,
+        "state"             VARCHAR(50) NOT NULL DEFAULT 'DEPLOYED_ON_CHAIN',
+        "created_at"        TIMESTAMP NOT NULL DEFAULT NOW(),
+        "updated_at"        TIMESTAMP NOT NULL DEFAULT NOW(),
+        CONSTRAINT "chk_campaign_state" CHECK (
+          "state" IN ('DEPLOYED_ON_CHAIN', 'TELEGRAM_DETAILS_SET', 'BLOCKCHIAN_DETIALS_SET')
+        ),
         CONSTRAINT "fk_telegram_asset"
           FOREIGN KEY ("telegram_asset_id")
           REFERENCES "telegram_assets"("chat_id")
       );
+    `);
+
+    // 6.1) Create trigger function to enforce state transitions on campaigns.
+    await queryRunner.query(`
+      CREATE OR REPLACE FUNCTION enforce_campaign_state_transition()
+      RETURNS TRIGGER AS $$
+      BEGIN
+        -- Allow updates when there is no change in state.
+        IF NEW.state = OLD.state THEN
+          RETURN NEW;
+        END IF;
+
+        -- Once the final state is reached, no further changes are allowed.
+        IF OLD.state = 'BLOCKCHIAN_DETIALS_SET' THEN
+          RAISE EXCEPTION 'Campaign in final state BLOCKCHIAN_DETIALS_SET cannot be updated';
+        END IF;
+
+        -- Enforce allowed state transitions:
+        -- Allowed transitions:
+        -- DEPLOYED_ON_CHAIN -> TELEGRAM_DETAILS_SET
+        -- TELEGRAM_DETAILS_SET -> BLOCKCHIAN_DETIALS_SET
+        IF (OLD.state = 'DEPLOYED_ON_CHAIN' AND NEW.state = 'TELEGRAM_DETAILS_SET')
+           OR (OLD.state = 'TELEGRAM_DETAILS_SET' AND NEW.state = 'BLOCKCHIAN_DETIALS_SET') THEN
+          RETURN NEW;
+        END IF;
+
+        RAISE EXCEPTION 'Invalid campaign state transition from % to %', OLD.state, NEW.state;
+      END;
+      $$ LANGUAGE plpgsql;
+    `);
+
+    // 6.2) Create trigger on campaigns table referencing the state transition function.
+    await queryRunner.query(`
+      CREATE TRIGGER trg_enforce_campaign_state_transition
+      BEFORE UPDATE ON "campaigns"
+      FOR EACH ROW
+      EXECUTE PROCEDURE enforce_campaign_state_transition();
     `);
 
     // 7) Create ENUM type for role_type for campaign_roles TABLE
@@ -168,7 +206,7 @@ export class InitialSchema1736681774554 implements MigrationInterface {
       );
     `);
 
-    // 13) Create the function with EXACT SAME NAME as the trigger usage
+    // 13) Create the function for user_events to prevent is_processed regression.
     await queryRunner.query(`
       CREATE OR REPLACE FUNCTION prevent_isProcessed_regression()
       RETURNS TRIGGER AS $$
@@ -181,7 +219,7 @@ export class InitialSchema1736681774554 implements MigrationInterface {
       $$ LANGUAGE plpgsql;
     `);
 
-    // 14) Create trigger on user_events table referencing that function
+    // 14) Create trigger on user_events table referencing that function.
     await queryRunner.query(`
       CREATE TRIGGER trg_prevent_isProcessed_regression
       BEFORE UPDATE ON "user_events"
@@ -191,7 +229,7 @@ export class InitialSchema1736681774554 implements MigrationInterface {
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
-    // Reverse creation order
+    // Reverse creation order.
     await queryRunner.query(`DROP TRIGGER IF EXISTS trg_prevent_isProcessed_regression ON "user_events";`);
     await queryRunner.query(`DROP FUNCTION IF EXISTS prevent_isProcessed_regression();`);
     await queryRunner.query(`DROP TABLE IF EXISTS "user_events";`);
@@ -205,7 +243,7 @@ export class InitialSchema1736681774554 implements MigrationInterface {
     await queryRunner.query(`DROP TABLE IF EXISTS "wallets";`);
     await queryRunner.query(`DROP TABLE IF EXISTS "users";`);
 
-    // Drop ENUM types last
+    // Drop ENUM types last.
     await queryRunner.query(`DROP TYPE IF EXISTS role_type;`);
   }
 }

@@ -54,16 +54,8 @@ export function useCampaignContractAdvertiserAndId(
           campaignId,
           advertiserAddrObj
         );
-
-        console.log("campaignAddress");
-        console.log(campaignAddress);
-
         // 4) Open the Campaign contract from that address
         const campaignInstance = client.open(Campaign.fromAddress(campaignAddress));
-
-        console.log("campaignInstance");
-        console.log(campaignInstance);
-
         setCampaignContract(campaignInstance);
       } catch (err: any) {
         console.error('Error in useCampaignContract:', err);

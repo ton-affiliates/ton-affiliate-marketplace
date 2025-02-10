@@ -20,6 +20,7 @@ import { Campaign } from '../contracts/Campaign';
 import { getCampaignByIdWithAdvertiser } from '../services/CampaignsService';
 import { CampaignApiResponse } from "@common/ApiResponses";
 import { sseClients } from '../sseClients';
+import { CampaignState } from "../entity/Campaign";
 
 // Helper for BigInt serialization
 function bigintReplacer(_: string, value: any) {
@@ -70,6 +71,7 @@ async function processEvent(event: EmitLogEvent) {
         await ensureCampaign({
           id: campaignId,
           contractAddress: campaignContractTon.toString(),
+          state: CampaignState.DEPLOYED_ON_CHAIN
         });
         await createCampaignRole({
           campaignId,
@@ -136,7 +138,9 @@ async function processEvent(event: EmitLogEvent) {
             Logger.error(errorMessage);
             throw new Error(errorMessage);
           }
-          await ensureCampaign({ id: campaignId });
+          await ensureCampaign({ 
+              id: campaignId,
+              state: CampaignState.BLOCKCHIAN_DETIALS_SET});
 
           Logger.info(`Broadcasting AdvertiserSignedCampaignDetailsEvent to SSE clients`);
 

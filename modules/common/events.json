@@ -15,7 +15,7 @@
             "can_manage_chat"
           ],
           "externalRequiredAdminPrivileges": [
-            "Change group info"
+            "Change channel info"
           ]
         },
         {
@@ -33,7 +33,7 @@
             "can_manage_chat"
           ],
           "externalRequiredAdminPrivileges": [
-            "Manage giga group"
+            "Change channel info"
           ]
         },
         {
@@ -42,7 +42,7 @@
             "can_manage_chat"
           ],
           "externalRequiredAdminPrivileges": [
-            "Manage channel"
+            "Change channel info"
           ]
         }
       ]
@@ -59,23 +59,23 @@
       "assetTypes": [
         {
           "type": "group",
-          "internalRequiredAdminPrivileges": [],
-          "externalRequiredAdminPrivileges": []
+          "internalRequiredAdminPrivileges": ["can_get_members"],
+          "externalRequiredAdminPrivileges": ["Change channel info"]
         },
         {
           "type": "supergroup",
-          "internalRequiredAdminPrivileges": [],
-          "externalRequiredAdminPrivileges": []
+          "internalRequiredAdminPrivileges": ["can_get_members"],
+          "externalRequiredAdminPrivileges": ["Change channel info"]
         },
         {
           "type": "giga group",
-          "internalRequiredAdminPrivileges": [],
-          "externalRequiredAdminPrivileges": []
+          "internalRequiredAdminPrivileges": ["can_get_members"],
+          "externalRequiredAdminPrivileges": ["Change channel info"]
         },
         {
           "type": "channel",
-          "internalRequiredAdminPrivileges": [],
-          "externalRequiredAdminPrivileges": []
+          "internalRequiredAdminPrivileges": ["can_get_members"],
+          "externalRequiredAdminPrivileges": ["Change channel info"]
         }
       ]
     },
@@ -91,23 +91,23 @@
       "assetTypes": [
         {
           "type": "group",
-          "internalRequiredAdminPrivileges": [],
-          "externalRequiredAdminPrivileges": []
+          "internalRequiredAdminPrivileges": ["can_get_members"],
+          "externalRequiredAdminPrivileges": ["Change channel info"]
         },
         {
           "type": "supergroup",
-          "internalRequiredAdminPrivileges": [],
-          "externalRequiredAdminPrivileges": []
+          "internalRequiredAdminPrivileges": ["can_get_members"],
+          "externalRequiredAdminPrivileges": ["Change channel info"]
         },
         {
           "type": "giga group",
-          "internalRequiredAdminPrivileges": [],
-          "externalRequiredAdminPrivileges": []
+          "internalRequiredAdminPrivileges": ["can_get_members"],
+          "externalRequiredAdminPrivileges": ["Change channel info"]
         },
         {
           "type": "channel",
-          "internalRequiredAdminPrivileges": [],
-          "externalRequiredAdminPrivileges": []
+          "internalRequiredAdminPrivileges": ["can_get_members"],
+          "externalRequiredAdminPrivileges": ["Change channel info"]
         }
       ]
     }

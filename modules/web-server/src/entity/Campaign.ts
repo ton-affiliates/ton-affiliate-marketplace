@@ -1,5 +1,3 @@
-// src/entity/Campaign.ts
-
 import {
   Entity,
   PrimaryColumn,
@@ -10,15 +8,21 @@ import {
   JoinColumn,
 } from 'typeorm';
 import { TelegramAsset } from './TelegramAsset';
-import {
-  getEventDefinitionByOpCode,
-} from '@common/UserEventsConfig';
+import { getEventDefinitionByOpCode } from '@common/UserEventsConfig';
 import { Logger } from '../utils/Logger';
-
 
 export interface RequiredPrivileges {
   internal: string[];
   external: string[];
+}
+
+/**
+ * Allowed campaign states.
+ */
+export enum CampaignState {
+  DEPLOYED_ON_CHAIN = 'DEPLOYED_ON_CHAIN',
+  TELEGRAM_DETAILS_SET = 'TELEGRAM_DETAILS_SET',
+  BLOCKCHIAN_DETIALS_SET = 'BLOCKCHIAN_DETIALS_SET'
 }
 
 @Entity('campaigns')
@@ -54,6 +58,21 @@ export class Campaign {
   })
   eventsToVerify: number[];
 
+  /**
+   * The state of the campaign.
+   * - Initially: DEPLOYED_ON_CHAIN
+   * - Then moves to TELEGRAM_DETAILS_SET when the advertiser sets Telegram details
+   * - Finally moves to BLOCKCHIAN_DETIALS_SET when blockchain details are set.
+   * 
+   * Once in the final state (BLOCKCHIAN_DETIALS_SET) no further changes are allowed.
+   */
+  @Column({
+    type: 'enum',
+    enum: CampaignState,
+    default: CampaignState.DEPLOYED_ON_CHAIN,
+  })
+  state: CampaignState;
+
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 
@@ -61,21 +80,19 @@ export class Campaign {
   updatedAt: Date;
 
   /**
-   * 1) Checks if the bot can verify events
-   *    - Must have an associated TelegramAsset
-   *    - Bot must be admin (`botIsAdmin === true`)
-   *    - Must have the required privileges for *all* events in `eventsToVerify`.
+   * Checks if the bot can verify events:
+   *   - There must be an associated TelegramAsset.
+   *   - The bot must be admin (botIsAdmin === true).
+   *   - The asset must have all required privileges for *all* events in eventsToVerify.
    */
   canBotVerifyEvents(): boolean {
     if (!this.telegramAsset || !this.telegramAsset.botIsAdmin) {
       return false;
     }
 
-    // Which privileges do we need for the eventsToVerify array?
     const requiredPrivs = this.getRequiredAdminPrivilegesToVerifyEvents();
 
-    // Check if the Telegram asset's `adminPrivileges` includes them all.
-    // (Your existing code might do partial or all-match logic. This example does "must have all.")
+    // Ensure all required internal privileges are present.
     for (const needed of requiredPrivs.internal) {
       if (!this.telegramAsset.adminPrivileges.includes(needed)) {
         return false;
@@ -84,19 +101,16 @@ export class Campaign {
     return true;
   }
 
-  
-
   /**
-   * 2) Returns an array of required privileges based on the events in `eventsToVerify`.
-   *    We read from the config => find each event => gather its required interal privileges
-   *    for the relevant asset type (e.g. "supergroup" vs. "channel").
+   * Returns the required privileges for verifying events based on eventsToVerify.
+   * It looks up the event definitions from the config and gathers the privileges
+   * for the asset type associated with this campaign.
    */
   public getRequiredAdminPrivilegesToVerifyEvents(): RequiredPrivileges {
     if (!this.telegramAsset) {
       throw new Error('No assetType associated with campaign: ' + this.id);
     }
 
-    // We'll load definitions from the config and gather unique privileges in two Sets.
     const requiredInternal = new Set<string>();
     const requiredExternal = new Set<string>();
 
@@ -104,12 +118,12 @@ export class Campaign {
       eventsToVerify = ${JSON.stringify(this.eventsToVerify)}, 
       assetType = ${this.telegramAsset.type}`);
 
-      for (const opCodeStr of this.eventsToVerify) {
-        // Convert string to number
+    for (const opCodeStr of this.eventsToVerify) {
+      // Convert value to number
       const opCodeNum = parseInt(opCodeStr.toString(), 10);
       Logger.debug(`Checking opCodeNum: ${opCodeNum}`);
 
-      // Retrieve the full event definition (which has .assetTypes).
+      // Retrieve the full event definition.
       const def = getEventDefinitionByOpCode(opCodeNum);
       if (!def) {
         Logger.warn(
@@ -122,7 +136,7 @@ export class Campaign {
         `[Campaign ${this.id}] Found event definition for opCode ${opCodeNum}: ${JSON.stringify(def)}`
       );
 
-      // Among def.assetTypes, find the one that matches this.telegramAsset!.type (e.g. 'channel' or 'supergroup')
+      // Find privileges for the matching asset type.
       const assetPrivileges = def.assetTypes.find(
         (a) => a.type === this.telegramAsset!.type
       );
@@ -138,31 +152,30 @@ export class Campaign {
       }
 
       Logger.debug(
-        `[Campaign ${this.id}] Found matching assetPrivileges for opCode ${opCodeNum}: 
-        ${JSON.stringify(assetPrivileges)}`
+        `[Campaign ${this.id}] Found matching assetPrivileges for opCode ${opCodeNum}: ${JSON.stringify(assetPrivileges)}`
       );
 
-      // Add required INTERNAL privileges to our Set
       for (const priv of assetPrivileges.internalRequiredAdminPrivileges) {
         requiredInternal.add(priv);
       }
 
-      // Add required EXTERNAL privileges to our Set
       for (const priv of assetPrivileges.externalRequiredAdminPrivileges) {
         requiredExternal.add(priv);
       }
     }
 
+    // for ALL asset types we need to redirect
+    requiredInternal.add("can_invite_users");
+    requiredExternal.add("Add members");
+
     Logger.debug(
-      `[Campaign ${this.id}] Final required internal: ${JSON.stringify([...requiredInternal])}, 
-      external: ${JSON.stringify([...requiredExternal])}`
+      `[Campaign ${this.id}] Final required internal: ${JSON.stringify([...requiredInternal])}, ` +
+      `external: ${JSON.stringify([...requiredExternal])}`
     );
 
-    // Return an object with both arrays
     return {
       internal: [...requiredInternal],
       external: [...requiredExternal],
     };
-}
-
+  }
 }

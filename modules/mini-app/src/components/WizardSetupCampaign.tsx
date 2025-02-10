@@ -55,6 +55,9 @@ interface CommissionValuesState {
 }
 
 function WizardSetupCampaign() {
+  // Bot name from environment variable.
+  const botName = import.meta.env.VITE_TON_AFFILIATES_BOT;
+
   // 1) Grab campaignId from the URL
   const { campaignId } = useParams<{ campaignId: string }>();
 
@@ -79,7 +82,7 @@ function WizardSetupCampaign() {
     premiumUsers: {},
   });
 
-  // Step 3 => final campaign object with bot admin info
+  // Step 3 => final campaign object with bot admin info and required privileges
   const [createdCampaign, setCreatedCampaign] = useState<CampaignApiResponse | null>(null);
 
   // Step 4 => on-chain details
@@ -126,6 +129,46 @@ function WizardSetupCampaign() {
       throw new Error(msg);
     }
     return (await resp.json()) as CampaignApiResponse;
+  }
+
+  // ------------------------------------------------------
+  // Refresh Bot Admin / Verify Bot Privileges (Step 3)
+  // ------------------------------------------------------
+  async function handleRefreshBotAdmin() {
+    if (!createdCampaign || !createdCampaign.id) {
+      setErrorMessage('No campaign to refresh. Did you create it yet?');
+      return;
+    }
+
+    setErrorMessage(null);
+    setIsLoading(true);
+
+    try {
+      const url = `/api/v1/campaigns/${createdCampaign.id}/refresh-bot-admin`;
+      const resp = await fetch(url, { method: 'POST' });
+      if (!resp.ok) {
+        let msg = 'Failed to refresh bot admin.';
+        try {
+          const body = await resp.json();
+          msg = body.error || body.message || msg;
+        } catch {}
+        throw new Error(msg);
+      }
+
+      const updatedCampaign = (await resp.json()) as CampaignApiResponse;
+      setCreatedCampaign(updatedCampaign);
+
+      // Proceed to next step only if the bot can verify events.
+      if (updatedCampaign.botIsAdmin) {
+        setStep(4);
+      } else {
+        setErrorMessage('Bot is still not admin. Please check privileges in Telegram.');
+      }
+    } catch (err: any) {
+      setErrorMessage(err.message || 'Failed to refresh bot admin.');
+    } finally {
+      setIsLoading(false);
+    }
   }
 
   // Cleanup any timers on unmount
@@ -185,7 +228,7 @@ function WizardSetupCampaign() {
   }
 
   // ------------------------------------------------------
-  // Step 2: Approve & Create the campaign
+  // Step 2: Approve & Create the Campaign
   // ------------------------------------------------------
   async function handleApproveTelegramDetails() {
     if (!campaignId) {
@@ -242,7 +285,7 @@ function WizardSetupCampaign() {
 
       console.log('Campaign object:', fullCampaign);
       setCreatedCampaign(fullCampaign);
-      setStep(3); // Next => step 3: bot admin check
+      setStep(3); // Next => Step 3: Bot Admin Check
     } catch (err: any) {
       setErrorMessage(err.message || 'Failed to approve Telegram details.');
     } finally {
@@ -251,42 +294,12 @@ function WizardSetupCampaign() {
   }
 
   // ------------------------------------------------------
-  // Step 3: Bot Admin Check => refresh
+  // Helper: Get a Unique List of Commissionable Event Names (Step 2)
   // ------------------------------------------------------
-  async function handleRefreshBotAdmin() {
-    if (!createdCampaign || !createdCampaign.id) {
-      setErrorMessage('No campaign to refresh. Did you create it yet?');
-      return;
-    }
-
-    setErrorMessage(null);
-    setIsLoading(true);
-
-    try {
-      const url = `/api/v1/campaigns/${createdCampaign.id}/refresh-bot-admin`;
-      const resp = await fetch(url, { method: 'POST' });
-      if (!resp.ok) {
-        let msg = 'Failed to refresh bot admin.';
-        try {
-          const body = await resp.json();
-          msg = body.error || body.message || msg;
-        } catch {}
-        throw new Error(msg);
-      }
-
-      const updatedCampaign = (await resp.json()) as CampaignApiResponse;
-      setCreatedCampaign(updatedCampaign);
-
-      if (updatedCampaign.botIsAdmin) {
-        setStep(4);
-      } else {
-        setErrorMessage('Bot is still not admin. Please check privileges in Telegram.');
-      }
-    } catch (err: any) {
-      setErrorMessage(err.message || 'Failed to refresh bot admin.');
-    } finally {
-      setIsLoading(false);
-    }
+  function getCommissionableEventNames(): string[] {
+    const regular = Object.keys(commissionValues.regularUsers);
+    const premium = Object.keys(commissionValues.premiumUsers);
+    return Array.from(new Set([...regular, ...premium])).filter((name) => name.trim() !== '');
   }
 
   // ------------------------------------------------------
@@ -369,13 +382,15 @@ function WizardSetupCampaign() {
   }
 
   // ------------------------------------------------------
-  // Render the wizard steps
+  // Render the Wizard Steps
   // ------------------------------------------------------
   return (
     <motion.div className="screen-container" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
       <div className="card">
-        <h2>Unified Wizard Setup (Steps 1-4, No Step 5)</h2>
-        <p><strong>Current Step:</strong> {step}</p>
+        <h2>Campaign Wizard Setup (4 Steps)</h2>
+        <p>
+          <strong>Current Step:</strong> {step}
+        </p>
 
         {errorMessage && <p style={{ color: 'red' }}>{errorMessage}</p>}
 
@@ -384,22 +399,19 @@ function WizardSetupCampaign() {
           <>
             <div className="form-group">
               <label>Campaign Name:</label>
-              <input
-                type="text"
-                value={campaignName}
-                onChange={(e) => setCampaignName(e.target.value)}
-              />
+              <input type="text" value={campaignName} onChange={(e) => setCampaignName(e.target.value)} />
             </div>
 
             <div className="form-group">
               <label>Category:</label>
-              <select
-                value={category}
-                onChange={(e) => setCategory(e.target.value as TelegramCategory)}
-              >
-                <option value="" disabled>Select a category</option>
+              <select value={category} onChange={(e) => setCategory(e.target.value as TelegramCategory)}>
+                <option value="" disabled>
+                  Select a category
+                </option>
                 {Object.values(TelegramCategory).map((cat) => (
-                  <option key={cat} value={cat}>{cat}</option>
+                  <option key={cat} value={cat}>
+                    {cat}
+                  </option>
                 ))}
               </select>
             </div>
@@ -414,21 +426,30 @@ function WizardSetupCampaign() {
               />
             </div>
 
-            <button
-              disabled={!campaignName || !category || !inviteLink || isLoading}
-              onClick={handleLoadTelegramInfo}
-            >
+            <button disabled={!campaignName || !category || !inviteLink || isLoading} onClick={handleLoadTelegramInfo}>
               {isLoading ? 'Loading...' : 'Load Telegram Info'}
             </button>
 
             {telegramAsset && (
               <div style={{ border: '1px solid #ccc', marginTop: '1rem', padding: '1rem' }}>
-                <p><strong>Chat ID:</strong> {telegramAsset.chatId}</p>
-                <p><strong>Handle:</strong> {telegramAsset.handle}</p>
-                <p><strong>Type:</strong> {telegramAsset.type}</p>
-                <p><strong>Name:</strong> {telegramAsset.name}</p>
-                <p><strong>Desc:</strong> {telegramAsset.description}</p>
-                <p><strong>Members:</strong> {telegramAsset.memberCount}</p>
+                <p>
+                  <strong>Chat ID:</strong> {telegramAsset.chatId}
+                </p>
+                <p>
+                  <strong>Handle:</strong> {telegramAsset.handle}
+                </p>
+                <p>
+                  <strong>Type:</strong> {telegramAsset.type}
+                </p>
+                <p>
+                  <strong>Name:</strong> {telegramAsset.name}
+                </p>
+                <p>
+                  <strong>Description:</strong> {telegramAsset.description}
+                </p>
+                <p>
+                  <strong>Members:</strong> {telegramAsset.memberCount}
+                </p>
                 <button style={{ marginTop: '0.5rem' }} onClick={handleApproveTelegramInfo}>
                   Approve Telegram Info
                 </button>
@@ -453,16 +474,14 @@ function WizardSetupCampaign() {
                 </thead>
                 <tbody>
                   {eventsConfig.events.map((evt) => {
-                    const regVal = commissionValues.regularUsers[evt.eventName] || "";
-                    const premVal = commissionValues.premiumUsers[evt.eventName] || "";
+                    const regVal = commissionValues.regularUsers[evt.eventName] || '';
+                    const premVal = commissionValues.premiumUsers[evt.eventName] || '';
                     return (
                       <tr key={evt.eventName}>
                         <td style={{ border: '1px solid #ccc', padding: '6px' }}>
                           <strong>{evt.eventName}</strong>
                           {evt.description && (
-                            <div style={{ fontSize: '0.8rem', color: '#666' }}>
-                              {evt.description}
-                            </div>
+                            <div style={{ fontSize: '0.8rem', color: '#666' }}>{evt.description}</div>
                           )}
                         </td>
                         <td style={{ border: '1px solid #ccc', padding: '6px' }}>
@@ -474,12 +493,12 @@ function WizardSetupCampaign() {
                             value={regVal}
                             onChange={(e) => {
                               const val = e.target.value;
-                              setCommissionValues(prev => ({
+                              setCommissionValues((prev) => ({
                                 ...prev,
                                 regularUsers: {
                                   ...prev.regularUsers,
-                                  [evt.eventName]: val
-                                }
+                                  [evt.eventName]: val,
+                                },
                               }));
                             }}
                           />
@@ -493,12 +512,12 @@ function WizardSetupCampaign() {
                             value={premVal}
                             onChange={(e) => {
                               const val = e.target.value;
-                              setCommissionValues(prev => ({
+                              setCommissionValues((prev) => ({
                                 ...prev,
                                 premiumUsers: {
                                   ...prev.premiumUsers,
-                                  [evt.eventName]: val
-                                }
+                                  [evt.eventName]: val,
+                                },
                               }));
                             }}
                           />
@@ -510,11 +529,7 @@ function WizardSetupCampaign() {
               </table>
             </div>
 
-            <button
-              style={{ marginTop: '1rem' }}
-              disabled={isLoading}
-              onClick={handleApproveTelegramDetails}
-            >
+            <button style={{ marginTop: '1rem' }} disabled={isLoading} onClick={handleApproveTelegramDetails}>
               {isLoading ? 'Saving...' : 'Approve & Create Campaign'}
             </button>
           </>
@@ -524,12 +539,23 @@ function WizardSetupCampaign() {
         {step === 3 && createdCampaign && (
           <>
             <h3>Bot Admin Check</h3>
-            <p><strong>Campaign ID:</strong> {createdCampaign.id}</p>
-            <p><strong>Bot Admin?:</strong> {createdCampaign.botIsAdmin ? 'Yes' : 'No'}</p>
-
+            <p>
+              Please add this bot: <strong>{botName}</strong> as an admin in your Telegram asset.
+            </p>
+            <p>
+              The bot must have the following privileges to verify the commissionable events:
+            </p>
+            <div style={{ margin: '1rem 0' }}>
+              <strong>Commissionable Events:</strong>
+              <ul>
+                {getCommissionableEventNames().map((evtName) => (
+                  <li key={evtName}>{evtName}</li>
+                ))}
+              </ul>
+            </div>
             {createdCampaign.requiredPrivileges && createdCampaign.requiredPrivileges.length > 0 && (
               <div style={{ margin: '1rem 0' }}>
-                <strong>Required Privileges:</strong>
+                <strong>Required Admin Privileges for Bot:</strong>
                 <ul>
                   {createdCampaign.requiredPrivileges.map((priv, index) => (
                     <li key={index}>{priv}</li>
@@ -537,31 +563,14 @@ function WizardSetupCampaign() {
                 </ul>
               </div>
             )}
-
-            {createdCampaign.adminPrivileges && createdCampaign.adminPrivileges.length > 0 && (
-              <div style={{ margin: '1rem 0' }}>
-                <strong>Admin Privileges:</strong>
-                <ul>
-                  {createdCampaign.adminPrivileges.map((priv, index) => (
-                    <li key={index}>{priv}</li>
-                  ))}
-                </ul>
-              </div>
+            {!createdCampaign.canBotVerify && (
+              <p style={{ color: 'red' }}>
+                Bot does not have sufficient privileges. Please add the bot <strong>{botName}</strong> as an admin in Telegram with the required privileges.
+              </p>
             )}
-
-            {!createdCampaign.botIsAdmin && (
-              <>
-                <p>Add the bot in Telegram with the required privileges, then click below.</p>
-                <button disabled={isLoading} onClick={handleRefreshBotAdmin}>
-                  {isLoading ? 'Verifying...' : 'I Added the Bot as Admin'}
-                </button>
-              </>
-            )}
-            {createdCampaign.botIsAdmin && (
-              <button style={{ marginTop: '1rem' }} onClick={() => setStep(4)}>
-                Next: On-Chain Settings
-              </button>
-            )}
+            <button style={{ marginTop: '1rem' }} disabled={isLoading} onClick={handleRefreshBotAdmin}>
+              {isLoading ? 'Verifying...' : 'Verify Bot Privileges'}
+            </button>
           </>
         )}
 
@@ -576,20 +585,12 @@ function WizardSetupCampaign() {
               <label>Public or Private?</label>
               <br />
               <label>
-                <input
-                  type="radio"
-                  checked={isPublicCampaign}
-                  onChange={() => setIsPublicCampaign(true)}
-                />
+                <input type="radio" checked={isPublicCampaign} onChange={() => setIsPublicCampaign(true)} />
                 Public
               </label>
               <br />
               <label>
-                <input
-                  type="radio"
-                  checked={!isPublicCampaign}
-                  onChange={() => setIsPublicCampaign(false)}
-                />
+                <input type="radio" checked={!isPublicCampaign} onChange={() => setIsPublicCampaign(false)} />
                 Private
               </label>
             </div>
@@ -598,20 +599,12 @@ function WizardSetupCampaign() {
               <label>Payment Method:</label>
               <br />
               <label>
-                <input
-                  type="radio"
-                  checked={paymentMethod === 0n}
-                  onChange={() => setPaymentMethod(0n)}
-                />
+                <input type="radio" checked={paymentMethod === 0n} onChange={() => setPaymentMethod(0n)} />
                 TON
               </label>
               <br />
               <label>
-                <input
-                  type="radio"
-                  checked={paymentMethod === 1n}
-                  onChange={() => setPaymentMethod(1n)}
-                />
+                <input type="radio" checked={paymentMethod === 1n} onChange={() => setPaymentMethod(1n)} />
                 USDT
               </label>
             </div>
@@ -627,11 +620,7 @@ function WizardSetupCampaign() {
               </label>
               {expirationDateEnabled && (
                 <div style={{ marginTop: '0.5rem' }}>
-                  <input
-                    type="date"
-                    value={expirationDate}
-                    onChange={(e) => setExpirationDate(e.target.value)}
-                  />
+                  <input type="date" value={expirationDate} onChange={(e) => setExpirationDate(e.target.value)} />
                 </div>
               )}
             </div>
@@ -656,9 +645,7 @@ function WizardSetupCampaign() {
 
         {txTimeout && !txSuccess && (
           <div style={{ marginTop: '1rem', background: '#fff3cd', padding: '1rem' }}>
-            <p>
-              No confirmation event yet. Possibly still processing. You can wait or refresh.
-            </p>
+            <p>No confirmation event yet. Possibly still processing. You can wait or refresh.</p>
           </div>
         )}
 
@@ -671,7 +658,7 @@ function WizardSetupCampaign() {
 
         {txFailed && (
           <div style={{ marginTop: '1rem', background: '#f8d7da', padding: '1rem' }}>
-            <p>Transaction failed or canceled. Please try again.</p>
+            <p>{errorMessage ? errorMessage : 'Transaction failed or canceled. Please try again.'}</p>
           </div>
         )}
       </div>
