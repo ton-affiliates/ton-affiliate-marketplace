@@ -9,7 +9,6 @@ import { Address } from '@ton/core';
 import { RoleType } from '../entity/CampaignRole';
 import dotenv from 'dotenv';
 import { CampaignApiResponse, NotificationApiResponse } from '@common/ApiResponses';
-import { getOpCodeByEventName } from "@common/UserEventsConfig";
 import { CampaignState } from "../entity/Campaign";
 
 dotenv.config();
@@ -120,14 +119,12 @@ router.post('/', async (req: Request, res: Response): Promise<void> => {
       campaignName,     // e.g. "My Campaign"
       category,         // optional
       inviteLink,       // e.g. "https://t.me/MyChannel"
-
-      // We expect something like:
-      // {
-      //   "regularUsers": { "JOINED": "0.03", "RETAINED_ONE_MONTH": "0.02" },
-      //   "premiumUsers": { "JOINED": "0.03", "RETAINED_TWO_WEEKS": "0.02" }
-      // }
-      commissionValues,
+      telegramEventsOpCodesArray // e.g. [1, 3]
     } = req.body;
+
+    Logger.info(telegramEventsOpCodesArray);
+    Logger.info(JSON.stringify(req.body));
+    
 
     // Validate required fields
     if (!campaignId || !inviteLink) {
@@ -143,36 +140,7 @@ router.post('/', async (req: Request, res: Response): Promise<void> => {
     }
 
     // 2) Build a Set of numeric op codes from all events in regularUsers & premiumUsers
-    const eventsToVerifySet = new Set<number>();
-
-    if (commissionValues) {
-      const { regularUsers, premiumUsers } = commissionValues;
-
-      // A) regularUsers
-      if (regularUsers && typeof regularUsers === 'object') {
-        for (const [eventName, costStr] of Object.entries(regularUsers)) {
-          const opCodeBigInt = getOpCodeByEventName(eventName); // returns bigint | undefined
-          if (opCodeBigInt !== undefined) {
-            eventsToVerifySet.add(Number(opCodeBigInt));
-          } else {
-            Logger.warn(`Unrecognized event name in regularUsers: ${eventName}`);
-          }
-        }
-      }
-
-      // B) premiumUsers
-      if (premiumUsers && typeof premiumUsers === 'object') {
-        for (const [eventName, costStr] of Object.entries(premiumUsers)) {
-          const opCodeBigInt = getOpCodeByEventName(eventName);
-          if (opCodeBigInt !== undefined) {
-            eventsToVerifySet.add(Number(opCodeBigInt));
-          } else {
-            Logger.warn(`Unrecognized event name in premiumUsers: ${eventName}`);
-          }
-        }
-      }
-    }
-
+    const eventsToVerifySet = new Set<number>(telegramEventsOpCodesArray);
     // Convert the Set to an array
     const eventsToVerify = Array.from(eventsToVerifySet);
     Logger.info(`Derived eventsToVerify: ${JSON.stringify(eventsToVerify)}`);

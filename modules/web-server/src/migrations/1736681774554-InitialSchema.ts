@@ -1,3 +1,5 @@
+// src/migrations/InitialSchema1736681774554.ts
+
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
 export class InitialSchema1736681774554 implements MigrationInterface {
@@ -105,7 +107,6 @@ export class InitialSchema1736681774554 implements MigrationInterface {
         END IF;
 
         -- Enforce allowed state transitions:
-        -- Allowed transitions:
         -- DEPLOYED_ON_CHAIN -> TELEGRAM_DETAILS_SET
         -- TELEGRAM_DETAILS_SET -> BLOCKCHIAN_DETIALS_SET
         IF (OLD.state = 'DEPLOYED_ON_CHAIN' AND NEW.state = 'TELEGRAM_DETAILS_SET')
@@ -179,7 +180,22 @@ export class InitialSchema1736681774554 implements MigrationInterface {
       );
     `);
 
-    // 11) Create events TABLE
+    // 11) Create telegram_events TABLE
+    await queryRunner.query(`
+      CREATE TABLE IF NOT EXISTS "telegram_events" (
+        "id" SERIAL PRIMARY KEY,
+        "opCode" VARCHAR(255) NOT NULL,
+        "user_telegram_id" BIGINT NOT NULL,
+        "is_premium" BOOLEAN NOT NULL,
+        "is_processed" BOOLEAN NOT NULL DEFAULT false,
+        "chat_id" VARCHAR(255) NOT NULL,
+        "created_at" TIMESTAMP NOT NULL DEFAULT NOW(),
+        "updated_at" TIMESTAMP NOT NULL DEFAULT NOW()
+      );
+    `);
+
+
+    // 12) events table - events emitted from the Blockchain
     await queryRunner.query(`
       CREATE TABLE IF NOT EXISTS "events" (
         "id" SERIAL PRIMARY KEY,
@@ -189,51 +205,12 @@ export class InitialSchema1736681774554 implements MigrationInterface {
         "created_at" TIMESTAMP WITH TIME ZONE DEFAULT NOW()
       );
     `);
-
-    // 12) Create user_events TABLE
-    await queryRunner.query(`
-      CREATE TABLE IF NOT EXISTS "user_events" (
-        "id" SERIAL PRIMARY KEY,
-        "user_telegram_id" BIGINT NOT NULL,
-        "is_premium" BOOLEAN NOT NULL,
-        "event_op_code" BIGINT NOT NULL,
-        "event_name" VARCHAR(255) NOT NULL,
-        "is_processed" BOOLEAN NOT NULL DEFAULT false,
-        "campaign_id" VARCHAR(255) NOT NULL,
-        "affiliate_id" VARCHAR(255) NOT NULL,
-        "created_at" TIMESTAMP NOT NULL DEFAULT NOW(),
-        "updated_at" TIMESTAMP NOT NULL DEFAULT NOW()
-      );
-    `);
-
-    // 13) Create the function for user_events to prevent is_processed regression.
-    await queryRunner.query(`
-      CREATE OR REPLACE FUNCTION prevent_isProcessed_regression()
-      RETURNS TRIGGER AS $$
-      BEGIN
-        IF OLD.is_processed = true AND NEW.is_processed = false THEN
-          RAISE EXCEPTION 'Cannot revert is_processed from true to false';
-        END IF;
-        RETURN NEW;
-      END;
-      $$ LANGUAGE plpgsql;
-    `);
-
-    // 14) Create trigger on user_events table referencing that function.
-    await queryRunner.query(`
-      CREATE TRIGGER trg_prevent_isProcessed_regression
-      BEFORE UPDATE ON "user_events"
-      FOR EACH ROW
-      EXECUTE PROCEDURE prevent_isProcessed_regression();
-    `);
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
     // Reverse creation order.
-    await queryRunner.query(`DROP TRIGGER IF EXISTS trg_prevent_isProcessed_regression ON "user_events";`);
-    await queryRunner.query(`DROP FUNCTION IF EXISTS prevent_isProcessed_regression();`);
-    await queryRunner.query(`DROP TABLE IF EXISTS "user_events";`);
     await queryRunner.query(`DROP TABLE IF EXISTS "events";`);
+    await queryRunner.query(`DROP TABLE IF EXISTS "telegram_events";`);
     await queryRunner.query(`DROP TABLE IF EXISTS "notifications";`);
     await queryRunner.query(`DROP TABLE IF EXISTS "processed_offsets";`);
     await queryRunner.query(`DROP TABLE IF EXISTS "campaign_roles";`);

@@ -1,6 +1,6 @@
 // src/components/WizardSetupCampaign.tsx
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { useParams } from 'react-router-dom';
 
@@ -9,7 +9,8 @@ import { useTonConnectFetchContext } from './TonConnectProvider';
 import { useTonWalletConnect } from '../hooks/useTonConnect';
 
 // Commission events
-import { eventsConfig, getOpCodeByEventName } from '@common/UserEventsConfig';
+import { blockchainEvents, getBlockchainOpCodeByEventName, getTelegramOpCodesByEventName } from '@common/BlockchainEventsConfig';
+import { BlockchainEventType } from "@common/Enums";
 
 // On-chain setter
 import { advertiserSetCampaignDetails } from '../blockchain/advertiserSetCampaignDetails';
@@ -230,6 +231,13 @@ function WizardSetupCampaign() {
   // ------------------------------------------------------
   // Step 2: Approve & Create the Campaign
   // ------------------------------------------------------
+  // Compute a flag that indicates if at least one commission event was set (non-zero).
+  const hasCommission = useMemo(() => {
+    const regular = Object.values(commissionValues.regularUsers).some(val => val.trim() !== '' && Number(val) > 0);
+    const premium = Object.values(commissionValues.premiumUsers).some(val => val.trim() !== '' && Number(val) > 0);
+    return regular || premium;
+  }, [commissionValues]);
+
   async function handleApproveTelegramDetails() {
     if (!campaignId) {
       setErrorMessage('No campaignId in the URL.');
@@ -244,18 +252,60 @@ function WizardSetupCampaign() {
       return;
     }
 
+    // --- Validation Check (should be unreachable if button is disabled) ---
+    if (!hasCommission) {
+      setErrorMessage("Please insert commission values for at least one event before proceeding.");
+      return;
+    }
+    // ------------------------
+
     setErrorMessage(null);
     setIsLoading(true);
 
-    try {
-      const bodyData = {
-        campaignId,
-        campaignName,
-        category,
-        inviteLink,
-        commissionValues,
-      };
+    // Build dictionaries from the commission values
+    const regularUsersDict = buildCommissionDictionary(commissionValues.regularUsers);
+    const premiumUsersDict = buildCommissionDictionary(commissionValues.premiumUsers);
 
+   // Convert dictionaries to Sets of numbers (using opCodes as numbers)
+    const regularUsersSet: Set<number> = new Set(
+      Array.from(regularUsersDict.keys(), key => Number(key))
+    );
+    const premiumUsersSet: Set<number> = new Set(
+      Array.from(premiumUsersDict.keys(), key => Number(key))
+    );
+
+    // Merge the two sets of blockchain op codes
+    const combinedSet = new Set<number>([...regularUsersSet, ...premiumUsersSet]);
+
+    // Now, map each blockchain op code to its corresponding telegram op codes.
+    const telegramEventsOpCodesSet = new Set<number>();
+
+    for (const blockchainOpCode of combinedSet) {
+      // Since your enum is numeric, cast the blockchain op code to BlockchainEventType
+      const telegramOpCodes = getTelegramOpCodesByEventName(blockchainOpCode as BlockchainEventType);
+      if (telegramOpCodes && telegramOpCodes.length > 0) {
+        telegramOpCodes.forEach((code) => telegramEventsOpCodesSet.add(code as number));
+      } else {
+        console.warn(`No telegram op codes found for blockchain op code: ${blockchainOpCode}`);
+      }
+    }
+
+    const telegramEventsOpCodesArray = Array.from(telegramEventsOpCodesSet);
+
+    console.log("telegramEventsOpCodesArray:", telegramEventsOpCodesArray);
+
+    const bodyData = {
+      campaignId,
+      campaignName,
+      category,
+      inviteLink,
+      telegramEventsOpCodesArray,
+    };
+
+    console.log("body:", JSON.stringify(bodyData));
+
+
+    try {
       // 1) POST => /api/v1/campaigns
       const resp = await fetch('/api/v1/campaigns', {
         method: 'POST',
@@ -307,10 +357,21 @@ function WizardSetupCampaign() {
   // ------------------------------------------------------
   function buildCommissionDictionary(costRecord: Record<string, string>) {
     const dict = Dictionary.empty<bigint, string>();
-    for (const [eventName, costStr] of Object.entries(costRecord)) {
-      const opCode = getOpCodeByEventName(eventName);
+    for (const [keyStr, costStr] of Object.entries(costRecord)) {
+      // Only include events with a non-empty, non-zero commission value
+      if (!costStr || costStr === '0') continue;
+      
+      console.log(`Processing event key "${keyStr}" with cost "${costStr}"`);
+
+      let blockchainEvent: BlockchainEventType = BlockchainEventType[keyStr as keyof typeof BlockchainEventType];
+      console.log("blockchainEvent: " + blockchainEvent);
+
+      // Now use the number as the enum value
+      const opCode = getBlockchainOpCodeByEventName(blockchainEvent);
       if (opCode !== undefined) {
-        dict.set(opCode, costStr);
+        dict.set(BigInt(opCode), costStr);
+      } else {
+        throw Error("Cannot find op code for: " + keyStr);
       }
     }
     return dict;
@@ -473,7 +534,7 @@ function WizardSetupCampaign() {
                   </tr>
                 </thead>
                 <tbody>
-                  {eventsConfig.events.map((evt) => {
+                  {blockchainEvents.map((evt) => {
                     const regVal = commissionValues.regularUsers[evt.eventName] || '';
                     const premVal = commissionValues.premiumUsers[evt.eventName] || '';
                     return (
@@ -529,7 +590,12 @@ function WizardSetupCampaign() {
               </table>
             </div>
 
-            <button style={{ marginTop: '1rem' }} disabled={isLoading} onClick={handleApproveTelegramDetails}>
+            {/* Button is enabled only if at least one commission value > 0 exists */}
+            <button
+              style={{ marginTop: '1rem' }}
+              disabled={isLoading || !hasCommission}
+              onClick={handleApproveTelegramDetails}
+            >
               {isLoading ? 'Saving...' : 'Approve & Create Campaign'}
             </button>
           </>

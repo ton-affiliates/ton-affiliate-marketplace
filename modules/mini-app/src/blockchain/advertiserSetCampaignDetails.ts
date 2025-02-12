@@ -3,7 +3,7 @@ import { Dictionary, Sender, OpenedContract } from '@ton/core';
 import { Campaign } from '../contracts/Campaign';
 import { TonConfig } from '../config/TonConfig'
 import { pollUntil } from './pollUntil'; // or wherever you keep pollUntil
-import { getEventNameByOpCode } from "@common/UserEventsConfig.ts"
+import { getEventNameByBlockchainOpCode } from "@common/BlockchainEventsConfig.ts"
 
 interface CommissionValues {
   regularUsers: Dictionary<bigint, string>;  // opCode -> comissionValue as string (e.g. '0.1')
@@ -45,10 +45,12 @@ export async function advertiserSetCampaignDetails(
   // 1) Build cost-per-action dictionaries
   for (const opCode of commissionValues.regularUsers.keys()) {
     // Retrieve the event name for this opCode.
-    const eventName = getEventNameByOpCode(opCode);
-    if (!eventName) {
+    console.log(opCode);
+    const eventName = getEventNameByBlockchainOpCode(opCode);
+    if (eventName === undefined) {
       throw new Error("Unsupported opCode: " + opCode);
     }
+    console.log(eventName);
     
     // Retrieve the commission value for this opCode.
     // (Assuming commissionValues.regularUsers stores values as strings, e.g. "0.1")
@@ -67,8 +69,8 @@ export async function advertiserSetCampaignDetails(
 
   for (const opCode of commissionValues.premiumUsers.keys()) {
       // Retrieve the event name for this opCode.
-      const eventName = getEventNameByOpCode(opCode);
-      if (!eventName) {
+      const eventName = getEventNameByBlockchainOpCode(opCode);
+      if (eventName === undefined) {
         throw new Error("Unsupported opCode: " + opCode);
       }
       

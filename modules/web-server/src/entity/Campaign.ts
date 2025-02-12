@@ -8,7 +8,7 @@ import {
   JoinColumn,
 } from 'typeorm';
 import { TelegramAsset } from './TelegramAsset';
-import { getEventDefinitionByOpCode } from '@common/UserEventsConfig';
+import { getTelegramEventByOpCode } from '@common/TelegramEventsConfig';
 import { Logger } from '../utils/Logger';
 
 export interface RequiredPrivileges {
@@ -47,8 +47,7 @@ export class Campaign {
   category: string | null;
 
   /**
-   * We store an array of numeric op codes (e.g., [0, 1, 2])
-   * instead of an enum array of `UserEventType`.
+   * We store an array of numeric op codes (e.g., [0, 1, 2]) representing Telegram events.
    */
   @Column({
     type: 'bigint',
@@ -103,8 +102,12 @@ export class Campaign {
 
   /**
    * Returns the required privileges for verifying events based on eventsToVerify.
-   * It looks up the event definitions from the config and gathers the privileges
-   * for the asset type associated with this campaign.
+   * It looks up the event definitions from the Telegram events config and gathers
+   * the privileges for the asset type associated with this campaign.
+   *
+   * Now that we store Telegram event op codes, each event definition is expected
+   * to contain privilege objects keyed by asset type. This method retrieves the
+   * privileges by directly indexing into these objects using the asset type.
    */
   public getRequiredAdminPrivilegesToVerifyEvents(): RequiredPrivileges {
     if (!this.telegramAsset) {
@@ -118,13 +121,13 @@ export class Campaign {
       eventsToVerify = ${JSON.stringify(this.eventsToVerify)}, 
       assetType = ${this.telegramAsset.type}`);
 
-    for (const opCodeStr of this.eventsToVerify) {
-      // Convert value to number
-      const opCodeNum = parseInt(opCodeStr.toString(), 10);
+    for (const opCode of this.eventsToVerify) {
+      // Convert value to number in case it isn't already.
+      const opCodeNum = parseInt(opCode.toString(), 10);
       Logger.debug(`Checking opCodeNum: ${opCodeNum}`);
 
-      // Retrieve the full event definition.
-      const def = getEventDefinitionByOpCode(opCodeNum);
+      // Retrieve the full event definition from the Telegram events config.
+      const def = getTelegramEventByOpCode(opCodeNum);
       if (!def) {
         Logger.warn(
           `[Campaign ${this.id}] No event definition found for opCode ${opCodeNum}. Skipping.`
@@ -136,42 +139,45 @@ export class Campaign {
         `[Campaign ${this.id}] Found event definition for opCode ${opCodeNum}: ${JSON.stringify(def)}`
       );
 
-      // Find privileges for the matching asset type.
-      const assetPrivileges = def.assetTypes.find(
-        (a) => a.type === this.telegramAsset!.type
-      );
+      // Retrieve privileges based on the telegram asset type directly from the event definition.
+      const assetType = this.telegramAsset.type;
+      if (!assetType) {
+        Logger.warn(`[Campaign ${this.id}] telegramAsset type is missing.`);
+        continue; // or throw an error, depending on your logic
+      }
 
-      if (!assetPrivileges) {
+      const internalPrivs = def.internalRequiredAdminPrivileges[assetType];
+      const externalPrivs = def.externalRequiredAdminPrivileges[assetType];
+
+      if (!internalPrivs && !externalPrivs) {
         Logger.warn(
-          `[Campaign ${this.id}] Could not find matching assetType for opCode ${opCodeNum}. 
-          Looking for assetType = "${this.telegramAsset!.type}", 
-          but def.assetTypes = ${JSON.stringify(def.assetTypes)}.
-          Skipping.`
+          `[Campaign ${this.id}] Could not find privileges for assetType "${assetType}" in event definition for opCode ${opCodeNum}. Skipping.`
         );
         continue;
       }
 
-      Logger.debug(
-        `[Campaign ${this.id}] Found matching assetPrivileges for opCode ${opCodeNum}: ${JSON.stringify(assetPrivileges)}`
-      );
-
-      for (const priv of assetPrivileges.internalRequiredAdminPrivileges) {
-        requiredInternal.add(priv);
+      if (internalPrivs) {
+        for (const priv of internalPrivs) {
+          requiredInternal.add(priv);
+        }
       }
 
-      for (const priv of assetPrivileges.externalRequiredAdminPrivileges) {
-        requiredExternal.add(priv);
+      if (externalPrivs) {
+        for (const priv of externalPrivs) {
+          requiredExternal.add(priv);
+        }
       }
     }
-
-    // for ALL asset types we need to redirect
-    requiredInternal.add("can_invite_users");
-    requiredExternal.add("Add members");
 
     Logger.debug(
       `[Campaign ${this.id}] Final required internal: ${JSON.stringify([...requiredInternal])}, ` +
       `external: ${JSON.stringify([...requiredExternal])}`
     );
+
+
+    // for all campaigns we need to redirect users
+    requiredInternal.add("can_invite_users")
+    requiredExternal.add("Add members")
 
     return {
       internal: [...requiredInternal],

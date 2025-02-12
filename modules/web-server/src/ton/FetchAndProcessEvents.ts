@@ -21,6 +21,8 @@ import { getCampaignByIdWithAdvertiser } from '../services/CampaignsService';
 import { CampaignApiResponse } from "@common/ApiResponses";
 import { sseClients } from '../sseClients';
 import { CampaignState } from "../entity/Campaign";
+import { getTelegramOpCodesByBlockchainOpCode, } from "@common/BlockchainEventsConfig";
+import { getTelegramEventByOpCode } from "@common/TelegramEventsConfig";
 
 // Helper for BigInt serialization
 function bigintReplacer(_: string, value: any) {
@@ -28,14 +30,28 @@ function bigintReplacer(_: string, value: any) {
 }
 
 function sameElements(a: number[], b: number[]): boolean {
-  if (!a || !b) return false;
-  if (a.length !== b.length) return false;
+  if (!a || !b) {
+    return false;
+  }
+
+  if (a.length !== b.length) {
+    return false;
+  }
+
   const setA = new Set(a);
   const setB = new Set(b);
-  if (setA.size !== setB.size) return false;
-  for (const value of setA) {
-    if (!setB.has(value)) return false;
+
+  if (setA.size !== setB.size) {
+    return false;
   }
+
+  for (const value of setA) {
+    if (!setB.has(value)) {
+      return false;
+    } else {
+    }
+  }
+
   return true;
 }
 
@@ -109,10 +125,10 @@ async function processEvent(event: EmitLogEvent) {
           Logger.debug(`Campaign details fetched from DB: ${JSON.stringify(campaignFromDB, bigintReplacer)}`);
           let endpoint;
           if (TonConfig.HTTP_ENDPOINT_NETWORK === 'testnet') {
-            Logger.info('Getting HTTP V4 endpoint for testnet');
+            Logger.debug('Getting HTTP V4 endpoint for testnet');
             endpoint = await getHttpV4Endpoint({ network: TonConfig.HTTP_ENDPOINT_NETWORK });
           } else {
-            Logger.info('Getting HTTP V4 endpoint for mainnet');
+            Logger.debug('Getting HTTP V4 endpoint for mainnet');
             endpoint = await getHttpV4Endpoint();
           }
           
@@ -130,17 +146,48 @@ async function processEvent(event: EmitLogEvent) {
             const numericOpCode = Number(opCode);
             opCodesToVerify.add(numericOpCode);
           }
-          const eventsToVerifyFromBlockchain: number[] = Array.from(opCodesToVerify);
-          const eventsToVerifyFromDB: number[] = Array.from(campaignFromDB.eventsToVerify ?? []).map(e => parseInt(e.toString(), 10));
-          const arraysMatch = sameElements(eventsToVerifyFromDB, eventsToVerifyFromBlockchain);
+
+          Logger.debug(`opCodesToVerify: ${JSON.stringify(Array.from(opCodesToVerify))}`);
+
+          // Map blockchain event op codes to Telegram event op codes.
+          const telegramEventsFromBlockchain = new Set<number>();
+          for (const blockchainOpCode of opCodesToVerify) {
+            // Retrieve all Telegram op codes for the given blockchain op code.
+            const telegramOpCodes = getTelegramOpCodesByBlockchainOpCode(BigInt(blockchainOpCode));
+            if (telegramOpCodes === undefined || telegramOpCodes.length === 0) {
+              Logger.error(`No telegram op codes found for blockchain op code: ${blockchainOpCode}`);
+              continue;
+            }
+
+            // Validate and add each Telegram op code.
+            for (const telegramOpCode of telegramOpCodes) {
+              // Optionally, get the full Telegram event definition to ensure it exists.
+              const telegramEvent = getTelegramEventByOpCode(telegramOpCode);
+              if (telegramEvent) {
+                telegramEventsFromBlockchain.add(telegramOpCode);
+              } else {
+                Logger.warn(`Telegram event not found for telegram op code: ${telegramOpCode}`);
+              }
+            }
+          }
+
+          Logger.debug(`telegramEventsFromBlockchain: ${JSON.stringify(Array.from(telegramEventsFromBlockchain))}`)
+          const normalizedDBArray = campaignFromDB.eventsToVerify!.map(x => Number(x));
+          Logger.debug(`telegramEventsFromDB: ${JSON.stringify(normalizedDBArray)}`)
+
+          
+          // assert events to verify are the same
+          const arraysMatch = sameElements(Array.from(normalizedDBArray), Array.from(telegramEventsFromBlockchain));
           if (!arraysMatch) {
-            const errorMessage = `Inconsistent OP Codes coming from Blockchain: From DB: ${JSON.stringify(eventsToVerifyFromDB)}, from Blockchain: ${JSON.stringify(eventsToVerifyFromBlockchain, bigintReplacer)}`;
+            const errorMessage = `Inconsistent OP Codes coming from Blockchain: From DB: ${JSON.stringify(Array.from(normalizedDBArray))}, from Blockchain: ${JSON.stringify(Array.from(telegramEventsFromBlockchain!))}`;
             Logger.error(errorMessage);
             throw new Error(errorMessage);
           }
+
           await ensureCampaign({ 
               id: campaignId,
-              state: CampaignState.BLOCKCHIAN_DETIALS_SET});
+              state: CampaignState.BLOCKCHIAN_DETIALS_SET,
+          });
 
           Logger.info(`Broadcasting AdvertiserSignedCampaignDetailsEvent to SSE clients`);
 
@@ -275,23 +322,26 @@ async function processEvent(event: EmitLogEvent) {
 }
 
 export const processBlockchainEvents = async (): Promise<void> => {
+  let currentLt: bigint;
   try {
     const lastProcessedLt = await getLastProcessedLt();
     Logger.debug('Last Processed LT: ' + lastProcessedLt);
+    currentLt = lastProcessedLt;
 
     const events: EmitLogEvent[] = await getLatestEvents(lastProcessedLt);
     if (events.length > 0) {
-      let currentLt = lastProcessedLt;
       for (const event of events) {
         try {
           await processEvent(event);
-          currentLt = event.createdLt > currentLt ? event.createdLt : currentLt;
         } catch (error) {
           Logger.error(
             `Error processing event with LT ${event.createdLt}: ${
               error instanceof Error ? error.message : JSON.stringify(error)
             }`
           );
+        } finally {
+          // Update currentLt regardless of success or error for this event
+          currentLt = event.createdLt > currentLt ? event.createdLt : currentLt;
         }
       }
       await saveLastProcessedLt(currentLt);
@@ -299,9 +349,15 @@ export const processBlockchainEvents = async (): Promise<void> => {
     }
   } catch (error) {
     if (error instanceof Error) {
-      Logger.error('Error fetching or processing events: ' + error.message + '. ST: ' + error.stack);
+      Logger.error(
+        'Error fetching or processing events: ' +
+          error.message +
+          '. ST: ' +
+          error.stack
+      );
     } else {
       Logger.error('Unknown error: ' + JSON.stringify(error));
     }
   }
 };
+

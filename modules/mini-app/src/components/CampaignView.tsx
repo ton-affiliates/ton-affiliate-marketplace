@@ -26,12 +26,8 @@ import {
   CampaignRoleApiResponse,
 } from '@common/ApiResponses';
 import { CampaignData, AffiliateData } from '../contracts/Campaign';
+import { getEventNameByBlockchainOpCode, getEventDescriptionByBlockchainOpCode } from "@common/BlockchainEventsConfig.ts"
 
-// NEW imports for event listing
-import {
-  getEventNameByOpCode,
-  getEventDefinition,
-} from '@common/UserEventsConfig';
 
 import TransactionButton from '../components/TransactionButton';
 import Spinner from '../components/Spinner';
@@ -812,10 +808,8 @@ export default function CampaignView() {
                 const regBn = dictReg.get(opCode) || 0n;
                 const premBn = dictPrem.get(opCode) || 0n;
                 const currency = onChainData.campaignDetails.paymentMethod === 0n ? 'TON' : 'USDT';
-                const eventName = getEventNameByOpCode(opCode);
-                const eventDef = eventName ? getEventDefinition(eventName) : undefined;
-                const displayName = eventDef?.eventName || `Unknown (#${opCode.toString()})`;
-                const displayDesc = eventDef?.description || '';
+                const displayName = getEventNameByBlockchainOpCode(opCode) || `Unknown (#${opCode.toString()})`;
+                const displayDesc = getEventDescriptionByBlockchainOpCode(opCode) || '';
                 rows.push(
                   <tr key={opCode.toString()}>
                     <td style={{ border: '1px solid #ccc', padding: '6px' }}>

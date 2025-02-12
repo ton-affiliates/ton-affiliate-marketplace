@@ -12,11 +12,7 @@ import { affiliateWithdrawEarnings } from '../blockchain/affiliateWithdrawEarnin
 
 import { AffiliateData, CampaignData, UserActionStats } from '../contracts/Campaign';
 import { CampaignApiResponse, UserApiResponse } from '@common/ApiResponses';
-
-// ---- NEW IMPORTS from config instead of the old local map
-import {
-  getEventNameByOpCode,
-} from '@common/UserEventsConfig';
+import { getEventNameByBlockchainOpCode } from "@common/BlockchainEventsConfig.ts"
 
 // 1) fetch the single affiliate from DB
 async function fetchSingleAffiliate(
@@ -203,10 +199,7 @@ export function AffiliatePage() {
       if (!stats) continue;
 
       // Look up event name from config
-      const eventName = getEventNameByOpCode(key);
-      // Optionally, look up the event definition for a description
-      // const def = eventName ? getEventDefinition(eventName) : undefined;
-
+      const eventName = getEventNameByBlockchainOpCode(key);
       const actionLabel = eventName
         ? eventName
         : `Unknown Action (#${key.toString()})`;
