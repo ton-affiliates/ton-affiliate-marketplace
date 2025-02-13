@@ -79,6 +79,7 @@ export class InitialSchema1736681774554 implements MigrationInterface {
         "category"          VARCHAR(255) NULL,
         "verified_events"   BIGINT[] NOT NULL DEFAULT '{}',
         "telegram_asset_id" VARCHAR(255) NULL,
+        "verify_user_is_human_on_referral" BOOLEAN NOT NULL DEFAULT true,
         "state"             VARCHAR(50) NOT NULL DEFAULT 'DEPLOYED_ON_CHAIN',
         "created_at"        TIMESTAMP NOT NULL DEFAULT NOW(),
         "updated_at"        TIMESTAMP NOT NULL DEFAULT NOW(),
@@ -205,10 +206,23 @@ export class InitialSchema1736681774554 implements MigrationInterface {
         "created_at" TIMESTAMP WITH TIME ZONE DEFAULT NOW()
       );
     `);
+
+     // 13) Create referrals TABLE
+     await queryRunner.query(`
+      CREATE TABLE IF NOT EXISTS "referrals" (
+        "id" SERIAL PRIMARY KEY,
+        "user_telegram_id" BIGINT NOT NULL,
+        "campaign_id" VARCHAR(255) NOT NULL,
+        "affiliate_id" INT NOT NULL,
+        "created_at" TIMESTAMP NOT NULL DEFAULT NOW(),
+        "updated_at" TIMESTAMP NOT NULL DEFAULT NOW()
+      );
+    `);
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
     // Reverse creation order.
+    await queryRunner.query(`DROP TABLE IF EXISTS "referrals";`);
     await queryRunner.query(`DROP TABLE IF EXISTS "events";`);
     await queryRunner.query(`DROP TABLE IF EXISTS "telegram_events";`);
     await queryRunner.query(`DROP TABLE IF EXISTS "notifications";`);

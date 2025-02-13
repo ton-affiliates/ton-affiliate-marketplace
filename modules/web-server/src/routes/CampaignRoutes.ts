@@ -119,7 +119,8 @@ router.post('/', async (req: Request, res: Response): Promise<void> => {
       campaignName,     // e.g. "My Campaign"
       category,         // optional
       inviteLink,       // e.g. "https://t.me/MyChannel"
-      telegramEventsOpCodesArray // e.g. [1, 3]
+      telegramEventsOpCodesArray, // e.g. [1, 3]
+      // verifyUserIsHumanOnReferral // boolean
     } = req.body;
 
     Logger.info(telegramEventsOpCodesArray);
@@ -152,6 +153,7 @@ router.post('/', async (req: Request, res: Response): Promise<void> => {
       category: category,
       telegramAsset: telegramAsset,
       eventsToVerify: eventsToVerify,
+      // verifyUserIsHumanOnReferral: verifyUserIsHumanOnReferral,
       state: CampaignState.TELEGRAM_DETAILS_SET
     };
 

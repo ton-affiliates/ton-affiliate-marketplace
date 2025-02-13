@@ -22,7 +22,7 @@ export interface RequiredPrivileges {
 export enum CampaignState {
   DEPLOYED_ON_CHAIN = 'DEPLOYED_ON_CHAIN',
   TELEGRAM_DETAILS_SET = 'TELEGRAM_DETAILS_SET',
-  BLOCKCHIAN_DETIALS_SET = 'BLOCKCHIAN_DETIALS_SET'
+  BLOCKCHIAN_DETIALS_SET = 'BLOCKCHIAN_DETIALS_SET',
 }
 
 @Entity('campaigns')
@@ -71,6 +71,12 @@ export class Campaign {
     default: CampaignState.DEPLOYED_ON_CHAIN,
   })
   state: CampaignState;
+
+  /**
+   * Added boolean column to verify if user is human on referral.
+   */
+  @Column({ type: 'boolean', name: 'verify_user_is_human_on_referral', default: false })
+  verifyUserIsHumanOnReferral: boolean;
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
@@ -136,7 +142,9 @@ export class Campaign {
       }
 
       Logger.debug(
-        `[Campaign ${this.id}] Found event definition for opCode ${opCodeNum}: ${JSON.stringify(def)}`
+        `[Campaign ${this.id}] Found event definition for opCode ${opCodeNum}: ${JSON.stringify(
+          def
+        )}`
       );
 
       // Retrieve privileges based on the telegram asset type directly from the event definition.
@@ -173,7 +181,6 @@ export class Campaign {
       `[Campaign ${this.id}] Final required internal: ${JSON.stringify([...requiredInternal])}, ` +
       `external: ${JSON.stringify([...requiredExternal])}`
     );
-
 
     // for all campaigns we need to redirect users
     requiredInternal.add("can_invite_users")
