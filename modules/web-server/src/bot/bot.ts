@@ -6,7 +6,7 @@ import { Logger } from '../utils/Logger';
 
 // Import the Telegram event service and enums
 import { createTelegramEvent } from '../services/TelegramEventService';
-import { TelegramEventType } from '@common/Enums';
+import { getTelegramOpCodeByEventName } from "@common/TelegramEventsConfig";
 
 dotenv.config();
 
@@ -50,7 +50,7 @@ bot.on('chat_member', async (ctx) => {
       await createTelegramEvent({
         userTelegramId,
         isPremium,
-        opCode: TelegramEventType.JOINED_CHAT,
+        opCode: getTelegramOpCodeByEventName("JOINED_CHAT")!,
         chatId,
       });
       Logger.info(`User ${userTelegramId} JOINED chat ${chatId}`);
@@ -61,7 +61,7 @@ bot.on('chat_member', async (ctx) => {
       await createTelegramEvent({
         userTelegramId,
         isPremium,
-        opCode: TelegramEventType.LEFT_CHAT,
+        opCode: getTelegramOpCodeByEventName("LEFT_CHAT")!,
         chatId,
       });
       Logger.info(`User ${userTelegramId} LEFT chat ${chatId}`);

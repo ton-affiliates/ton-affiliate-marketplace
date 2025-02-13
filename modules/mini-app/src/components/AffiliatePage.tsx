@@ -199,7 +199,7 @@ export function AffiliatePage() {
       if (!stats) continue;
 
       // Look up event name from config
-      const eventName = getEventNameByBlockchainOpCode(key);
+      const eventName = getEventNameByBlockchainOpCode(Number(key));
       const actionLabel = eventName
         ? eventName
         : `Unknown Action (#${key.toString()})`;

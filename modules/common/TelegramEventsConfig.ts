@@ -1,19 +1,18 @@
-import eventsDoc from './telegram_events_config.json';
-import { TelegramEventType } from './Enums';
+import telegramConfig from './telegram_events_config.json';
 
 /**
- * Interface for admin privileges per asset type.
+ * Interface for a single Telegram event definition.
  */
 export interface AdminPrivileges {
   [assetType: string]: string[];
 }
 
 /**
- * Interface for a Telegram event definition.
+ * Interface for a single Telegram event.
  */
 export interface TelegramEvent {
-  eventName: TelegramEventType;  // Enum for readability
-  telegramOpCode: number;        // Identifier for the event
+  eventName: string;         // e.g. "JOINED_CHAT"
+  telegramOpCode: number;    // numeric code
   description?: string;
   api: string;
   internalRequiredAdminPrivileges: AdminPrivileges;
@@ -28,16 +27,16 @@ interface TelegramEventsJson {
 }
 
 /**
- * Load the event configuration.
+ * Safely cast to our interface.
  */
-export const doc: TelegramEventsJson = (eventsDoc as unknown) as TelegramEventsJson;
+export const doc: TelegramEventsJson = telegramConfig as TelegramEventsJson;
 
 /**
  * Build in-memory maps for quick lookups.
  */
-const eventNameToTelegramOpCode = new Map<TelegramEventType, number>();
-const telegramOpCodeToEventName = new Map<number, TelegramEventType>();
-const telegramOpCodeToEvent = new Map<number, TelegramEvent>();
+const eventNameToTelegramOpCode = new Map<string, number>();
+const telegramOpCodeToEventName = new Map<number, string>();
+const telegramOpCodeToEvent     = new Map<number, TelegramEvent>();
 
 for (const evt of doc.telegramEvents) {
   eventNameToTelegramOpCode.set(evt.eventName, evt.telegramOpCode);
@@ -48,14 +47,14 @@ for (const evt of doc.telegramEvents) {
 /**
  * Look up the Telegram op code by event name.
  */
-export function getTelegramOpCodeByEventName(eventName: TelegramEventType): number | undefined {
+export function getTelegramOpCodeByEventName(eventName: string): number | undefined {
   return eventNameToTelegramOpCode.get(eventName);
 }
 
 /**
  * Look up the event name by a given Telegram op code.
  */
-export function getEventNameByTelegramOpCode(opCode: number): TelegramEventType | undefined {
+export function getEventNameByTelegramOpCode(opCode: number): string | undefined {
   return telegramOpCodeToEventName.get(opCode);
 }
 
@@ -64,4 +63,10 @@ export function getEventNameByTelegramOpCode(opCode: number): TelegramEventType 
  */
 export function getTelegramEventByOpCode(opCode: number): TelegramEvent | undefined {
   return telegramOpCodeToEvent.get(opCode);
+}
+
+// Debug / example usage
+console.log('=== Loaded Telegram Events ===');
+for (const evt of doc.telegramEvents) {
+  console.log(`Event: ${evt.eventName} -> tOpCode=${evt.telegramOpCode}`);
 }

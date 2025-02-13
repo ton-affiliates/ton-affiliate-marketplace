@@ -184,7 +184,7 @@ export class InitialSchema1736681774554 implements MigrationInterface {
     await queryRunner.query(`
       CREATE TABLE IF NOT EXISTS "telegram_events" (
         "id" SERIAL PRIMARY KEY,
-        "opCode" VARCHAR(255) NOT NULL,
+        "op_code" INTEGER NOT NULL,
         "user_telegram_id" BIGINT NOT NULL,
         "is_premium" BOOLEAN NOT NULL,
         "is_processed" BOOLEAN NOT NULL DEFAULT false,

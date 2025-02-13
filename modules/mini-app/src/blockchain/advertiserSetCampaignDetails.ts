@@ -45,12 +45,10 @@ export async function advertiserSetCampaignDetails(
   // 1) Build cost-per-action dictionaries
   for (const opCode of commissionValues.regularUsers.keys()) {
     // Retrieve the event name for this opCode.
-    console.log(opCode);
-    const eventName = getEventNameByBlockchainOpCode(opCode);
+    const eventName = getEventNameByBlockchainOpCode(Number(opCode));
     if (eventName === undefined) {
       throw new Error("Unsupported opCode: " + opCode);
     }
-    console.log(eventName);
     
     // Retrieve the commission value for this opCode.
     // (Assuming commissionValues.regularUsers stores values as strings, e.g. "0.1")
@@ -69,7 +67,7 @@ export async function advertiserSetCampaignDetails(
 
   for (const opCode of commissionValues.premiumUsers.keys()) {
       // Retrieve the event name for this opCode.
-      const eventName = getEventNameByBlockchainOpCode(opCode);
+      const eventName = getEventNameByBlockchainOpCode(Number(opCode));
       if (eventName === undefined) {
         throw new Error("Unsupported opCode: " + opCode);
       }

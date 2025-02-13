@@ -9,8 +9,7 @@ import { useTonConnectFetchContext } from './TonConnectProvider';
 import { useTonWalletConnect } from '../hooks/useTonConnect';
 
 // Commission events
-import { blockchainEvents, getBlockchainOpCodeByEventName, getTelegramOpCodesByEventName } from '@common/BlockchainEventsConfig';
-import { BlockchainEventType } from "@common/Enums";
+import { doc, getBlockchainOpCodeByEventName, getTelegramOpCodesByOpCode } from '@common/BlockchainEventsConfig';
 
 // On-chain setter
 import { advertiserSetCampaignDetails } from '../blockchain/advertiserSetCampaignDetails';
@@ -281,9 +280,8 @@ function WizardSetupCampaign() {
     const telegramEventsOpCodesSet = new Set<number>();
 
     for (const blockchainOpCode of combinedSet) {
-      // Since your enum is numeric, cast the blockchain op code to BlockchainEventType
-      const telegramOpCodes = getTelegramOpCodesByEventName(blockchainOpCode as BlockchainEventType);
-      if (telegramOpCodes && telegramOpCodes.length > 0) {
+      const telegramOpCodes = getTelegramOpCodesByOpCode(blockchainOpCode);
+      if (telegramOpCodes !== undefined && telegramOpCodes.length > 0) {
         telegramOpCodes.forEach((code) => telegramEventsOpCodesSet.add(code as number));
       } else {
         console.warn(`No telegram op codes found for blockchain op code: ${blockchainOpCode}`);
@@ -363,11 +361,8 @@ function WizardSetupCampaign() {
       
       console.log(`Processing event key "${keyStr}" with cost "${costStr}"`);
 
-      let blockchainEvent: BlockchainEventType = BlockchainEventType[keyStr as keyof typeof BlockchainEventType];
-      console.log("blockchainEvent: " + blockchainEvent);
-
       // Now use the number as the enum value
-      const opCode = getBlockchainOpCodeByEventName(blockchainEvent);
+      const opCode = getBlockchainOpCodeByEventName(keyStr);
       if (opCode !== undefined) {
         dict.set(BigInt(opCode), costStr);
       } else {
@@ -534,7 +529,7 @@ function WizardSetupCampaign() {
                   </tr>
                 </thead>
                 <tbody>
-                  {blockchainEvents.map((evt) => {
+                  {doc.blockchainEvents.map((evt) => {
                     const regVal = commissionValues.regularUsers[evt.eventName] || '';
                     const premVal = commissionValues.premiumUsers[evt.eventName] || '';
                     return (

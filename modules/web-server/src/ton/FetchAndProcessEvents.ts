@@ -153,7 +153,7 @@ async function processEvent(event: EmitLogEvent) {
           const telegramEventsFromBlockchain = new Set<number>();
           for (const blockchainOpCode of opCodesToVerify) {
             // Retrieve all Telegram op codes for the given blockchain op code.
-            const telegramOpCodes = getTelegramOpCodesByBlockchainOpCode(BigInt(blockchainOpCode));
+            const telegramOpCodes = getTelegramOpCodesByBlockchainOpCode(blockchainOpCode);
             if (telegramOpCodes === undefined || telegramOpCodes.length === 0) {
               Logger.error(`No telegram op codes found for blockchain op code: ${blockchainOpCode}`);
               continue;

@@ -7,7 +7,6 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
 } from 'typeorm';
-import { TelegramEventType } from "@common/Enums"
 
 @Entity({ name: 'telegram_events' })
 export class TelegramEvent {
@@ -17,7 +16,7 @@ export class TelegramEvent {
 
   // Store the event type as an integer based on the TelegramEventType enum.
   @Column({ type: 'int', name: 'op_code' })
-  opCode!: TelegramEventType;
+  opCode!: number;
 
   @Column({ type: 'bigint', name: 'user_telegram_id' })
   userTelegramId!: number;

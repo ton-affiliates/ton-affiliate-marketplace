@@ -808,8 +808,8 @@ export default function CampaignView() {
                 const regBn = dictReg.get(opCode) || 0n;
                 const premBn = dictPrem.get(opCode) || 0n;
                 const currency = onChainData.campaignDetails.paymentMethod === 0n ? 'TON' : 'USDT';
-                const displayName = getEventNameByBlockchainOpCode(opCode) || `Unknown (#${opCode.toString()})`;
-                const displayDesc = getEventDescriptionByBlockchainOpCode(opCode) || '';
+                const displayName = getEventNameByBlockchainOpCode(Number(opCode)) || `Unknown (#${opCode.toString()})`;
+                const displayDesc = getEventDescriptionByBlockchainOpCode(Number(opCode)) || '';
                 rows.push(
                   <tr key={opCode.toString()}>
                     <td style={{ border: '1px solid #ccc', padding: '6px' }}>

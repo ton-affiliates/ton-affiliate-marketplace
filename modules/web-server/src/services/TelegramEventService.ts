@@ -2,7 +2,6 @@
 
 import { TelegramEvent } from '../entity/TelegramEvent';
 import appDataSource from '../ormconfig';
-import { TelegramEventType } from "@common/Enums";
 
 function telegramEventsRepository() {
   return appDataSource.getRepository(TelegramEvent);
@@ -20,7 +19,7 @@ function telegramEventsRepository() {
 export async function createTelegramEvent(params: {
   userTelegramId: number;
   isPremium: boolean;
-  opCode: TelegramEventType;
+  opCode: number;
   chatId: string;
 }) {
   const { userTelegramId, chatId, isPremium, opCode } = params;
