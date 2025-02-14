@@ -5,6 +5,7 @@ import dotenv from 'dotenv';
 import * as svgCaptcha from 'svg-captcha';
 import sharp from 'sharp';
 import { Logger } from '../utils/Logger';
+import appDataSource from '../ormconfig';
 
 // For DB campaign checks
 import { getCampaignByIdWithAdvertiser } from '../services/CampaignsService';
@@ -21,6 +22,13 @@ import { TonConfig } from '../config/TonConfig';
 // Telegram events
 import { createTelegramEvent } from '../services/TelegramEventService';
 import { getTelegramOpCodeByEventName } from '@common/TelegramEventsConfig';
+
+// TypeORM repos
+import { Campaign as CampaignEntity } from '../entity/Campaign';
+import { TelegramEvent } from '../entity/TelegramEvent';
+
+import {getBlockchainOpCodeByEventName} from "@common/BlockchainEventsConfig";
+import { botUserAction } from './botUserAction';
 
 dotenv.config();
 
@@ -54,7 +62,6 @@ interface MyContext extends Context {
  * 3) If valid, generate a CAPTCHA and ask user to solve
  */
 bot.start(async (ctx: MyContext) => {
-
   try {
     const startPayload = ctx.startPayload;
     Logger.info(`Received /start with payload: ${startPayload}`);
@@ -85,7 +92,10 @@ bot.start(async (ctx: MyContext) => {
       await ctx.reply('Sorry, this campaign does not exist.');
       return;
     }
+
     // 2) Check "botCanVerify" or similar field
+    //    (If your DB has a column called canBotVerify, you can use that; 
+    //     or check if campaignFromDB.canBotVerifyEvents() is true, etc.)
     if (!campaignFromDB.canBotVerify) {
       Logger.warn(`Campaign ID=${campaignId} is not allowed to verify events.`);
       await ctx.reply('This campaign is not accepting referrals at the moment.');
@@ -118,8 +128,10 @@ bot.start(async (ctx: MyContext) => {
     }
 
     // 5) Check if user is already referred in DB
-    const existingReferral: Referral | null =
-      await getReferralByCampaignAndUserTelegramId(campaignId, userTelegramId);
+    const existingReferral: Referral | null = await getReferralByCampaignAndUserTelegramId(
+      campaignId,
+      userTelegramId
+    );
     if (existingReferral) {
       Logger.warn(`User ${userTelegramId} already referred for campaign=${campaignId}`);
       await ctx.reply('You have already been referred for this campaign.');
@@ -145,14 +157,16 @@ bot.start(async (ctx: MyContext) => {
       campaignId,
       affiliateId,
       tries: 0,
-      expiresAt: Date.now() + 15_000,
+      expiresAt: Date.now() + 15_000, // 15 seconds
     });
 
     // Send captcha image
-    await ctx.replyWithPhoto({ source: pngBuffer }, {
-      caption: 'Please solve this CAPTCHA within 12 seconds.',
-    });
-
+    await ctx.replyWithPhoto(
+      { source: pngBuffer },
+      {
+        caption: 'Please solve this CAPTCHA within 12 seconds.',
+      }
+    );
   } catch (err) {
     Logger.error('Error in /start handler:', err);
     await ctx.reply('An error occurred while processing your request.');
@@ -203,9 +217,12 @@ bot.on('text', async (ctx) => {
     activeCaptchas.set(userTelegramId, activeData);
 
     await ctx.reply(`❌ Time expired on the previous CAPTCHA. This is attempt #${activeData.tries + 1} of 4.`);
-    await ctx.replyWithPhoto({ source: newPngBuffer }, {
-      caption: 'Please solve this new CAPTCHA within 12 seconds.',
-    });
+    await ctx.replyWithPhoto(
+      { source: newPngBuffer },
+      {
+        caption: 'Please solve this new CAPTCHA within 12 seconds.',
+      }
+    );
     return;
   }
 
@@ -232,9 +249,12 @@ bot.on('text', async (ctx) => {
     activeCaptchas.set(userTelegramId, activeData);
 
     await ctx.reply(`❌ Incorrect CAPTCHA. Attempt #${activeData.tries + 1} of 4.`);
-    await ctx.replyWithPhoto({ source: newPngBuffer }, {
-      caption: 'Please solve this new CAPTCHA within 12 seconds.',
-    });
+    await ctx.replyWithPhoto(
+      { source: newPngBuffer },
+      {
+        caption: 'Please solve this new CAPTCHA within 12 seconds.',
+      }
+    );
     return;
   }
 
@@ -243,7 +263,7 @@ bot.on('text', async (ctx) => {
   const newReferral = await recordReferralInDB(userTelegramId, campaignId, parseInt(affiliateId, 10));
   Logger.info(`Referral created: ${JSON.stringify(newReferral)}`);
 
-  Logger.info(`User ${userTelegramId} solved CAPTCHA for campaign=${campaignId}, affiliate=${affiliateId}.`);  
+  Logger.info(`User ${userTelegramId} solved CAPTCHA for campaign=${campaignId}, affiliate=${affiliateId}.`);
 
   // Next, get the channel invite link from DB
   const campaignFromDB = await getCampaignByIdWithAdvertiser(campaignId);
@@ -270,6 +290,11 @@ bot.on('text', async (ctx) => {
 /**
  * Listen for 'chat_member' updates for join/leave events.
  * The bot must be an admin in that channel to receive these updates.
+ *
+ * We only record the event if:
+ *   1) There is a matching campaign for this chatId.
+ *   2) The user has a referral for that campaign.
+ *   3) If the user joins, we also check there's NO prior JOINED_CHAT event for that user/chat.
  */
 bot.on('chat_member', async (ctx) => {
   try {
@@ -286,26 +311,111 @@ bot.on('chat_member', async (ctx) => {
       `User ${userTelegramId} status changed from ${oldStatus} to ${newStatus}. Premium=${isPremium}`
     );
 
+    // 1) Find campaigns associated with this chatId
+    const campaignRepo = appDataSource.getRepository(CampaignEntity);
+    const campaignsForThisChat = await campaignRepo.find({
+      where: { telegramAsset: { chatId } },
+      relations: ['telegramAsset'],
+    });
+
+    if (!campaignsForThisChat.length) {
+      // No campaign for this chat => skip
+      return;
+    }
+
     // If the user joined
     if ((oldStatus === 'left' || oldStatus === 'kicked') && newStatus === 'member') {
-      await createTelegramEvent({
-        userTelegramId,
-        isPremium,
-        opCode: getTelegramOpCodeByEventName('JOINED_CHAT')!, // from your config
-        chatId,
-      });
-      Logger.info(`User ${userTelegramId} JOINED chat ${chatId}`);
+      for (const campaign of campaignsForThisChat) {
+        // 2) Check that user was referred for this campaign
+        const referral: Referral | null = await getReferralByCampaignAndUserTelegramId(
+          campaign.id,
+          userTelegramId
+        );
+
+        if (!referral) {
+          Logger.debug(
+            `User ${userTelegramId} joined chat ${chatId}, but no referral for campaign ${campaign.id}. Skipped.`
+          );
+          continue;
+        }
+
+        // 3) Ensure we haven't already recorded a JOINED_CHAT event for this user/chat
+        const telegramEventRepo = appDataSource.getRepository(TelegramEvent);
+        const existingJoinedChat = await telegramEventRepo.findOne({
+          where: {
+            userTelegramId,
+            chatId,
+            opCode: getTelegramOpCodeByEventName('JOINED_CHAT')!,
+          },
+        });
+
+        if (existingJoinedChat) {
+          Logger.info(
+            `User ${userTelegramId} joined chat ${chatId} again (campaign ${campaign.id}) but event already exists. Skipping duplicate.`
+          );
+          continue;
+        }
+
+        // -- Record the JOINED_CHAT event --
+        await createTelegramEvent({
+          userTelegramId,
+          isPremium,
+          opCode: getTelegramOpCodeByEventName('JOINED_CHAT')!, // from your config
+          chatId,
+        });
+        Logger.info(`User ${userTelegramId} JOINED chat ${chatId} for campaign ${campaign.id}. Event created.`);
+
+        // write event to blockchain
+        const opcode = await getBlockchainOpCodeByEventName("USER_REFERRED")!;
+        const affiliateId = referral.affiliateId;
+
+        await botUserAction(campaign.contractAddress, BigInt(affiliateId), BigInt(opcode), isPremium);
+        Logger.info(`User ${userTelegramId} JOINED chat ${chatId} for campaign ${campaign.id}. Blockchain Event written.`);
+      }
     }
 
     // If the user left
     if (oldStatus === 'member' && (newStatus === 'left' || newStatus === 'kicked')) {
-      await createTelegramEvent({
-        userTelegramId,
-        isPremium,
-        opCode: getTelegramOpCodeByEventName('LEFT_CHAT')!,
-        chatId,
-      });
-      Logger.info(`User ${userTelegramId} LEFT chat ${chatId}`);
+      for (const campaign of campaignsForThisChat) {
+        // Check that user was referred for this campaign
+        const referral: Referral | null = await getReferralByCampaignAndUserTelegramId(
+          campaign.id,
+          userTelegramId
+        );
+
+        if (!referral) {
+          Logger.debug(
+            `User ${userTelegramId} left chat ${chatId}, but no referral for campaign ${campaign.id}. Skipped.`
+          );
+          continue;
+        }
+
+         // 3) Ensure we haven't already recorded a LEFT_CHAT event for this user/chat
+         const telegramEventRepo = appDataSource.getRepository(TelegramEvent);
+         const existingLeftChat = await telegramEventRepo.findOne({
+           where: {
+             userTelegramId,
+             chatId,
+             opCode: getTelegramOpCodeByEventName('LEFT_CHAT')!,
+           },
+         });
+ 
+         if (existingLeftChat) {
+           Logger.info(
+             `User ${userTelegramId} joined chat ${chatId} again (campaign ${campaign.id}) but event already exists. Skipping duplicate.`
+           );
+           continue;
+         }
+
+        // -- Record the LEFT_CHAT event --
+        await createTelegramEvent({
+          userTelegramId,
+          isPremium,
+          opCode: getTelegramOpCodeByEventName('LEFT_CHAT')!,
+          chatId,
+        });
+        Logger.info(`User ${userTelegramId} LEFT chat ${chatId} for campaign ${campaign.id}. Event created.`);
+      }
     }
   } catch (err) {
     Logger.error('Error processing chat_member update:', err);

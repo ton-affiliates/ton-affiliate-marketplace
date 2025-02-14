@@ -13,6 +13,7 @@ import { Logger } from './utils/Logger';
 import { bot } from './bot/bot';
 import { TelegramAssetsScheduler } from './schedulers/TelegramAssetsScheduler';
 import { BlockchainEventsScheduler } from './schedulers/BlockchainEventsScheduler';
+// import { ProcessTelegramEventsScheduler } from './schedulers/ProcessTelegramEventsScheduler';
 
 import { checkProxyJwt } from './middleware/checkProxyJwt';
 import UserRoutes from './routes/UserRoutes';
@@ -117,12 +118,17 @@ blockchainScheduler.start();
 const telegramAssetsScheduler = new TelegramAssetsScheduler();
 telegramAssetsScheduler.start();
 
+// const processTelegramEventsScheduler = new ProcessTelegramEventsScheduler();
+// processTelegramEventsScheduler.start();
+
 // 7) Graceful shutdown
 async function shutdownGracefully(signal: string) {
   Logger.info(`Received ${signal}. Shutting down gracefully...`);
 
   // Stop the blockchain events scheduler
   blockchainScheduler.stop();
+  // processTelegramEventsScheduler.stop();
+  telegramAssetsScheduler.stop();
 
   // Stop the bot
   bot.stop(signal);
