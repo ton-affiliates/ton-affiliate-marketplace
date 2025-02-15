@@ -23,6 +23,7 @@ export interface CampaignApiResponse {
   assetType?: string;
   memberCount?: number;
   eventsToVerify?: number[];
+  verifyUserIsHumanOnReferral?: boolean;
   botIsAdmin?: boolean;
   adminPrivileges?: string[];
   assetPhotoBase64?: string;

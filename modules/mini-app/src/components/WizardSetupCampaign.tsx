@@ -1,5 +1,3 @@
-// src/components/WizardSetupCampaign.tsx
-
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { useParams } from 'react-router-dom';
@@ -90,6 +88,9 @@ function WizardSetupCampaign() {
   const [paymentMethod, setPaymentMethod] = useState<bigint>(0n);
   const [expirationDateEnabled, setExpirationDateEnabled] = useState(false);
   const [expirationDate, setExpirationDate] = useState('');
+
+  // Advertiser sets whether to verify user with a CAPTCHA on referral.
+  const [verifyUserIsHumanOnReferral, setVerifyUserIsHumanOnReferral] = useState(false);
 
   // Spinner-based states
   const [waitingForTx, setWaitingForTx] = useState(false);
@@ -232,8 +233,12 @@ function WizardSetupCampaign() {
   // ------------------------------------------------------
   // Compute a flag that indicates if at least one commission event was set (non-zero).
   const hasCommission = useMemo(() => {
-    const regular = Object.values(commissionValues.regularUsers).some(val => val.trim() !== '' && Number(val) > 0);
-    const premium = Object.values(commissionValues.premiumUsers).some(val => val.trim() !== '' && Number(val) > 0);
+    const regular = Object.values(commissionValues.regularUsers).some(
+      (val) => val.trim() !== '' && Number(val) > 0
+    );
+    const premium = Object.values(commissionValues.premiumUsers).some(
+      (val) => val.trim() !== '' && Number(val) > 0
+    );
     return regular || premium;
   }, [commissionValues]);
 
@@ -253,7 +258,7 @@ function WizardSetupCampaign() {
 
     // --- Validation Check (should be unreachable if button is disabled) ---
     if (!hasCommission) {
-      setErrorMessage("Please insert commission values for at least one event before proceeding.");
+      setErrorMessage('Please insert commission values for at least one event before proceeding.');
       return;
     }
     // ------------------------
@@ -265,12 +270,12 @@ function WizardSetupCampaign() {
     const regularUsersDict = buildCommissionDictionary(commissionValues.regularUsers);
     const premiumUsersDict = buildCommissionDictionary(commissionValues.premiumUsers);
 
-   // Convert dictionaries to Sets of numbers (using opCodes as numbers)
+    // Convert dictionaries to Sets of numbers (using opCodes as numbers)
     const regularUsersSet: Set<number> = new Set(
-      Array.from(regularUsersDict.keys(), key => Number(key))
+      Array.from(regularUsersDict.keys(), (key) => Number(key))
     );
     const premiumUsersSet: Set<number> = new Set(
-      Array.from(premiumUsersDict.keys(), key => Number(key))
+      Array.from(premiumUsersDict.keys(), (key) => Number(key))
     );
 
     // Merge the two sets of blockchain op codes
@@ -290,7 +295,7 @@ function WizardSetupCampaign() {
 
     const telegramEventsOpCodesArray = Array.from(telegramEventsOpCodesSet);
 
-    console.log("telegramEventsOpCodesArray:", telegramEventsOpCodesArray);
+    console.log('telegramEventsOpCodesArray:', telegramEventsOpCodesArray);
 
     const bodyData = {
       campaignId,
@@ -298,10 +303,11 @@ function WizardSetupCampaign() {
       category,
       inviteLink,
       telegramEventsOpCodesArray,
+      // This comes from the checkbox:
+      verifyUserIsHumanOnReferral,
     };
 
-    console.log("body:", JSON.stringify(bodyData));
-
+    console.log('body:', JSON.stringify(bodyData));
 
     try {
       // 1) POST => /api/v1/campaigns
@@ -358,7 +364,7 @@ function WizardSetupCampaign() {
     for (const [keyStr, costStr] of Object.entries(costRecord)) {
       // Only include events with a non-empty, non-zero commission value
       if (!costStr || costStr === '0') continue;
-      
+
       console.log(`Processing event key "${keyStr}" with cost "${costStr}"`);
 
       // Now use the number as the enum value
@@ -366,7 +372,7 @@ function WizardSetupCampaign() {
       if (opCode !== undefined) {
         dict.set(BigInt(opCode), costStr);
       } else {
-        throw Error("Cannot find op code for: " + keyStr);
+        throw Error('Cannot find op code for: ' + keyStr);
       }
     }
     return dict;
@@ -455,12 +461,19 @@ function WizardSetupCampaign() {
           <>
             <div className="form-group">
               <label>Campaign Name:</label>
-              <input type="text" value={campaignName} onChange={(e) => setCampaignName(e.target.value)} />
+              <input
+                type="text"
+                value={campaignName}
+                onChange={(e) => setCampaignName(e.target.value)}
+              />
             </div>
 
             <div className="form-group">
               <label>Category:</label>
-              <select value={category} onChange={(e) => setCategory(e.target.value as TelegramCategory)}>
+              <select
+                value={category}
+                onChange={(e) => setCategory(e.target.value as TelegramCategory)}
+              >
                 <option value="" disabled>
                   Select a category
                 </option>
@@ -482,7 +495,10 @@ function WizardSetupCampaign() {
               />
             </div>
 
-            <button disabled={!campaignName || !category || !inviteLink || isLoading} onClick={handleLoadTelegramInfo}>
+            <button
+              disabled={!campaignName || !category || !inviteLink || isLoading}
+              onClick={handleLoadTelegramInfo}
+            >
               {isLoading ? 'Loading...' : 'Load Telegram Info'}
             </button>
 
@@ -519,6 +535,17 @@ function WizardSetupCampaign() {
           <>
             <h3>Commissionable Events</h3>
             <p>Specify how much to pay for each event (in TON). Leave blank or 0 to pay nothing.</p>
+            <div className="form-group" style={{ marginBottom: '1rem' }}>
+              <label>
+                <input
+                  type="checkbox"
+                  checked={verifyUserIsHumanOnReferral}
+                  onChange={(e) => setVerifyUserIsHumanOnReferral(e.target.checked)}
+                />{' '}
+                Verify user with a CAPTCHA on referral?
+              </label>
+            </div>
+
             <div style={{ overflowX: 'auto' }}>
               <table style={{ borderCollapse: 'collapse', width: '100%' }}>
                 <thead>
@@ -603,9 +630,7 @@ function WizardSetupCampaign() {
             <p>
               Please add this bot: <strong>{botName}</strong> as an admin in your Telegram asset.
             </p>
-            <p>
-              The bot must have the following privileges to verify the commissionable events:
-            </p>
+            <p>The bot must have the following privileges to verify the commissionable events:</p>
             <div style={{ margin: '1rem 0' }}>
               <strong>Commissionable Events:</strong>
               <ul>
@@ -646,12 +671,20 @@ function WizardSetupCampaign() {
               <label>Public or Private?</label>
               <br />
               <label>
-                <input type="radio" checked={isPublicCampaign} onChange={() => setIsPublicCampaign(true)} />
+                <input
+                  type="radio"
+                  checked={isPublicCampaign}
+                  onChange={() => setIsPublicCampaign(true)}
+                />
                 Public
               </label>
               <br />
               <label>
-                <input type="radio" checked={!isPublicCampaign} onChange={() => setIsPublicCampaign(false)} />
+                <input
+                  type="radio"
+                  checked={!isPublicCampaign}
+                  onChange={() => setIsPublicCampaign(false)}
+                />
                 Private
               </label>
             </div>
@@ -660,12 +693,20 @@ function WizardSetupCampaign() {
               <label>Payment Method:</label>
               <br />
               <label>
-                <input type="radio" checked={paymentMethod === 0n} onChange={() => setPaymentMethod(0n)} />
+                <input
+                  type="radio"
+                  checked={paymentMethod === 0n}
+                  onChange={() => setPaymentMethod(0n)}
+                />
                 TON
               </label>
               <br />
               <label>
-                <input type="radio" checked={paymentMethod === 1n} onChange={() => setPaymentMethod(1n)} />
+                <input
+                  type="radio"
+                  checked={paymentMethod === 1n}
+                  onChange={() => setPaymentMethod(1n)}
+                />
                 USDT
               </label>
             </div>
@@ -681,7 +722,11 @@ function WizardSetupCampaign() {
               </label>
               {expirationDateEnabled && (
                 <div style={{ marginTop: '0.5rem' }}>
-                  <input type="date" value={expirationDate} onChange={(e) => setExpirationDate(e.target.value)} />
+                  <input
+                    type="date"
+                    value={expirationDate}
+                    onChange={(e) => setExpirationDate(e.target.value)}
+                  />
                 </div>
               )}
             </div>

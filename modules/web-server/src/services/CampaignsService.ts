@@ -107,6 +107,7 @@ export async function getCampaignByIdWithAdvertiser(
       assetType: telegram.type ?? '',
       memberCount: telegram.memberCount,
       eventsToVerify: campaign.eventsToVerify,
+      verifyUserIsHumanOnReferral: campaign.verifyUserIsHumanOnReferral,
       botIsAdmin: telegram.botIsAdmin,
       adminPrivileges: telegram.adminPrivileges,
       assetPhotoBase64: telegram.photo ? Buffer.from(telegram.photo).toString('base64') : '',
