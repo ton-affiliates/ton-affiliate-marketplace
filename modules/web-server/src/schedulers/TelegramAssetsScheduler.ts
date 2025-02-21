@@ -11,11 +11,11 @@ export class TelegramAssetsScheduler {
 
   /**
    * The scheduler will use the provided interval in milliseconds,
-   * or fall back to the FETCH_INTERVAL_VERIFY_BOT_PRIVILAGES_IN_MILISECONDS env variable (or default of 10 minutes).
+   * or fall back to the FETCH_INTERVAL_VERIFY_BOT_PRIVILGES_IN_MILISECONDS env variable (or default of 10 minutes).
    */
   constructor(intervalMs?: number) {
     this.intervalMs =
-      intervalMs ?? Number(process.env.FETCH_INTERVAL_VERIFY_BOT_PRIVILAGES_IN_MILISECONDS || (10 * 60 * 1000));
+      intervalMs ?? Number(process.env.FETCH_INTERVAL_VERIFY_BOT_PRIVILGES_IN_MILISECONDS || (10 * 60 * 1000));
   }
 
   /**
