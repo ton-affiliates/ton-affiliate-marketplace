@@ -37,7 +37,7 @@ const bigIntFormat = winston.format((info) => {
  * Create and export a single Winston logger instance.
  */
 export const Logger = winston.createLogger({
-  level: 'debug',
+  level: 'info',
   format: winston.format.combine(
     // Add timestamps like 2025-01-12 14:43:43
     winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),

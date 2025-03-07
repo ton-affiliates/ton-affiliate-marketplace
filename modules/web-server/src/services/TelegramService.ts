@@ -10,6 +10,33 @@ dotenv.config();
 
 const TELEGRAM_API_URL = `https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}`;
 
+// channel identifier os handle
+export async function isUserMember(userId: number, channelId: string): Promise<boolean> {
+  try {
+    // Ensure the channel ID starts with '@' if it's a username
+    if (!channelId.startsWith("@") && isNaN(Number(channelId))) {
+      channelId = `@${channelId}`;
+    }
+
+    const response = await axios.get(`${TELEGRAM_API_URL}/getChatMember`, {
+      params: { chat_id: channelId, user_id: userId },
+    });
+
+    const chatMember = response.data.result;
+    Logger.info(`Checked membership for user ${userId} in ${channelId}: ${JSON.stringify(chatMember)}`);
+
+    if (["member", "administrator", "creator"].includes(chatMember.status)) {
+      return true;
+    }
+
+    return false;
+  } catch (error: any) {
+    Logger.error(`❌ Error checking membership for user ${userId} in ${channelId}: ${error.response?.data?.description || error.message}`);
+    return false;
+  }
+}
+
+
 /**
  * 1) Gathers Telegram asset data (but does NOT persist to DB).
  *

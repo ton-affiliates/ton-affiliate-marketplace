@@ -406,15 +406,8 @@ export default function CampaignView() {
 
   const isCampaignOnChainActive = useMemo(() => {
     if (!onChainData) return false;
-    const realTonBalance = Number(onChainData.contractTonBalance) / 1e9;
-    const isUSDT = onChainData.campaignDetails.paymentMethod === 1n;
-    const requiredGas = isUSDT ? 0.5 : 1;
-    const hasSufficientGas = realTonBalance >= requiredGas;
     return (
-      onChainData.isCampaignActive &&
-      !onChainData.isCampaignPausedByAdmin &&
-      !onChainData.isCampaignExpired &&
-      hasSufficientGas
+      onChainData.isCampaignActive 
     );
   }, [onChainData]);
 
@@ -855,14 +848,11 @@ export default function CampaignView() {
           >
             <h3 style={{ marginBottom: '0.8rem' }}>Campaign Status</h3>
             {(() => {
-              const realTonBalance = Number(onChainData.contractTonBalance) / 1e9;
               const isUSDT = onChainData.campaignDetails.paymentMethod === 1n;
-              const requiredGas = isUSDT ? 0.5 : 1;
-              const hasSufficientGas = realTonBalance >= requiredGas;
               return (
                 <>
                   <StatusDot label="Sufficient Funds" value={onChainData.campaignHasSufficientFundsToPayMaxCpa} />
-                  <StatusDot label="Sufficient Ton for Gas Fees" value={hasSufficientGas} />
+                  <StatusDot label="Sufficient Ton for Gas Fees" value={onChainData.campaignHasSufficientTonToPayGasFees} />
                   <StatusDot label="Bot can verify events" value={botCanVerify} />
                   {!botCanVerify && isUserAdvertiser && (
                     <div style={{ marginLeft: '1rem', marginTop: '0.5rem' }}>

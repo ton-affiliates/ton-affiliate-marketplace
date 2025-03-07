@@ -73,6 +73,7 @@ export async function getCampaignByIdWithAdvertiser(
 
     // 3) Flatten Telegram asset fields; if missing, provide defaults.
     const telegram = campaign.telegramAsset || {
+      chatId: '',
       handle: '',
       inviteLink: '',
       name: '',
@@ -102,6 +103,7 @@ export async function getCampaignByIdWithAdvertiser(
       // Flattened Telegram asset fields:
       handle: telegram.handle ?? '',
       inviteLink: telegram.inviteLink ?? '',
+      assetChatId: telegram.chatId ?? '',
       assetName: telegram.name ?? '',
       assetDescription: telegram.description ?? '',
       assetType: telegram.type ?? '',

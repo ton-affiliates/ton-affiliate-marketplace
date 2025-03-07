@@ -6,6 +6,7 @@ import * as svgCaptcha from 'svg-captcha';
 import sharp from 'sharp';
 import { Logger } from '../utils/Logger';
 import appDataSource from '../ormconfig';
+import { CampaignApiResponse } from '@common/ApiResponses';
 
 // For DB campaign checks
 import { getCampaignByIdWithAdvertiser } from '../services/CampaignsService';
@@ -30,8 +31,7 @@ import { getTelegramOpCodeByEventName } from '@common/TelegramEventsConfig';
 import { Campaign as CampaignEntity } from '../entity/Campaign';
 import { TelegramEvent } from '../entity/TelegramEvent';
 
-import { getBlockchainOpCodeByEventName } from '@common/BlockchainEventsConfig';
-import { botUserAction } from './botUserAction';
+import {isUserMember} from "../services/TelegramService";
 
 dotenv.config();
 
@@ -57,6 +57,7 @@ const activeCaptchas = new Map<number, CaptchaData>();
 interface MyContext extends Context {
   startPayload?: string;
 }
+
 
 /**
  * START command handler:
@@ -144,6 +145,14 @@ bot.start(async (ctx: MyContext) => {
       return;
     }
 
+    // last but not least - check if the user is an existing user in the CHAT (no duplicates)
+    const existingMember = await isUserMember(userTelegramId, campaignFromDB.handle!);
+    if (existingMember) {
+      Logger.warn(`User ${userTelegramId} already member of=${campaignFromDB.handle}`);
+      await ctx.reply('You are already a member of this chat.');
+      return;
+    }
+
     // -- All checks pass --
 
     /**
@@ -206,6 +215,10 @@ bot.start(async (ctx: MyContext) => {
         },
       });
     }
+
+    // verify user joined
+   await waitForUserToJoinChat(userTelegramId, campaignFromDB, ctx);
+
   } catch (err) {
     Logger.error('Error in /start handler:', err);
     await ctx.reply('An error occurred while processing your request.');
@@ -318,145 +331,179 @@ bot.on('text', async (ctx) => {
       ],
     },
   });
+
+   // verify user joined
+   await waitForUserToJoinChat(userTelegramId, campaignFromDB, ctx);
 });
 
-/**
- * Listen for 'chat_member' updates for join/leave events.
- * The bot must be an admin in that channel to receive these updates.
- *
- * We only record the event if:
- *   1) There is a matching campaign for this chatId.
- *   2) The user has a referral for that campaign.
- *   3) If the user joins, we also check there's NO prior JOINED_CHAT event for that user/chat.
- */
-bot.on('chat_member', async (ctx) => {
-  try {
-    const upd = ctx.update.chat_member;
-    if (!upd) return;
 
-    const oldStatus = upd.old_chat_member.status;
-    const newStatus = upd.new_chat_member.status;
-    const userTelegramId = upd.new_chat_member.user.id;
-    const isPremium = upd.new_chat_member.user.is_premium === true;
-    const chatId = upd.chat.id.toString();
+async function waitForUserToJoinChat(
+  userTelegramId: number,
+  campaignFromDB: CampaignApiResponse,
+  ctx: any
+): Promise<void> {
+  const MAX_ATTEMPTS = 30; // 30 attempts = 5 minutes (every 10 sec)
+  let attempts = 0;
 
-    Logger.info(
-      `User ${userTelegramId} status changed from ${oldStatus} to ${newStatus}. Premium=${isPremium}`
-    );
+  while (attempts < MAX_ATTEMPTS) {
+    attempts++;
 
-    // 1) Find campaigns associated with this chatId
-    const campaignRepo = appDataSource.getRepository(CampaignEntity);
-    const campaignsForThisChat = await campaignRepo.find({
-      where: { telegramAsset: { chatId } },
-      relations: ['telegramAsset'],
-    });
+    const isMember = await isUserMember(userTelegramId, campaignFromDB.handle!);
+    if (isMember) {
+      Logger.info(`User ${userTelegramId} joined the chat ${campaignFromDB.handle}.`);
 
-    if (!campaignsForThisChat.length) {
-      // No campaign for this chat => skip
+      // -- Record the JOINED_CHAT event --
+      await createTelegramEvent({
+        userTelegramId,
+        isPremium: ctx.from?.is_premium || false,
+        opCode: getTelegramOpCodeByEventName("JOINED_CHAT")!,
+        chatId: campaignFromDB.assetChatId!,
+      });
+
+      await ctx.reply("✅ You have successfully joined the channel!");
       return;
     }
 
-    // If the user joined
-    if ((oldStatus === 'left' || oldStatus === 'kicked') && newStatus === 'member') {
-      for (const campaign of campaignsForThisChat) {
-        try {
-          // 2) Check that user was referred for this campaign
-          const referral: Referral | null = await getReferralByCampaignAndUserTelegramId(
-            campaign.id,
-            userTelegramId
-          );
+    Logger.info(
+      `Waiting for user ${userTelegramId} to join chat ${campaignFromDB.handle} (Attempt ${attempts}/${MAX_ATTEMPTS})`
+    );
 
-          if (!referral) {
-            Logger.debug(
-              `User ${userTelegramId} joined chat ${chatId}, but no referral for campaign ${campaign.id}. Skipped.`
-            );
-            continue;
-          }
-
-          // 3) Ensure we haven't already recorded a JOINED_CHAT event for this user/chat
-          const telegramEventRepo = appDataSource.getRepository(TelegramEvent);
-          const existingJoinedChat = await telegramEventRepo.findOne({
-            where: {
-              userTelegramId,
-              chatId,
-              opCode: getTelegramOpCodeByEventName('JOINED_CHAT')!,
-            },
-          });
-
-          if (existingJoinedChat) {
-            Logger.info(
-              `User ${userTelegramId} joined chat ${chatId} again (campaign ${campaign.id}) but event already exists. Skipping duplicate.`
-            );
-            continue;
-          }
-
-          // -- Record the JOINED_CHAT event --
-          await createTelegramEvent({
-            userTelegramId,
-            isPremium,
-            opCode: getTelegramOpCodeByEventName('JOINED_CHAT')!, // from your config
-            chatId,
-          });
-          Logger.info(`User ${userTelegramId} JOINED chat ${chatId} for campaign ${campaign.id}. Event created.`);
-
-          // write event to blockchain
-          const opcode = await getBlockchainOpCodeByEventName("USER_REFERRED")!;
-          const affiliateId = referral.affiliateId;
-
-          await botUserAction(campaign.contractAddress, BigInt(affiliateId), BigInt(opcode), isPremium);
-          Logger.info(`User ${userTelegramId} JOINED chat ${chatId} for campaign ${campaign.id}. Blockchain Event written.`);
-        } catch (err) {
-          Logger.error('Error writing to Blockchain using the bot ' + err);
-          // TODO Guy create alert!
-        } 
-        
-      }
-    }
-
-    // If the user left
-    if (oldStatus === 'member' && (newStatus === 'left' || newStatus === 'kicked')) {
-      for (const campaign of campaignsForThisChat) {
-        // Check that user was referred for this campaign
-        const referral: Referral | null = await getReferralByCampaignAndUserTelegramId(
-          campaign.id,
-          userTelegramId
-        );
-
-        if (!referral) {
-          Logger.debug(
-            `User ${userTelegramId} left chat ${chatId}, but no referral for campaign ${campaign.id}. Skipped.`
-          );
-          continue;
-        }
-
-         // 3) Ensure we haven't already recorded a LEFT_CHAT event for this user/chat
-         const telegramEventRepo = appDataSource.getRepository(TelegramEvent);
-         const existingLeftChat = await telegramEventRepo.findOne({
-           where: {
-             userTelegramId,
-             chatId,
-             opCode: getTelegramOpCodeByEventName('LEFT_CHAT')!,
-           },
-         });
- 
-         if (existingLeftChat) {
-           Logger.info(
-             `User ${userTelegramId} joined chat ${chatId} again (campaign ${campaign.id}) but event already exists. Skipping duplicate.`
-           );
-           continue;
-         }
-
-        // -- Record the LEFT_CHAT event --
-        await createTelegramEvent({
-          userTelegramId,
-          isPremium,
-          opCode: getTelegramOpCodeByEventName('LEFT_CHAT')!,
-          chatId,
-        });
-        Logger.info(`User ${userTelegramId} LEFT chat ${chatId} for campaign ${campaign.id}. Event created.`);
-      }
-    }
-  } catch (err) {
-    Logger.error('Error processing chat_member update:', err);
+    await new Promise((resolve) => setTimeout(resolve, 10000)); // Wait 10 seconds
   }
-});
+
+  Logger.warn(`User ${userTelegramId} did not join chat ${campaignFromDB.handle} within 5 minutes.`);
+  await ctx.reply("⏳ You did not join the chat in time. Please try again.");
+}
+
+
+// /**
+//  * Listen for 'chat_member' updates for join/leave events fro super groups and giga groups.
+//  * The bot must be an admin in that channel to receive these updates.
+//  *
+//  * We only record the event if:
+//  *   1) There is a matching campaign for this chatId.
+//  *   2) The user has a referral for that campaign.
+//  *   3) If the user joins, we also check there's NO prior JOINED_CHAT event for that user/chat.
+//  */
+// bot.on('chat_member', async (ctx) => {
+//   try {
+//     const upd = ctx.update.chat_member;
+//     if (!upd) return;
+
+//     const oldStatus = upd.old_chat_member.status;
+//     const newStatus = upd.new_chat_member.status;
+//     const userTelegramId = upd.new_chat_member.user.id;
+//     const isPremium = upd.new_chat_member.user.is_premium === true;
+
+//     Logger.info(
+//       `User ${userTelegramId} status changed from ${oldStatus} to ${newStatus}. Premium=${isPremium}`
+//     );
+
+//     // 1) Find campaigns associated with this chatId
+//     const campaignRepo = appDataSource.getRepository(CampaignEntity);
+//     const campaignsForThisChat = await campaignRepo.find({
+//       where: { telegramAsset: { chatId } },
+//       relations: ['telegramAsset'],
+//     });
+
+//     if (!campaignsForThisChat.length) {
+//       // No campaign for this chat => skip
+//       return;
+//     }
+
+//     // If the user joined
+//     if ((oldStatus === 'left' || oldStatus === 'kicked') && newStatus === 'member') {
+//       for (const campaign of campaignsForThisChat) {
+//         try {
+//           // 2) Check that user was referred for this campaign
+//           const referral: Referral | null = await getReferralByCampaignAndUserTelegramId(
+//             campaign.id,
+//             userTelegramId
+//           );
+
+//           if (!referral) {
+//             Logger.debug(
+//               `User ${userTelegramId} joined chat ${chatId}, but no referral for campaign ${campaign.id}. Skipped.`
+//             );
+//             continue;
+//           }
+
+//           // 3) Ensure we haven't already recorded a JOINED_CHAT event for this user/chat
+//           const telegramEventRepo = appDataSource.getRepository(TelegramEvent);
+//           const existingJoinedChat = await telegramEventRepo.findOne({
+//             where: {
+//               userTelegramId,
+//               chatId,
+//               opCode: getTelegramOpCodeByEventName('JOINED_CHAT')!,
+//             },
+//           });
+
+//           if (existingJoinedChat) {
+//             Logger.info(
+//               `User ${userTelegramId} joined chat ${chatId} again (campaign ${campaign.id}) but event already exists. Skipping duplicate.`
+//             );
+//             continue;
+//           }
+
+//           // -- Record the JOINED_CHAT event --
+//           await createTelegramEvent({
+//             userTelegramId,
+//             isPremium,
+//             opCode: getTelegramOpCodeByEventName('JOINED_CHAT')!, // from your config
+//             chatId,
+//           });
+//           Logger.info(`User ${userTelegramId} JOINED chat ${chatId} for campaign ${campaign.id}. Event created.`);
+//         } catch (err) {
+//           Logger.error('Error writing Telegram Event using the bot ' + err);
+//         } 
+        
+//       }
+//     }
+
+//     // If the user left
+//     if (oldStatus === 'member' && (newStatus === 'left' || newStatus === 'kicked')) {
+//       for (const campaign of campaignsForThisChat) {
+//         // Check that user was referred for this campaign
+//         const referral: Referral | null = await getReferralByCampaignAndUserTelegramId(
+//           campaign.id,
+//           userTelegramId
+//         );
+
+//         if (!referral) {
+//           Logger.debug(
+//             `User ${userTelegramId} left chat ${chatId}, but no referral for campaign ${campaign.id}. Skipped.`
+//           );
+//           continue;
+//         }
+
+//          // 3) Ensure we haven't already recorded a LEFT_CHAT event for this user/chat
+//          const telegramEventRepo = appDataSource.getRepository(TelegramEvent);
+//          const existingLeftChat = await telegramEventRepo.findOne({
+//            where: {
+//              userTelegramId,
+//              chatId,
+//              opCode: getTelegramOpCodeByEventName('LEFT_CHAT')!,
+//            },
+//          });
+ 
+//          if (existingLeftChat) {
+//            Logger.info(
+//              `User ${userTelegramId} joined chat ${chatId} again (campaign ${campaign.id}) but event already exists. Skipping duplicate.`
+//            );
+//            continue;
+//          }
+
+//         // -- Record the LEFT_CHAT event --
+//         await createTelegramEvent({
+//           userTelegramId,
+//           isPremium,
+//           opCode: getTelegramOpCodeByEventName('LEFT_CHAT')!,
+//           chatId,
+//         });
+//         Logger.info(`User ${userTelegramId} LEFT chat ${chatId} for campaign ${campaign.id}. Event created.`);
+//       }
+//     }
+//   } catch (err) {
+//     Logger.error('Error processing chat_member update:', err);
+//   }
+// });

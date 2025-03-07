@@ -18,6 +18,7 @@ export interface CampaignApiResponse {
   advertiserAddress?: string;
   handle?: string;
   inviteLink?: string;
+  assetChatId?: string;
   assetName?: string;
   assetDescription?: string;
   assetType?: string;

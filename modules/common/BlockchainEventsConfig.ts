@@ -31,12 +31,14 @@ const eventNameToTelegramOpCodes  = new Map<string, number[]>();
 const telegramOpCodeToEventName   = new Map<number, string>();
 const blockchainOpCodeToEventName = new Map<number, string>();
 const blockchainOpCodeToDescription = new Map<number, string>();
+const telegramOpCodeToBlockchainOpCode   = new Map<number, number>();
 
 for (const evt of doc.blockchainEvents) {
   // Forward lookups
   eventNameToBlockchainOpCode.set(evt.eventName, evt.blockchainOpCode);
   eventNameToTelegramOpCodes.set(evt.eventName, evt.telegramOpCodes);
   blockchainOpCodeToEventName.set(evt.blockchainOpCode, evt.eventName);
+  
 
   // Description
   if (evt.description) {
@@ -46,6 +48,7 @@ for (const evt of doc.blockchainEvents) {
   // Reverse lookup for each Telegram op code
   for (const tOpCode of evt.telegramOpCodes) {
     telegramOpCodeToEventName.set(tOpCode, evt.eventName);
+    telegramOpCodeToBlockchainOpCode.set(tOpCode, evt.blockchainOpCode);
   }
 }
 
@@ -54,6 +57,13 @@ for (const evt of doc.blockchainEvents) {
  */
 export function getBlockchainOpCodeByEventName(eventName: string): number | undefined {
   return eventNameToBlockchainOpCode.get(eventName);
+}
+
+/**
+ * Look up the blockchain op code by telegram op code.
+ */
+export function getBlockchainOpCodeByTelegramOpCode(telegramOpCode: number): number | undefined {
+  return telegramOpCodeToBlockchainOpCode.get(telegramOpCode);
 }
 
 /**

@@ -205,8 +205,8 @@ describe('Administrative Actions - Negative Tests for AffiliateMarketplace Contr
         expect(bufferViolationWithdrawResult.transactions).toHaveTransaction({
             from: deployer.address,
             to: affiliateMarketplaceContract.address,
-            success: false, //48874: Insufficient contract funds to make payment
-			exitCode: 48874
+            success: false, //12457: AdminWithdraw failed: not enough contract TON to handle withdrawal plus buffer.
+			exitCode: 12457
         });
     });
 
