@@ -52,7 +52,7 @@ export class InitialSchema1736681774554 implements MigrationInterface {
       );
     `);
 
-    // 5) Create telegram_assets TABLE
+    //5) Create telegram_assets TABLE
     await queryRunner.query(`
       CREATE TABLE IF NOT EXISTS "telegram_assets" (
         "chat_id"         VARCHAR(255) PRIMARY KEY,
@@ -61,14 +61,17 @@ export class InitialSchema1736681774554 implements MigrationInterface {
         "name"            VARCHAR(255) NULL,
         "description"     TEXT NULL,
         "type"            VARCHAR(255) NULL,
+        "is_public"       BOOLEAN NOT NULL DEFAULT true,
         "photo"           BYTEA NULL,
-        "bot_is_admin"    BOOLEAN NOT NULL DEFAULT false,
+        "bot_status"      VARCHAR(50) NOT NULL DEFAULT 'unknown',
         "admin_privileges" TEXT[] NOT NULL DEFAULT '{}',
         "member_count"    INT NOT NULL DEFAULT 0,
         "created_at"      TIMESTAMP NOT NULL DEFAULT NOW(),
         "updated_at"      TIMESTAMP NOT NULL DEFAULT NOW()
       );
-    `);
+  `);
+
+
 
     // 6) Create campaigns TABLE (with new state column and check constraint)
     await queryRunner.query(`

@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
-import { Address, Dictionary } from '@ton/core';
+import { Address, Dictionary, fromNano } from '@ton/core';
 
 import { useCampaignContract } from '../hooks/useCampaignContract';
 import { useTonConnectFetchContext } from './TonConnectProvider';
@@ -210,7 +210,11 @@ export function AffiliatePage() {
           <div style={{ marginLeft: '1rem' }}>
             numActions: {stats.numActions.toString()}
             <br />
-            lastUserActionTimestamp: {stats.lastUserActionTimestamp.toString()}
+            lastUserActionTimestamp: {new Date(Number(stats.lastUserActionTimestamp) * 1000).toLocaleDateString('en-US', {
+                  day: 'numeric',
+                  month: 'short',
+                  year: 'numeric',
+                })}
           </div>
         </div>
       );
@@ -310,11 +314,11 @@ export function AffiliatePage() {
 
           <p>
             <strong>Total Earnings (all-time):</strong>{' '}
-            {affiliateChainData.totalEarnings.toString()}
+            {fromNano(affiliateChainData.totalEarnings)}
           </p>
 
           <p>
-            <strong>Withdraw Earnings:</strong> {affiliateChainData.withdrawEarnings.toString()}{' '}
+            <strong>Withdraw Earnings:</strong> {fromNano(affiliateChainData.withdrawEarnings)}{' '}
             {showWithdrawButton && (
               <button onClick={handleWithdrawEarnings} style={{ marginLeft: '1rem' }}>
                 Withdraw Now

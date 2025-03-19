@@ -160,14 +160,39 @@ async function processEvent(event: EmitLogEvent) {
             }
 
             // Validate and add each Telegram op code.
+            if (!campaignFromDB.assetType) {
+              throw new Error(`Asset type is missing for campaign: ${campaignId}`);
+            }
             for (const telegramOpCode of telegramOpCodes) {
-              // Optionally, get the full Telegram event definition to ensure it exists.
+              
               const telegramEvent = getTelegramEventByOpCode(telegramOpCode);
-              if (telegramEvent) {
-                telegramEventsFromBlockchain.add(telegramOpCode);
-              } else {
-                Logger.warn(`Telegram event not found for telegram op code: ${telegramOpCode}`);
+              if (!telegramEvent) {
+                Logger.warn(`Telegram event not found for opCode: ${telegramOpCode}`);
+                continue;
               }
+              
+              const assetType = campaignFromDB.assetType === "channel" ? "channel" : "group";
+              const assetRequirements = telegramEvent.requirements[assetType];
+              if (!assetRequirements) {
+                Logger.warn(`No requirements found for asset type '${assetType}' in event: ${telegramOpCode}`);
+                continue;
+              }
+
+              const { requiredAdmin, requiredMember } = assetRequirements;
+              Logger.debug(`[Campaign ${campaignId}] Telegram event ${telegramOpCode}: requiresAdmin=${requiredAdmin}, requiresMember=${requiredMember}`);
+
+              // Validate bot membership and privileges
+              if (requiredAdmin && campaignFromDB.botStatus !== 'administrator') {
+                Logger.error(`[Campaign ${campaignId}] Bot must be an administrator to verify event: ${telegramOpCode}`);
+                throw new Error(`Bot lacks admin privileges for event ${telegramOpCode}`);
+              }
+
+              if (requiredMember && !['member', 'administrator', 'creator'].includes(campaignFromDB.botStatus!)) {
+                Logger.error(`[Campaign ${campaignId}] Bot must be at least a member to verify event: ${telegramOpCode}`);
+                throw new Error(`Bot is not a member of the chat for event ${telegramOpCode}`);
+              }
+
+              telegramEventsFromBlockchain.add(telegramOpCode);
             }
           }
 

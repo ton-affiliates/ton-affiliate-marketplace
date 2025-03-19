@@ -31,6 +31,7 @@ struct CampaignDetails {
     campaignValidForNumDays: Int? as uint32; 
     paymentMethod: Int as uint32; 
     requiresAdvertiserApprovalForWithdrawl: Bool; 
+    
 }
 
 struct UserActionStats {

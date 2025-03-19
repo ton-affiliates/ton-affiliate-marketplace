@@ -5,18 +5,6 @@
       "telegramOpCodes": [0],
       "blockchainOpCode": 0,
       "description": "User joined the group or channel"
-    },
-    {
-      "eventName": "USER_RETAINED_TWO_WEEKS",
-      "telegramOpCodes": [1],
-      "blockchainOpCode": 1,
-      "description": "User remained in the group/channel for 2 weeks"
-    },
-    {
-      "eventName": "USER_RETAINED_ONE_MONTH",
-      "telegramOpCodes": [1],
-      "blockchainOpCode": 2,
-      "description": "User remained in the group/channel for 1 month"
     }
   ]
 }

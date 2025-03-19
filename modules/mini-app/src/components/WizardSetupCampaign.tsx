@@ -24,9 +24,8 @@ import { CampaignApiResponse } from '@common/ApiResponses';
 
 // Optional UI components (spinner, success icons, etc.)
 import Spinner from './Spinner';
-// import SuccessIcon from './SuccessIcon';
 
-// Define Telegram categories
+// Telegram categories
 export enum TelegramCategory {
   GAMING = 'Gaming',
   CRYPTO = 'Crypto',
@@ -52,8 +51,14 @@ interface CommissionValuesState {
   premiumUsers: Record<string, string>;
 }
 
+/**
+ * For this version, we only support 'public' channels/groups.
+ * We remove private asset logic entirely.
+ */
+type AssetType = 'channel' | 'group';
+
 function WizardSetupCampaign() {
-  // Bot name from environment variable.
+  // Bot name from environment variable
   const botName = import.meta.env.VITE_TON_AFFILIATES_BOT;
 
   // 1) Grab campaignId from the URL
@@ -71,7 +76,13 @@ function WizardSetupCampaign() {
   // Step 1 data
   const [campaignName, setCampaignName] = useState('');
   const [category, setCategory] = useState<TelegramCategory | ''>('');
-  const [inviteLink, setInviteLink] = useState('');
+  const [assetType, setAssetType] = useState<AssetType>('channel');
+
+  // We only support 'public'
+  // const assetVisibility = 'public';
+
+  // For step 1, user must provide a link / @username
+  const [chatIdentifier, setChatIdentifier] = useState('');
   const [telegramAsset, setTelegramAsset] = useState<any>(null);
 
   // Step 2 data (commission events)
@@ -89,7 +100,7 @@ function WizardSetupCampaign() {
   const [expirationDateEnabled, setExpirationDateEnabled] = useState(false);
   const [expirationDate, setExpirationDate] = useState('');
 
-  // Advertiser sets whether to verify user with a CAPTCHA on referral.
+  // Advertiser sets whether to verify user with a CAPTCHA on referral
   const [verifyUserIsHumanOnReferral, setVerifyUserIsHumanOnReferral] = useState(false);
 
   // Spinner-based states
@@ -108,11 +119,10 @@ function WizardSetupCampaign() {
     error: contractError,
   } = useCampaignContract(contractAddress);
 
-  // 5) Use the SSE hook for real-time events.
-  // Pass in the userAccount, campaignId (from URL), and the setters.
+  // 5) Use the SSE hook for real-time events
   useCampaignSSE(
     userAccount,
-    campaignId!, // Now we pass the campaignId so that the SSE endpoint can filter events for this campaign.
+    campaignId!,
     setTxSuccess,
     setWaitingForTx,
     setTxFailed
@@ -132,8 +142,186 @@ function WizardSetupCampaign() {
     return (await resp.json()) as CampaignApiResponse;
   }
 
+  // Cleanup timers on unmount
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
+  }, []);
+
   // ------------------------------------------------------
-  // Refresh Bot Admin / Verify Bot Privileges (Step 3)
+  // Step 1: Collect Basic Info & Load Telegram Info (PUBLIC ONLY)
+  // ------------------------------------------------------
+  async function handleLoadTelegramInfo() {
+    if (!userAccount?.address || !connected) {
+      setErrorMessage('Please connect your TON wallet first.');
+      return;
+    }
+
+    // Must supply link/username for a public channel/group
+    if (!chatIdentifier) {
+      setErrorMessage('Please provide a link or username for public channels/groups.');
+      return;
+    }
+
+    setErrorMessage(null);
+    setIsLoading(true);
+
+    try {
+      // We'll POST to /api/v1/campaigns/telegram-asset with the chatIdentifier
+      const resp = await fetch('/api/v1/campaigns/telegram-asset', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ inviteLink: chatIdentifier }),
+      });
+
+      if (!resp.ok) {
+        let msg = 'Failed to load Telegram info.';
+        try {
+          const body = await resp.json();
+          msg = body.error || body.message || msg;
+        } catch {}
+        throw new Error(msg);
+      }
+
+      const data = await resp.json();
+      setTelegramAsset(data);
+    } catch (err: any) {
+      setErrorMessage(err.message || 'Could not load telegram info.');
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  function handleApproveTelegramInfo() {
+    if (!telegramAsset) {
+      setErrorMessage('No Telegram Asset loaded. Please load first.');
+      return;
+    }
+    setStep(2);
+  }
+
+  // ------------------------------------------------------
+  // Step 2: Commissionable Events
+  // ------------------------------------------------------
+  const hasCommission = useMemo(() => {
+    const regular = Object.values(commissionValues.regularUsers).some(
+      (val) => val.trim() !== '' && Number(val) > 0
+    );
+    const premium = Object.values(commissionValues.premiumUsers).some(
+      (val) => val.trim() !== '' && Number(val) > 0
+    );
+    return regular || premium;
+  }, [commissionValues]);
+
+  async function handleApproveTelegramDetails() {
+    if (!campaignId) {
+      setErrorMessage('No campaignId in the URL.');
+      return;
+    }
+    if (!chatIdentifier) {
+      setErrorMessage('No chat identifier found.');
+      return;
+    }
+    if (!userAccount?.address) {
+      setErrorMessage('Please connect your TON wallet first.');
+      return;
+    }
+    if (!hasCommission) {
+      setErrorMessage('Please add commission values for at least one event.');
+      return;
+    }
+
+    setErrorMessage(null);
+    setIsLoading(true);
+
+    const regularDict = buildCommissionDictionary(commissionValues.regularUsers);
+    const premiumDict = buildCommissionDictionary(commissionValues.premiumUsers);
+
+    const regularUsersSet: Set<number> = new Set(
+      Array.from(regularDict.keys(), (key) => Number(key))
+    );
+    const premiumUsersSet: Set<number> = new Set(
+      Array.from(premiumDict.keys(), (key) => Number(key))
+    );
+    const combinedSet = new Set<number>([...regularUsersSet, ...premiumUsersSet]);
+
+    const telegramEventsOpCodesSet = new Set<number>();
+    for (const blockchainOpCode of combinedSet) {
+      const telegramOpCodes = getTelegramOpCodesByOpCode(blockchainOpCode);
+      if (telegramOpCodes) {
+        telegramOpCodes.forEach((code) => telegramEventsOpCodesSet.add(code));
+      }
+    }
+
+    const telegramEventsOpCodesArray = Array.from(telegramEventsOpCodesSet);
+    console.log('telegramEventsOpCodesArray:', telegramEventsOpCodesArray);
+
+    const bodyData = {
+      campaignId,
+      campaignName,
+      category,
+      inviteLink: chatIdentifier,
+      telegramEventsOpCodesArray,
+      verifyUserIsHumanOnReferral,
+    };
+
+    try {
+      const resp = await fetch('/api/v1/campaigns', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(bodyData),
+      });
+
+      if (!resp.ok) {
+        let msg = 'Could not create/update campaign.';
+        try {
+          const body = await resp.json();
+          msg = body.error || body.message || msg;
+        } catch {}
+        throw new Error(msg);
+      }
+
+      const partialCampaign = (await resp.json()) as CampaignApiResponse;
+      let fullCampaign: CampaignApiResponse;
+
+      try {
+        fullCampaign = await fetchCampaignById(partialCampaign.id);
+      } catch (err) {
+        console.error('[WizardSetupCampaign] Could not fetch full campaign after creation.', err);
+        fullCampaign = partialCampaign;
+      }
+
+      console.log('Campaign object:', fullCampaign);
+      setCreatedCampaign(fullCampaign);
+      setStep(3);
+    } catch (err: any) {
+      setErrorMessage(err.message || 'Failed to approve Telegram details.');
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  function buildCommissionDictionary(costRecord: Record<string, string>) {
+    const dict = Dictionary.empty<bigint, string>();
+    for (const [keyStr, costStr] of Object.entries(costRecord)) {
+      if (!costStr || costStr === '0') continue;
+      console.log(`Processing event key "${keyStr}" with cost "${costStr}"`);
+
+      const opCode = getBlockchainOpCodeByEventName(keyStr);
+      if (opCode !== undefined) {
+        dict.set(BigInt(opCode), costStr);
+      } else {
+        throw Error('Cannot find op code for: ' + keyStr);
+      }
+    }
+    return dict;
+  }
+
+  // ------------------------------------------------------
+  // Step 3: Bot Verification
   // ------------------------------------------------------
   async function handleRefreshBotAdmin() {
     if (!createdCampaign || !createdCampaign.id) {
@@ -159,8 +347,7 @@ function WizardSetupCampaign() {
       const updatedCampaign = (await resp.json()) as CampaignApiResponse;
       setCreatedCampaign(updatedCampaign);
 
-      // Proceed to next step only if the bot can verify events.
-      if (updatedCampaign.botIsAdmin) {
+      if (updatedCampaign.canBotVerify) {
         setStep(4);
       } else {
         setErrorMessage('Bot is still not admin. Please check privileges in Telegram.');
@@ -172,212 +359,9 @@ function WizardSetupCampaign() {
     }
   }
 
-  // Cleanup any timers on unmount
-  useEffect(() => {
-    return () => {
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-      }
-    };
-  }, []);
-
-  // ------------------------------------------------------
-  // Step 1: Load Telegram Info
-  // ------------------------------------------------------
-  async function handleLoadTelegramInfo() {
-    if (!userAccount?.address || !connected) {
-      setErrorMessage('Please connect your TON wallet first.');
-      return;
-    }
-    if (!inviteLink) {
-      setErrorMessage('Invite link is required.');
-      return;
-    }
-
-    setErrorMessage(null);
-    setIsLoading(true);
-
-    try {
-      const resp = await fetch('/api/v1/campaigns/telegram-asset', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ inviteLink }),
-      });
-      if (!resp.ok) {
-        let msg = 'Failed to load Telegram info.';
-        try {
-          const body = await resp.json();
-          msg = body.error || body.message || msg;
-        } catch {}
-        throw new Error(msg);
-      }
-      const data = await resp.json();
-      setTelegramAsset(data);
-    } catch (err: any) {
-      setErrorMessage(err.message || 'Could not load telegram info.');
-    } finally {
-      setIsLoading(false);
-    }
-  }
-
-  function handleApproveTelegramInfo() {
-    if (!telegramAsset) {
-      setErrorMessage('No Telegram Asset loaded. Please load first.');
-      return;
-    }
-    setStep(2);
-  }
-
-  // ------------------------------------------------------
-  // Step 2: Approve & Create the Campaign
-  // ------------------------------------------------------
-  // Compute a flag that indicates if at least one commission event was set (non-zero).
-  const hasCommission = useMemo(() => {
-    const regular = Object.values(commissionValues.regularUsers).some(
-      (val) => val.trim() !== '' && Number(val) > 0
-    );
-    const premium = Object.values(commissionValues.premiumUsers).some(
-      (val) => val.trim() !== '' && Number(val) > 0
-    );
-    return regular || premium;
-  }, [commissionValues]);
-
-  async function handleApproveTelegramDetails() {
-    if (!campaignId) {
-      setErrorMessage('No campaignId in the URL.');
-      return;
-    }
-    if (!inviteLink) {
-      setErrorMessage('Invite link is required.');
-      return;
-    }
-    if (!userAccount?.address) {
-      setErrorMessage('Please connect wallet first.');
-      return;
-    }
-
-    // --- Validation Check (should be unreachable if button is disabled) ---
-    if (!hasCommission) {
-      setErrorMessage('Please insert commission values for at least one event before proceeding.');
-      return;
-    }
-    // ------------------------
-
-    setErrorMessage(null);
-    setIsLoading(true);
-
-    // Build dictionaries from the commission values
-    const regularUsersDict = buildCommissionDictionary(commissionValues.regularUsers);
-    const premiumUsersDict = buildCommissionDictionary(commissionValues.premiumUsers);
-
-    // Convert dictionaries to Sets of numbers (using opCodes as numbers)
-    const regularUsersSet: Set<number> = new Set(
-      Array.from(regularUsersDict.keys(), (key) => Number(key))
-    );
-    const premiumUsersSet: Set<number> = new Set(
-      Array.from(premiumUsersDict.keys(), (key) => Number(key))
-    );
-
-    // Merge the two sets of blockchain op codes
-    const combinedSet = new Set<number>([...regularUsersSet, ...premiumUsersSet]);
-
-    // Now, map each blockchain op code to its corresponding telegram op codes.
-    const telegramEventsOpCodesSet = new Set<number>();
-
-    for (const blockchainOpCode of combinedSet) {
-      const telegramOpCodes = getTelegramOpCodesByOpCode(blockchainOpCode);
-      if (telegramOpCodes !== undefined && telegramOpCodes.length > 0) {
-        telegramOpCodes.forEach((code) => telegramEventsOpCodesSet.add(code as number));
-      } else {
-        console.warn(`No telegram op codes found for blockchain op code: ${blockchainOpCode}`);
-      }
-    }
-
-    const telegramEventsOpCodesArray = Array.from(telegramEventsOpCodesSet);
-
-    console.log('telegramEventsOpCodesArray:', telegramEventsOpCodesArray);
-
-    const bodyData = {
-      campaignId,
-      campaignName,
-      category,
-      inviteLink,
-      telegramEventsOpCodesArray,
-      // This comes from the checkbox:
-      verifyUserIsHumanOnReferral,
-    };
-
-    console.log('body:', JSON.stringify(bodyData));
-
-    try {
-      // 1) POST => /api/v1/campaigns
-      const resp = await fetch('/api/v1/campaigns', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(bodyData),
-      });
-      if (!resp.ok) {
-        let msg = 'Could not create/update campaign.';
-        try {
-          const body = await resp.json();
-          msg = body.error || body.message || msg;
-        } catch {}
-        throw new Error(msg);
-      }
-
-      // 2) Partial campaign from response
-      const partialCampaign = (await resp.json()) as CampaignApiResponse;
-
-      // 3) Re-fetch for full fields
-      let fullCampaign: CampaignApiResponse;
-      try {
-        fullCampaign = await fetchCampaignById(partialCampaign.id);
-      } catch (err) {
-        console.error('[WizardSetupCampaign] Could not fetch full campaign after creation.', err);
-        fullCampaign = partialCampaign;
-      }
-
-      console.log('Campaign object:', fullCampaign);
-      setCreatedCampaign(fullCampaign);
-      setStep(3); // Next => Step 3: Bot Admin Check
-    } catch (err: any) {
-      setErrorMessage(err.message || 'Failed to approve Telegram details.');
-    } finally {
-      setIsLoading(false);
-    }
-  }
-
-  // ------------------------------------------------------
-  // Helper: Get a Unique List of Commissionable Event Names (Step 2)
-  // ------------------------------------------------------
-  function getCommissionableEventNames(): string[] {
-    const regular = Object.keys(commissionValues.regularUsers);
-    const premium = Object.keys(commissionValues.premiumUsers);
-    return Array.from(new Set([...regular, ...premium])).filter((name) => name.trim() !== '');
-  }
-
   // ------------------------------------------------------
   // Step 4: On-Chain Setup
   // ------------------------------------------------------
-  function buildCommissionDictionary(costRecord: Record<string, string>) {
-    const dict = Dictionary.empty<bigint, string>();
-    for (const [keyStr, costStr] of Object.entries(costRecord)) {
-      // Only include events with a non-empty, non-zero commission value
-      if (!costStr || costStr === '0') continue;
-
-      console.log(`Processing event key "${keyStr}" with cost "${costStr}"`);
-
-      // Now use the number as the enum value
-      const opCode = getBlockchainOpCodeByEventName(keyStr);
-      if (opCode !== undefined) {
-        dict.set(BigInt(opCode), costStr);
-      } else {
-        throw Error('Cannot find op code for: ' + keyStr);
-      }
-    }
-    return dict;
-  }
-
   async function handleOnChainSetup() {
     if (!campaignContract) {
       setErrorMessage(contractError || 'Contract not loaded yet.');
@@ -396,7 +380,6 @@ function WizardSetupCampaign() {
       return;
     }
 
-    // Start spinner/timer
     setErrorMessage(null);
     setIsLoading(true);
     setWaitingForTx(true);
@@ -414,7 +397,6 @@ function WizardSetupCampaign() {
       const regularDict = buildCommissionDictionary(commissionValues.regularUsers);
       const premiumDict = buildCommissionDictionary(commissionValues.premiumUsers);
 
-      // Fire the chain transaction
       await advertiserSetCampaignDetails(
         campaignContract,
         sender,
@@ -429,7 +411,7 @@ function WizardSetupCampaign() {
         expirationDate
       );
 
-      console.log('[WizardSetupCampaign] On-chain tx broadcast. Waiting for SSE ack or final event...');
+      console.log('[WizardSetupCampaign] On-chain tx broadcast. Waiting for SSE ack...');
       // The SSE event "AdvertiserSignedCampaignDetailsEvent" should set txSuccess(true)
     } catch (err: any) {
       console.error('On-chain setup error:', err);
@@ -444,19 +426,19 @@ function WizardSetupCampaign() {
   }
 
   // ------------------------------------------------------
-  // Render the Wizard Steps
+  // Render the Wizard
   // ------------------------------------------------------
   return (
     <motion.div className="screen-container" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
       <div className="card">
-        <h2>Campaign Wizard Setup (4 Steps)</h2>
+        <h2>Campaign Wizard Setup (4 Steps, Public Only)</h2>
         <p>
           <strong>Current Step:</strong> {step}
         </p>
 
         {errorMessage && <p style={{ color: 'red' }}>{errorMessage}</p>}
 
-        {/* ---------------- Step 1 ---------------- */}
+        {/* STEP 1: Basic Campaign Info, ONLY PUBLIC Option */}
         {step === 1 && (
           <>
             <div className="form-group">
@@ -486,22 +468,42 @@ function WizardSetupCampaign() {
             </div>
 
             <div className="form-group">
-              <label>Invite Link:</label>
+              <label>Asset Type (Public Only):</label>
+              <select
+                value={assetType}
+                onChange={(e) => setAssetType(e.target.value as AssetType)}
+              >
+                <option value="channel">Channel</option>
+                <option value="group">Group</option>
+              </select>
+            </div>
+
+            {/* We hide the 'private' option entirely */}
+            <p>
+              <strong>Note:</strong> This platform only supports <em>public</em> assets. Make sure
+              your channel/group is public (has a username).
+            </p>
+
+            <div className="form-group">
+              <label>
+                Public Link or Username (e.g., https://t.me/MyChannel or @MyChannel):
+              </label>
               <input
                 type="text"
-                value={inviteLink}
-                onChange={(e) => setInviteLink(e.target.value)}
-                placeholder="https://t.me/MyChannel"
+                value={chatIdentifier}
+                onChange={(e) => setChatIdentifier(e.target.value)}
+                placeholder="https://t.me/MyChannel or @MyChannel"
               />
             </div>
 
             <button
-              disabled={!campaignName || !category || !inviteLink || isLoading}
+              disabled={!campaignName || !category || !chatIdentifier || isLoading}
               onClick={handleLoadTelegramInfo}
             >
               {isLoading ? 'Loading...' : 'Load Telegram Info'}
             </button>
 
+            {/* If we have a loaded telegram asset, show details */}
             {telegramAsset && (
               <div style={{ border: '1px solid #ccc', marginTop: '1rem', padding: '1rem' }}>
                 <p>
@@ -514,6 +516,10 @@ function WizardSetupCampaign() {
                   <strong>Type:</strong> {telegramAsset.type}
                 </p>
                 <p>
+                  <strong>Visibility:</strong>{' '}
+                  {telegramAsset.isPublic ? 'Public' : 'Private'}
+                </p>
+                <p>
                   <strong>Name:</strong> {telegramAsset.name}
                 </p>
                 <p>
@@ -522,7 +528,19 @@ function WizardSetupCampaign() {
                 <p>
                   <strong>Members:</strong> {telegramAsset.memberCount}
                 </p>
-                <button style={{ marginTop: '0.5rem' }} onClick={handleApproveTelegramInfo}>
+
+                {/* If the backend says it's private, show an error */}
+                {!telegramAsset.isPublic && (
+                  <p style={{ color: 'red' }}>
+                    This asset is detected as private. We do not support private channels/groups.
+                  </p>
+                )}
+
+                <button
+                  style={{ marginTop: '0.5rem' }}
+                  onClick={handleApproveTelegramInfo}
+                  disabled={!telegramAsset.isPublic}
+                >
                   Approve Telegram Info
                 </button>
               </div>
@@ -530,7 +548,7 @@ function WizardSetupCampaign() {
           </>
         )}
 
-        {/* ---------------- Step 2 ---------------- */}
+        {/* STEP 2: Commissionable Events */}
         {step === 2 && (
           <>
             <h3>Commissionable Events</h3>
@@ -564,7 +582,9 @@ function WizardSetupCampaign() {
                         <td style={{ border: '1px solid #ccc', padding: '6px' }}>
                           <strong>{evt.eventName}</strong>
                           {evt.description && (
-                            <div style={{ fontSize: '0.8rem', color: '#666' }}>{evt.description}</div>
+                            <div style={{ fontSize: '0.8rem', color: '#666' }}>
+                              {evt.description}
+                            </div>
                           )}
                         </td>
                         <td style={{ border: '1px solid #ccc', padding: '6px' }}>
@@ -612,7 +632,6 @@ function WizardSetupCampaign() {
               </table>
             </div>
 
-            {/* Button is enabled only if at least one commission value > 0 exists */}
             <button
               style={{ marginTop: '1rem' }}
               disabled={isLoading || !hasCommission}
@@ -623,44 +642,70 @@ function WizardSetupCampaign() {
           </>
         )}
 
-        {/* ---------------- Step 3 ---------------- */}
+        {/* STEP 3: Bot Verification */}
         {step === 3 && createdCampaign && (
           <>
-            <h3>Bot Admin Check</h3>
+            <h3>Bot Verification</h3>
             <p>
-              Please add this bot: <strong>{botName}</strong> as an admin in your Telegram asset.
+              Please add this bot: <strong>{botName}</strong> to your <strong>public</strong>{' '}
+              Telegram asset.
             </p>
-            <p>The bot must have the following privileges to verify the commissionable events:</p>
-            <div style={{ margin: '1rem 0' }}>
-              <strong>Commissionable Events:</strong>
-              <ul>
-                {getCommissionableEventNames().map((evtName) => (
-                  <li key={evtName}>{evtName}</li>
-                ))}
-              </ul>
-            </div>
-            {createdCampaign.requiredPrivileges && createdCampaign.requiredPrivileges.length > 0 && (
-              <div style={{ margin: '1rem 0' }}>
-                <strong>Required Admin Privileges for Bot:</strong>
-                <ul>
-                  {createdCampaign.requiredPrivileges.map((priv, index) => (
-                    <li key={index}>{priv}</li>
-                  ))}
-                </ul>
-              </div>
-            )}
+
+            <table style={{ borderCollapse: 'collapse', width: '100%', margin: '1rem 0' }}>
+              <thead>
+                <tr>
+                  <th style={{ border: '1px solid #ccc', padding: '6px' }}>Asset Type</th>
+                  <th style={{ border: '1px solid #ccc', padding: '6px' }}>Visibility</th>
+                  <th style={{ border: '1px solid #ccc', padding: '6px' }}>
+                    Required Bot Privileges
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td style={{ border: '1px solid #ccc', padding: '6px' }}>
+                    {createdCampaign.assetType
+                      ? createdCampaign.assetType.replace('_', ' ')
+                      : 'Unknown'}
+                  </td>
+                  <td style={{ border: '1px solid #ccc', padding: '6px' }}>
+                    {createdCampaign.isAssetPublic ? 'Public' : 'Private'}
+                  </td>
+                  <td style={{ border: '1px solid #ccc', padding: '6px' }}>
+                    {createdCampaign.requiresAdminPrivileges &&
+                    createdCampaign.requiredPrivileges &&
+                    createdCampaign.requiredPrivileges.length > 0 ? (
+                      <ul style={{ margin: 0, paddingLeft: '1rem' }}>
+                        {createdCampaign.requiredPrivileges.map((priv, index) => (
+                          <li key={index}>{priv}</li>
+                        ))}
+                      </ul>
+                    ) : (
+                      'None (Just add the bot as an admin with no privileges)'
+                    )}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+
+            {/* If the bot cannot verify events yet, show error */}
             {!createdCampaign.canBotVerify && (
               <p style={{ color: 'red' }}>
-                Bot does not have sufficient privileges. Please add the bot <strong>{botName}</strong> as an admin in Telegram with the required privileges.
+                {createdCampaign.requiresAdminPrivileges
+                  ? createdCampaign.requiredPrivileges && createdCampaign.requiredPrivileges.length > 0
+                    ? `Bot does not have sufficient privileges. Please add ${botName} as an admin with the required privileges.`
+                    : `Please add ${botName} as an admin with no privileges.`
+                  : `Bot is not a member. Please add ${botName} as a member of the Telegram asset.`}
               </p>
             )}
+
             <button style={{ marginTop: '1rem' }} disabled={isLoading} onClick={handleRefreshBotAdmin}>
               {isLoading ? 'Verifying...' : 'Verify Bot Privileges'}
             </button>
           </>
         )}
 
-        {/* ---------------- Step 4 ---------------- */}
+        {/* STEP 4: On-Chain Setup */}
         {step === 4 && (
           <>
             <h3>On-Chain Campaign Settings</h3>
@@ -668,7 +713,7 @@ function WizardSetupCampaign() {
             {contractError && <p style={{ color: 'red' }}>Contract error: {contractError}</p>}
 
             <div style={{ marginTop: '1rem' }}>
-              <label>Public or Private?</label>
+              <label>Public or Private? (Only Public supported here)</label>
               <br />
               <label>
                 <input
@@ -684,8 +729,9 @@ function WizardSetupCampaign() {
                   type="radio"
                   checked={!isPublicCampaign}
                   onChange={() => setIsPublicCampaign(false)}
+                  disabled
                 />
-                Private
+                Private (Not Supported)
               </label>
             </div>
 
@@ -741,7 +787,7 @@ function WizardSetupCampaign() {
           </>
         )}
 
-        {/* ---------------- Spinner / TX Feedback ---------------- */}
+        {/* Spinner / TX Feedback */}
         {waitingForTx && !txTimeout && !txSuccess && !txFailed && (
           <div style={{ marginTop: '1rem', background: '#f2f2f2', padding: '1rem' }}>
             <Spinner />
@@ -757,7 +803,6 @@ function WizardSetupCampaign() {
 
         {txSuccess && (
           <div style={{ marginTop: '1rem', background: '#d4edda', padding: '1rem' }}>
-            {/* <SuccessIcon /> if available */}
             <p>Transaction successful! (Received SSE ack)</p>
           </div>
         )}

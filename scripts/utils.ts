@@ -209,7 +209,7 @@ export function parseBigIntToPriceMap(input: string): Dictionary<bigint, bigint>
 async function main() {
     console.log('contractWalletAddressFromUsdT:\n');
 
-    const bocHex = "b5ee9c7201010101002400004380004cdc3cf9748272d04a3daac35e7498f7bef36e02c8e947b3ee50c9a429aa9c30";
+    const bocHex = "b5ee9c72010101010024000043800a2d30cd969a96de5158d723848060fda5ca7370ae9cbdb8089a889028b0b2a890";
 
     try {
         let contractWalletAddress = parseBOCAddress(bocHex);
@@ -219,6 +219,9 @@ async function main() {
     } catch (error) {
         console.error('Error parsing BOC address:', error);
     }
+
+    console.log("2");
+    console.log(translateAddress("0:5169866cb4d4b6f28ac6b91c240307ed2e539b8574e5edc044d4448145859544"));
 }
 
 // Run the main function

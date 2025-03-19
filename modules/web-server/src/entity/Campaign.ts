@@ -8,7 +8,7 @@ import {
   JoinColumn,
 } from 'typeorm';
 import { TelegramAsset } from './TelegramAsset';
-import { getTelegramEventByOpCode } from '@common/TelegramEventsConfig';
+import { getTelegramEventByOpCode, doesEventRequireAdmin, doesEventRequireBotToBeMember } from '@common/TelegramEventsConfig';
 import { Logger } from '../utils/Logger';
 
 export interface RequiredPrivileges {
@@ -84,27 +84,98 @@ export class Campaign {
   @UpdateDateColumn({ name: 'updated_at' })
   updatedAt: Date;
 
-  /**
-   * Checks if the bot can verify events:
-   *   - There must be an associated TelegramAsset.
-   *   - The bot must be admin (botIsAdmin === true).
-   *   - The asset must have all required privileges for *all* events in eventsToVerify.
-   */
-  canBotVerifyEvents(): boolean {
-    if (!this.telegramAsset || !this.telegramAsset.botIsAdmin) {
+
+/**
+ * Checks if any event requires the bot to be a member.
+ */
+requiresToBeMember(): boolean {
+  if (!this.telegramAsset) {
+    throw new Error(`No Telegram asset associated with campaign: ${this.id}`);
+  }
+
+  // Force asset type to be either "channel" or "group"
+  const assetType = this.telegramAsset.type === "channel" ? "channel" : "group";
+
+  for (const opCode of this.eventsToVerify) {
+    const opCodeNum = parseInt(opCode.toString(), 10);
+    Logger.debug(`[Campaign ${this.id}] Checking if event ${opCodeNum} requires bot to be a member for assetType: ${assetType}`);
+
+    if (doesEventRequireBotToBeMember(opCodeNum, assetType)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+
+/**
+ * Checks if any event requires admin privileges.
+ */
+requiresAdminPrivileges(): boolean {
+  if (!this.telegramAsset) {
+    throw new Error(`No Telegram asset associated with campaign: ${this.id}`);
+  }
+
+  // Force asset type to be "channel" or "group"
+  const assetType = this.telegramAsset.type === "channel" ? "channel" : "group";
+
+  for (const opCode of this.eventsToVerify) {
+    const opCodeNum = parseInt(opCode.toString(), 10);
+    Logger.debug(`[Campaign ${this.id}] Checking if event ${opCodeNum} requires admin privileges for assetType: ${assetType}`);
+
+    if (doesEventRequireAdmin(opCodeNum, assetType)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+
+
+/**
+ * Determines if the bot can verify events.
+ */
+canBotVerifyEvents(): boolean {
+  if (!this.telegramAsset) {
+    return false;
+  }
+
+  // asset must be a public asset
+  if (!this.telegramAsset.isPublic) {
+    return false;
+  }
+
+  const requiresToBeMember = this.requiresToBeMember();
+  const requiresAdmin = this.requiresAdminPrivileges();
+
+  // If bot is required to be a member but has an invalid status
+  if (requiresToBeMember && !['member', 'administrator', 'creator'].includes(this.telegramAsset.botStatus)) {
+    Logger.warn(`Bot cannot verify events: required to be a member, but current status is '${this.telegramAsset.botStatus}'`);
+    return false;
+  }
+
+  // If admin privileges are required, ensure the bot is an admin
+  if (requiresAdmin) {
+    if (!['administrator', 'creator'].includes(this.telegramAsset.botStatus)) {
+      Logger.warn(`Bot cannot verify events: required to be an admin, but current status is '${this.telegramAsset.botStatus}'`);
       return false;
     }
 
+    // Ensure the bot has sufficient admin privileges
     const requiredPrivs = this.getRequiredAdminPrivilegesToVerifyEvents();
-
-    // Ensure all required internal privileges are present.
     for (const needed of requiredPrivs.internal) {
       if (!this.telegramAsset.adminPrivileges.includes(needed)) {
+        Logger.warn(`Bot lacks required privilege '${needed}' to verify events.`);
         return false;
       }
     }
-    return true;
   }
+
+  return true;
+}
+  
 
   /**
    * Returns the required privileges for verifying events based on eventsToVerify.
@@ -115,80 +186,74 @@ export class Campaign {
    * to contain privilege objects keyed by asset type. This method retrieves the
    * privileges by directly indexing into these objects using the asset type.
    */
-  public getRequiredAdminPrivilegesToVerifyEvents(): RequiredPrivileges {
-    if (!this.telegramAsset) {
-      throw new Error('No assetType associated with campaign: ' + this.id);
-    }
+    public getRequiredAdminPrivilegesToVerifyEvents(): RequiredPrivileges {
+      if (!this.telegramAsset) {
+        throw new Error('No assetType associated with campaign: ' + this.id);
+      }
 
-    const requiredInternal = new Set<string>();
-    const requiredExternal = new Set<string>();
+      const requiredInternal = new Set<string>();
+      const requiredExternal = new Set<string>();
 
-    Logger.debug(`[Campaign ${this.id}] getRequiredAdminPrivilegesToVerifyEvents: 
-      eventsToVerify = ${JSON.stringify(this.eventsToVerify)}, 
-      assetType = ${this.telegramAsset.type}`);
+      Logger.debug(`[Campaign ${this.id}] getRequiredAdminPrivilegesToVerifyEvents: 
+        eventsToVerify = ${JSON.stringify(this.eventsToVerify)}, 
+        assetType = ${this.telegramAsset.type}`);
 
-    for (const opCode of this.eventsToVerify) {
-      // Convert value to number in case it isn't already.
-      const opCodeNum = parseInt(opCode.toString(), 10);
-      Logger.debug(`Checking opCodeNum: ${opCodeNum}`);
+      for (const opCode of this.eventsToVerify) {
+        // Convert value to number in case it isn't already.
+        const opCodeNum = parseInt(opCode.toString(), 10);
+        Logger.debug(`Checking opCodeNum: ${opCodeNum}`);
 
-      // Retrieve the full event definition from the Telegram events config.
-      const def = getTelegramEventByOpCode(opCodeNum);
-      if (!def) {
-        Logger.warn(
-          `[Campaign ${this.id}] No event definition found for opCode ${opCodeNum}. Skipping.`
+        // Retrieve the full event definition from the Telegram events config.
+        const def = getTelegramEventByOpCode(opCodeNum);
+        if (!def) {
+          Logger.warn(
+            `[Campaign ${this.id}] No event definition found for opCode ${opCodeNum}. Skipping.`
+          );
+          continue;
+        }
+
+        Logger.debug(
+          `[Campaign ${this.id}] Found event definition for opCode ${opCodeNum}: ${JSON.stringify(def)}`
         );
-        continue;
-      }
 
-      Logger.debug(
-        `[Campaign ${this.id}] Found event definition for opCode ${opCodeNum}: ${JSON.stringify(
-          def
-        )}`
-      );
+        // Retrieve asset type from campaign
+        if (!this.telegramAsset.type) {
+          Logger.warn(`[Campaign ${this.id}] telegramAsset type is missing.`);
+          continue;
+        }
 
-      // Retrieve privileges based on the telegram asset type directly from the event definition.
-      const assetType = this.telegramAsset.type;
-      if (!assetType) {
-        Logger.warn(`[Campaign ${this.id}] telegramAsset type is missing.`);
-        continue; // or throw an error, depending on your logic
-      }
+        // Get required privileges from the `requirements` section
+        const assetType = this.telegramAsset.type === "channel" ? "channel" : "group";
+        const assetRequirements = def.requirements[assetType];
 
-      const internalPrivs = def.internalRequiredAdminPrivileges[assetType];
-      const externalPrivs = def.externalRequiredAdminPrivileges[assetType];
+        if (!assetRequirements) {
+          Logger.warn(
+            `[Campaign ${this.id}] Could not find requirements for assetType "${assetType}" in event definition for opCode ${opCodeNum}. Skipping.`
+          );
+          continue;
+        }
 
-      if (!internalPrivs && !externalPrivs) {
-        Logger.warn(
-          `[Campaign ${this.id}] Could not find privileges for assetType "${assetType}" in event definition for opCode ${opCodeNum}. Skipping.`
-        );
-        continue;
-      }
+        // Extract internal and external required privileges
+        const { internalRequiredAdminPrivileges, externalRequiredAdminPrivileges } = assetRequirements;
 
-      if (internalPrivs) {
-        for (const priv of internalPrivs) {
+        for (const priv of internalRequiredAdminPrivileges) {
           requiredInternal.add(priv);
         }
-      }
 
-      if (externalPrivs) {
-        for (const priv of externalPrivs) {
+        for (const priv of externalRequiredAdminPrivileges) {
           requiredExternal.add(priv);
         }
       }
-    }
 
-    Logger.debug(
-      `[Campaign ${this.id}] Final required internal: ${JSON.stringify([...requiredInternal])}, ` +
-      `external: ${JSON.stringify([...requiredExternal])}`
-    );
+      Logger.debug(
+        `[Campaign ${this.id}] Final required internal: ${JSON.stringify([...requiredInternal])}, ` +
+        `external: ${JSON.stringify([...requiredExternal])}`
+      );
 
-    // for all campaigns we need to redirect users
-    requiredInternal.add("can_invite_users")
-    requiredExternal.add("Add members")
-
-    return {
-      internal: [...requiredInternal],
-      external: [...requiredExternal],
-    };
+      return {
+        internal: [...requiredInternal],
+        external: [...requiredExternal],
+      };
   }
+
 }

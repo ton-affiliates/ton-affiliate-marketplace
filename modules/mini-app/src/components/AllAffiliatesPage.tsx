@@ -1,7 +1,7 @@
 // src/components/AllAffiliatesPage.tsx
 import { useEffect, useState, useMemo } from 'react';
 import { useParams, useSearchParams, Link } from 'react-router-dom';
-import { Dictionary, Address } from '@ton/core';
+import { Dictionary, Address, fromNano } from '@ton/core';
 
 import { useCampaignContract } from '../hooks/useCampaignContract';
 import { advertiserApproveAffiliate } from '../blockchain/advertiserApproveAffiliate';
@@ -254,7 +254,7 @@ export function AllAffiliatesPage() {
               if (chainItem?.state === 0n) stateLabel = 'Pending Approval';
               if (chainItem?.state === 1n) stateLabel = 'Active';
 
-              const totalEarnings = chainItem ? chainItem.totalEarnings.toString() : 'N/A';
+              const totalEarnings = chainItem ? fromNano(chainItem.totalEarnings) : 'N/A';
               const affLink = `/campaign/${campaignId}/affiliate/${affId}`;
 
               // Show approve only if the affiliate is pending (state 0) and this is a private campaign.

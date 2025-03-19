@@ -54,14 +54,19 @@ export async function getCampaignByIdWithAdvertiser(
   id: string
 ): Promise<CampaignApiResponse | null> {
   try {
+    Logger.info(`Fetching campaign with ID: ${id}`);
+
     // 1) Get the campaign including its associated Telegram asset.
     const campaign = await campaignRepository().findOne({
       where: { id },
       relations: ['telegramAsset'],
     });
+
     if (!campaign) {
+      Logger.warn(`Campaign with ID ${id} not found.`);
       return null;
     }
+    Logger.info(`Campaign found: ${JSON.stringify(campaign, null, 2)}`);
 
     // 2) Find the CampaignRole for "advertiser" (if any)
     const advertiserRole = await campaignRoleRepository().findOne({
@@ -70,32 +75,36 @@ export async function getCampaignByIdWithAdvertiser(
         role: RoleType.ADVERTISER,
       },
     });
+    Logger.info(`Advertiser role: ${JSON.stringify(advertiserRole, null, 2)}`);
 
-    // 3) Flatten Telegram asset fields; if missing, provide defaults.
-    const telegram = campaign.telegramAsset || {
-      chatId: '',
-      handle: '',
-      inviteLink: '',
-      name: '',
-      description: '',
-      assetType: '',
-      type: '',
-      memberCount: 0,
-      botIsAdmin: false,
-      adminPrivileges: [] as string[],
-      photo: null as Buffer | null,
-    };
+    // 3) Check if telegramAsset exists
+    const telegram = campaign.telegramAsset;
+    if (!telegram) {
+      Logger.error(`Campaign ${id} has no associated Telegram asset.`);
+      throw new Error(`Campaign ${id} has no associated Telegram asset.`);
+    }
+    Logger.info(`Telegram asset found: ${JSON.stringify(telegram, null, 2)}`);
 
     // 4) Compute verification fields using campaign methods.
     const canBotVerify = campaign.canBotVerifyEvents();
+    const requiresAdminPrivileges = campaign.requiresAdminPrivileges();
+    const requiresToBeMember = campaign.requiresToBeMember();
     const requiredPrivileges = campaign.getRequiredAdminPrivilegesToVerifyEvents().external;
-    const requiredInternalPrivileges =  campaign.getRequiredAdminPrivilegesToVerifyEvents().internal;
+    const requiredInternalPrivileges = campaign.getRequiredAdminPrivilegesToVerifyEvents().internal;
+
+    Logger.info(`Verification fields calculated:
+      canBotVerify: ${canBotVerify}
+      requiresAdminPrivileges: ${requiresAdminPrivileges}
+      requiresToBeMember: ${requiresToBeMember}
+      requiredPrivileges: ${JSON.stringify(requiredPrivileges)}
+      requiredInternalPrivileges: ${JSON.stringify(requiredInternalPrivileges)}
+    `);
 
     // 5) Build the flattened response explicitly.
     const response: CampaignApiResponse = {
       id: campaign.id,
       contractAddress: campaign.contractAddress,
-      name: campaign.name ?? '', // Map campaign.name to response.name
+      name: campaign.name ?? '',
       category: campaign.category ?? '',
       createdAt: campaign.createdAt.toISOString(),
       updatedAt: campaign.updatedAt.toISOString(),
@@ -107,24 +116,29 @@ export async function getCampaignByIdWithAdvertiser(
       assetName: telegram.name ?? '',
       assetDescription: telegram.description ?? '',
       assetType: telegram.type ?? '',
+      isAssetPublic: telegram.isPublic ?? false, // <== Failing Line (Add Log Below)
       memberCount: telegram.memberCount,
       eventsToVerify: campaign.eventsToVerify,
       verifyUserIsHumanOnReferral: campaign.verifyUserIsHumanOnReferral,
-      botIsAdmin: telegram.botIsAdmin,
+      botStatus: telegram.botStatus,
       adminPrivileges: telegram.adminPrivileges,
       assetPhotoBase64: telegram.photo ? Buffer.from(telegram.photo).toString('base64') : '',
       // Verification fields:
+      requiresAdminPrivileges: requiresAdminPrivileges,
+      requiresToBeMember: requiresToBeMember,
       canBotVerify: canBotVerify,
       requiredPrivileges: requiredPrivileges,
       requiredInternalPrivileges: requiredInternalPrivileges
     };
 
+    Logger.info(`Successfully built campaign response for ID: ${id}`);
     return response;
   } catch (err) {
-    Logger.error('Error fetching campaign with advertiser: ' + err);
+    Logger.error(`Error fetching campaign with advertiser (ID: ${id}): ${err}`);
     throw err;
   }
 }
+
 
 /**
  * Get all campaigns for a given wallet address.

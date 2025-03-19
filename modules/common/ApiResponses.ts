@@ -22,12 +22,15 @@ export interface CampaignApiResponse {
   assetName?: string;
   assetDescription?: string;
   assetType?: string;
+  isAssetPublic?: boolean;
   memberCount?: number;
   eventsToVerify?: number[];
   verifyUserIsHumanOnReferral?: boolean;
-  botIsAdmin?: boolean;
+  botStatus?: string;
   adminPrivileges?: string[];
   assetPhotoBase64?: string;
+  requiresAdminPrivileges?: boolean;
+  requiresToBeMember?: boolean;
   canBotVerify?: boolean;
   requiredPrivileges?: string[];
   requiredInternalPrivileges?: string[];

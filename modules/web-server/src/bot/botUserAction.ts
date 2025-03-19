@@ -63,7 +63,8 @@ export async function botUserAction(
 
     // Wallet version
     const version: WalletVersion = process.env.WALLET_VERSION as WalletVersion || "v4";  // default to v4 if not found in env
-    
+    Logger.info(`[BotUserAction] - Using Wallet Version: ${version}`);
+
     // Create MnemonicProvider instance
     const provider = new MnemonicProvider({
         version,
@@ -74,6 +75,7 @@ export async function botUserAction(
     });
 
     Logger.info("[BotUserAction] - Using address: " + provider.address().toString({bounceable: true, testOnly: true}));
+    Logger.info("[BotUserAction] - Using address: " + provider.address().toRawString());
 
     // Open campaign contract
     const parsedCampaignAddress = Address.parse(campaignContractAddress);
@@ -88,7 +90,8 @@ export async function botUserAction(
     Logger.info(`Affiliate balance before transaction: ${affiliateBalanceBefore}`);
 
     const sender: Sender = new SendProviderSender(provider);
-    Logger.info(`Sender: ${sender}`);
+    Logger.info(`Sender: ${sender.address!.toString({bounceable: true, testOnly: true})}`);
+    Logger.info(`Sender: ${sender.address!.toRawString()}`);
 
     // Send user action transaction
     await campaign.send(

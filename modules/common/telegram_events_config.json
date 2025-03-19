@@ -4,36 +4,40 @@
       "eventName": "JOINED_CHAT",
       "telegramOpCode": 0,
       "description": "User joined the group or channel",
-      "api": "new_chat_members",
-      "internalRequiredAdminPrivileges": {
-        "channel": ["can_manage_chat"],
-        "super_group": ["can_manage_chat"],
-        "giga_group": ["can_manage_chat"],
-        "regular_group": ["can_manage_chat"]
-      },
-      "externalRequiredAdminPrivileges": {
-        "channel": ["Change channel info"],
-        "super_group": ["Change super group info"],
-        "giga_group": ["Change giga group info"],
-        "regular_group": ["Change regular group info"]
+      "api": "getChatMember",
+      "requirements": {
+        "channel": {
+          "requiredAdmin": true,
+          "requiredMember": false,
+          "internalRequiredAdminPrivileges": [],
+          "externalRequiredAdminPrivileges": []
+        },
+        "group": {
+          "requiredAdmin": false,
+          "requiredMember": true,
+          "internalRequiredAdminPrivileges": [],
+          "externalRequiredAdminPrivileges": []
+        }
       }
     },
     {
       "eventName": "LEFT_CHAT",
       "telegramOpCode": 1,
-      "description": "User left or was removed from the group/channel",
-      "api": "left_chat_member",
-      "internalRequiredAdminPrivileges": {
-        "channel": ["can_manage_chat"],
-        "super_group": ["can_manage_chat"],
-        "giga_group": ["can_manage_chat"],
-        "regular_group": ["can_manage_chat"]
-      },
-      "externalRequiredAdminPrivileges": {
-        "channel": ["Change channel info"],
-        "super_group": ["Change super group info"],
-        "giga_group": ["Change giga group info"],
-        "regular_group": ["Change regular group info"]
+      "description": "User left or was removed from the group or channel. User is no longer a member.",
+      "api": "getChatMember",
+      "requirements": {
+        "channel": {
+          "requiredAdmin": false,
+          "requiredMember": true,
+          "internalRequiredAdminPrivileges": [],
+          "externalRequiredAdminPrivileges": []
+        },
+        "group": {
+          "requiredAdmin": false,
+          "requiredMember": true,
+          "internalRequiredAdminPrivileges": [],
+          "externalRequiredAdminPrivileges": []
+        }
       }
     }
   ]

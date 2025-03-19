@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useUserRole } from './UserRoleContext';
 import { useTelegramContext } from './TelegramContext';
 
 const LoginScreen: React.FC = () => {
   const { userRole } = useUserRole();
   const navigate = useNavigate();
+  const location = useLocation();
   const { setUserInfo } = useTelegramContext();
 
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -14,12 +15,13 @@ const LoginScreen: React.FC = () => {
   const botName = import.meta.env.VITE_TON_AFFILIATES_BOT;
   console.log(`Bot name: ${botName}`);
 
+  // Capture the "from" location, default to "/"
+  const from = location.state?.from || '/';
+
   //
   // 1) Called once the server says the user can proceed
   //
   function handleLoginSuccess(userObj: any) {
-    // userObj might have { id, first_name, last_name, username, photo_url, etc. }
-
     // Store user in Telegram context
     setUserInfo({
       id: userObj.id,
@@ -29,14 +31,20 @@ const LoginScreen: React.FC = () => {
       photoUrl: userObj.photo_url,
     });
 
-    // Also persist in localStorage (or sessionStorage if you prefer)
+    // Also persist in localStorage
     localStorage.setItem('telegramUser', JSON.stringify(userObj));
 
-    // Decide route based on role
-    if (userRole === 'Advertiser') {
-      navigate('/advertiser');
+    // Redirect logic:
+    // - If the user came from a page other than MainScreen ('/'), return them there.
+    // - If they came from MainScreen ('/'), redirect them to the correct route based on role.
+    if (from !== '/') {
+      navigate(from, { replace: true });
     } else {
-      navigate('/affiliate');
+      if (userRole === 'Advertiser') {
+        navigate('/advertiser', { replace: true });
+      } else {
+        navigate('/affiliate', { replace: true });
+      }
     }
   }
 
@@ -60,15 +68,13 @@ const LoginScreen: React.FC = () => {
         console.log('Server /telegram-verify response:', dbResp);
 
         if (dbResp.success) {
-          // If the bot can't message the user, just warn but don't block
+          // Warn if bot can't message user
           if (dbResp.user.canMessage === false) {
-            setErrorMessage(`
-              We verified your Telegram info, but our bot can't message you yet. 
-              To recieve direct messages open Telegram and tap "Start" on @${botName}:
-              https://t.me/${botName}
-            `);
+            setErrorMessage(`We verified your Telegram info, but our bot can't message you yet. 
+              To receive direct messages, open Telegram and tap "Start" on @${botName}: 
+              https://t.me/${botName}`);
           }
-          // Proceed to the next step
+          // Proceed with login success handling
           handleLoginSuccess(dbResp.user);
         } else {
           console.error('Telegram verify error:', dbResp.error);
@@ -84,7 +90,7 @@ const LoginScreen: React.FC = () => {
     return () => {
       (window as any).onTelegramAuth = null;
     };
-  }, [setUserInfo, userRole, navigate, botName]);
+  }, [setUserInfo, userRole, navigate, botName, from]);
 
   //
   // 3) Dynamically create the <script> for the Telegram widget
@@ -92,20 +98,16 @@ const LoginScreen: React.FC = () => {
   useEffect(() => {
     const script = document.createElement('script');
     script.async = true;
-    // The official widget script
     script.src = 'https://telegram.org/js/telegram-widget.js?15';
-    // Use the bot name from the environment variable
     script.setAttribute('data-telegram-login', botName);
     script.setAttribute('data-size', 'large');
     script.setAttribute('data-request-access', 'write');
-    // Ties to our global callback name
     script.setAttribute('data-onauth', 'onTelegramAuth(user)');
 
     const container = document.getElementById('telegram-button-root');
     container?.appendChild(script);
 
     return () => {
-      // Remove the script if we leave this page
       script.remove();
     };
   }, [botName]);

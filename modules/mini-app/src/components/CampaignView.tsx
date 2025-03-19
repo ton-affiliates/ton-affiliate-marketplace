@@ -28,7 +28,6 @@ import {
 import { CampaignData, AffiliateData } from '../contracts/Campaign';
 import { getEventNameByBlockchainOpCode, getEventDescriptionByBlockchainOpCode } from "@common/BlockchainEventsConfig.ts"
 
-
 import TransactionButton from '../components/TransactionButton';
 import Spinner from '../components/Spinner';
 import SuccessIcon from '../components/SuccessIcon';
@@ -107,6 +106,15 @@ export default function CampaignView() {
   const { userAccount } = useTonConnectFetchContext();
   const { sender } = useTonWalletConnect();
   const client = useTonClient();
+
+  // Helper: ensure wallet is connected. If not, alert the user.
+  const ensureWalletConnected = (): boolean => {
+    if (!userAccount?.address) {
+      alert("Please connect your TON wallet first!");
+      return false;
+    }
+    return true;
+  };
 
   // 1) Basic loading + error for the campaign from DB
   const [loading, setLoading] = useState(true);
@@ -326,6 +334,7 @@ export default function CampaignView() {
   }
 
   async function handleNotificationClick(notifId: number) {
+    if (!ensureWalletConnected()) return;
     try {
       const resp = await fetch(`/api/v1/campaigns/${id}/notifications/${notifId}/read`, {
         method: 'PATCH',
@@ -343,6 +352,7 @@ export default function CampaignView() {
   // 8) Create affiliate
   //------------------------------------------------------------------
   async function handleCreateAffiliate() {
+    if (!ensureWalletConnected()) return;
     if (!campaignContract || !sender || !userAccount?.address) return;
     setWaitingForTx(true);
     setTxSuccess(false);
@@ -368,6 +378,7 @@ export default function CampaignView() {
   // 9) Refresh Bot Admin Status
   //------------------------------------------------------------------
   async function handleRefreshBotAdmin() {
+    if (!ensureWalletConnected()) return;
     if (!id) return;
     try {
       await fetch(`/api/v1/campaigns/${id}/refresh-bot-admin`, { method: 'POST' });
@@ -406,9 +417,7 @@ export default function CampaignView() {
 
   const isCampaignOnChainActive = useMemo(() => {
     if (!onChainData) return false;
-    return (
-      onChainData.isCampaignActive 
-    );
+    return onChainData.isCampaignActive;
   }, [onChainData]);
 
   const botCanVerify = campaign?.canBotVerify || false;
@@ -428,6 +437,7 @@ export default function CampaignView() {
   }
 
   function handleCopyInviteUrl() {
+    if (!ensureWalletConnected()) return;
     const affiliateInviteUrl = window.location.href;
     navigator.clipboard.writeText(affiliateInviteUrl).then(
       () => alert('Copied invite link to clipboard!'),
@@ -455,7 +465,10 @@ export default function CampaignView() {
             lineHeight: '40px',
             backgroundColor: '#f5f5f5',
           }}
-          onClick={handleToggleNotifications}
+          onClick={() => {
+            if (!ensureWalletConnected()) return;
+            handleToggleNotifications();
+          }}
         >
           🔔
           {notifications.length > 0 && (
@@ -501,7 +514,10 @@ export default function CampaignView() {
                 <div
                   key={n.id}
                   style={{ padding: '0.5rem', borderBottom: '1px solid #eee', cursor: 'pointer' }}
-                  onClick={() => handleNotificationClick(n.id)}
+                  onClick={() => {
+                    if (!ensureWalletConnected()) return;
+                    handleNotificationClick(n.id);
+                  }}
                 >
                   <p style={{ margin: 0 }}>{n.message}</p>
                   {n.link && (
@@ -547,10 +563,18 @@ export default function CampaignView() {
             <p>Loading owner data...</p>
           ) : advertiserUser ? (
             <div style={{ border: '1px solid #ccc', padding: '0.5rem', borderRadius: '4px' }}>
-              <p><strong>Telegram Username:</strong> {advertiserUser.telegramUsername}</p>
-              <p><strong>Ton Address:</strong> {advertiserAddr}</p>
-              <p><strong>First Name:</strong> {advertiserUser.firstName}</p>
-              <p><strong>Last Name:</strong> {advertiserUser.lastName}</p>
+              <p>
+                <strong>Telegram Username:</strong> {advertiserUser.telegramUsername}
+              </p>
+              <p>
+                <strong>Ton Address:</strong> {advertiserAddr}
+              </p>
+              <p>
+                <strong>First Name:</strong> {advertiserUser.firstName}
+              </p>
+              <p>
+                <strong>Last Name:</strong> {advertiserUser.lastName}
+              </p>
               {advertiserUser.photoUrl && (
                 <img
                   src={advertiserUser.photoUrl}
@@ -580,7 +604,16 @@ export default function CampaignView() {
                   style={{ flex: 1, border: '1px solid #ccc', borderRadius: '4px', padding: '0.4rem' }}
                   value={window.location.href}
                 />
-                <button onClick={handleCopyInviteUrl}>Copy Link</button>
+                <button
+                  onClick={() => {
+                    if (!ensureWalletConnected()) return;
+                    handleCopyInviteUrl();
+                  }}
+                  disabled={!userAccount?.address}
+                  style={{ opacity: !userAccount?.address ? 0.5 : 1 }}
+                >
+                  Copy Link
+                </button>
               </div>
               <p style={{ marginTop: '1rem' }}>
                 <Link to={`/campaign/${campaign.id}/affiliates`}>View All Affiliates</Link>
@@ -623,9 +656,12 @@ export default function CampaignView() {
                   </div>
                 )}
                 <button
-                  onClick={handleCreateAffiliate}
-                  disabled={waitingForTx || txSuccess}
-                  style={{ marginBottom: '1rem' }}
+                  onClick={() => {
+                    if (!ensureWalletConnected()) return;
+                    handleCreateAffiliate();
+                  }}
+                  disabled={!userAccount?.address || waitingForTx || txSuccess}
+                  style={{ marginBottom: '1rem', opacity: !userAccount?.address ? 0.5 : 1 }}
                 >
                   {onChainData?.campaignDetails.isPublicCampaign
                     ? 'Generate Referral Link'
@@ -877,16 +913,27 @@ export default function CampaignView() {
                           4. Once the bot is an admin with those privileges, click "Verify Bot Setup"
                         </em>
                       </p>
-                      <button onClick={handleRefreshBotAdmin}>Verify Bot Setup</button>
+                      <button
+                        onClick={() => {
+                          if (!ensureWalletConnected()) return;
+                          handleRefreshBotAdmin();
+                        }}
+                        disabled={!userAccount?.address}
+                        style={{ opacity: !userAccount?.address ? 0.5 : 1 }}
+                      >
+                        Verify Bot Setup
+                      </button>
                     </div>
                   )}
                   {isUserAdvertiser && (
                     <div style={{ marginLeft: '1rem', marginTop: '1rem' }}>
                       <TransactionButton
                         buttonLabel="Add Funds"
+                        disabled={!userAccount?.address}
                         showAmountField
                         defaultAmount={1}
                         onTransaction={async (amount) => {
+                          if (!ensureWalletConnected()) return;
                           if (!amount) throw new Error('Invalid amount');
                           if (isUSDT) {
                             await replenishWithUsdt(campaignContract, amount, sender, userAccount?.address, client);
@@ -901,9 +948,11 @@ export default function CampaignView() {
                     <div style={{ marginLeft: '1rem', marginTop: '1rem' }}>
                       <TransactionButton
                         buttonLabel="Add TON for Gas Fees"
+                        disabled={!userAccount?.address}
                         showAmountField
                         defaultAmount={1}
                         onTransaction={async (amount) => {
+                          if (!ensureWalletConnected()) return;
                           if (!amount) throw new Error('Invalid amount');
                           if (isUSDT) {
                             await replenishGasFeesForUsdtCampaign(campaignContract, amount, sender);
@@ -1020,7 +1069,6 @@ export default function CampaignView() {
                     <th style={{ border: '1px solid #ccc', padding: '4px' }}>Affiliate ID</th>
                     <th style={{ border: '1px solid #ccc', padding: '4px' }}>Address</th>
                     <th style={{ border: '1px solid #ccc', padding: '4px' }}>Total Earnings</th>
-                    <th style={{ border: '1px solid #ccc', padding: '4px' }}>State</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1028,8 +1076,10 @@ export default function CampaignView() {
                     <tr key={aff.affiliateId.toString()}>
                       <td style={{ border: '1px solid #ccc', padding: '4px' }}>{aff.affiliateId.toString()}</td>
                       <td style={{ border: '1px solid #ccc', padding: '4px' }}>{formatTonFriendly(aff.affiliateAddr)}</td>
-                      <td style={{ border: '1px solid #ccc', padding: '4px' }}>{fromNano(aff.totalEarnings)} TON</td>
-                      <td style={{ border: '1px solid #ccc', padding: '4px' }}>{aff.state.toString()}</td>
+                      <td style={{ border: '1px solid #ccc', padding: '4px' }}>
+                        {fromNano(aff.totalEarnings)}{' '}
+                        {onChainData.campaignDetails.paymentMethod === 0n ? 'TON' : 'USDT'}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -1050,9 +1100,11 @@ export default function CampaignView() {
               <div style={{ marginBottom: '1rem' }}>
                 <TransactionButton
                   buttonLabel="Add Funds"
+                  disabled={!userAccount?.address}
                   showAmountField
                   defaultAmount={1}
                   onTransaction={async (amount) => {
+                    if (!ensureWalletConnected()) return;
                     if (!amount) throw new Error('Invalid amount');
                     if (onChainData.campaignDetails.paymentMethod === 0n) {
                       await replenishWithTon(campaignContract, amount, sender);
@@ -1065,9 +1117,11 @@ export default function CampaignView() {
               <div style={{ marginBottom: '1rem' }}>
                 <TransactionButton
                   buttonLabel="Add TON for Gas Fees"
+                  disabled={!userAccount?.address}
                   showAmountField
                   defaultAmount={1}
                   onTransaction={async (amount) => {
+                    if (!ensureWalletConnected()) return;
                     if (!amount) throw new Error('Invalid amount');
                     if (onChainData.campaignDetails.paymentMethod === 0n) {
                       await replenishWithTon(campaignContract, amount, sender);
@@ -1080,8 +1134,10 @@ export default function CampaignView() {
               <div style={{ marginBottom: '1rem' }}>
                 <TransactionButton
                   buttonLabel="Withdraw Funds"
+                  disabled={!userAccount?.address}
                   showAmountField
                   onTransaction={async (amount) => {
+                    if (!ensureWalletConnected()) return;
                     if (!amount) throw new Error('Invalid withdraw amount');
                     await advertiserWithdrawFunds(campaignContract, amount, sender, userAccount?.address);
                   }}
@@ -1089,29 +1145,39 @@ export default function CampaignView() {
               </div>
               {!onChainData.campaignDetails.isPublicCampaign && (
                 <div style={{ marginTop: '1.5rem' }}>
-                  <button
-                    style={{ marginRight: '1rem' }}
-                    onClick={async () => {
-                      const affIdStr = prompt('Enter affiliate ID to approve:');
-                      if (!affIdStr) return;
-                      const affIdBn = BigInt(affIdStr);
-                      await advertiserApproveAffiliate(campaignContract, affIdBn, sender);
-                      alert(`Approved affiliate ID: ${affIdStr}`);
-                    }}
-                  >
-                    Approve Affiliate
-                  </button>
-                  <button
-                    onClick={async () => {
-                      const affIdStr = prompt('Enter affiliate ID to remove:');
-                      if (!affIdStr) return;
-                      const affIdBn = BigInt(affIdStr);
-                      await advertiserRemoveAffiliate(campaignContract, affIdBn, sender);
-                      alert(`Removed affiliate ID: ${affIdStr}`);
-                    }}
-                  >
-                    Remove Affiliate
-                  </button>
+                  {['Approve Affiliate', 'Remove Affiliate'].map((action, index) => {
+                    const isApprove = action === 'Approve Affiliate';
+
+                    return (
+                      <button
+                        key={index}
+                        style={{
+                          marginRight: isApprove ? '1rem' : '0',
+                          opacity: userAccount?.address ? 1 : 0.5,
+                          cursor: userAccount?.address ? 'pointer' : 'not-allowed',
+                        }}
+                        disabled={!userAccount?.address}
+                        onClick={async () => {
+                          if (!ensureWalletConnected()) return;
+
+                          const affIdStr = prompt(`Enter affiliate ID to ${isApprove ? 'approve' : 'remove'}:`);
+                          if (!affIdStr) return;
+
+                          const affIdBn = BigInt(affIdStr);
+
+                          if (isApprove) {
+                            await advertiserApproveAffiliate(campaignContract, affIdBn, sender);
+                            alert(`Approved affiliate ID: ${affIdStr}`);
+                          } else {
+                            await advertiserRemoveAffiliate(campaignContract, affIdBn, sender);
+                            alert(`Removed affiliate ID: ${affIdStr}`);
+                          }
+                        }}
+                      >
+                        {action}
+                      </button>
+                    );
+                  })}
                 </div>
               )}
             </div>

@@ -4,7 +4,7 @@ import { Navigate, useLocation } from 'react-router-dom';
 import { useTelegramContext } from './TelegramContext';
 
 interface ProtectedRouteProps {
-  children?: ReactNode;  // or ReactNode is typical 
+  children?: ReactNode;
 }
 
 export default function ProtectedRoute({ children }: ProtectedRouteProps) {
@@ -17,7 +17,7 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
   }
 
   if (!isLoggedIn) {
-    return <Navigate to="/login" state={{ from: location }} replace />;
+    return <Navigate to="/login" state={{ from: location.pathname }} replace />;
   }
 
   return <>{children}</>;
