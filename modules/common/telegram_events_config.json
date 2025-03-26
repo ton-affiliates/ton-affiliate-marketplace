@@ -3,7 +3,7 @@
     {
       "eventName": "JOINED_CHAT",
       "telegramOpCode": 0,
-      "description": "User joined the group or channel",
+      "description": "User joined the channel/group",
       "api": "getChatMember",
       "requirements": {
         "channel": {
@@ -23,7 +23,7 @@
     {
       "eventName": "LEFT_CHAT",
       "telegramOpCode": 1,
-      "description": "User left or was removed from the group or channel. User is no longer a member.",
+      "description": "User left or was removed from the channel/group. User is no longer a member.",
       "api": "getChatMember",
       "requirements": {
         "channel": {

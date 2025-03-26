@@ -13,6 +13,7 @@ import { TelegramProvider } from './components/TelegramContext';
 import AffiliateOptions from 'components/AffiliateOptions';
 import ProtectedRoute from './components/ProtectedRoute';
 import { AffiliatePage } from './components/AffiliatePage';
+import CampaignMarketplace from './components/CampaignMarketplace'; 
 
 // 1) Import your AllAffiliatesPage:
 import { AllAffiliatesPage } from './components/AllAffiliatesPage';
@@ -121,7 +122,14 @@ function AppContent() {
               </ProtectedRoute>
             }
           />
-
+         <Route
+            path="/marketplace"
+            element={
+              <ProtectedRoute>
+                <CampaignMarketplace />
+              </ProtectedRoute>
+            }
+          />
           <Route
               path="/campaign/:campaignId/affiliate/:affiliateId"
               element={
@@ -133,6 +141,7 @@ function AppContent() {
 
           {/* Fallback */}
           <Route path="*" element={<MainScreen />} />
+
         </Routes>
       </motion.div>
     </>

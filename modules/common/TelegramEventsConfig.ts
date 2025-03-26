@@ -38,7 +38,7 @@ interface TelegramEventsJson {
 /**
  * Safely cast to our interface.
  */
-export const doc: TelegramEventsJson = telegramConfig as TelegramEventsJson;
+export const doc: TelegramEventsJson = telegramConfig as unknown as TelegramEventsJson;
 
 /**
  * Build in-memory maps for quick lookups.

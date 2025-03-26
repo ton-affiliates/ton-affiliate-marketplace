@@ -21,7 +21,7 @@ interface BlockchainEventsJson {
  * Safely cast and export the JSON data. This ensures `blockchainConfig`
  * is typed properly as `BlockchainEventsJson`.
  */
-export const doc: BlockchainEventsJson = blockchainConfig as BlockchainEventsJson;
+export const doc: BlockchainEventsJson =  blockchainConfig as unknown as BlockchainEventsJson;
 
 /** 
  * Build some in-memory maps for quick lookups.

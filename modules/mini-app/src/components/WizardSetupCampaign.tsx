@@ -22,29 +22,10 @@ import { useCampaignSSE } from '../hooks/useCampaignSSE';
 // Utility types
 import { CampaignApiResponse } from '@common/ApiResponses';
 
+import { TelegramCategory } from "../models/Models";
+
 // Optional UI components (spinner, success icons, etc.)
 import Spinner from './Spinner';
-
-// Telegram categories
-export enum TelegramCategory {
-  GAMING = 'Gaming',
-  CRYPTO = 'Crypto',
-  TECHNOLOGY = 'Technology',
-  LIFESTYLE = 'Lifestyle',
-  EDUCATION = 'Education',
-  HEALTH = 'Health',
-  TRAVEL = 'Travel',
-  FINANCE = 'Finance',
-  ENTERTAINMENT = 'Entertainment',
-  POLITICS = 'Politics',
-  SOCIAL = 'Social',
-  SPORTS = 'Sports',
-  NEWS = 'News',
-  SCIENCE = 'Science',
-  ART = 'Art',
-  MUSIC = 'Music',
-  OTHER = 'Other',
-}
 
 interface CommissionValuesState {
   regularUsers: Record<string, string>;
@@ -712,28 +693,27 @@ function WizardSetupCampaign() {
             {contractLoading && <p>Loading contract...</p>}
             {contractError && <p style={{ color: 'red' }}>Contract error: {contractError}</p>}
 
-            <div style={{ marginTop: '1rem' }}>
-              <label>Public or Private? (Only Public supported here)</label>
-              <br />
-              <label>
-                <input
-                  type="radio"
-                  checked={isPublicCampaign}
-                  onChange={() => setIsPublicCampaign(true)}
-                />
-                Public
-              </label>
-              <br />
-              <label>
-                <input
-                  type="radio"
-                  checked={!isPublicCampaign}
-                  onChange={() => setIsPublicCampaign(false)}
-                  disabled
-                />
-                Private (Not Supported)
-              </label>
-            </div>
+            <div>
+                <label>Campaign Visibility</label>
+                <br />
+                <label>
+                  <input
+                    type="radio"
+                    checked={isPublicCampaign}
+                    onChange={() => setIsPublicCampaign(true)}
+                  />
+                  Public (Anyone can become an affiliate)
+                </label>
+                <br />
+                <label>
+                  <input
+                    type="radio"
+                    checked={!isPublicCampaign}
+                    onChange={() => setIsPublicCampaign(false)}
+                  />
+                  Private (Only approved affiliates can join)
+                </label>
+              </div>
 
             <div style={{ marginTop: '1rem' }}>
               <label>Payment Method:</label>
@@ -803,7 +783,7 @@ function WizardSetupCampaign() {
 
         {txSuccess && (
           <div style={{ marginTop: '1rem', background: '#d4edda', padding: '1rem' }}>
-            <p>Transaction successful! (Received SSE ack)</p>
+            <p>Transaction successful!</p>
           </div>
         )}
 

@@ -235,7 +235,6 @@ canBotVerifyEvents(): boolean {
 
         // Extract internal and external required privileges
         const { internalRequiredAdminPrivileges, externalRequiredAdminPrivileges } = assetRequirements;
-
         for (const priv of internalRequiredAdminPrivileges) {
           requiredInternal.add(priv);
         }

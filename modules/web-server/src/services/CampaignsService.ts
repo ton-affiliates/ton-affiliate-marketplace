@@ -1,7 +1,7 @@
 // src/services/CampaignsService.ts
 
 import appDataSource from '../ormconfig';
-import { Campaign } from '../entity/Campaign';
+import { Campaign, CampaignState } from '../entity/Campaign';
 import { Logger } from '../utils/Logger';
 import { CampaignRole, RoleType } from '../entity/CampaignRole';
 import { Address } from '@ton/core';
@@ -116,7 +116,7 @@ export async function getCampaignByIdWithAdvertiser(
       assetName: telegram.name ?? '',
       assetDescription: telegram.description ?? '',
       assetType: telegram.type ?? '',
-      isAssetPublic: telegram.isPublic ?? false, // <== Failing Line (Add Log Below)
+      isAssetPublic: telegram.isPublic ?? false, 
       memberCount: telegram.memberCount,
       eventsToVerify: campaign.eventsToVerify,
       verifyUserIsHumanOnReferral: campaign.verifyUserIsHumanOnReferral,
@@ -169,4 +169,88 @@ export async function getAllCampaignsForWallet(
     Logger.error(`Error fetching campaigns for wallet: ${walletAddress}\n` + err);
     throw new Error('Could not retrieve campaigns');
   }
+}
+
+export async function getPublicCampaignsForMarketplace(
+  category: string | null,
+  offset: number,
+  limit: number
+): Promise<CampaignApiResponse[]> {
+  Logger.info(`[Marketplace] Fetching public campaigns`);
+  Logger.info(`[Marketplace] Params → category: ${category}, offset: ${offset}, limit: ${limit}`);
+
+  const repo = campaignRepository();
+
+  const query = repo
+    .createQueryBuilder('campaign')
+    .leftJoinAndSelect('campaign.telegramAsset', 'telegramAsset')
+    .where('campaign.state = :state', { state: CampaignState.BLOCKCHIAN_DETIALS_SET });
+
+  if (category !== null) {
+    Logger.debug(`[Marketplace] Applying category filter: ${category}`);
+    query.andWhere('campaign.category = :category', { category });
+  }
+
+  query
+    .orderBy('telegramAsset.memberCount', 'DESC')
+    .skip(offset)
+    .take(limit);
+
+  Logger.debug('[Marketplace] Executing DB query...');
+  const campaigns = await query.getMany();
+  Logger.info(`[Marketplace] Retrieved ${campaigns.length} campaigns from DB`);
+
+  const responses: CampaignApiResponse[] = [];
+
+  for (const campaign of campaigns) {
+    Logger.debug(`[Marketplace] Processing campaign ID: ${campaign.id}`);
+
+    const advertiserRole = await campaignRoleRepository().findOne({
+      where: {
+        campaignId: campaign.id,
+        role: RoleType.ADVERTISER,
+      },
+    });
+
+    const telegram = campaign.telegramAsset;
+    if (!telegram) {
+      Logger.warn(`[Marketplace] Campaign ${campaign.id} has no Telegram asset. Skipping.`);
+      continue;
+    }
+
+    const response: CampaignApiResponse = {
+      id: campaign.id,
+      contractAddress: campaign.contractAddress,
+      name: campaign.name ?? '',
+      category: campaign.category ?? '',
+      createdAt: campaign.createdAt.toISOString(),
+      updatedAt: campaign.updatedAt.toISOString(),
+      advertiserAddress: advertiserRole ? advertiserRole.walletAddress : '',
+      handle: telegram.handle ?? '',
+      inviteLink: telegram.inviteLink ?? '',
+      assetChatId: telegram.chatId ?? '',
+      assetName: telegram.name ?? '',
+      assetDescription: telegram.description ?? '',
+      assetType: telegram.type ?? '',
+      isAssetPublic: telegram.isPublic ?? false,
+      memberCount: telegram.memberCount,
+      eventsToVerify: campaign.eventsToVerify,
+      verifyUserIsHumanOnReferral: campaign.verifyUserIsHumanOnReferral,
+      botStatus: telegram.botStatus,
+      adminPrivileges: telegram.adminPrivileges,
+      assetPhotoBase64: telegram.photo
+        ? Buffer.from(telegram.photo).toString('base64')
+        : '',
+      requiresAdminPrivileges: campaign.requiresAdminPrivileges(),
+      requiresToBeMember: campaign.requiresToBeMember(),
+      canBotVerify: campaign.canBotVerifyEvents(),
+      requiredPrivileges: campaign.getRequiredAdminPrivilegesToVerifyEvents().external,
+      requiredInternalPrivileges: campaign.getRequiredAdminPrivilegesToVerifyEvents().internal,
+    };
+
+    responses.push(response);
+  }
+
+  Logger.info(`[Marketplace] Returning ${responses.length} enriched campaign responses`);
+  return responses;
 }

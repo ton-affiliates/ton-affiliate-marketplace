@@ -2,7 +2,7 @@
 
 import { Router, Request, Response } from 'express';
 import { Logger } from '../utils/Logger';
-import { ensureCampaign, getCampaignByIdWithAdvertiser, getAllCampaignsForWallet } from '../services/CampaignsService';
+import { ensureCampaign, getCampaignByIdWithAdvertiser, getAllCampaignsForWallet, getPublicCampaignsForMarketplace } from '../services/CampaignsService';
 import { getTelegramAssetDataFromTelegram, createAndPersistTelegramAsset } from '../services/TelegramService';
 import { getUnreadNotificationsForWallet, markNotificationAsRead } from '../services/NotificationsService';
 import { Address } from '@ton/core';
@@ -14,6 +14,23 @@ import { CampaignState } from "../entity/Campaign";
 dotenv.config();
 
 const router = Router();
+
+router.get('/marketplace', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const category = (req.query.category as string) ?? null;
+    const offset = parseInt(req.query.offset as string) || 0;
+    const limit = Math.min(parseInt(req.query.limit as string) || 10, 50); // cap max limit
+
+    Logger.info(`GET /campaigns/marketplace?category=${category ?? 'ALL'}&offset=${offset}&limit=${limit}`);
+
+    const campaigns = await getPublicCampaignsForMarketplace(category, offset, limit);
+
+    res.json(campaigns);
+  } catch (err: any) {
+    Logger.error('Error in GET /campaigns/marketplace:', err);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
 
 router.get('/:id', async (req: Request, res: Response): Promise<void> => {
   try {
@@ -231,5 +248,6 @@ router.post('/:id/refresh-bot-admin', async (req: Request, res: Response): Promi
     res.status(500).json({ error: 'Internal Server Error' });
   }
 });
+
 
 export default router;

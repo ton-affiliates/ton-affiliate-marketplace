@@ -14,8 +14,9 @@ const AffiliateOptions: React.FC = () => {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
+      style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh' }}
     >
-      <div className="card">
+      <div className="card" style={{ textAlign: 'center', padding: '2rem', maxWidth: '400px', width: '100%' }}>
         <p>
           <strong>
             Hi {userInfo?.firstName || 'Affiliate'}!
@@ -23,21 +24,20 @@ const AffiliateOptions: React.FC = () => {
         </p>
         <p>What would you like to do?</p>
 
-        <div className="button-group">
+        {/* Button block */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '1.5rem' }}>
           <button
-            className="custom-button no-padding"
+            className="custom-button"
             onClick={() => navigate('/campaigns')}
           >
             View My Campaigns
           </button>
-        </div>
 
-        <div className="navigation-buttons">
           <button
-            className="nav-button"
-            onClick={() => navigate('/')}
+            className="custom-button"
+            onClick={() => navigate('/marketplace')}
           >
-            Go to Main Screen
+            Explore Campaign Marketplace
           </button>
         </div>
       </div>
