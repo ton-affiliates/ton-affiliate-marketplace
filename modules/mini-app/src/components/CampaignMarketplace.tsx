@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { CampaignApiResponse } from '@common/ApiResponses';
 import { TelegramCategory } from '../models/Models';
-import { useNavigate } from 'react-router-dom';
+// import { useNavigate } from 'react-router-dom';
+import CampaignCard from './CampaignCard';
 
 const PAGE_SIZE = 20;
 
@@ -10,7 +11,7 @@ const CampaignMarketplace: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(true);
   const [category, setCategory] = useState<TelegramCategory | ''>('');
   const [page, setPage] = useState<number>(0);
-  const navigate = useNavigate();
+//   const navigate = useNavigate();
 
   useEffect(() => {
     const loadCampaigns = async () => {
@@ -39,7 +40,7 @@ const CampaignMarketplace: React.FC = () => {
 
   const handleCategoryChange = (cat: string) => {
     setCategory(cat as TelegramCategory);
-    setPage(0);
+    setPage(0); // Reset to first page when changing category
   };
 
   return (
@@ -89,50 +90,7 @@ const CampaignMarketplace: React.FC = () => {
             }}
           >
             {campaigns.map((campaign) => (
-              <div
-                key={campaign.id}
-                className="card"
-                onClick={() => navigate(`/campaign/${campaign.id}`)}
-                style={{
-                  padding: '1.25rem',
-                  border: '1px solid #ccc',
-                  borderRadius: '10px',
-                  cursor: 'pointer',
-                  backgroundColor: '#fff',
-                  transition: 'background-color 0.2s',
-                }}
-                onMouseEnter={(e) =>
-                  (e.currentTarget.style.backgroundColor = '#f9f9f9')
-                }
-                onMouseLeave={(e) =>
-                  (e.currentTarget.style.backgroundColor = 'white')
-                }
-              >
-                <h3>{campaign.name || '(Unnamed Campaign)'}</h3>
-
-                <p>
-                  <strong>Contract:</strong>{' '}
-                  <code style={{ wordBreak: 'break-word' }}>{campaign.contractAddress}</code>
-                </p>
-
-                <p><strong>Asset Name:</strong> {campaign.assetName || 'N/A'}</p>
-                <p><strong>Asset Description:</strong> {campaign.assetDescription || 'N/A'}</p>
-                <p><strong>Asset Type:</strong> {campaign.assetType || 'N/A'}</p>
-                <p><strong>Category:</strong> {campaign.category || 'N/A'}</p>
-                <p><strong>Members:</strong> {campaign.memberCount}</p>
-
-                <p>
-                  <strong>Invite:</strong>{' '}
-                  <a
-                    href={campaign.inviteLink}
-                    onClick={(e) => e.stopPropagation()}
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    {campaign.inviteLink}
-                  </a>
-                </p>
-              </div>
+              <CampaignCard key={campaign.id} campaign={campaign} />
             ))}
           </div>
 
