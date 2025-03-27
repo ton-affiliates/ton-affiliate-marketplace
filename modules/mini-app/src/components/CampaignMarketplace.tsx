@@ -1,81 +1,119 @@
+// ✅ CampaignMarketplace.tsx
 import React, { useEffect, useState } from 'react';
 import { CampaignApiResponse } from '@common/ApiResponses';
 import { TelegramCategory } from '../models/Models';
-// import { useNavigate } from 'react-router-dom';
 import CampaignCard from './CampaignCard';
+import { CampaignData } from '../contracts/Campaign';
 
-const PAGE_SIZE = 20;
+export type EnrichedCampaign = CampaignApiResponse;
+
+type SortOption = 'affiliates' | 'cpa' | 'actions' | 'balance';
+
+const PAGE_LIMIT = 100;
+const FRONT_PAGE_SIZE = 20;
 
 const CampaignMarketplace: React.FC = () => {
-  const [campaigns, setCampaigns] = useState<CampaignApiResponse[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
+  const [campaigns, setCampaigns] = useState<EnrichedCampaign[]>([]);
+  const [onChainMap, setOnChainMap] = useState<Record<string, CampaignData>>({});
+  const [loading, setLoading] = useState(true);
+  const [isFetchingMore, setIsFetchingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  const [offset, setOffset] = useState(0);
   const [category, setCategory] = useState<TelegramCategory | ''>('');
-  const [page, setPage] = useState<number>(0);
-//   const navigate = useNavigate();
+  const [currentPage, setCurrentPage] = useState(0);
+  const [sortOption, setSortOption] = useState<SortOption | ''>('');
 
   useEffect(() => {
-    const loadCampaigns = async () => {
-      setLoading(true);
-      try {
-        const offset = page * PAGE_SIZE;
-        const params = new URLSearchParams();
-        params.append('offset', String(offset));
-        params.append('limit', String(PAGE_SIZE));
-        if (category) params.append('category', category);
+    loadCampaigns(true);
+  }, [category]);
 
-        const res = await fetch(`/api/v1/campaigns/marketplace?${params.toString()}`);
-        if (!res.ok) throw new Error(`Failed to load campaigns: ${res.status}`);
-        const data = await res.json();
-        setCampaigns(data);
-      } catch (err) {
-        console.error('Failed to load marketplace campaigns:', err);
-        alert(`Error: ${String(err)}`);
-      } finally {
-        setLoading(false);
-      }
-    };
+  const loadCampaigns = async (reset: boolean = false) => {
+    reset ? setLoading(true) : setIsFetchingMore(true);
+    try {
+      const params = new URLSearchParams();
+      params.append('offset', String(reset ? 0 : offset));
+      params.append('limit', String(PAGE_LIMIT));
+      if (category) params.append('category', category);
 
-    loadCampaigns();
-  }, [category, page]);
+      const res = await fetch(`/api/v1/campaigns/marketplace?${params.toString()}`);
+      if (!res.ok) throw new Error(`Failed to load campaigns: ${res.status}`);
+      const baseData: CampaignApiResponse[] = await res.json();
 
-  const handleCategoryChange = (cat: string) => {
-    setCategory(cat as TelegramCategory);
-    setPage(0); // Reset to first page when changing category
+      setCampaigns(prev => reset ? baseData : [...prev, ...baseData]);
+      setOffset(prev => reset ? PAGE_LIMIT : prev + PAGE_LIMIT);
+      setHasMore(baseData.length === PAGE_LIMIT);
+      if (reset) setCurrentPage(0);
+    } catch (err) {
+      console.error('Failed to load marketplace campaigns:', err);
+      alert(`Error: ${String(err)}`);
+    } finally {
+      reset ? setLoading(false) : setIsFetchingMore(false);
+    }
   };
 
+  const handleOnChainDataLoad = (id: string, data: CampaignData) => {
+    setOnChainMap(prev => ({ ...prev, [id]: data }));
+  };
+
+  const sortedCampaigns = [...campaigns].sort((a, b) => {
+    const aData = onChainMap[a.id];
+    const bData = onChainMap[b.id];
+    if (!aData || !bData) return 0;
+
+    switch (sortOption) {
+      case 'affiliates':
+        return Number(bData.numAffiliates) - Number(aData.numAffiliates);
+      case 'cpa':
+        return Number(bData.maxCpaValue) - Number(aData.maxCpaValue);
+      case 'actions':
+        return Number(bData.numUserActions) - Number(aData.numUserActions);
+      case 'balance':
+        return Number(bData.campaignBalance) - Number(aData.campaignBalance);
+      default:
+        return 0;
+    }
+  });
+
+  const pagedCampaigns = sortedCampaigns.slice(
+    currentPage * FRONT_PAGE_SIZE,
+    (currentPage + 1) * FRONT_PAGE_SIZE
+  );
+
   return (
-    <div
-      className="screen-container"
-      style={{
-        maxWidth: '100%',
-        padding: '2rem',
-      }}
-    >
+    <div className="screen-container" style={{ maxWidth: '100%', padding: '2rem' }}>
       <h2>Campaign Marketplace</h2>
 
-      {/* Category Filter */}
-      <div style={{ marginBottom: '1rem' }}>
+      {/* Filters */}
+      <div style={{ display: 'flex', gap: '1rem', marginBottom: '1rem' }}>
         <label>
-          Filter by Category:
+          Category:
           <select
             value={category}
-            onChange={(e) => handleCategoryChange(e.target.value)}
+            onChange={(e) => setCategory(e.target.value as TelegramCategory)}
             style={{ marginLeft: '0.5rem' }}
           >
             <option value="">All</option>
             {Object.values(TelegramCategory).map((cat) => (
-              <option key={cat} value={cat}>
-                {cat}
-              </option>
+              <option key={cat} value={cat}>{cat}</option>
             ))}
+          </select>
+        </label>
+
+        <label>
+          Sort by:
+          <select value={sortOption} onChange={(e) => setSortOption(e.target.value as SortOption)} style={{ marginLeft: '0.5rem' }}>
+            <option value="">None</option>
+            <option value="affiliates">Num Affiliates</option>
+            <option value="cpa">Max CPA</option>
+            <option value="actions">User Actions</option>
+            <option value="balance">Campaign Balance</option>
           </select>
         </label>
       </div>
 
-      {/* Campaign List */}
       {loading ? (
         <div>Loading campaigns...</div>
-      ) : campaigns.length === 0 ? (
+      ) : pagedCampaigns.length === 0 ? (
         <div>No campaigns found.</div>
       ) : (
         <>
@@ -89,36 +127,44 @@ const CampaignMarketplace: React.FC = () => {
               marginTop: '1.5rem',
             }}
           >
-            {campaigns.map((campaign) => (
-              <CampaignCard key={campaign.id} campaign={campaign} />
+            {pagedCampaigns.map((campaign) => (
+              <CampaignCard
+                key={campaign.id}
+                campaign={campaign}
+                onOnChainDataLoad={handleOnChainDataLoad}
+              />
             ))}
           </div>
 
-          {/* Pagination Controls */}
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'center',
-              gap: '1rem',
-              marginTop: '2rem',
-            }}
-          >
+          <div style={{ display: 'flex', justifyContent: 'center', gap: '1rem', marginTop: '2rem' }}>
             <button
               className="nav-button"
-              onClick={() => setPage((prev) => Math.max(prev - 1, 0))}
-              disabled={page === 0}
+              onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 0))}
+              disabled={currentPage === 0}
             >
               Previous
             </button>
-            <span>Page {page + 1}</span>
+            <span>Page {currentPage + 1}</span>
             <button
               className="nav-button"
-              onClick={() => setPage((prev) => prev + 1)}
-              disabled={campaigns.length < PAGE_SIZE}
+              onClick={() => setCurrentPage((prev) => prev + 1)}
+              disabled={(currentPage + 1) * FRONT_PAGE_SIZE >= sortedCampaigns.length}
             >
               Next
             </button>
           </div>
+
+          {hasMore && (
+            <div style={{ textAlign: 'center', marginTop: '2rem' }}>
+              <button
+                className="custom-button"
+                onClick={() => loadCampaigns(false)}
+                disabled={isFetchingMore}
+              >
+                {isFetchingMore ? 'Loading more...' : 'Load More Campaigns'}
+              </button>
+            </div>
+          )}
         </>
       )}
     </div>
